@@ -1,0 +1,634 @@
+
+/* ================================
+   RESET
+================================ */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #0f1117;
+    color: #f5f5f5;
+    min-height: 100vh;
+}
+
+button,
+input {
+    font: inherit;
+}
+
+
+/* ================================
+   GENERAL
+================================ */
+
+.hidden {
+    display: none !important;
+}
+
+.logo {
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -1px;
+}
+
+.logo span {
+    color: #6c63ff;
+}
+
+.primary-button {
+    border: none;
+    background: #6c63ff;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 700;
+    transition: 0.2s;
+}
+
+.primary-button:hover {
+    background: #7b73ff;
+    transform: translateY(-1px);
+}
+
+.large-button {
+    width: 100%;
+    padding: 15px;
+}
+
+.error-message {
+    color: #ff6b6b;
+    margin-top: 12px;
+    font-size: 14px;
+}
+
+
+/* ================================
+   AUTH
+================================ */
+
+.auth-page {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 30px;
+}
+
+.auth-container {
+    width: 100%;
+    max-width: 420px;
+    text-align: center;
+}
+
+.auth-container .logo {
+    font-size: 34px;
+}
+
+.subtitle {
+    color: #888d9b;
+    margin-top: 8px;
+    margin-bottom: 30px;
+}
+
+.auth-card {
+    background: #181b24;
+    border: 1px solid #292d39;
+    border-radius: 14px;
+    padding: 30px;
+    text-align: left;
+}
+
+.auth-card h1 {
+    margin-bottom: 8px;
+}
+
+.auth-description {
+    color: #8d92a0;
+    font-size: 14px;
+    margin-bottom: 25px;
+}
+
+.auth-card label,
+.create-card label,
+.modal-content label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 7px;
+    margin-top: 18px;
+}
+
+.auth-card input,
+.create-card input,
+.modal-content input {
+    width: 100%;
+    padding: 13px;
+    border-radius: 8px;
+    border: 1px solid #343846;
+    background: #101219;
+    color: white;
+    outline: none;
+}
+
+.auth-card input:focus,
+.create-card input:focus,
+.modal-content input:focus {
+    border-color: #6c63ff;
+}
+
+.auth-card .primary-button {
+    width: 100%;
+    margin-top: 25px;
+}
+
+.auth-switch {
+    text-align: center;
+    margin-top: 22px;
+    font-size: 14px;
+    color: #888d9b;
+}
+
+.link-button {
+    border: none;
+    background: none;
+    color: #8179ff;
+    cursor: pointer;
+    margin-left: 4px;
+}
+
+.demo-warning {
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 8px;
+    background: #211f16;
+    color: #c8bd8a;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+
+/* ================================
+   NAVBAR
+================================ */
+
+.navbar {
+    height: 70px;
+    background: #181b24;
+    border-bottom: 1px solid #292d39;
+
+    display: flex;
+    align-items: center;
+
+    padding: 0 30px;
+    gap: 40px;
+}
+
+.navbar nav {
+    display: flex;
+    gap: 5px;
+    flex: 1;
+}
+
+.nav-button {
+    border: none;
+    background: none;
+    color: #858a98;
+    padding: 10px 14px;
+    border-radius: 7px;
+    cursor: pointer;
+}
+
+.nav-button:hover {
+    background: #222631;
+    color: white;
+}
+
+.nav-button.active {
+    background: #292d3b;
+    color: white;
+}
+
+.user-area {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.balance {
+    text-align: right;
+}
+
+.balance span {
+    display: block;
+    font-size: 11px;
+    color: #858a98;
+}
+
+.balance strong {
+    color: #63d69f;
+}
+
+.logout-button {
+    border: 1px solid #343846;
+    background: transparent;
+    color: #aaaeba;
+    padding: 8px 12px;
+    border-radius: 7px;
+    cursor: pointer;
+}
+
+.logout-button:hover {
+    color: white;
+    border-color: #555b6d;
+}
+
+
+/* ================================
+   MAIN
+================================ */
+
+.main-container {
+    max-width: 1300px;
+    margin: auto;
+    padding: 40px 30px;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.page-header h1 {
+    font-size: 30px;
+    margin-bottom: 7px;
+}
+
+.page-header p {
+    color: #858a98;
+}
+
+
+/* ================================
+   BET CARDS
+================================ */
+
+.bets-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
+.bet-card {
+    background: #181b24;
+    border: 1px solid #292d39;
+    border-radius: 12px;
+    padding: 22px;
+}
+
+.bet-card:hover {
+    border-color: #454a5c;
+}
+
+.bet-question {
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.4;
+    margin-bottom: 8px;
+}
+
+.bet-author {
+    color: #737887;
+    font-size: 12px;
+    margin-bottom: 20px;
+}
+
+.bet-choices {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.bet-choice {
+    background: #222631;
+    border: 1px solid #303544;
+    color: white;
+    padding: 14px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: center;
+}
+
+.bet-choice:hover {
+    border-color: #6c63ff;
+}
+
+.choice-name {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.odds {
+    font-weight: 800;
+    color: #8d85ff;
+}
+
+
+/* ================================
+   CREATE BET
+================================ */
+
+.create-card {
+    max-width: 800px;
+    background: #181b24;
+    border: 1px solid #292d39;
+    border-radius: 14px;
+    padding: 30px;
+}
+
+.choices {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.choice {
+    padding: 5px;
+}
+
+
+/* ================================
+   MY BETS
+================================ */
+
+.my-bets-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.my-bet {
+    background: #181b24;
+    border: 1px solid #292d39;
+    border-radius: 10px;
+    padding: 18px;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.my-bet-question {
+    font-weight: 700;
+}
+
+.my-bet-details {
+    color: #858a98;
+    font-size: 13px;
+    margin-top: 5px;
+}
+
+.bet-status {
+    padding: 7px 10px;
+    border-radius: 6px;
+    background: #252936;
+    color: #aaaeba;
+    font-size: 12px;
+}
+
+
+/* ================================
+   MODAL
+================================ */
+
+.modal {
+    position: fixed;
+    inset: 0;
+
+    background: rgba(0, 0, 0, 0.7);
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    padding: 20px;
+}
+
+.modal-content {
+    width: 100%;
+    max-width: 450px;
+
+    background: #181b24;
+    border: 1px solid #343846;
+    border-radius: 14px;
+
+    padding: 30px;
+
+    position: relative;
+}
+
+.modal-content h2 {
+    line-height: 1.4;
+    margin-bottom: 10px;
+}
+
+.modal-content p {
+    color: #858a98;
+}
+
+.close-modal {
+    position: absolute;
+    top: 12px;
+    right: 15px;
+
+    border: none;
+    background: none;
+
+    color: #858a98;
+    font-size: 28px;
+
+    cursor: pointer;
+}
+
+.potential-win {
+    background: #20242e;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 20px;
+    color: #999fad;
+}
+
+.potential-win strong {
+    color: #63d69f;
+    margin-left: 5px;
+}
+
+.modal-content .primary-button {
+    width: 100%;
+    margin-top: 20px;
+}
+
+
+/* ================================
+   MOBILE
+================================ */
+
+@media (max-width: 800px) {
+
+    .navbar {
+        height: auto;
+        padding: 15px;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+
+    .navbar nav {
+        order: 3;
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .user-area {
+        margin-left: auto;
+    }
+
+    .logout-button {
+        display: none;
+    }
+
+    .main-container {
+        padding: 25px 15px;
+    }
+
+    .page-header {
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .page-header .primary-button {
+        display: none;
+    }
+
+    .bets-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .choices {
+        grid-template-columns: 1fr;
+    }
+
+    .my-bet {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+}
+
+@media (max-width: 500px) {
+
+    .balance {
+        text-align: left;
+    }
+
+    .navbar .logo {
+        font-size: 20px;
+    }
+
+    .page-header h1 {
+        font-size: 24px;
+    }
+
+    .auth-page {
+        padding: 15px;
+    }
+
+    .auth-card {
+        padding: 22px;
+    }
+
+/* =========================================================
+   🟡 AJOUT - GESTION DES PARIS
+========================================================= */
+
+.resolve-button {
+    margin-top: 12px;
+    padding: 9px 13px;
+    font-size: 13px;
+}
+
+
+/* Boutons de choix du résultat */
+
+.resolve-choices {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 25px;
+}
+
+
+.resolve-choice-button {
+    border: 1px solid #343846;
+    background: #222631;
+    color: white;
+
+    padding: 15px;
+
+    border-radius: 8px;
+
+    cursor: pointer;
+
+    font-weight: 700;
+}
+
+
+.resolve-choice-button:hover {
+    border-color: #6c63ff;
+    background: #292d3b;
+}
+
+
+/* Information résultat */
+
+.resolve-info {
+    margin-top: 15px;
+    font-size: 13px;
+}
+
+
+/* Pari terminé */
+
+.closed-bet {
+    margin-top: 15px;
+
+    padding: 12px;
+
+    border-radius: 8px;
+
+    background: #20242e;
+
+    color: #858a98;
+
+    text-align: center;
+}
+
+
+/* Résultat d'un pari créé */
+
+.resolved-result {
+    margin-top: 10px;
+
+    font-size: 13px;
+
+    color: #63d69f;
+}
+
+
+}
