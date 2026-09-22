@@ -64,6 +64,15 @@
                 Créer un pari
             </button>
 
+
+            <button
+                class="nav-button hidden"
+                id="admin-nav-button"
+                data-page="admin-page"
+            >
+                Message
+            </button>
+
         </nav>
 
 
@@ -134,10 +143,44 @@
             </div>
 
 
-            <div
-                id="bets-container"
-                class="bets-grid"
-            ></div>
+            <div class="bets-layout">
+
+                <aside
+                    id="leaderboard-sidebar"
+                    class="leaderboard-sidebar"
+                >
+
+                    <div class="leaderboard-header">
+                        <span>🏆</span>
+                        <span>Top Parieurs</span>
+                    </div>
+
+                    <div id="leaderboard-list"></div>
+
+                </aside>
+
+
+                <div
+                    id="bets-container"
+                    class="bets-list"
+                ></div>
+
+
+                <aside
+                    id="admin-message-sidebar"
+                    class="admin-message-sidebar hidden"
+                >
+
+                    <div class="leaderboard-header">
+                        <span>📢</span>
+                        <span>Message</span>
+                    </div>
+
+                    <div id="admin-message-content"></div>
+
+                </aside>
+
+            </div>
 
         </section>
 
@@ -257,6 +300,18 @@
                     >
 
 
+                    <label for="bet-deadline">
+                        Date et heure de l'échéance
+                    </label>
+
+
+                    <input
+                        type="datetime-local"
+                        id="bet-deadline"
+                        required
+                    >
+
+
                     <div class="choices">
 
 
@@ -339,6 +394,115 @@
 
         </section>
 
+
+
+        <!-- =====================================
+             PAGE : MESSAGE ADMIN
+        ====================================== -->
+
+        <section
+            id="admin-page"
+            class="app-page hidden"
+        >
+
+            <div class="page-header">
+
+                <div>
+
+                    <h1>
+                        Messages
+                    </h1>
+
+                    <p>
+                        Gère les messages affichés aux utilisateurs.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="create-card">
+
+                <h3>Nouveau message popup</h3>
+
+                <p class="resolve-info">
+                    Affiché une seule fois à chaque utilisateur, à sa prochaine connexion.
+                </p>
+
+                <form id="popup-message-form">
+
+                    <label for="popup-message-input">
+                        Contenu du popup
+                    </label>
+
+                    <textarea
+                        id="popup-message-input"
+                        rows="3"
+                        placeholder="Ex : Maintenance prévue ce soir à 22h."
+                        required
+                    ></textarea>
+
+                    <button
+                        type="submit"
+                        class="primary-button large-button"
+                    >
+                        Envoyer le popup
+                    </button>
+
+                </form>
+
+                <p
+                    id="popup-message-error"
+                    class="error-message"
+                ></p>
+
+
+                <h3>Historique des popups envoyés</h3>
+
+                <div id="popup-history-list"></div>
+
+            </div>
+
+
+            <div class="create-card">
+
+                <h3>Message permanent</h3>
+
+                <p class="resolve-info">
+                    Affiché en continu dans une colonne sur la page "Paris disponibles".
+                </p>
+
+                <form id="permanent-message-form">
+
+                    <label for="permanent-message-input">
+                        Contenu du message
+                    </label>
+
+                    <textarea
+                        id="permanent-message-input"
+                        rows="3"
+                        placeholder="Ex : Bienvenue sur BetLab !"
+                    ></textarea>
+
+                    <button
+                        type="submit"
+                        class="primary-button large-button"
+                    >
+                        Enregistrer
+                    </button>
+
+                </form>
+
+                <p
+                    id="permanent-message-error"
+                    class="error-message"
+                ></p>
+
+            </div>
+
+        </section>
+
     </main>
 
 
@@ -365,6 +529,11 @@
             <h2 id="modal-question">
                 Question
             </h2>
+
+
+            <p id="modal-author" class="bet-author">
+                Créé par
+            </p>
 
 
             <p id="modal-choice">
@@ -461,6 +630,80 @@
                 id="resolve-error"
                 class="error-message"
             ></p>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =========================================
+         MODAL : DÉTAIL DES PARIEURS
+    ========================================== -->
+
+    <div
+        id="stakes-modal"
+        class="modal hidden"
+    >
+
+        <div class="modal-content">
+
+            <button
+                id="close-stakes-modal"
+                class="close-modal"
+            >
+                ×
+            </button>
+
+
+            <h2>
+                Détail des parieurs
+            </h2>
+
+
+            <p id="stakes-question">
+                Question
+            </p>
+
+
+            <div
+                id="stakes-list"
+                class="stakes-list"
+            ></div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =========================================
+         MODAL : ANNONCE
+    ========================================== -->
+
+    <div
+        id="announcement-modal"
+        class="modal hidden"
+    >
+
+        <div class="modal-content">
+
+            <button
+                id="close-announcement-modal"
+                class="close-modal"
+            >
+                ×
+            </button>
+
+
+            <h2>
+                📢 Message
+            </h2>
+
+
+            <p id="announcement-content">
+                Contenu
+            </p>
 
         </div>
 
