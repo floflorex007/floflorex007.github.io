@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>BetLab — Application</title>
+
+    <link rel="stylesheet" href="style.css">
+
+</head>
+
+
+<body>
+
+
+    <!-- =========================================
+         NAVBAR
+    ========================================== -->
+
+    <header class="navbar">
+
+        <div class="logo">
+            <span>BET</span>LAB
+        </div>
+
+
+        <nav>
+
+            <button
+                class="nav-button active"
+                data-page="bets-page"
+            >
+                Paris
+            </button>
+
+
+            <button
+                class="nav-button"
+                data-page="my-bets-page"
+            >
+                Mes paris
+            </button>
+
+
+            <button
+                class="nav-button"
+                data-page="my-created-bets-page"
+            >
+                Mes créations
+            </button>
+
+
+            <button
+                class="nav-button"
+                data-page="create-page"
+            >
+                Créer un pari
+            </button>
+
+        </nav>
+
+
+        <div class="user-area">
+
+            <div class="balance">
+
+                <span>Solde</span>
+
+                <strong id="balance">
+                    1 000,00 €
+                </strong>
+
+            </div>
+
+
+            <button
+                id="logout-button"
+                class="logout-button"
+            >
+                Déconnexion
+            </button>
+
+        </div>
+
+    </header>
+
+
+
+    <!-- =========================================
+         CONTENU PRINCIPAL
+    ========================================== -->
+
+    <main class="main-container">
+
+
+        <!-- =====================================
+             PAGE : PARIS DISPONIBLES
+        ====================================== -->
+
+        <section
+            id="bets-page"
+            class="app-page"
+        >
+
+            <div class="page-header">
+
+                <div>
+
+                    <h1>
+                        Paris disponibles
+                    </h1>
+
+                    <p>
+                        Découvre les paris créés par les utilisateurs.
+                    </p>
+
+                </div>
+
+
+                <button
+                    class="primary-button"
+                    id="create-bet-header-button"
+                >
+                    + Créer un pari
+                </button>
+
+            </div>
+
+
+            <div
+                id="bets-container"
+                class="bets-grid"
+            ></div>
+
+        </section>
+
+
+
+        <!-- =====================================
+             PAGE : MES PARIS
+        ====================================== -->
+
+        <section
+            id="my-bets-page"
+            class="app-page hidden"
+        >
+
+            <div class="page-header">
+
+                <div>
+
+                    <h1>
+                        Mes paris
+                    </h1>
+
+                    <p>
+                        Retrouvez ici vos mises et leurs résultats.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div
+                id="my-bets-container"
+                class="my-bets-list"
+            ></div>
+
+        </section>
+
+
+
+        <!-- =====================================
+             PAGE : MES CRÉATIONS
+        ====================================== -->
+
+        <section
+            id="my-created-bets-page"
+            class="app-page hidden"
+        >
+
+            <div class="page-header">
+
+                <div>
+
+                    <h1>
+                        Mes créations
+                    </h1>
+
+                    <p>
+                        Gérez les paris que vous avez créés.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div
+                id="my-created-bets-container"
+                class="my-bets-list"
+            ></div>
+
+        </section>
+
+
+
+        <!-- =====================================
+             PAGE : CRÉER UN PARI
+        ====================================== -->
+
+        <section
+            id="create-page"
+            class="app-page hidden"
+        >
+
+            <div class="page-header">
+
+                <div>
+
+                    <h1>
+                        Créer un pari
+                    </h1>
+
+                    <p>
+                        Propose ton propre sujet à la communauté.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="create-card">
+
+                <form id="create-bet-form">
+
+
+                    <label for="bet-question">
+                        Question du pari
+                    </label>
+
+
+                    <input
+                        type="text"
+                        id="bet-question"
+                        placeholder="Ex : Est-ce que Thomas arrivera en retard demain ?"
+                        required
+                    >
+
+
+                    <div class="choices">
+
+
+                        <div class="choice">
+
+                            <label for="choice-one">
+                                Choix 1
+                            </label>
+
+
+                            <input
+                                type="text"
+                                id="choice-one"
+                                placeholder="Oui"
+                                required
+                            >
+
+
+                            <label for="odds-one">
+                                Cote
+                            </label>
+
+
+                            <input
+                                type="number"
+                                id="odds-one"
+                                min="1.01"
+                                step="0.01"
+                                placeholder="1.80"
+                                required
+                            >
+
+                        </div>
+
+
+                        <div class="choice">
+
+                            <label for="choice-two">
+                                Choix 2
+                            </label>
+
+
+                            <input
+                                type="text"
+                                id="choice-two"
+                                placeholder="Non"
+                                required
+                            >
+
+
+                            <label for="odds-two">
+                                Cote
+                            </label>
+
+
+                            <input
+                                type="number"
+                                id="odds-two"
+                                min="1.01"
+                                step="0.01"
+                                placeholder="2.10"
+                                required
+                            >
+
+                        </div>
+
+                    </div>
+
+
+                    <button
+                        type="submit"
+                        class="primary-button large-button"
+                    >
+                        Créer le pari
+                    </button>
+
+                </form>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+
+    <!-- =========================================
+         MODAL : PLACER UN PARI
+    ========================================== -->
+
+    <div
+        id="bet-modal"
+        class="modal hidden"
+    >
+
+        <div class="modal-content">
+
+            <button
+                id="close-modal"
+                class="close-modal"
+            >
+                ×
+            </button>
+
+
+            <h2 id="modal-question">
+                Question
+            </h2>
+
+
+            <p id="modal-choice">
+                Choix sélectionné
+            </p>
+
+
+            <label for="stake-input">
+                Montant de la mise
+            </label>
+
+
+            <input
+                type="number"
+                id="stake-input"
+                min="1"
+                step="1"
+                placeholder="100"
+            >
+
+
+            <div class="potential-win">
+
+                Gain potentiel :
+
+                <strong id="potential-win">
+                    0 €
+                </strong>
+
+            </div>
+
+
+            <button
+                id="confirm-bet"
+                class="primary-button"
+            >
+                Confirmer la mise
+            </button>
+
+
+            <p
+                id="modal-error"
+                class="error-message"
+            ></p>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =========================================
+         MODAL : VALIDATION DU PARI
+    ========================================== -->
+
+    <div
+        id="resolve-modal"
+        class="modal hidden"
+    >
+
+        <div class="modal-content">
+
+            <button
+                id="close-resolve-modal"
+                class="close-modal"
+            >
+                ×
+            </button>
+
+
+            <h2>
+                Valider le pari
+            </h2>
+
+
+            <p id="resolve-question">
+                Question
+            </p>
+
+
+            <p class="resolve-info">
+                Sélectionne le résultat final.
+                Cette action est définitive.
+            </p>
+
+
+            <div
+                id="resolve-choices"
+                class="resolve-choices"
+            ></div>
+
+
+            <p
+                id="resolve-error"
+                class="error-message"
+            ></p>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- SUPABASE -->
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- APPLICATION -->
+
+    <script src="app.js"></script>
+
+</body>
+
+</html>

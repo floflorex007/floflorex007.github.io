@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>BetLab — Connexion</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="auth-page">
+
+    <div class="auth-container">
+
+        <div class="logo">
+            <span>BET</span>LAB
+        </div>
+
+        <p class="subtitle">
+            Simulation de paris fictifs
+        </p>
+
+
+        <!-- CONNEXION -->
+
+        <div id="login-section" class="auth-card">
+
+            <h1>Connexion</h1>
+
+            <p class="auth-description">
+                Connecte-toi pour retrouver ton solde et tes paris.
+            </p>
+
+            <form id="login-form">
+
+                <label for="login-username">
+                    Identifiant
+                </label>
+
+                <input
+                    type="text"
+                    id="login-username"
+                    placeholder="Ton identifiant"
+                    required
+                >
+
+
+                <label for="login-password">
+                    Mot de passe
+                </label>
+
+                <input
+                    type="password"
+                    id="login-password"
+                    placeholder="Ton mot de passe"
+                    required
+                >
+
+
+                <button
+                    type="submit"
+                    class="primary-button"
+                >
+                    Se connecter
+                </button>
+
+            </form>
+
+
+            <p
+                id="login-error"
+                class="error-message"
+            ></p>
+
+
+            <div class="auth-switch">
+
+                Pas encore de compte ?
+
+                <button
+                    id="show-register"
+                    class="link-button"
+                >
+                    Créer un compte
+                </button>
+
+            </div>
+
+        </div>
+
+
+        <!-- INSCRIPTION -->
+
+        <div
+            id="register-section"
+            class="auth-card hidden"
+        >
+
+            <h1>Créer un compte</h1>
+
+            <p class="auth-description">
+                Ton compte est enregistré dans la base de données BetLab.
+            </p>
+
+
+            <form id="register-form">
+
+                <label for="register-username">
+                    Identifiant
+                </label>
+
+                <input
+                    type="text"
+                    id="register-username"
+                    placeholder="Ex : Florian"
+                    required
+                >
+
+
+                <label for="register-password">
+                    Mot de passe
+                </label>
+
+                <input
+                    type="password"
+                    id="register-password"
+                    placeholder="Ex : test123"
+                    required
+                >
+
+
+                <button
+                    type="submit"
+                    class="primary-button"
+                >
+                    Créer mon compte
+                </button>
+
+            </form>
+
+
+            <p
+                id="register-error"
+                class="error-message"
+            ></p>
+
+
+            <div class="auth-switch">
+
+                Déjà un compte ?
+
+                <button
+                    id="show-login"
+                    class="link-button"
+                >
+                    Se connecter
+                </button>
+
+            </div>
+
+        </div>
+
+
+        <div class="demo-warning">
+
+            ⚠️ <strong>Maquette de démonstration</strong><br>
+
+            N'utilisez pas de vrai mot de passe.
+
+        </div>
+
+    </div>
+
+
+    <!-- SUPABASE -->
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- APPLICATION -->
+
+    <script src="app.js"></script>
+
+</body>
+</html>
