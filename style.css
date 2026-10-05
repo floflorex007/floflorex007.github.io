@@ -174,12 +174,25 @@ input {
 
 .bet-card.bet-card-locked,
 .modal-content.bet-card-locked {
-    background: linear-gradient(180deg, #1f1a22 0%, #181418 100%);
-    border-color: #3a2a33;
+    background: linear-gradient(180deg, #1a1c22 0%, #141519 100%);
+    border-color: #3a3d48;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.bet-card.bet-card-locked {
+    filter: grayscale(0.6);
+    opacity: 0.75;
+}
+
+.bet-card.bet-card-new.bet-card-locked,
+.bet-card.bet-card-new.bet-card-locked:hover,
+.bet-card.bet-card-locked:hover {
+    border-color: #3a3d48;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 }
 
 .bet-card-locked .bet-target-footer {
-    color: #e0a8bc;
+    color: #9a9eaa;
 }
 
 .bet-card-locked .bet-choice-button {
@@ -354,11 +367,14 @@ input {
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 40px;
 }
 
 .bets-list .bet-card {
+    width: 100%;
     max-width: 480px;
+    margin-left: max(0px, calc((100% - 480px) / 4));
+    margin-right: auto;
 }
 
 .leaderboard-sidebar,
@@ -441,6 +457,26 @@ input {
     padding: 20px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
     cursor: pointer;
+}
+
+.bet-card.bet-card-new,
+.bet-card.bet-card-new:hover {
+    position: relative;
+    border-color: #6c63ff;
+    box-shadow: 0 0 30px rgba(108, 99, 255, 0.3);
+}
+
+.bet-new-badge {
+    position: absolute;
+    top: -9px;
+    right: 16px;
+    background: #6c63ff;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+    border-radius: 999px;
 }
 
 .bet-card:hover {
@@ -554,6 +590,19 @@ input {
 .bet-choice-readonly:hover {
     cursor: default;
     border-color: #303544;
+}
+
+.bet-choice-button.bet-choice-picked,
+.bet-choice-button.bet-choice-picked:hover {
+    opacity: 1;
+    filter: none;
+    background: #2a2850;
+    border-color: #6c63ff;
+    box-shadow: 0 0 0 1px #6c63ff, 0 0 14px rgba(108, 99, 255, 0.45);
+}
+
+.bet-choice-button.bet-choice-picked span {
+    color: #d8d5ff;
 }
 
 .choice-bar-track {
@@ -1008,4 +1057,678 @@ input {
 }
 
 
+}
+
+
+/* =========================================================
+   MISSIONS ET BOUTIQUE
+========================================================= */
+
+.points-balance strong {
+    color: #f5c451;
+}
+
+.missions-title {
+    font-size: 18px;
+    margin: 30px 0 14px;
+}
+
+.missions-message {
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: #173126;
+    color: #63d69f;
+    font-size: 14px;
+}
+
+.missions-message.error {
+    background: #3a1c22;
+    color: #ff6b6b;
+}
+
+.missions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+}
+
+.mission-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+    background: linear-gradient(180deg, #1c202c 0%, #14161e 100%);
+    border: 1px solid #2c3040;
+    border-radius: 14px;
+    padding: 16px;
+}
+
+.mission-card.ready {
+    border-color: #f5c451;
+    box-shadow: 0 0 0 1px #f5c451, 0 0 18px rgba(245, 196, 81, 0.35);
+}
+
+/* Onglet Missions en surbrillance quand une récompense est dispo */
+.nav-button.has-reward {
+    position: relative;
+    color: #f5c451;
+    background: rgba(245, 196, 81, 0.12);
+    box-shadow: inset 0 0 0 1px rgba(245, 196, 81, 0.5);
+    animation: reward-pulse 1.8s ease-in-out infinite;
+}
+
+.nav-button.has-reward::after {
+    content: "";
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #f5c451;
+}
+
+@keyframes reward-pulse {
+    0%, 100% { box-shadow: inset 0 0 0 1px rgba(245, 196, 81, 0.5); }
+    50% { box-shadow: inset 0 0 0 1px #f5c451, 0 0 12px rgba(245, 196, 81, 0.45); }
+}
+
+.mission-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+}
+
+.mission-head h3 {
+    font-size: 15px;
+    color: white;
+}
+
+.mission-points {
+    flex-shrink: 0;
+    color: #f5c451;
+    font-weight: 800;
+    font-size: 13px;
+}
+
+.mission-description {
+    color: #aaaeba;
+    font-size: 13px;
+    flex: 1;
+}
+
+.mission-bar {
+    height: 6px;
+    border-radius: 999px;
+    background: #262a38;
+    overflow: hidden;
+}
+
+.mission-bar div {
+    height: 100%;
+    background: #6c63ff;
+}
+
+.mission-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.mission-period,
+.mission-state {
+    color: #858a98;
+    font-size: 12px;
+}
+
+.mission-state.done {
+    color: #63d69f;
+    font-weight: 700;
+}
+
+.mission-footer .primary-button {
+    padding: 8px 12px;
+    font-size: 13px;
+}
+
+.mission-footer .primary-button:disabled {
+    background: #343846;
+    color: #858a98;
+    cursor: not-allowed;
+    transform: none;
+}
+
+
+/* Avantages visibles dans le classement */
+
+.leaderboard-row--gold {
+    margin: 2px -8px;
+    padding: 9px 8px;
+    border: 1px solid #f5c451;
+    border-radius: 10px;
+    background: rgba(245, 196, 81, 0.08);
+}
+
+.leaderboard-row--gold .leaderboard-pseudo {
+    color: #f5c451;
+}
+
+.leaderboard-pseudo.pseudo-color {
+    background: linear-gradient(90deg, #ff6b9d, #a78bfa, #63d6ff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+
+
+/* =========================================================
+   ANIMATIONS ET PROGRESSION (animations.js)
+========================================================= */
+
+/* Grossissement ponctuel */
+.anim-bump {
+    display: inline-block;
+    animation: anim-bump 0.25s ease-out;
+}
+
+@keyframes anim-bump {
+    50% { transform: scale(1.18); }
+}
+
+
+/* Onde au clic sur un choix */
+.bet-choice-button {
+    position: relative;
+    overflow: hidden;
+}
+
+.choice-ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(108, 99, 255, 0.45);
+    transform: scale(0);
+    animation: choice-ripple 0.6s ease-out forwards;
+    pointer-events: none;
+}
+
+@keyframes choice-ripple {
+    to { transform: scale(4); opacity: 0; }
+}
+
+.choice-pulse {
+    animation: choice-pulse 0.35s ease-out;
+}
+
+@keyframes choice-pulse {
+    50% { transform: scale(1.05); }
+}
+
+
+/* Confettis */
+.confetti-layer {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 3000;
+}
+
+.confetti-piece {
+    position: absolute;
+    top: -14px;
+    width: 9px;
+    height: 14px;
+    border-radius: 2px;
+    animation: confetti-fall linear forwards;
+}
+
+@keyframes confetti-fall {
+    to { transform: translateY(110vh) rotate(900deg); }
+}
+
+
+/* Récap « pendant ton absence » */
+.results-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(5, 6, 10, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    z-index: 2500;
+}
+
+.results-popup {
+    width: 100%;
+    max-width: 440px;
+    background: linear-gradient(180deg, #1c202c 0%, #14161e 100%);
+    border: 1px solid #f5c451;
+    border-radius: 18px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    animation: results-pop 0.45s cubic-bezier(.2, 1.6, .4, 1);
+}
+
+.results-popup h2 {
+    color: #f5c451;
+    font-size: 20px;
+    text-align: center;
+}
+
+.results-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 50vh;
+    overflow-y: auto;
+}
+
+.results-line,
+.results-total {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 14px;
+    opacity: 0;
+    animation: results-line 0.4s forwards;
+}
+
+.results-line.won strong {
+    color: #63d69f;
+}
+
+.results-line.lost {
+    color: #858a98;
+    animation-name: results-lost;
+    animation-duration: 0.8s;
+}
+
+.results-line.lost strong {
+    color: #ff6b6b;
+}
+
+.results-total {
+    border-top: 1px solid #2c3040;
+    padding-top: 12px;
+    font-size: 16px;
+}
+
+.results-total strong {
+    color: #63d69f;
+}
+
+@keyframes results-pop {
+    from { transform: scale(0.5); opacity: 0; }
+}
+
+@keyframes results-line {
+    from { transform: translateY(8px); opacity: 0; }
+    to { transform: none; opacity: 1; }
+}
+
+@keyframes results-lost {
+    from { transform: translateY(8px); opacity: 0; }
+    40% { transform: none; opacity: 1; }
+    55%, 85% { transform: translateX(-5px); }
+    70% { transform: translateX(5px); }
+    to { transform: none; opacity: 1; }
+}
+
+
+/* Paris perdus / gagnés dans « Mes paris » */
+.my-bet-item.my-bet-lost {
+    filter: grayscale(1);
+    opacity: 0.6;
+}
+
+.my-bet-item.my-bet-won {
+    border-color: #63d69f;
+}
+
+
+/* Série de connexions */
+.streak-widget {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 800;
+    color: #ff9f43;
+    cursor: default;
+}
+
+.streak-flame {
+    display: inline-block;
+    font-size: var(--flame-size, 18px);
+    animation: streak-flicker 1.2s ease-in-out infinite alternate;
+}
+
+.streak-widget.streak-up .streak-flame {
+    animation: streak-grow 0.8s ease-out, streak-flicker 1.2s 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes streak-flicker {
+    to { transform: scale(1.08) rotate(-4deg); filter: brightness(1.2); }
+}
+
+@keyframes streak-grow {
+    0% { transform: scale(0.4); }
+    60% { transform: scale(1.5); }
+}
+
+
+/* Coffre du jour */
+.chest-button {
+    border: none;
+    background: none;
+    font-size: 22px;
+    cursor: pointer;
+    border-radius: 8px;
+    padding: 2px 6px;
+}
+
+.chest-button:disabled {
+    cursor: default;
+    opacity: 0.5;
+}
+
+.chest-button.available {
+    background: rgba(245, 196, 81, 0.12);
+    box-shadow: 0 0 0 1px rgba(245, 196, 81, 0.5);
+    animation: chest-wiggle 2.4s ease-in-out infinite;
+}
+
+.chest-button.opening {
+    opacity: 1;
+    animation: chest-shake 0.8s;
+}
+
+@keyframes chest-wiggle {
+    0%, 80%, 100% { transform: rotate(0); }
+    84%, 92% { transform: rotate(-12deg); }
+    88%, 96% { transform: rotate(12deg); }
+}
+
+@keyframes chest-shake {
+    10%, 30%, 50%, 70% { transform: rotate(-12deg) scale(1.1); }
+    20%, 40%, 60%, 80% { transform: rotate(12deg) scale(1.1); }
+}
+
+.chest-loot {
+    position: fixed;
+    transform: translateX(-50%);
+    color: #f5c451;
+    font-weight: 900;
+    font-size: 20px;
+    pointer-events: none;
+    z-index: 3000;
+    animation: chest-loot 1.8s forwards;
+}
+
+@keyframes chest-loot {
+    from { opacity: 0; margin-top: 0; }
+    30% { opacity: 1; margin-top: 18px; font-size: 26px; }
+    to { opacity: 0; margin-top: 30px; }
+}
+
+
+/* Niveaux et XP */
+.level-widget {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 800;
+    color: #c86bff;
+    min-width: 70px;
+}
+
+.level-bar {
+    height: 5px;
+    background: #262a38;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.level-bar div {
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, #6c63ff, #c86bff);
+    transition: width 0.8s ease-out;
+}
+
+.level-up-flash {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 3000;
+    background: radial-gradient(rgba(108, 99, 255, 0.35), transparent 65%);
+    animation: level-up 2.2s forwards;
+}
+
+.level-up-flash span {
+    font-size: 48px;
+    font-weight: 900;
+    color: #f5c451;
+    text-shadow: 0 0 30px rgba(245, 196, 81, 0.6);
+}
+
+@keyframes level-up {
+    from { opacity: 0; transform: scale(0.4); }
+    20% { opacity: 1; transform: scale(1.15); }
+    70% { opacity: 1; transform: scale(1); }
+    to { opacity: 0; }
+}
+
+
+/* Classement */
+.leaderboard-row--me .leaderboard-pseudo {
+    color: #a59fff;
+}
+
+.leaderboard-up {
+    margin-left: 6px;
+    color: #63d69f;
+    font-weight: 800;
+    font-size: 12px;
+}
+
+
+/* Compte à rebours (dernière heure) */
+.bet-card.bet-card-urgent,
+.bet-card.bet-card-urgent:hover,
+.bet-card.bet-card-new.bet-card-urgent {
+    border-color: #ff6b6b;
+    box-shadow: 0 0 6px rgba(255, 107, 107, 0.25);
+    animation: bet-urgent 1s ease-in-out infinite;
+}
+
+.bet-card.bet-card-urgent .bet-new-badge {
+    background: #ff3b3b;
+}
+
+.bet-card.bet-card-urgent .bet-deadline {
+    color: #ff6b6b;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+@keyframes bet-urgent {
+    0%, 100% { border-color: #ff6b6b; box-shadow: 0 0 6px rgba(255, 107, 107, 0.25); }
+    50% { border-color: #ff3b3b; box-shadow: 0 0 26px rgba(255, 59, 59, 0.6); }
+}
+
+
+/* Cartes en cascade */
+.cascade-in {
+    animation: cascade-in 0.45s ease-out backwards;
+}
+
+.bet-card.bet-card-urgent.cascade-in {
+    animation: cascade-in 0.45s ease-out backwards, bet-urgent 1s 0.45s ease-in-out infinite;
+}
+
+@keyframes cascade-in {
+    from { opacity: 0; transform: translateY(14px); }
+}
+
+
+/* Cartes qui suivent la souris */
+.bet-card,
+.mission-card {
+    transition: transform 0.15s ease-out, border-color 0.2s;
+}
+
+
+/* Fil d'activité en direct */
+.activity-feed {
+    position: fixed;
+    left: 16px;
+    bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: min(340px, calc(100vw - 32px));
+    z-index: 2000;
+    pointer-events: none;
+}
+
+.activity-toast {
+    background: #1c202c;
+    border: 1px solid #2c3040;
+    border-left: 3px solid #6c63ff;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 13px;
+    color: #aaaeba;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+    animation: toast-in 0.4s ease-out;
+    transition: opacity 0.4s, transform 0.4s;
+}
+
+.activity-toast strong {
+    color: white;
+}
+
+.activity-toast.leaving {
+    opacity: 0;
+    transform: translateX(-30px);
+}
+
+@keyframes toast-in {
+    from { opacity: 0; transform: translateX(-120%); }
+}
+
+
+
+
+
+/* Colonne de droite : message admin + niveau */
+.right-column {
+    width: 280px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    position: sticky;
+    top: 24px;
+}
+
+.right-column .admin-message-sidebar {
+    position: static;
+    width: 100%;
+}
+
+.level-sidebar-current {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+}
+
+.level-sidebar-current strong {
+    color: #c86bff;
+    font-size: 18px;
+}
+
+.level-sidebar-current span {
+    color: #858a98;
+    font-size: 12px;
+}
+
+.level-bar.level-bar-large {
+    height: 8px;
+    margin-bottom: 16px;
+}
+
+.level-sidebar-title {
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.level-sidebar-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.level-sidebar-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 13px;
+    color: #aaaeba;
+}
+
+.level-sidebar-list strong {
+    color: #c86bff;
+    white-space: nowrap;
+}
+
+.level-sidebar-note {
+    color: #737887;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+@media (max-width: 800px) {
+    .right-column {
+        width: 100%;
+        position: static;
+    }
+}
+
+
+/* Paris perdus : secousse puis grisé */
+.my-bet-item.my-bet-lost {
+    animation: my-bet-lost 0.5s ease-out;
+}
+
+@keyframes my-bet-lost {
+    0% { filter: none; opacity: 1; }
+    20%, 60% { transform: translateX(-6px); }
+    40%, 80% { transform: translateX(6px); }
+    100% { transform: none; }
+}
+
+.my-bet-item.my-bet-lost.cascade-in {
+    animation: cascade-in 0.45s ease-out backwards, my-bet-lost 0.5s 0.45s ease-out;
+}
+
+.leaderboard-row {
+    position: relative;
+    border-radius: 6px;
 }

@@ -7,6 +7,9 @@ CREATE TABLE public.profiles (
   balance numeric NOT NULL DEFAULT '1000'::numeric CHECK (balance >= 0::numeric),
   created_at timestamp with time zone DEFAULT now(),
   is_admin boolean NOT NULL DEFAULT false,
+  points integer NOT NULL DEFAULT 0 CHECK (points >= 0),
+  gold_frame_until timestamp with time zone,
+  name_color_until timestamp with time zone,
   CONSTRAINT profiles_pkey PRIMARY KEY (id),
   CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
 );
@@ -63,4 +66,14 @@ CREATE TABLE public.message_reads (
   CONSTRAINT message_reads_pkey PRIMARY KEY (message_id, user_id),
   CONSTRAINT message_reads_message_id_fkey FOREIGN KEY (message_id) REFERENCES public.admin_messages(id),
   CONSTRAINT message_reads_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
+-- Missions : voir missions.sql pour les fonctions mission_progress, claim_mission et buy_reward.
+CREATE TABLE public.mission_claims (
+  user_id uuid NOT NULL,
+  mission text NOT NULL,
+  period_key text NOT NULL,
+  points integer NOT NULL,
+  claimed_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT mission_claims_pkey PRIMARY KEY (user_id, mission, period_key),
+  CONSTRAINT mission_claims_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );

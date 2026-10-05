@@ -66,6 +66,22 @@
 
 
             <button
+                class="nav-button"
+                data-page="missions-page"
+            >
+                Missions
+            </button>
+
+
+            <button
+                class="nav-button"
+                data-page="shop-page"
+            >
+                Boutique
+            </button>
+
+
+            <button
                 class="nav-button hidden"
                 id="admin-nav-button"
                 data-page="admin-page"
@@ -78,12 +94,58 @@
 
         <div class="user-area">
 
+            <div
+                id="streak-widget"
+                class="streak-widget hidden"
+                title="Série de connexions : reviens chaque jour pour la faire grandir"
+            >
+                <span class="streak-flame">🔥</span>
+                <strong id="streak-count">0</strong>
+            </div>
+
+
+            <button
+                id="chest-button"
+                class="chest-button hidden"
+                title="Coffre du jour"
+            >
+                🎁
+            </button>
+
+
+            <div
+                id="level-widget"
+                class="level-widget hidden"
+            >
+
+                <span id="level-label">
+                    Niv. 1
+                </span>
+
+                <div class="level-bar">
+                    <div id="level-bar-fill"></div>
+                </div>
+
+            </div>
+
+
             <div class="balance">
 
                 <span>Solde</span>
 
                 <strong id="balance">
                     1 000,00 €
+                </strong>
+
+            </div>
+
+
+            <div class="balance points-balance">
+
+                <span>Points</span>
+
+                <strong id="points-balance">
+                    0 pts
                 </strong>
 
             </div>
@@ -166,19 +228,68 @@
                 ></div>
 
 
-                <aside
-                    id="admin-message-sidebar"
-                    class="admin-message-sidebar hidden"
-                >
+                <div class="right-column">
 
-                    <div class="leaderboard-header">
-                        <span>📢</span>
-                        <span>Message</span>
-                    </div>
+                    <aside
+                        id="admin-message-sidebar"
+                        class="admin-message-sidebar hidden"
+                    >
 
-                    <div id="admin-message-content"></div>
+                        <div class="leaderboard-header">
+                            <span>📢</span>
+                            <span>Message</span>
+                        </div>
 
-                </aside>
+                        <div id="admin-message-content"></div>
+
+                    </aside>
+
+
+                    <aside class="admin-message-sidebar level-sidebar">
+
+                        <div class="leaderboard-header">
+                            <span>⭐</span>
+                            <span>Ton niveau</span>
+                        </div>
+
+                        <div class="level-sidebar-current">
+
+                            <strong id="level-sidebar-label">
+                                Niveau 1
+                            </strong>
+
+                            <span id="level-sidebar-xp">
+                                0 / 100 XP
+                            </span>
+
+                        </div>
+
+                        <div class="level-bar level-bar-large">
+                            <div id="level-sidebar-fill"></div>
+                        </div>
+
+
+                        <p class="level-sidebar-title">
+                            Comment gagner de l'XP ?
+                        </p>
+
+                        <ul class="level-sidebar-list">
+
+                            <li>
+                                <span>🎲 Placer une mise</span>
+                                <strong>+10 XP</strong>
+                            </li>
+
+                            <li>
+                                <span>🏆 Gagner un pari</span>
+                                <strong>+25 XP</strong>
+                            </li>
+
+                        </ul>
+
+                    </aside>
+
+                </div>
 
             </div>
 
@@ -250,6 +361,112 @@
             <div
                 id="my-created-bets-container"
                 class="my-bets-list"
+            ></div>
+
+        </section>
+
+
+
+        <!-- =====================================
+             PAGE : MISSIONS
+        ====================================== -->
+
+        <section
+            id="missions-page"
+            class="app-page hidden"
+        >
+
+            <div class="page-header">
+
+                <div>
+
+                    <h1>
+                        Missions
+                    </h1>
+
+                    <p>
+                        Accomplis des missions pour gagner des points, puis dépense-les dans la boutique.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <p
+                id="missions-message"
+                class="missions-message hidden"
+            ></p>
+
+
+            <h2 class="missions-title">
+                Quotidiennes
+            </h2>
+
+            <div
+                id="missions-daily"
+                class="missions-grid"
+            ></div>
+
+
+            <h2 class="missions-title">
+                Hebdomadaires
+            </h2>
+
+            <div
+                id="missions-weekly"
+                class="missions-grid"
+            ></div>
+
+
+            <h2 class="missions-title">
+                One shot
+            </h2>
+
+            <div
+                id="missions-oneshot"
+                class="missions-grid"
+            ></div>
+
+        </section>
+
+
+
+        <!-- =====================================
+             PAGE : BOUTIQUE
+        ====================================== -->
+
+        <section
+            id="shop-page"
+            class="app-page hidden"
+        >
+
+            <div class="page-header">
+
+                <div>
+
+                    <h1>
+                        Boutique
+                    </h1>
+
+                    <p>
+                        Dépense tes points de missions pour débloquer des avantages.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <p
+                id="shop-message"
+                class="missions-message hidden"
+            ></p>
+
+
+            <div
+                id="shop-container"
+                class="missions-grid"
             ></div>
 
         </section>
@@ -796,6 +1013,8 @@
     <!-- APPLICATION -->
 
     <script src="app.js"></script>
+
+    <script src="animations.js"></script>
 
 </body>
 

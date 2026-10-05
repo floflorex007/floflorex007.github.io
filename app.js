@@ -354,6 +354,17 @@ function updateBalance() {
     balanceElement.textContent =
         formatMoney(currentProfile.balance);
 
+
+    const pointsElement =
+        document.getElementById("points-balance");
+
+    if (pointsElement) {
+
+        pointsElement.textContent =
+            (currentProfile.points || 0) + " pts";
+
+    }
+
 }
 
 
@@ -369,7 +380,7 @@ async function getLeaderboard() {
         error
     } = await supabaseClient
         .from("profiles")
-        .select("username, balance")
+        .select("username, balance, gold_frame_until, name_color_until")
         .eq("is_admin", false)
         .order("balance", { ascending: false })
         .limit(10);
@@ -407,14 +418,17 @@ async function displayLeaderboard() {
 
         container.innerHTML = profiles.map(
             (profile, index) => `
-                <div class="leaderboard-row">
+                <div class="leaderboard-row${isRewardActive(profile.gold_frame_until) ? " leaderboard-row--gold" : ""}">
                     <span class="leaderboard-rank">${index + 1}</span>
                     <span class="leaderboard-medal">${medals[index] || ""}</span>
-                    <span class="leaderboard-pseudo">${escapeHtml(profile.username)}</span>
+                    <span class="leaderboard-pseudo${isRewardActive(profile.name_color_until) ? " pseudo-color" : ""}">${escapeHtml(profile.username)}</span>
                     <span class="leaderboard-balance">${formatMoney(profile.balance)}</span>
                 </div>
             `
         ).join("");
+
+
+        animateLeaderboard(profiles);
 
     } catch (error) {
 
@@ -758,7 +772,7 @@ async function getBets() {
             bet_choices!bet_choices_bet_id_fkey (*),
             profiles!bets_author_id_fkey ( username ),
             target:profiles!bets_target_user_id_fkey ( username ),
-            stakes ( id, choice_id, stake, potential_win, profiles!stakes_user_id_fkey ( username ) )
+            stakes ( id, user_id, choice_id, stake, potential_win, profiles!stakes_user_id_fkey ( username ) )
         `)
         .order("created_at", { ascending: false });
 
@@ -780,6 +794,25 @@ async function getBets() {
     Vrai si l'utilisateur connecté est la personne concernée
     par le pari et que le créateur l'a bloquée.
 */
+
+/*
+    Vrai si le pari a été créé aujourd'hui (jour calendaire local).
+*/
+
+function isCreatedToday(createdAt) {
+
+    if (!createdAt) {
+
+        return false;
+
+    }
+
+    return new Date(createdAt).toDateString() ===
+        new Date().toDateString();
+
+}
+
+
 
 function isBlockedTarget(bet) {
 
@@ -819,6 +852,14 @@ function renderBetSummaryHtml(
 
     const isTargetBlocked =
         isBlockedTarget(bet);
+
+
+    const myChoiceIds =
+        (bet.stakes || [])
+            .filter(
+                s => currentUser && s.user_id === currentUser.id
+            )
+            .map(s => s.choice_id);
 
 
     const isClosed =
@@ -919,7 +960,7 @@ function renderBetSummaryHtml(
                             }
 
                             <${tag}
-                                class="bet-choice-button${isClosed || isTargetBlocked ? " bet-choice-closed" : ""}${interactive ? "" : " bet-choice-readonly"}"
+                                class="bet-choice-button${isClosed || isTargetBlocked ? " bet-choice-closed" : ""}${myChoiceIds.includes(choice.id) ? " bet-choice-picked" : ""}${interactive ? "" : " bet-choice-readonly"}"
                                 ${interactive
                                     ? `data-bet-id="${bet.id}" data-choice-id="${choice.id}" ${isClosed || isTargetBlocked ? "disabled" : ""}`
                                     : ""
@@ -1015,10 +1056,18 @@ async function displayBets() {
 
                 card.className =
                     "bet-card" +
-                    (isBlockedTarget(bet) ? " bet-card-locked" : "");
+                    (isBlockedTarget(bet) ? " bet-card-locked" : "") +
+                    (isCreatedToday(bet.created_at) ? " bet-card-new" : "");
 
                 card.dataset.betId =
                     bet.id;
+
+                if (bet.deadline_at) {
+
+                    card.dataset.deadline =
+                        bet.deadline_at;
+
+                }
 
 
                 const totalStaked =
@@ -1029,12 +1078,15 @@ async function displayBets() {
 
 
                 card.innerHTML =
+                    (isCreatedToday(bet.created_at)
+                        ? `<span class="bet-new-badge">AUJOURD'HUI</span>`
+                        : "") +
                     renderBetSummaryHtml(bet) + `
 
                     <div class="bet-footer">
 
                         ${bet.target_user_id
-                            ? `<span class="bet-target-footer">🎯 Concerne ${escapeHtml(bet.target?.username || "un parieur")}</span>`
+                            ? `<span class="bet-target-footer">🎯 ${bet.target_blocked ? "Bloqué pour" : "Concerne"} ${escapeHtml(bet.target?.username || "un parieur")}</span>`
                             : ""
                         }
 
@@ -1087,15 +1139,26 @@ async function displayBets() {
                             );
 
 
-                        openBetModal(
-                            bet,
-                            choice
+                        /*
+                            Petit délai pour laisser
+                            l'onde du clic s'afficher.
+                        */
+
+                        setTimeout(
+                            () => openBetModal(
+                                bet,
+                                choice
+                            ),
+                            220
                         );
 
                     }
                 );
 
             });
+
+
+        updateCountdowns();
 
 
         /*
@@ -1196,10 +1259,13 @@ function openBetModal(
     ).value = "";
 
 
-    document.getElementById(
-        "potential-win"
-    ).textContent =
-        "0 €";
+    const potentialWinElement =
+        document.getElementById("potential-win");
+
+    potentialWinElement.textContent =
+        formatMoney(0);
+
+    potentialWinElement._lastValue = 0;
 
 
     document.getElementById(
@@ -1237,10 +1303,7 @@ function updatePotentialWin() {
         value <= 0
     ) {
 
-        document.getElementById(
-            "potential-win"
-        ).textContent =
-            "0 €";
+        animatePotentialWin(0);
 
         return;
 
@@ -1252,10 +1315,7 @@ function updatePotentialWin() {
         Number(currentChoice.odds);
 
 
-    document.getElementById(
-        "potential-win"
-    ).textContent =
-        formatMoney(potentialWin);
+    animatePotentialWin(potentialWin);
 
 }
 
@@ -1376,6 +1436,8 @@ async function placeBet() {
         await displayLeaderboard();
 
         await displayMyBets();
+
+        await refreshMissions();
 
 
 
@@ -1520,7 +1582,9 @@ async function displayMyBets() {
 
 
                 item.className =
-                    "my-bet-item";
+                    "my-bet-item" +
+                    (statusText === "Gagné" ? " my-bet-won" : "") +
+                    (statusText === "Perdu" ? " my-bet-lost" : "");
 
 
                 item.innerHTML = `
@@ -1905,7 +1969,7 @@ function openStakesModal(bet) {
             <div class="bet-footer">
 
                 ${bet.target_user_id
-                    ? `<span class="bet-target-footer">🎯 Concerne ${escapeHtml(bet.target?.username || "un parieur")}</span>`
+                    ? `<span class="bet-target-footer">🎯 ${bet.target_blocked ? "Bloqué pour" : "Concerne"} ${escapeHtml(bet.target?.username || "un parieur")}</span>`
                     : ""
                 }
 
@@ -2074,6 +2138,10 @@ async function resolveBet(
         await displayMyBets();
 
         await displayMyCreatedBets();
+
+        await refreshMissions();
+
+        await checkNewResults();
 
 
 
@@ -2477,6 +2545,461 @@ async function loadTargetUsers() {
 
 
 /* =========================================================
+   10 BIS. MISSIONS ET BOUTIQUE
+========================================================= */
+
+/*
+    Les règles et les points sont vérifiés côté PostgreSQL
+    (voir missions.sql). Ici, on ne fait que l'affichage.
+*/
+
+const MISSIONS = [
+    {
+        id: "connexion",
+        title: "Connexion du jour",
+        description: "Placer au moins une mise dans la journée.",
+        points: 5,
+        period: "Chaque jour",
+        group: "daily"
+    },
+    {
+        id: "touche",
+        title: "Touche-à-tout",
+        description: "Miser sur 3 paris différents le même jour.",
+        points: 5,
+        period: "Chaque jour",
+        group: "daily"
+    },
+    {
+        id: "premier",
+        title: "Premier sur le coup",
+        description: "Être le premier à miser sur un pari.",
+        points: 5,
+        period: "Chaque jour",
+        group: "daily"
+    },
+    {
+        id: "gros",
+        title: "Gros joueur",
+        description: "Miser 700 € au total dans la semaine.",
+        points: 20,
+        period: "Chaque semaine",
+        group: "weekly",
+        isMoney: true
+    },
+    {
+        id: "createur",
+        title: "Créateur",
+        description: "Créer cette semaine un pari qui reçoit des mises de 5 joueurs différents (tu peux en faire partie).",
+        points: 25,
+        period: "Chaque semaine",
+        group: "weekly"
+    },
+    {
+        id: "premier_gain",
+        title: "Premier gain",
+        description: "Gagner ton premier pari.",
+        points: 10,
+        period: "Une seule fois",
+        group: "oneshot"
+    },
+    {
+        id: "outsider",
+        title: "Outsider",
+        description: "Gagner un pari avec une cote supérieure à 3.",
+        points: 20,
+        period: "Une fois par pari",
+        group: "oneshot"
+    },
+    {
+        id: "contre",
+        title: "Contre tous",
+        description: "Miser sur le choix le moins joué d'un pari, et gagner.",
+        points: 30,
+        period: "Une fois par pari",
+        group: "oneshot"
+    }
+];
+
+
+const REWARDS = [
+    {
+        id: "cadre",
+        title: "Cadre doré",
+        description: "Ta ligne du classement passe en doré pendant 7 jours.",
+        price: 250,
+        field: "gold_frame_until"
+    },
+    {
+        id: "couleur",
+        title: "Pseudo en couleur",
+        description: "Ton pseudo s'affiche en couleur dans le classement pendant 24 heures.",
+        price: 100,
+        field: "name_color_until"
+    }
+];
+
+
+function isRewardActive(until) {
+
+    return Boolean(until) && new Date(until) > new Date();
+
+}
+
+
+function showMissionsMessage(text, isError, elementId = "missions-message") {
+
+    const element =
+        document.getElementById(elementId);
+
+    if (!element) {
+        return;
+    }
+
+    element.textContent = text;
+
+    element.classList.toggle("error", Boolean(isError));
+
+    element.classList.remove("hidden");
+
+}
+
+
+async function displayMissions() {
+
+    const containers = {
+        daily: document.getElementById("missions-daily"),
+        weekly: document.getElementById("missions-weekly"),
+        oneshot: document.getElementById("missions-oneshot")
+    };
+
+    if (!containers.daily || !currentUser) {
+        return;
+    }
+
+
+    try {
+
+        const {
+            data,
+            error
+        } = await supabaseClient.rpc("mission_progress");
+
+
+        if (error) {
+            throw error;
+        }
+
+
+        const progressById = {};
+
+        (data || []).forEach(row => {
+            progressById[row.mission] = row;
+        });
+
+
+        const cardsByGroup = {
+            daily: [],
+            weekly: [],
+            oneshot: []
+        };
+
+        let hasClaimable = false;
+
+
+        MISSIONS.forEach(mission => {
+
+            const row =
+                progressById[mission.id] ||
+                { progress: 0, target: 1, claimable: 0, claimed: 0 };
+
+            const progress = Number(row.progress);
+
+            const target = Number(row.target);
+
+            const percent =
+                Math.min(100, Math.round(progress / target * 100));
+
+            const progressLabel = mission.isMoney
+                ? formatMoney(progress) + " / " + formatMoney(target)
+                : progress + " / " + target;
+
+
+            let action;
+
+            if (row.claimable > 0) {
+
+                hasClaimable = true;
+
+                const total = row.claimable * mission.points;
+
+                action = `
+                    <button
+                        class="primary-button mission-claim"
+                        data-mission="${mission.id}"
+                    >
+                        Récupérer ${total} pts
+                    </button>
+                `;
+
+            } else if (row.claimed > 0 && progress >= target) {
+
+                action = `<span class="mission-state done">Récupérée</span>`;
+
+            } else {
+
+                action = `<span class="mission-state">En cours</span>`;
+
+            }
+
+
+            cardsByGroup[mission.group].push(`
+                <div class="mission-card${row.claimable > 0 ? " ready" : ""}">
+
+                    <div class="mission-head">
+                        <h3>${escapeHtml(mission.title)}</h3>
+                        <span class="mission-points">+${mission.points} pts</span>
+                    </div>
+
+                    <p class="mission-description">${escapeHtml(mission.description)}</p>
+
+                    <div class="mission-bar">
+                        <div style="width: ${percent}%"></div>
+                    </div>
+
+                    <div class="mission-footer">
+                        <span class="mission-period">${escapeHtml(mission.period)} · ${progressLabel}</span>
+                        ${action}
+                    </div>
+
+                </div>
+            `);
+
+        });
+
+
+        Object.keys(containers).forEach(group => {
+
+            containers[group].innerHTML = cardsByGroup[group].join("");
+
+        });
+
+
+        /*
+            Surbrillance de l'onglet Missions
+            quand une récompense est à récupérer.
+        */
+
+        document
+            .querySelector('.nav-button[data-page="missions-page"]')
+            ?.classList.toggle("has-reward", hasClaimable);
+
+
+        document
+            .querySelectorAll("#missions-page .mission-claim")
+            .forEach(button => {
+
+                button.addEventListener(
+                    "click",
+                    () => claimMission(button.dataset.mission, button)
+                );
+
+            });
+
+    } catch (error) {
+
+        console.error(error);
+
+        containers.weekly.innerHTML = "";
+
+        containers.oneshot.innerHTML = "";
+
+        containers.daily.innerHTML = `
+            <p class="error-message">
+                Impossible de charger les missions. As-tu lancé le script missions.sql dans Supabase ?
+            </p>
+        `;
+
+    }
+
+}
+
+
+async function claimMission(missionId, button) {
+
+    button.disabled = true;
+
+
+    try {
+
+        const {
+            data,
+            error
+        } = await supabaseClient.rpc(
+            "claim_mission",
+            {
+                p_mission: missionId
+            }
+        );
+
+
+        if (error) {
+            throw error;
+        }
+
+
+        showMissionsMessage("+" + data + " points récupérés !");
+
+        await loadCurrentProfile();
+
+        await displayMissions();
+
+        displayShop();
+
+    } catch (error) {
+
+        console.error(error);
+
+        showMissionsMessage(
+            error.message || "Impossible de récupérer la mission.",
+            true
+        );
+
+        button.disabled = false;
+
+    }
+
+}
+
+
+function displayShop() {
+
+    const container =
+        document.getElementById("shop-container");
+
+    if (!container || !currentProfile) {
+        return;
+    }
+
+
+    const points = currentProfile.points || 0;
+
+
+    container.innerHTML = REWARDS.map(reward => {
+
+        const until = currentProfile[reward.field];
+
+        const active = isRewardActive(until);
+
+        const canBuy = points >= reward.price;
+
+
+        const status = active
+            ? `<span class="mission-state done">Actif jusqu'au ${formatDeadline(until)}</span>`
+            : `<span class="mission-state">${canBuy ? "Disponible" : "Il te manque " + (reward.price - points) + " pts"}</span>`;
+
+
+        return `
+            <div class="mission-card">
+
+                <div class="mission-head">
+                    <h3>${escapeHtml(reward.title)}</h3>
+                    <span class="mission-points">${reward.price} pts</span>
+                </div>
+
+                <p class="mission-description">${escapeHtml(reward.description)}</p>
+
+                <div class="mission-footer">
+                    ${status}
+                    <button
+                        class="primary-button reward-buy"
+                        data-reward="${reward.id}"
+                        ${canBuy ? "" : "disabled"}
+                    >
+                        ${active ? "Prolonger" : "Acheter"}
+                    </button>
+                </div>
+
+            </div>
+        `;
+
+    }).join("");
+
+
+    container
+        .querySelectorAll(".reward-buy")
+        .forEach(button => {
+
+            button.addEventListener(
+                "click",
+                () => buyReward(button.dataset.reward, button)
+            );
+
+        });
+
+}
+
+
+async function buyReward(rewardId, button) {
+
+    button.disabled = true;
+
+
+    try {
+
+        const {
+            error
+        } = await supabaseClient.rpc(
+            "buy_reward",
+            {
+                p_reward: rewardId
+            }
+        );
+
+
+        if (error) {
+            throw error;
+        }
+
+
+        showMissionsMessage("Avantage activé !", false, "shop-message");
+
+        await loadCurrentProfile();
+
+        displayShop();
+
+        await displayLeaderboard();
+
+    } catch (error) {
+
+        console.error(error);
+
+        showMissionsMessage(
+            error.message || "Impossible d'acheter cet avantage.",
+            true,
+            "shop-message"
+        );
+
+        button.disabled = false;
+
+    }
+
+}
+
+
+async function refreshMissions() {
+
+    await displayMissions();
+
+    displayShop();
+
+    await refreshProgression();
+
+}
+
+
+
+/* =========================================================
    11. NAVIGATION
 ========================================================= */
 
@@ -2502,6 +3025,20 @@ function showPage(pageId) {
         page.classList.remove(
             "hidden"
         );
+
+        cascadeIn(page);
+
+
+        /*
+            Retour sur les paris : on recharge le classement
+            pour jouer une éventuelle remontée.
+        */
+
+        if (pageId === "bets-page") {
+
+            displayLeaderboard();
+
+        }
 
     }
 
@@ -2873,6 +3410,8 @@ async function initAppPage() {
 
         await loadTargetUsers();
 
+        await refreshMissions();
+
 
         if (currentProfile?.is_admin) {
 
@@ -2886,6 +3425,8 @@ async function initAppPage() {
 
 
         await checkAnnouncementPopup();
+
+        await initAnimations();
 
     } catch (error) {
 
@@ -2909,6 +3450,16 @@ async function initAppPage() {
                     showPage(
                         button.dataset.page
                     );
+
+
+                    if (
+                        button.dataset.page === "missions-page" ||
+                        button.dataset.page === "shop-page"
+                    ) {
+
+                        refreshMissions();
+
+                    }
 
                 }
             );
