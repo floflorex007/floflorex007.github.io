@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BetLab – Choix de l'échéance (propositions)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; }
+h1 { font-size: 26px; margin-bottom: 6px; }
+.sub { color: #858a98; margin-bottom: 20px; max-width: 760px; }
+button, input { font: inherit; }
+.hidden { display: none !important; }
+
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; position: sticky; top: 0; background: #0f1117; padding: 10px 0; z-index: 10; }
+.tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; }
+.tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.variant { display: none; }
+.variant.active { display: block; animation: fade .3s; }
+@keyframes fade { from { opacity: 0; transform: translateY(8px); } }
+.variant-desc { color: #aaaeba; font-size: 14px; margin-bottom: 18px; max-width: 680px; }
+
+/* Section comme sur le site (proposition D) */
+.card { max-width: 680px; background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; border-radius: 20px; padding: 8px; }
+.section { display: flex; gap: 14px; padding: 18px; }
+.icon { width: 40px; height: 40px; flex-shrink: 0; border-radius: 12px; background: rgba(108, 99, 255, .15); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+.body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.body h3 { font-size: 15px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { border: 1px solid #2c3040; background: #0f1117; color: #c4c8d4; padding: 9px 14px; border-radius: 999px; cursor: pointer; transition: all .15s; }
+.chip:hover { border-color: #454a5c; }
+.chip.on { background: #6c63ff; border-color: #6c63ff; color: white; box-shadow: 0 4px 14px rgba(108, 99, 255, .35); }
+.chip small { display: block; font-size: 11px; opacity: .7; }
+
+.result { display: flex; align-items: center; gap: 10px; background: rgba(99, 214, 159, .08); border: 1px solid rgba(99, 214, 159, .35); color: #63d69f; padding: 10px 14px; border-radius: 12px; font-size: 14px; font-weight: 600; }
+.result.empty { background: rgba(255, 107, 107, .06); border-color: rgba(255, 107, 107, .3); color: #ff8a8a; }
+
+.input { background: #0f1117; border: 1px solid #2c3040; color: white; border-radius: 10px; padding: 11px 13px; color-scheme: dark; }
+.input:focus { outline: none; border-color: #6c63ff; }
+
+/* B : jour + heure */
+.days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.day { border: 1px solid #2c3040; background: #0f1117; color: #c4c8d4; border-radius: 12px; padding: 8px 0; cursor: pointer; text-align: center; }
+.day b { display: block; font-size: 17px; }
+.day small { font-size: 11px; color: #858a98; text-transform: capitalize; }
+.day.on { background: #6c63ff; border-color: #6c63ff; color: white; }
+.day.on small { color: #e0ddff; }
+.time-row { display: flex; align-items: center; gap: 14px; }
+.time-big { font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 92px; }
+input[type=range] { flex: 1; accent-color: #6c63ff; }
+
+/* C : roues */
+.wheels { display: flex; gap: 10px; justify-content: center; position: relative; }
+.wheel { height: 150px; overflow-y: scroll; scroll-snap-type: y mandatory; scrollbar-width: none; width: 110px; text-align: center; mask-image: linear-gradient(transparent, black 35%, black 65%, transparent); }
+.wheel::-webkit-scrollbar { display: none; }
+.wheel div { height: 40px; line-height: 40px; scroll-snap-align: center; color: #858a98; font-size: 17px; }
+.wheel div.sel { color: white; font-weight: 800; font-size: 20px; }
+.wheel .pad { pointer-events: none; }
+.wheel-frame { position: absolute; left: 50%; transform: translateX(-50%); top: 55px; height: 40px; width: 350px; max-width: 100%; border-top: 1px solid #6c63ff; border-bottom: 1px solid #6c63ff; pointer-events: none; border-radius: 6px; background: rgba(108, 99, 255, .08); }
+.wheel.min { width: 70px; }
+
+/* D : durée */
+.stepper { display: flex; align-items: center; gap: 12px; }
+.stepper button { width: 44px; height: 44px; border-radius: 12px; border: 1px solid #2c3040; background: #0f1117; color: white; font-size: 20px; cursor: pointer; }
+.stepper .val { font-size: 28px; font-weight: 800; min-width: 160px; text-align: center; }
+
+.bar { position: fixed; left: 0; right: 0; bottom: 0; background: #171a23; border-top: 1px solid #2c3040; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.bar strong { color: #f5c451; }
+.pick { background: #f5c451; color: #111; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 800; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<h1>Choisir l'échéance : 4 propositions</h1>
+<p class="sub">Chaque proposition remplace la section ⏳ Échéance de la carte « Créer un pari ». En bas de chacune, le cadre vert montre l'échéance obtenue (ou en rouge s'il manque quelque chose).</p>
+
+<div class="tabs">
+    <button class="tab active" data-v="A">A · Raccourcis rapides</button>
+    <button class="tab" data-v="B">B · Jour + heure</button>
+    <button class="tab" data-v="C">C · Roues (style téléphone)</button>
+    <button class="tab" data-v="D">D · Durée (« fini dans… »)</button>
+</div>
+
+
+<!-- A -->
+<section class="variant active" id="v-A">
+    <p class="variant-desc">Les échéances les plus courantes en un clic. « Personnaliser » ouvre le sélecteur classique pour les cas particuliers.</p>
+    <div class="card"><div class="section"><div class="icon">⏳</div><div class="body">
+        <h3>Échéance</h3>
+        <div class="chips" data-a-chips></div>
+        <input type="datetime-local" class="input hidden" data-a-custom>
+        <div class="result empty" data-result>Choisis une échéance</div>
+    </div></div></div>
+</section>
+
+
+<!-- B -->
+<section class="variant" id="v-B">
+    <p class="variant-desc">On choisit le jour parmi les 7 prochains, puis l'heure avec un curseur (par pas de 15 min). Des raccourcis d'heure sont aussi proposés.</p>
+    <div class="card"><div class="section"><div class="icon">⏳</div><div class="body">
+        <h3>Échéance</h3>
+        <div class="days" data-b-days></div>
+        <div class="time-row"><span class="time-big" data-b-time>20:00</span><input type="range" min="0" max="95" value="80" data-b-range></div>
+        <div class="chips" data-b-quick></div>
+        <div class="result" data-result></div>
+    </div></div></div>
+</section>
+
+
+<!-- C -->
+<section class="variant" id="v-C">
+    <p class="variant-desc">Des roues à faire défiler (molette ou doigt), comme le sélecteur d'heure d'un téléphone : jour, heure, minutes.</p>
+    <div class="card"><div class="section"><div class="icon">⏳</div><div class="body">
+        <h3>Échéance</h3>
+        <div class="wheels"><div class="wheel-frame"></div><div class="wheel" data-c-day></div><div class="wheel min" data-c-h></div><div class="wheel min" data-c-m></div></div>
+        <div class="result" data-result></div>
+    </div></div></div>
+</section>
+
+
+<!-- D -->
+<section class="variant" id="v-D">
+    <p class="variant-desc">Au lieu d'une date, on dit dans combien de temps le pari se ferme. Pratique pour des paris rapides entre amis.</p>
+    <div class="card"><div class="section"><div class="icon">⏳</div><div class="body">
+        <h3>Le pari se ferme dans…</h3>
+        <div class="chips" data-d-chips></div>
+        <div class="stepper"><button data-d-minus>−</button><span class="val" data-d-val>2 h</span><button data-d-plus>+</button></div>
+        <div class="result" data-result></div>
+    </div></div></div>
+</section>
+
+
+<div class="bar">
+    <span>Proposition affichée : <strong id="current">A · Raccourcis rapides</strong></span>
+    <button class="pick" id="pick">Je choisis celle-ci</button>
+</div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const pad = n => String(n).padStart(2, "0");
+
+function fmt(d) {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const day = new Date(d); day.setHours(0, 0, 0, 0);
+    const diff = Math.round((day - today) / 86400000);
+    const label = diff === 0 ? "Aujourd'hui" : diff === 1 ? "Demain" : d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+    return label.charAt(0).toUpperCase() + label.slice(1) + " à " + pad(d.getHours()) + "h" + pad(d.getMinutes());
+}
+
+function showResult(v, d) {
+    const r = $("[data-result]", v);
+    if (!d) { r.className = "result empty"; r.textContent = "Choisis une échéance"; return; }
+    if (d <= new Date()) { r.className = "result empty"; r.textContent = "⚠️ " + fmt(d) + " : c'est déjà passé"; return; }
+    r.className = "result"; r.textContent = "✅ Se ferme : " + fmt(d);
+}
+
+document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t === tab));
+    document.querySelectorAll(".variant").forEach(v => v.classList.toggle("active", v.id === "v-" + tab.dataset.v));
+    $("#current").textContent = tab.textContent;
+}));
+
+
+/* ===== A : raccourcis ===== */
+(() => {
+    const v = $("#v-A"), box = $("[data-a-chips]", v), custom = $("[data-a-custom]", v);
+    const at = (days, h, m = 0) => { const d = new Date(); d.setDate(d.getDate() + days); d.setHours(h, m, 0, 0); return d; };
+    const inH = h => { const d = new Date(Date.now() + h * 3600000); d.setSeconds(0, 0); return d; };
+    const friday = () => { const d = new Date(); d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7 || 7)); d.setHours(20, 0, 0, 0); return d; };
+    const presets = [
+        ["Dans 1 h", () => inH(1)],
+        ["Ce soir", () => at(0, 20), "20h"],
+        ["Demain midi", () => at(1, 12), "12h"],
+        ["Demain soir", () => at(1, 20), "20h"],
+        ["Vendredi soir", friday, "20h"],
+        ["Dans 1 semaine", () => at(7, 20), "20h"],
+        ["✏️ Personnaliser", null]
+    ];
+    presets.forEach(([label, fn, hint]) => {
+        const b = document.createElement("button"); b.className = "chip";
+        b.innerHTML = label + (hint ? `<small>${hint}</small>` : "");
+        b.addEventListener("click", () => {
+            box.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", c === b));
+            custom.classList.toggle("hidden", !!fn);
+            showResult(v, fn ? fn() : (custom.value ? new Date(custom.value) : null));
+        });
+        box.appendChild(b);
+    });
+    custom.addEventListener("input", () => showResult(v, custom.value ? new Date(custom.value) : null));
+})();
+
+
+/* ===== B : jour + heure ===== */
+(() => {
+    const v = $("#v-B"), days = $("[data-b-days]", v), range = $("[data-b-range]", v), timeEl = $("[data-b-time]", v);
+    let dayOffset = 0;
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(); d.setDate(d.getDate() + i);
+        const b = document.createElement("button"); b.className = "day" + (i === 0 ? " on" : "");
+        b.innerHTML = `<small>${i === 0 ? "auj." : i === 1 ? "dem." : d.toLocaleDateString("fr-FR", { weekday: "short" })}</small><b>${d.getDate()}</b>`;
+        b.addEventListener("click", () => { dayOffset = i; days.querySelectorAll(".day").forEach(x => x.classList.toggle("on", x === b)); update(); });
+        days.appendChild(b);
+    }
+    [["Midi", 48], ["18h", 72], ["20h", 80], ["22h", 88]].forEach(([l, val]) => {
+        const b = document.createElement("button"); b.className = "chip"; b.textContent = l;
+        b.addEventListener("click", () => { range.value = val; update(); });
+        $("[data-b-quick]", v).appendChild(b);
+    });
+    function update() {
+        const mins = range.value * 15, d = new Date();
+        d.setDate(d.getDate() + dayOffset); d.setHours(Math.floor(mins / 60), mins % 60, 0, 0);
+        timeEl.textContent = pad(d.getHours()) + ":" + pad(d.getMinutes());
+        showResult(v, d);
+    }
+    range.addEventListener("input", update);
+    update();
+})();
+
+
+/* ===== C : roues ===== */
+(() => {
+    const v = $("#v-C");
+    const dayLabels = [...Array(14)].map((_, i) => { const d = new Date(); d.setDate(d.getDate() + i); return i === 0 ? "Aujourd'hui" : i === 1 ? "Demain" : d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" }); });
+    const hours = [...Array(24)].map((_, i) => pad(i) + " h");
+    const mins = ["00", "15", "30", "45"];
+    const state = { day: 0, h: 20, m: 0 };
+    function build(el, items, key, start) {
+        el.innerHTML = `<div class="pad"></div><div class="pad"></div>` + items.map(t => `<div>${t}</div>`).join("") + `<div class="pad"></div><div class="pad"></div>`;
+        const rows = () => [...el.children].filter(c => !c.classList.contains("pad"));
+        el.scrollTop = start * 40 - 15;
+        el.addEventListener("scroll", () => {
+            clearTimeout(el._t);
+            el._t = setTimeout(() => {
+                const idx = Math.max(0, Math.min(items.length - 1, Math.round((el.scrollTop + 15) / 40)));
+                rows().forEach((r, i) => r.classList.toggle("sel", i === idx));
+                state[key] = idx; update();
+            }, 60);
+        });
+        rows().forEach((r, i) => { r.classList.toggle("sel", i === start); r.addEventListener("click", () => el.scrollTo({ top: i * 40 - 15, behavior: "smooth" })); });
+    }
+    build($("[data-c-day]", v), dayLabels, "day", 0);
+    build($("[data-c-h]", v), hours, "h", 20);
+    build($("[data-c-m]", v), mins, "m", 0);
+    function update() { const d = new Date(); d.setDate(d.getDate() + state.day); d.setHours(state.h, state.m * 15, 0, 0); showResult(v, d); }
+    update();
+})();
+
+
+/* ===== D : durée ===== */
+(() => {
+    const v = $("#v-D"), steps = [15, 30, 60, 120, 180, 360, 720, 1440, 2880, 4320, 10080];
+    let i = 3;
+    const label = m => m < 60 ? m + " min" : m < 1440 ? (m / 60) + " h" : (m / 1440) + (m === 1440 ? " jour" : " jours");
+    const chips = $("[data-d-chips]", v);
+    [30, 60, 180, 1440, 10080].forEach(m => {
+        const b = document.createElement("button"); b.className = "chip"; b.textContent = label(m);
+        b.addEventListener("click", () => { i = steps.indexOf(m); update(); });
+        chips.appendChild(b);
+    });
+    function update() {
+        const m = steps[i];
+        $("[data-d-val]", v).textContent = label(m);
+        chips.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", c.textContent === label(m)));
+        const d = new Date(Date.now() + m * 60000); d.setSeconds(0, 0);
+        showResult(v, d);
+    }
+    $("[data-d-minus]", v).addEventListener("click", () => { i = Math.max(0, i - 1); update(); });
+    $("[data-d-plus]", v).addEventListener("click", () => { i = Math.min(steps.length - 1, i + 1); update(); });
+    update();
+})();
+
+
+$("#pick").addEventListener("click", () => {
+    const txt = "Je choisis l'échéance " + $("#current").textContent;
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).catch(() => {});
+    $("#pick").textContent = "✔ Copié ! Colle-le dans le chat";
+    setTimeout(() => $("#pick").textContent = "Je choisis celle-ci", 2500);
+});
+</script>
+</body>
+</html>

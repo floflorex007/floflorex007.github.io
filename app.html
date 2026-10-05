@@ -127,10 +127,11 @@
 
 
             <button
-                id="logout-button"
-                class="logout-button"
+                id="profile-nav-button"
+                class="nav-button profile-nav-button"
+                data-page="profile-page"
             >
-                Déconnexion
+                👤 Profil
             </button>
 
         </div>
@@ -458,8 +459,109 @@
 
             <div
                 id="shop-container"
-                class="missions-grid"
+                class="shop-sections"
             ></div>
+
+        </section>
+
+
+
+        <!-- =====================================
+             PAGE : PROFIL
+        ====================================== -->
+
+        <section
+            id="profile-page"
+            class="app-page hidden"
+        >
+
+            <div class="page-header">
+
+                <div>
+
+                    <h1>
+                        Profil
+                    </h1>
+
+                    <p>
+                        Gère ton pseudo et ton compte.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="profile-card">
+
+                <h2>
+                    Changer de pseudo
+                </h2>
+
+                <p class="profile-hint">
+                    Ton pseudo apparaît dans le classement et sur les paris.
+                    C'est aussi ton identifiant de connexion : après le changement,
+                    connecte-toi avec ton nouveau pseudo (le mot de passe ne change pas).
+                </p>
+
+                <form
+                    id="username-form"
+                    class="profile-form"
+                >
+
+                    <input
+                        id="username-input"
+                        type="text"
+                        minlength="3"
+                        maxlength="20"
+                        autocomplete="off"
+                        required
+                    >
+
+                    <button
+                        type="submit"
+                        class="primary-button"
+                        id="username-submit"
+                    >
+                        Enregistrer
+                    </button>
+
+                </form>
+
+                <p
+                    id="username-message"
+                    class="missions-message hidden"
+                ></p>
+
+            </div>
+
+
+            <div class="profile-card">
+
+                <h2>
+                    Session
+                </h2>
+
+                <button
+                    id="logout-button"
+                    class="logout-button"
+                >
+                    Déconnexion
+                </button>
+
+            </div>
+
+
+            <div class="delete-account-area">
+
+                <button
+                    id="delete-account-button"
+                    class="delete-account-button"
+                >
+                    Supprimer mon compte
+                </button>
+
+            </div>
 
         </section>
 
@@ -491,188 +593,220 @@
             </div>
 
 
-            <div class="create-card">
+            <div class="create-card create-card--sections">
 
                 <form id="create-bet-form">
 
 
-                    <label for="bet-question">
-                        Question du pari
-                    </label>
+                    <!-- Question -->
 
+                    <div class="create-section">
 
-                    <input
-                        type="text"
-                        id="bet-question"
-                        placeholder="Ex : Est-ce que Thomas arrivera en retard demain ?"
-                        required
-                    >
+                        <div class="create-section-icon">🎲</div>
 
+                        <div class="create-section-body">
 
-                    <label class="checkbox-row">
-
-                        <input
-                            type="checkbox"
-                            id="bet-has-target"
-                        >
-
-                        Ce pari concerne un autre parieur
-
-                    </label>
-
-
-                    <div
-                        id="bet-target-options"
-                        class="hidden"
-                    >
-
-                        <label for="bet-target-user">
-                            Parieur concerné
-                        </label>
-
-
-                        <select id="bet-target-user">
-
-                            <option value="">
-                                Choisis un parieur
-                            </option>
-
-                        </select>
-
-
-                        <label class="checkbox-row">
+                            <label for="bet-question">
+                                Question
+                            </label>
 
                             <input
-                                type="checkbox"
-                                id="bet-target-blocked"
-                                checked
+                                type="text"
+                                id="bet-question"
+                                placeholder="Ex : Est-ce que Thomas arrivera en retard demain ?"
+                                required
                             >
 
-                            Bloquer cette personne : elle ne pourra pas parier
-
-                        </label>
+                        </div>
 
                     </div>
 
 
-                    <label>
-                        Échéance du pari
-                    </label>
+                    <!-- Choix et cotes -->
 
+                    <div class="create-section">
 
-                    <div class="deadline-mode-options">
+                        <div class="create-section-icon">⚖️</div>
 
-                        <button
-                            type="button"
-                            id="deadline-mode-datetime"
-                            class="deadline-mode-toggle"
-                            data-mode="datetime"
-                        >
-                            Date / Heure
-                        </button>
-
-                        <button
-                            type="button"
-                            id="deadline-mode-time"
-                            class="deadline-mode-toggle"
-                            data-mode="time"
-                        >
-                            Heure
-                        </button>
-
-                    </div>
-
-
-                    <input
-                        type="datetime-local"
-                        id="bet-deadline-datetime"
-                        class="hidden"
-                    >
-
-
-                    <input
-                        type="time"
-                        id="bet-deadline-time"
-                        class="hidden"
-                    >
-
-
-                    <div class="choices">
-
-
-                        <div class="choice">
+                        <div class="create-section-body">
 
                             <label for="choice-one">
-                                Choix 1
+                                Choix et cotes
                             </label>
 
+                            <div class="create-choice-row">
 
-                            <input
-                                type="text"
-                                id="choice-one"
-                                placeholder="Oui"
-                                required
-                            >
+                                <input
+                                    type="text"
+                                    id="choice-one"
+                                    placeholder="Choix 1 : Oui"
+                                    required
+                                >
 
+                                <input
+                                    type="number"
+                                    id="odds-one"
+                                    min="1.01"
+                                    step="0.01"
+                                    placeholder="Cote 1.80"
+                                    required
+                                >
 
-                            <label for="odds-one">
-                                Cote
-                            </label>
+                            </div>
 
+                            <div class="create-choice-row">
 
-                            <input
-                                type="number"
-                                id="odds-one"
-                                min="1.01"
-                                step="0.01"
-                                placeholder="1.80"
-                                required
-                            >
+                                <input
+                                    type="text"
+                                    id="choice-two"
+                                    placeholder="Choix 2 : Non"
+                                    required
+                                >
 
-                        </div>
+                                <input
+                                    type="number"
+                                    id="odds-two"
+                                    min="1.01"
+                                    step="0.01"
+                                    placeholder="Auto"
+                                    readonly
+                                    required
+                                >
 
+                            </div>
 
-                        <div class="choice">
-
-                            <label for="choice-two">
-                                Choix 2
-                            </label>
-
-
-                            <input
-                                type="text"
-                                id="choice-two"
-                                placeholder="Non"
-                                required
-                            >
-
-
-                            <label for="odds-two">
-                                Cote
-                            </label>
-
-
-                            <input
-                                type="number"
-                                id="odds-two"
-                                min="1.01"
-                                step="0.01"
-                                placeholder="Calculée automatiquement"
-                                readonly
-                                required
-                            >
+                            <p class="create-hint">
+                                La cote du choix 2 se calcule toute seule.
+                            </p>
 
                         </div>
 
                     </div>
 
 
-                    <button
-                        type="submit"
-                        class="primary-button large-button"
-                    >
-                        Créer le pari
-                    </button>
+                    <!-- Échéance -->
+
+                    <div class="create-section">
+
+                        <div class="create-section-icon">⏳</div>
+
+                        <div class="create-section-body">
+
+                            <label>
+                                Échéance
+                            </label>
+
+                            <div
+                                id="deadline-days"
+                                class="deadline-days"
+                            ></div>
+
+                            <div class="deadline-time-row">
+
+                                <span
+                                    id="deadline-time"
+                                    class="deadline-time"
+                                >
+                                    20:00
+                                </span>
+
+                                <input
+                                    type="range"
+                                    id="deadline-range"
+                                    min="0"
+                                    max="95"
+                                    value="80"
+                                    aria-label="Heure de fin du pari"
+                                >
+
+                            </div>
+
+                            <div
+                                id="deadline-result"
+                                class="deadline-result empty"
+                            >
+                                Choisis le jour de fin du pari
+                            </div>
+
+                            <p
+                                id="deadline-error"
+                                class="create-error hidden"
+                            ></p>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- Parieur concerné -->
+
+                    <div class="create-section">
+
+                        <div class="create-section-icon">🎯</div>
+
+                        <div class="create-section-body">
+
+                            <label>
+                                Parieur concerné
+                            </label>
+
+                            <label class="switch-row">
+
+                                <input
+                                    type="checkbox"
+                                    id="bet-has-target"
+                                >
+
+                                <span class="switch-track"></span>
+
+                                Ce pari concerne un autre parieur
+
+                            </label>
+
+                            <div
+                                id="bet-target-options"
+                                class="hidden"
+                            >
+
+                                <select id="bet-target-user">
+
+                                    <option value="">
+                                        Choisis un parieur
+                                    </option>
+
+                                </select>
+
+                                <label class="switch-row">
+
+                                    <input
+                                        type="checkbox"
+                                        id="bet-target-blocked"
+                                        checked
+                                    >
+
+                                    <span class="switch-track"></span>
+
+                                    Bloquer cette personne : elle ne pourra pas parier
+
+                                </label>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="create-footer">
+
+                        <button
+                            type="submit"
+                            class="primary-button large-button"
+                        >
+                            Créer le pari
+                        </button>
+
+                    </div>
 
                 </form>
 
@@ -899,11 +1033,19 @@
                 Question
             </p>
 
+            <div
+                id="resolve-steps"
+                class="resolve-steps"
+            >
+                <div></div>
+                <div></div>
+            </div>
 
-            <p class="resolve-info">
-                Sélectionne le résultat final.
-                Cette action est définitive.
-            </p>
+
+            <p
+                id="resolve-info"
+                class="resolve-info"
+            ></p>
 
 
             <div
@@ -916,6 +1058,121 @@
                 id="resolve-error"
                 class="error-message"
             ></p>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =========================================
+         MODAL : APERÇU D'UN ARTICLE DE LA BOUTIQUE
+    ========================================== -->
+
+    <div
+        id="shop-preview-modal"
+        class="modal hidden"
+    >
+
+        <div class="modal-content shop-preview-content">
+
+            <button
+                id="close-shop-preview"
+                class="close-modal"
+            >
+                ×
+            </button>
+
+
+            <h2 id="shop-preview-title">
+                Aperçu
+            </h2>
+
+
+            <p
+                id="shop-preview-description"
+                class="resolve-info"
+            ></p>
+
+
+            <div
+                id="shop-preview-stage"
+                class="shop-preview-stage"
+            ></div>
+
+
+            <div
+                id="shop-preview-options"
+                class="cosmetic-options"
+            ></div>
+
+
+            <p
+                id="shop-preview-price"
+                class="shop-preview-price"
+            ></p>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =========================================
+         MODAL : SUPPRESSION DU COMPTE
+    ========================================== -->
+
+    <div
+        id="delete-account-modal"
+        class="modal hidden"
+    >
+
+        <div class="modal-content">
+
+            <button
+                id="close-delete-account-modal"
+                class="close-modal"
+            >
+                ×
+            </button>
+
+
+            <h2>
+                Supprimer ton compte ?
+            </h2>
+
+
+            <p class="resolve-info">
+                Es-tu bien sûr(e) de vouloir supprimer ce profil ?
+                Ton solde, tes points, tes mises et tes avantages seront effacés,
+                et tu ne pourras plus jamais te reconnecter avec cet identifiant.
+                Cette action est définitive.
+            </p>
+
+
+            <p
+                id="delete-account-error"
+                class="error-message"
+            ></p>
+
+
+            <div class="delete-account-actions">
+
+                <button
+                    id="cancel-delete-account"
+                    class="secondary-button"
+                >
+                    Annuler
+                </button>
+
+                <button
+                    id="confirm-delete-account"
+                    class="danger-button"
+                >
+                    Oui, supprimer définitivement
+                </button>
+
+            </div>
 
         </div>
 

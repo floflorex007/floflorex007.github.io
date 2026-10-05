@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BetLab – Valider un pari (propositions)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; }
+h1 { font-size: 26px; margin-bottom: 6px; }
+.sub { color: #858a98; margin-bottom: 20px; max-width: 760px; }
+button { font: inherit; }
+.hidden { display: none !important; }
+
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; position: sticky; top: 0; background: #0f1117; padding: 10px 0; z-index: 10; }
+.tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; }
+.tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.variant { display: none; }
+.variant.active { display: block; animation: fade .3s; }
+@keyframes fade { from { opacity: 0; transform: translateY(8px); } }
+.variant-desc { color: #aaaeba; font-size: 14px; margin-bottom: 18px; max-width: 560px; }
+.reset { margin-top: 12px; background: none; border: 1px dashed #3a3f52; color: #858a98; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; }
+
+/* Fenêtre (comme une modale du site) */
+.modal { position: relative; max-width: 480px; background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; border-radius: 20px; padding: 24px; box-shadow: 0 20px 60px rgba(0, 0, 0, .5); }
+.close { position: absolute; top: 14px; right: 16px; background: none; border: none; color: #858a98; font-size: 22px; cursor: pointer; }
+.kicker { font-size: 11px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: #a59fff; margin-bottom: 6px; }
+.q { font-size: 19px; font-weight: 800; margin-bottom: 4px; padding-right: 20px; }
+.meta { color: #858a98; font-size: 12px; margin-bottom: 18px; }
+.warn { display: flex; gap: 8px; align-items: center; background: rgba(245, 196, 81, .08); border: 1px solid rgba(245, 196, 81, .3); color: #f5c451; font-size: 12px; padding: 8px 12px; border-radius: 10px; margin-top: 14px; }
+.btn { width: 100%; border: none; background: linear-gradient(135deg, #6c63ff, #8b5cf6); color: white; font-weight: 800; padding: 13px; border-radius: 12px; cursor: pointer; margin-top: 14px; box-shadow: 0 8px 22px rgba(108, 99, 255, .35); }
+.btn:disabled { background: #2c3040; color: #737887; box-shadow: none; cursor: not-allowed; }
+.btn.green { background: linear-gradient(135deg, #2fa36f, #63d69f); box-shadow: 0 8px 22px rgba(99, 214, 159, .3); color: #0b1f15; }
+.done { text-align: center; padding: 20px 0 6px; }
+.done .big { font-size: 46px; animation: pop .5s cubic-bezier(.2, 1.6, .4, 1); }
+@keyframes pop { from { transform: scale(0); } }
+.done h3 { margin: 8px 0 4px; }
+.done p { color: #858a98; font-size: 13px; }
+
+/* A : choix + récap + confirmer */
+.a-opts { display: flex; flex-direction: column; gap: 10px; }
+.a-opt { display: flex; align-items: center; gap: 12px; border: 1px solid #2c3040; background: #0f1117; color: white; border-radius: 14px; padding: 12px 14px; cursor: pointer; text-align: left; transition: all .15s; }
+.a-opt:hover { border-color: #454a5c; }
+.a-opt .radio { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #454a5c; flex-shrink: 0; position: relative; }
+.a-opt.on { border-color: #6c63ff; background: rgba(108, 99, 255, .1); }
+.a-opt.on .radio { border-color: #6c63ff; }
+.a-opt.on .radio::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: #6c63ff; }
+.a-opt .lab { flex: 1; }
+.a-opt .lab b { display: block; }
+.a-opt .lab small { color: #858a98; font-size: 12px; }
+.a-opt .odds { color: #a59fff; font-weight: 800; }
+.recap { margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.recap div { background: #0f1117; border: 1px solid #22252f; border-radius: 12px; padding: 10px 12px; }
+.recap span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .4px; color: #858a98; }
+.recap b { font-size: 17px; }
+
+/* B : duel */
+.b-duel { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; }
+.b-side { border: 1px solid #2c3040; background: #0f1117; border-radius: 16px; padding: 18px 10px; text-align: center; cursor: pointer; transition: all .2s; color: white; }
+.b-side .crown { font-size: 26px; height: 32px; display: block; opacity: 0; transition: all .2s; transform: translateY(6px); }
+.b-side b { display: block; font-size: 18px; }
+.b-side small { color: #858a98; font-size: 12px; }
+.b-side:hover .crown { opacity: .4; transform: none; }
+.b-side.win { border-color: #f5c451; background: rgba(245, 196, 81, .1); box-shadow: 0 0 24px rgba(245, 196, 81, .2); }
+.b-side.win .crown { opacity: 1; transform: none; }
+.b-side.lose { opacity: .45; filter: grayscale(1); }
+.b-vs { width: 40px; height: 40px; border-radius: 50%; background: #262a38; color: #858a98; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 13px; }
+.b-sum { margin-top: 14px; text-align: center; font-size: 13px; color: #aaaeba; min-height: 18px; }
+.b-sum b { color: #f5c451; }
+
+/* C : maintenir pour valider */
+.c-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.c-opt { border: 1px solid #2c3040; background: #0f1117; color: white; border-radius: 14px; padding: 14px; cursor: pointer; font-weight: 700; }
+.c-opt.on { border-color: #63d69f; background: rgba(99, 214, 159, .1); }
+.hold { position: relative; overflow: hidden; width: 100%; margin-top: 16px; border: 1px solid #2c3040; background: #0f1117; color: white; font-weight: 800; padding: 14px; border-radius: 12px; cursor: pointer; user-select: none; }
+.hold .fill { position: absolute; inset: 0; width: 0; background: linear-gradient(90deg, #2fa36f, #63d69f); opacity: .35; }
+.hold span { position: relative; }
+.hold:disabled { color: #737887; cursor: not-allowed; }
+
+/* D : deux étapes */
+.d-steps { display: flex; gap: 6px; margin-bottom: 16px; }
+.d-steps div { flex: 1; height: 5px; border-radius: 99px; background: #262a38; }
+.d-steps div.on { background: #6c63ff; }
+.d-pick { display: flex; flex-direction: column; gap: 8px; }
+.d-pick button { border: 1px solid #2c3040; background: #0f1117; color: white; border-radius: 12px; padding: 13px; cursor: pointer; font-weight: 700; display: flex; justify-content: space-between; }
+.d-pick button:hover { border-color: #6c63ff; }
+.d-list { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow: auto; }
+.d-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; padding: 8px 12px; border-radius: 10px; background: #0f1117; }
+.d-row.w b { color: #63d69f; }
+.d-row.l { color: #737887; }
+.d-row.l b { color: #ff8a8a; }
+.d-nav { display: flex; gap: 8px; }
+.d-nav .back { margin-top: 14px; border: 1px solid #2c3040; background: none; color: #aaaeba; border-radius: 12px; padding: 13px 16px; cursor: pointer; }
+
+.bar { position: fixed; left: 0; right: 0; bottom: 0; background: #171a23; border-top: 1px solid #2c3040; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.bar strong { color: #f5c451; }
+.pick { background: #f5c451; color: #111; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 800; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<h1>Valider le résultat : 4 propositions</h1>
+<p class="sub">Aujourd'hui, la fenêtre affiche des boutons avec le nom des choix, et un clic valide tout de suite, sans retour possible. Ces propositions ajoutent toutes une protection contre les erreurs, et montrent ce que le résultat va provoquer. Données fictives.</p>
+
+<div class="tabs">
+    <button class="tab active" data-v="A">A · Choisir puis confirmer</button>
+    <button class="tab" data-v="B">B · Duel couronné</button>
+    <button class="tab" data-v="C">C · Maintenir pour valider</button>
+    <button class="tab" data-v="D">D · Deux étapes avec bilan</button>
+</div>
+
+<section class="variant active" id="v-A"><p class="variant-desc">On sélectionne le gagnant (comme un bouton radio), un petit bilan apparaît (gagnants et somme reversée), puis on confirme.</p><div data-mount></div></section>
+<section class="variant" id="v-B"><p class="variant-desc">Les choix face à face : on clique sur le gagnant, il est couronné 👑, l'autre se grise. Une phrase résume le résultat avant de valider.</p><div data-mount></div></section>
+<section class="variant" id="v-C"><p class="variant-desc">On choisit le gagnant puis on maintient le bouton enfoncé 1,5 seconde pour valider : impossible de valider par erreur.</p><div data-mount></div></section>
+<section class="variant" id="v-D"><p class="variant-desc">Étape 1 : choisir le gagnant. Étape 2 : voir qui gagne et qui perd, joueur par joueur, puis confirmer (ou revenir).</p><div data-mount></div></section>
+
+<div class="bar">
+    <span>Proposition affichée : <strong id="current">A · Choisir puis confirmer</strong></span>
+    <button class="pick" id="pick">Je choisis celle-ci</button>
+</div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const money = n => n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+
+const BET = {
+    q: "Thomas arrivera-t-il en retard demain ?",
+    end: "Fermé le 04/10 à 09h00",
+    choices: [{ label: "Oui", odds: 1.5 }, { label: "Non", odds: 3 }],
+    stakes: [
+        { user: "Emma", c: 0, s: 100 }, { user: "Lucas", c: 0, s: 50 }, { user: "Hugo", c: 1, s: 80 },
+        { user: "Léa", c: 0, s: 200 }, { user: "Nina", c: 1, s: 40 }
+    ]
+};
+const info = i => {
+    const w = BET.stakes.filter(s => s.c === i);
+    return { count: w.length, paid: w.reduce((t, s) => t + s.s * BET.choices[i].odds, 0), losers: BET.stakes.length - w.length };
+};
+const head = `<button class="close">×</button><div class="kicker">Valider le résultat</div><div class="q">${BET.q}</div><div class="meta">${BET.end} · ${BET.stakes.length} parieurs</div>`;
+const doneHtml = i => `<div class="done"><div class="big">🏆</div><h3>Résultat validé : ${BET.choices[i].label}</h3><p>${info(i).count} gagnant(s) payé(s) · ${money(info(i).paid)} reversés</p></div>`;
+const warn = `<div class="warn">⚠️ Cette action est définitive.</div>`;
+
+const variants = {
+    A(m) {
+        let sel = null;
+        const draw = () => {
+            m.innerHTML = `<div class="modal">${head}
+                <div class="a-opts">${BET.choices.map((c, i) => `<button class="a-opt${sel === i ? " on" : ""}" data-i="${i}"><span class="radio"></span><span class="lab"><b>${c.label}</b><small>${info(i).count} parieur(s) sur ce choix</small></span><span class="odds">${c.odds.toFixed(2)}</span></button>`).join("")}</div>
+                ${sel === null ? "" : `<div class="recap"><div><span>Gagnants</span><b>${info(sel).count}</b></div><div><span>À reverser</span><b>${money(info(sel).paid)}</b></div></div>`}
+                ${warn}<button class="btn" ${sel === null ? "disabled" : ""}>${sel === null ? "Choisis le gagnant" : "Confirmer : « " + BET.choices[sel].label + " » gagne"}</button></div>`;
+            m.querySelectorAll(".a-opt").forEach(b => b.onclick = () => { sel = +b.dataset.i; draw(); });
+            $(".btn", m).onclick = () => { $(".modal", m).innerHTML = head + doneHtml(sel); };
+        };
+        draw();
+    },
+    B(m) {
+        let sel = null;
+        const draw = () => {
+            m.innerHTML = `<div class="modal">${head}
+                <div class="b-duel">${BET.choices.map((c, i) => `<button class="b-side${sel === null ? "" : sel === i ? " win" : " lose"}" data-i="${i}"><span class="crown">👑</span><b>${c.label}</b><small>cote ${c.odds.toFixed(2)} · ${info(i).count} parieur(s)</small></button>`).join('<div class="b-vs">VS</div>')}</div>
+                <div class="b-sum">${sel === null ? "Clique sur le choix gagnant" : `<b>${info(sel).count} gagnant(s)</b> se partagent ${money(info(sel).paid)} · ${info(sel).losers} perdant(s)`}</div>
+                ${warn}<button class="btn" ${sel === null ? "disabled" : ""}>Valider le résultat</button></div>`;
+            m.querySelectorAll(".b-side").forEach(b => b.onclick = () => { sel = +b.dataset.i; draw(); });
+            $(".btn", m).onclick = () => { $(".modal", m).innerHTML = head + doneHtml(sel); };
+        };
+        draw();
+    },
+    C(m) {
+        let sel = null;
+        const draw = () => {
+            m.innerHTML = `<div class="modal">${head}
+                <div class="c-opts">${BET.choices.map((c, i) => `<button class="c-opt${sel === i ? " on" : ""}" data-i="${i}">${sel === i ? "🏆 " : ""}${c.label}</button>`).join("")}</div>
+                <button class="hold" ${sel === null ? "disabled" : ""}><span class="fill"></span><span>${sel === null ? "Choisis le gagnant" : "Maintiens pour valider « " + BET.choices[sel].label + " »"}</span></button></div>`;
+            m.querySelectorAll(".c-opt").forEach(b => b.onclick = () => { sel = +b.dataset.i; draw(); });
+            const h = $(".hold", m), fill = $(".fill", h); let t0, raf;
+            const stop = () => { cancelAnimationFrame(raf); fill.style.transition = "width .2s"; fill.style.width = "0"; };
+            const start = e => { if (sel === null) return; e.preventDefault(); fill.style.transition = "none"; t0 = performance.now();
+                const step = now => { const p = Math.min(1, (now - t0) / 1500); fill.style.width = p * 100 + "%"; if (p < 1) raf = requestAnimationFrame(step); else $(".modal", m).innerHTML = head + doneHtml(sel); };
+                raf = requestAnimationFrame(step); };
+            h.addEventListener("pointerdown", start); h.addEventListener("pointerup", stop); h.addEventListener("pointerleave", stop);
+        };
+        draw();
+    },
+    D(m) {
+        let step = 1, sel = null;
+        const draw = () => {
+            m.innerHTML = `<div class="modal">${head}<div class="d-steps"><div class="on"></div><div class="${step === 2 ? "on" : ""}"></div></div>` + (step === 1
+                ? `<div class="d-pick">${BET.choices.map((c, i) => `<button data-i="${i}"><span>${c.label}</span><span style="color:#a59fff">${c.odds.toFixed(2)} →</span></button>`).join("")}</div>`
+                : `<div style="font-weight:700;margin-bottom:10px">Si « ${BET.choices[sel].label} » gagne :</div>
+                   <div class="d-list">${BET.stakes.map(s => s.c === sel ? `<div class="d-row w"><span>✓ ${s.user}</span><b>+${money(s.s * BET.choices[sel].odds)}</b></div>` : `<div class="d-row l"><span>✗ ${s.user}</span><b>−${money(s.s)}</b></div>`).join("")}</div>
+                   ${warn}<div class="d-nav"><button class="back">← Changer</button><button class="btn green">Confirmer</button></div>`) + `</div>`;
+            if (step === 1) m.querySelectorAll(".d-pick button").forEach(b => b.onclick = () => { sel = +b.dataset.i; step = 2; draw(); });
+            else { $(".back", m).onclick = () => { step = 1; draw(); }; $(".btn", m).onclick = () => { $(".modal", m).innerHTML = head + doneHtml(sel); }; }
+        };
+        draw();
+    }
+};
+
+Object.keys(variants).forEach(k => {
+    const mount = $("#v-" + k + " [data-mount]");
+    variants[k](mount);
+    const r = document.createElement("button"); r.className = "reset"; r.textContent = "↺ Recommencer";
+    r.onclick = () => variants[k](mount);
+    mount.after(r);
+});
+
+document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t === tab));
+    document.querySelectorAll(".variant").forEach(v => v.classList.toggle("active", v.id === "v-" + tab.dataset.v));
+    $("#current").textContent = tab.textContent;
+}));
+
+$("#pick").addEventListener("click", () => {
+    const txt = "Je choisis pour la validation : " + $("#current").textContent;
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).catch(() => {});
+    $("#pick").textContent = "✔ Copié ! Colle-le dans le chat";
+    setTimeout(() => $("#pick").textContent = "Je choisis celle-ci", 2500);
+});
+</script>
+</body>
+</html>

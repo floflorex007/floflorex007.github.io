@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BetLab – Mes paris (propositions)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; }
+h1 { font-size: 26px; margin-bottom: 6px; }
+.sub { color: #858a98; margin-bottom: 20px; max-width: 760px; }
+button { font: inherit; }
+
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; position: sticky; top: 0; background: #0f1117; padding: 10px 0; z-index: 10; }
+.tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; }
+.tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.variant { display: none; max-width: 760px; }
+.variant.active { display: block; animation: fade .3s; }
+@keyframes fade { from { opacity: 0; transform: translateY(8px); } }
+.variant-desc { color: #aaaeba; font-size: 14px; margin-bottom: 18px; }
+.list { display: flex; flex-direction: column; gap: 8px; }
+
+.card { background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; border-radius: 14px; padding: 12px 16px; }
+.q { font-size: 14px; font-weight: 700; }
+.meta { color: #858a98; font-size: 11px; }
+.badge { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.badge.win { background: rgba(99, 214, 159, .12); color: #63d69f; border: 1px solid rgba(99, 214, 159, .35); }
+.badge.lose { background: rgba(255, 107, 107, .1); color: #ff8a8a; border: 1px solid rgba(255, 107, 107, .3); }
+.badge.open { background: rgba(108, 99, 255, .15); color: #a59fff; border: 1px solid rgba(108, 99, 255, .4); }
+.green { color: #63d69f; } .red { color: #ff8a8a; } .violet { color: #a59fff; }
+
+/* A : ticket compact */
+.a { display: flex; align-items: center; gap: 14px; }
+.a .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.a .money { text-align: right; flex-shrink: 0; }
+.a .money b { display: block; font-size: 16px; }
+.a.win { border-left: 4px solid #63d69f; }
+.a.lose { border-left: 4px solid #ff6b6b; opacity: .7; }
+.a.open { border-left: 4px solid #6c63ff; }
+
+/* B : ticket de pari (style bookmaker) */
+.b { padding: 0; overflow: hidden; }
+.b-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 16px; }
+.b-bottom { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px dashed #2c3040; }
+.b-bottom div { padding: 8px 16px; }
+.b-bottom div + div { border-left: 1px dashed #2c3040; }
+.b-bottom span { display: block; font-size: 10px; color: #858a98; text-transform: uppercase; letter-spacing: .4px; }
+.b-bottom b { font-size: 14px; }
+.b.lose { opacity: .65; }
+
+/* C : sections + filtres */
+.filters { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+.filter { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 6px 12px; border-radius: 999px; cursor: pointer; font-size: 13px; }
+.filter.on { background: #292d3b; color: white; border-color: #454a5c; }
+.filter .n { opacity: .6; margin-left: 4px; }
+.summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+.summary div { background: #161922; border: 1px solid #22252f; border-radius: 12px; padding: 10px 12px; }
+.summary span { display: block; font-size: 10px; color: #858a98; text-transform: uppercase; letter-spacing: .4px; }
+.summary b { font-size: 18px; }
+.c { display: flex; align-items: center; gap: 12px; }
+.c .dot { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 14px; }
+.c.win .dot { background: rgba(99, 214, 159, .15); color: #63d69f; }
+.c.lose .dot { background: rgba(255, 107, 107, .12); color: #ff8a8a; }
+.c.open .dot { background: rgba(108, 99, 255, .15); color: #a59fff; }
+.c .txt { flex: 1; min-width: 0; }
+.c .txt .q { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.c .amt { font-weight: 800; font-size: 14px; white-space: nowrap; }
+
+/* D : barre de progression du gain */
+.d { display: flex; flex-direction: column; gap: 8px; }
+.d-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.d-line { display: flex; justify-content: space-between; font-size: 12px; color: #aaaeba; }
+.d-bar { height: 6px; border-radius: 99px; background: #262a38; overflow: hidden; }
+.d-bar div { height: 100%; border-radius: 99px; }
+.d.win .d-bar div { background: linear-gradient(90deg, #63d69f, #a4f0c9); width: 100%; }
+.d.lose .d-bar div { background: #ff6b6b; width: 100%; opacity: .5; }
+.d.open .d-bar div { background: linear-gradient(90deg, #6c63ff, #8b5cf6); width: 45%; }
+.d.lose { opacity: .7; }
+
+.bar { position: fixed; left: 0; right: 0; bottom: 0; background: #171a23; border-top: 1px solid #2c3040; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.bar strong { color: #f5c451; }
+.pick { background: #f5c451; color: #111; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 800; cursor: pointer; }
+
+@media (max-width: 560px) { .b-bottom, .summary { grid-template-columns: 1fr 1fr 1fr; } .b-bottom div { padding: 8px 10px; } }
+</style>
+</head>
+<body>
+
+<h1>Mes paris : 4 propositions</h1>
+<p class="sub">Aujourd'hui, « Mes paris » affiche du texte brut sans carte (Choix, Mise, Gain potentiel, et « Gagné / Perdu / En cours »). Toutes les propositions sont en cartes compactes, comme « Mes créations ». Données fictives.</p>
+
+<div class="tabs">
+    <button class="tab active" data-v="A">A · Liste compacte colorée</button>
+    <button class="tab" data-v="B">B · Ticket de pari</button>
+    <button class="tab" data-v="C">C · Bilan + filtres</button>
+    <button class="tab" data-v="D">D · Barre de gain</button>
+</div>
+
+<section class="variant active" id="v-A"><p class="variant-desc">Une ligne par pari : un liseré de couleur à gauche (violet en cours, vert gagné, rouge perdu), la question et ton choix, et à droite le montant en jeu ou gagné.</p><div class="list" data-list></div></section>
+<section class="variant" id="v-B"><p class="variant-desc">Comme un ticket de bookmaker : la question et le statut en haut, et en bas, séparés par des pointillés, la mise, la cote et le gain.</p><div class="list" data-list></div></section>
+<section class="variant" id="v-C"><p class="variant-desc">Un mini bilan en haut (paris gagnés, total misé, total gagné) et des filtres « Tous / En cours / Gagnés / Perdus ». Les paris sont en lignes très compactes.</p><div data-list></div></section>
+<section class="variant" id="v-D"><p class="variant-desc">Chaque carte montre une barre : violette en cours, verte pleine si gagné, rouge si perdu. Mise → gain potentiel en dessous.</p><div class="list" data-list></div></section>
+
+<div class="bar">
+    <span>Proposition affichée : <strong id="current">A · Liste compacte colorée</strong></span>
+    <button class="pick" id="pick">Je choisis celle-ci</button>
+</div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const money = n => n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+
+const BETS = [
+    { q: "Qui gagne le match PSG – OM ce soir ?", choice: "PSG", odds: 1.8, stake: 100, status: "open" },
+    { q: "Thomas arrivera-t-il en retard demain ?", choice: "Oui", odds: 1.5, stake: 200, status: "win" },
+    { q: "Il va pleuvoir samedi ?", choice: "Oui", odds: 2.4, stake: 50, status: "lose" },
+    { q: "Emma finira son marathon en moins de 4h ?", choice: "Non", odds: 3.1, stake: 80, status: "open" }
+];
+const label = { open: "⏳ En cours", win: "✓ Gagné", lose: "✗ Perdu" };
+const gain = b => b.stake * b.odds;
+
+const render = {
+    A: b => `
+        <div class="card a ${b.status}">
+            <div class="txt"><div class="q">${b.q}</div><div class="meta">Ton choix : <b>${b.choice}</b> · cote ${b.odds.toFixed(2)} · mise ${money(b.stake)}</div></div>
+            <div class="money">${b.status === "win" ? `<b class="green">+${money(gain(b))}</b><span class="meta">gagné</span>`
+                : b.status === "lose" ? `<b class="red">−${money(b.stake)}</b><span class="meta">perdu</span>`
+                : `<b class="violet">${money(gain(b))}</b><span class="meta">à gagner</span>`}</div>
+        </div>`,
+
+    B: b => `
+        <div class="card b ${b.status}">
+            <div class="b-top"><div><div class="q">${b.q}</div><div class="meta">Ton choix : <b>${b.choice}</b></div></div><span class="badge ${b.status}">${label[b.status]}</span></div>
+            <div class="b-bottom">
+                <div><span>Mise</span><b>${money(b.stake)}</b></div>
+                <div><span>Cote</span><b>${b.odds.toFixed(2)}</b></div>
+                <div><span>${b.status === "win" ? "Gagné" : b.status === "lose" ? "Perdu" : "Gain possible"}</span><b class="${b.status === "win" ? "green" : b.status === "lose" ? "red" : "violet"}">${b.status === "lose" ? "0,00 €" : money(gain(b))}</b></div>
+            </div>
+        </div>`,
+
+    D: b => `
+        <div class="card d ${b.status}">
+            <div class="d-top"><div class="q">${b.q}</div><span class="badge ${b.status}">${label[b.status]}</span></div>
+            <div class="d-bar"><div></div></div>
+            <div class="d-line"><span>${b.choice} · cote ${b.odds.toFixed(2)}</span><span>${money(b.stake)} → <b class="${b.status === "win" ? "green" : b.status === "lose" ? "red" : "violet"}">${b.status === "lose" ? "0,00 €" : money(gain(b))}</b></span></div>
+        </div>`
+};
+["A", "B", "D"].forEach(k => { $("#v-" + k + " [data-list]").innerHTML = BETS.map(render[k]).join(""); });
+
+/* C */
+const cRow = b => `
+    <div class="card c ${b.status}" data-status="${b.status}">
+        <span class="dot">${b.status === "win" ? "✓" : b.status === "lose" ? "✗" : "⏳"}</span>
+        <div class="txt"><div class="q">${b.q}</div><div class="meta">${b.choice} · ${b.odds.toFixed(2)} · mise ${money(b.stake)}</div></div>
+        <span class="amt ${b.status === "win" ? "green" : b.status === "lose" ? "red" : "violet"}">${b.status === "win" ? "+" + money(gain(b)) : b.status === "lose" ? "−" + money(b.stake) : money(gain(b))}</span>
+    </div>`;
+const count = s => BETS.filter(b => s === "all" || b.status === s).length;
+$("#v-C [data-list]").innerHTML = `
+    <div class="summary">
+        <div><span>Gagnés</span><b class="green">${count("win")} / ${count("win") + count("lose")}</b></div>
+        <div><span>Total misé</span><b>${money(BETS.reduce((s, b) => s + b.stake, 0))}</b></div>
+        <div><span>Total gagné</span><b class="green">${money(BETS.filter(b => b.status === "win").reduce((s, b) => s + gain(b), 0))}</b></div>
+    </div>
+    <div class="filters">${[["all", "Tous"], ["open", "En cours"], ["win", "Gagnés"], ["lose", "Perdus"]].map(([k, l], i) => `<button class="filter${i === 0 ? " on" : ""}" data-f="${k}">${l}<span class="n">${count(k)}</span></button>`).join("")}</div>
+    <div class="list">${BETS.map(cRow).join("")}</div>`;
+document.querySelectorAll("#v-C .filter").forEach(f => f.addEventListener("click", () => {
+    document.querySelectorAll("#v-C .filter").forEach(x => x.classList.toggle("on", x === f));
+    document.querySelectorAll("#v-C .c").forEach(r => r.style.display = f.dataset.f === "all" || r.dataset.status === f.dataset.f ? "" : "none");
+}));
+
+document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t === tab));
+    document.querySelectorAll(".variant").forEach(v => v.classList.toggle("active", v.id === "v-" + tab.dataset.v));
+    $("#current").textContent = tab.textContent;
+}));
+
+$("#pick").addEventListener("click", () => {
+    const txt = "Je choisis pour Mes paris : " + $("#current").textContent;
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).catch(() => {});
+    $("#pick").textContent = "✔ Copié ! Colle-le dans le chat";
+    setTimeout(() => $("#pick").textContent = "Je choisis celle-ci", 2500);
+});
+</script>
+</body>
+</html>

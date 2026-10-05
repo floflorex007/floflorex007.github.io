@@ -97,6 +97,20 @@ $$;
 
 
 -- ---------------------------------------------------------
+-- 4 bis. Date de réinitialisation des missions
+--    Seule l'activité (mises, paris) postérieure à cette date
+--    compte pour les missions. Voir reinitialisation.sql.
+-- ---------------------------------------------------------
+
+create table if not exists public.app_settings (
+    key text primary key,
+    value timestamptz
+);
+
+alter table public.app_settings enable row level security;
+
+
+-- ---------------------------------------------------------
 -- 5. Évaluation d'une mission pour un joueur
 --    keys : périodes (ou paris) pour lesquelles
 --    la mission est accomplie.
@@ -121,7 +135,15 @@ declare
     v_week_start timestamptz := v_week::timestamp at time zone 'Europe/Paris';
     v_day_key text := 'J' || v_today::text;
     v_week_key text := 'S' || v_week::text;
+    v_reset timestamptz := coalesce(
+        (select value from app_settings where key = 'missions_reset_at'),
+        '-infinity'::timestamptz
+    );
 begin
+
+    -- Rien avant la dernière réinitialisation ne compte.
+    v_day_start := greatest(v_day_start, v_reset);
+    v_week_start := greatest(v_week_start, v_reset);
 
     keys := '{}';
 
@@ -200,6 +222,7 @@ begin
         join bets b on b.id = s.bet_id
         where s.user_id = p_user
           and b.status = 'resolved'
+          and s.created_at >= v_reset
           and b.winner_choice_id = s.choice_id;
 
         if progress >= target then keys := array['unique']; end if;
@@ -215,6 +238,7 @@ begin
             join bet_choices c on c.id = s.choice_id
             where s.user_id = p_user
               and b.status = 'resolved'
+              and s.created_at >= v_reset
               and b.winner_choice_id = s.choice_id
               and c.odds > 3
         );
@@ -233,6 +257,7 @@ begin
             join bets b on b.id = s.bet_id
             where s.user_id = p_user
               and b.status = 'resolved'
+              and s.created_at >= v_reset
               and b.winner_choice_id = s.choice_id
               and exists (
                   select 1 from bet_choices c2
@@ -390,9 +415,9 @@ $$;
 
 
 -- ---------------------------------------------------------
--- 8. Acheter un avantage
---    cadre : 250 pts, 7 jours. couleur : 100 pts, 24 heures.
---    Racheter un avantage actif prolonge sa durée.
+-- 8. Acheter un avantage : l'achat est DÉFINITIF.
+--    cadre : 250 pts. couleur : 100 pts.
+--    Un avantage possédé ne se rachète pas.
 -- ---------------------------------------------------------
 
 create or replace function public.buy_reward(p_reward text)
@@ -405,6 +430,7 @@ declare
     v_user uuid := auth.uid();
     v_price integer;
     v_points integer;
+    v_profile record;
 begin
 
     if v_user is null then
@@ -420,13 +446,19 @@ begin
         raise exception 'Avantage inconnu.';
     end if;
 
-    select points into v_points
+    select points, gold_frame_until, name_color_until into v_profile
     from profiles
     where id = v_user
     for update;
 
-    if v_points < v_price then
-        raise exception 'Il te manque % points.', v_price - v_points;
+    if (p_reward = 'cadre' and v_profile.gold_frame_until > now())
+        or (p_reward = 'couleur' and v_profile.name_color_until > now())
+    then
+        raise exception 'Tu possèdes déjà cet article.';
+    end if;
+
+    if v_profile.points < v_price then
+        raise exception 'Il te manque % points.', v_price - v_profile.points;
     end if;
 
     perform set_config('betlab.allow_points', 'on', true);
@@ -435,14 +467,14 @@ begin
 
         update profiles
         set points = points - v_price,
-            gold_frame_until = greatest(coalesce(gold_frame_until, now()), now()) + interval '7 days'
+            gold_frame_until = '9999-12-31T00:00:00Z'
         where id = v_user;
 
     else
 
         update profiles
         set points = points - v_price,
-            name_color_until = greatest(coalesce(name_color_until, now()), now()) + interval '24 hours'
+            name_color_until = '9999-12-31T00:00:00Z'
         where id = v_user;
 
     end if;
@@ -451,6 +483,20 @@ begin
 
 end;
 $$;
+
+
+-- Les avantages encore actifs deviennent définitifs.
+select set_config('betlab.allow_points', 'on', false);
+
+update public.profiles
+set gold_frame_until = '9999-12-31T00:00:00Z'
+where gold_frame_until > now();
+
+update public.profiles
+set name_color_until = '9999-12-31T00:00:00Z'
+where name_color_until > now();
+
+select set_config('betlab.allow_points', 'off', false);
 
 
 -- ---------------------------------------------------------

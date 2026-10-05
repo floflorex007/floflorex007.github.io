@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BetLab – Paris validés (propositions)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; }
+h1 { font-size: 26px; margin-bottom: 6px; }
+.sub { color: #858a98; margin-bottom: 20px; max-width: 760px; }
+button { font: inherit; }
+
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; position: sticky; top: 0; background: #0f1117; padding: 10px 0; z-index: 10; }
+.tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; }
+.tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.variant { display: none; max-width: 760px; }
+.variant.active { display: block; animation: fade .3s; }
+@keyframes fade { from { opacity: 0; transform: translateY(8px); } }
+.variant-desc { color: #aaaeba; font-size: 14px; margin-bottom: 18px; }
+.list { display: flex; flex-direction: column; gap: 14px; }
+
+.card { background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; border-radius: 18px; padding: 18px 20px; }
+.q { font-size: 16px; font-weight: 700; }
+.meta { color: #858a98; font-size: 12px; }
+.badge { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; }
+.badge.done { background: rgba(99, 214, 159, .12); color: #63d69f; border: 1px solid rgba(99, 214, 159, .35); }
+.badge.open { background: rgba(108, 99, 255, .15); color: #a59fff; border: 1px solid rgba(108, 99, 255, .4); }
+.btn { border: none; background: #6c63ff; color: white; font-weight: 700; padding: 10px 16px; border-radius: 10px; cursor: pointer; }
+
+/* Carte "en cours" commune (pour le contexte) */
+.open-card { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; }
+.open-card .top { display: flex; flex-direction: column; gap: 6px; }
+
+/* A : résultat mis en avant */
+.a-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+.a-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.a-choice { border-radius: 12px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; background: #0f1117; border: 1px solid #2c3040; color: #737887; }
+.a-choice.win { background: rgba(99, 214, 159, .1); border-color: #63d69f; color: white; font-weight: 700; box-shadow: 0 0 18px rgba(99, 214, 159, .15); }
+.a-choice.win strong { color: #63d69f; }
+.a-choice.lose { text-decoration: line-through; opacity: .6; }
+
+/* B : résumé chiffré */
+.b-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
+.b-winner { font-size: 14px; color: #c4c8d4; margin-bottom: 14px; }
+.b-winner b { color: #63d69f; }
+.b-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.b-stat { background: #0f1117; border: 1px solid #22252f; border-radius: 12px; padding: 10px 12px; }
+.b-stat span { display: block; font-size: 11px; color: #858a98; text-transform: uppercase; letter-spacing: .4px; }
+.b-stat strong { font-size: 18px; }
+.b-stat.green strong { color: #63d69f; }
+.b-stat.red strong { color: #ff8a8a; }
+
+/* C : sections séparées + validés compacts */
+.c-title { display: flex; align-items: center; justify-content: space-between; font-size: 15px; font-weight: 800; margin: 22px 0 12px; }
+.c-title:first-child { margin-top: 0; }
+.c-title .count { font-size: 12px; color: #858a98; font-weight: 600; }
+.c-toggle { background: none; border: 1px solid #2c3040; color: #aaaeba; padding: 6px 12px; border-radius: 999px; cursor: pointer; font-size: 12px; }
+.c-row { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-radius: 14px; background: #161922; border: 1px solid #22252f; }
+.c-row .check { width: 30px; height: 30px; border-radius: 50%; background: rgba(99, 214, 159, .15); color: #63d69f; display: flex; align-items: center; justify-content: center; font-weight: 900; flex-shrink: 0; }
+.c-row .txt { flex: 1; min-width: 0; }
+.c-row .txt .q { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.c-row .win { color: #63d69f; font-weight: 700; font-size: 13px; white-space: nowrap; }
+.c-closed { display: none; }
+.c-list { display: flex; flex-direction: column; gap: 8px; }
+
+/* D : duel avec vainqueur */
+.d-q { text-align: center; margin-bottom: 4px; }
+.d-meta { text-align: center; margin-bottom: 16px; }
+.d-duel { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; }
+.d-side { text-align: center; border-radius: 16px; padding: 16px 10px; border: 1px solid #2c3040; background: #0f1117; color: #737887; }
+.d-side .crown { font-size: 26px; display: block; height: 32px; }
+.d-side b { display: block; font-size: 17px; margin-bottom: 2px; }
+.d-side.win { border-color: #f5c451; background: rgba(245, 196, 81, .08); color: white; box-shadow: 0 0 24px rgba(245, 196, 81, .2); }
+.d-side.win small { color: #f5c451; }
+.d-side.lose { opacity: .55; filter: grayscale(1); }
+.d-vs { width: 40px; height: 40px; border-radius: 50%; background: #262a38; color: #858a98; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 13px; }
+
+.bar { position: fixed; left: 0; right: 0; bottom: 0; background: #171a23; border-top: 1px solid #2c3040; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.bar strong { color: #f5c451; }
+.pick { background: #f5c451; color: #111; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 800; cursor: pointer; }
+
+@media (max-width: 560px) {
+    .a-choices, .b-stats { grid-template-columns: 1fr; }
+    .d-duel { grid-template-columns: 1fr; }
+    .d-vs { margin: 0 auto; }
+}
+</style>
+</head>
+<body>
+
+<h1>Mes créations : paris validés (4 propositions)</h1>
+<p class="sub">Aujourd'hui, un pari validé affiche juste « Statut : resolved » et la liste des choix, sans dire qui a gagné. Chaque proposition montre aussi un pari encore en cours pour voir l'ensemble.</p>
+
+<div class="tabs">
+    <button class="tab active" data-v="A">A · Résultat mis en avant</button>
+    <button class="tab" data-v="B">B · Bilan chiffré</button>
+    <button class="tab" data-v="C">C · Sections « En cours » / « Validés »</button>
+    <button class="tab" data-v="D">D · Duel avec vainqueur</button>
+</div>
+
+<section class="variant active" id="v-A"><p class="variant-desc">Badge « Validé », le choix gagnant en vert avec 🏆, le perdant barré et grisé.</p><div class="list" data-list></div></section>
+<section class="variant" id="v-B"><p class="variant-desc">En plus du gagnant : combien a été misé, combien de joueurs ont participé, et combien a été reversé aux gagnants.</p><div class="list" data-list></div></section>
+<section class="variant" id="v-C"><p class="variant-desc">Les paris en cours en haut (ceux où tu as une action à faire), puis les validés en lignes compactes, repliables.</p><div data-list></div></section>
+<section class="variant" id="v-D"><p class="variant-desc">Les deux choix face à face : le gagnant couronné 👑 en doré, le perdant grisé.</p><div class="list" data-list></div></section>
+
+<div class="bar">
+    <span>Proposition affichée : <strong id="current">A · Résultat mis en avant</strong></span>
+    <button class="pick" id="pick">Je choisis celle-ci</button>
+</div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const money = n => n.toLocaleString("fr-FR") + " €";
+
+const BETS = [
+    { q: "Qui gagne le match PSG – OM ce soir ?", open: true, date: "06/10 à 21h00", choices: [["PSG", 1.8], ["OM", 2.25]] },
+    { q: "Thomas arrivera-t-il en retard demain ?", date: "04/10 à 09h00", choices: [["Oui", 1.5], ["Non", 3]], win: 0, total: 640, players: 7, paid: 735 },
+    { q: "Il va pleuvoir samedi ?", date: "03/10 à 12h00", choices: [["Oui", 2.4], ["Non", 1.71]], win: 1, total: 300, players: 4, paid: 257 }
+];
+
+const openCard = b => `
+    <div class="card open-card">
+        <div class="top"><span class="badge open">⏳ En cours</span><div class="q">${b.q}</div><div class="meta">Se ferme le ${b.date} · ${b.choices.map(c => c[0] + " " + c[1].toFixed(2)).join(" · ")}</div></div>
+        <button class="btn">Valider le résultat</button>
+    </div>`;
+
+const render = {
+    A: b => b.open ? openCard(b) : `
+        <div class="card">
+            <div class="a-head"><div><div class="q">${b.q}</div><div class="meta">Terminé le ${b.date}</div></div><span class="badge done">✓ Validé</span></div>
+            <div class="a-choices">${b.choices.map((c, i) => `<div class="a-choice ${i === b.win ? "win" : "lose"}"><span>${i === b.win ? "🏆 " : ""}${c[0]}</span><strong>${c[1].toFixed(2)}</strong></div>`).join("")}</div>
+        </div>`,
+
+    B: b => b.open ? openCard(b) : `
+        <div class="card">
+            <div class="b-top"><div><div class="q">${b.q}</div><div class="meta">Terminé le ${b.date}</div></div><span class="badge done">✓ Validé</span></div>
+            <div class="b-winner">Résultat : <b>🏆 ${b.choices[b.win][0]}</b> (cote ${b.choices[b.win][1].toFixed(2)})</div>
+            <div class="b-stats">
+                <div class="b-stat"><span>Total misé</span><strong>${money(b.total)}</strong></div>
+                <div class="b-stat"><span>Parieurs</span><strong>${b.players}</strong></div>
+                <div class="b-stat ${b.paid > b.total ? "red" : "green"}"><span>Reversé</span><strong>${money(b.paid)}</strong></div>
+            </div>
+        </div>`,
+
+    D: b => b.open ? openCard(b) : `
+        <div class="card">
+            <div class="q d-q">${b.q}</div>
+            <div class="meta d-meta">✓ Validé · terminé le ${b.date}</div>
+            <div class="d-duel">
+                ${b.choices.map((c, i) => `<div class="d-side ${i === b.win ? "win" : "lose"}"><span class="crown">${i === b.win ? "👑" : ""}</span><b>${c[0]}</b><small>cote ${c[1].toFixed(2)}</small></div>`).join('<div class="d-vs">VS</div>')}
+            </div>
+        </div>`
+};
+
+["A", "B", "D"].forEach(k => { $("#v-" + k + " [data-list]").innerHTML = BETS.map(render[k]).join(""); });
+
+/* C : sections */
+const done = BETS.filter(b => !b.open);
+$("#v-C [data-list]").innerHTML = `
+    <div class="c-title">⏳ En cours <span class="count">${BETS.filter(b => b.open).length} pari</span></div>
+    <div class="list">${BETS.filter(b => b.open).map(openCard).join("")}</div>
+    <div class="c-title">✓ Validés <span class="count">${done.length} paris · <button class="c-toggle" data-toggle>Masquer</button></span></div>
+    <div class="c-list" data-done>${done.map(b => `
+        <div class="c-row"><span class="check">✓</span><div class="txt"><div class="q">${b.q}</div><div class="meta">Terminé le ${b.date} · ${b.players} parieurs</div></div><span class="win">🏆 ${b.choices[b.win][0]}</span></div>`).join("")}
+    </div>`;
+$("[data-toggle]").addEventListener("click", e => {
+    const list = $("[data-done]"); const hide = !list.classList.contains("c-closed");
+    list.classList.toggle("c-closed", hide); e.target.textContent = hide ? "Afficher" : "Masquer";
+});
+
+document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t === tab));
+    document.querySelectorAll(".variant").forEach(v => v.classList.toggle("active", v.id === "v-" + tab.dataset.v));
+    $("#current").textContent = tab.textContent;
+}));
+
+$("#pick").addEventListener("click", () => {
+    const txt = "Je choisis pour les paris validés : " + $("#current").textContent;
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).catch(() => {});
+    $("#pick").textContent = "✔ Copié ! Colle-le dans le chat";
+    setTimeout(() => $("#pick").textContent = "Je choisis celle-ci", 2500);
+});
+</script>
+</body>
+</html>

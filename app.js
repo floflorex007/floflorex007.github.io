@@ -362,6 +362,21 @@ function updateBalance() {
             : formatMoney(currentProfile.balance);
 
 
+    /*
+        L'onglet Profil affiche le pseudo du joueur.
+    */
+
+    const profileButton =
+        document.getElementById("profile-nav-button");
+
+    if (profileButton) {
+
+        profileButton.textContent =
+            "👤 " + currentProfile.username;
+
+    }
+
+
     const pointsElement =
         document.getElementById("points-balance");
 
@@ -389,7 +404,7 @@ async function getLeaderboard() {
         error
     } = await supabaseClient
         .from("profiles")
-        .select("username, balance, gold_frame_until, name_color_until")
+        .select("username, balance, gold_frame_until, name_color_until, cosmetics")
         .eq("is_admin", false)
         .order("balance", { ascending: false })
         .limit(10);
@@ -402,6 +417,145 @@ async function getLeaderboard() {
 
 
     return data || [];
+
+}
+
+
+/*
+    Pseudo arc-en-ciel (avantage « Pseudo en couleur ») :
+    chaque lettre est décalée dans le temps
+    pour créer une vague de couleurs et de mouvement.
+*/
+
+function rainbowName(username) {
+
+    return Array.from(username).map(
+        (letter, index) => `<span class="rainbow-letter" style="animation-delay: ${-index * 0.12}s">${letter === " " ? "&nbsp;" : escapeHtml(letter)}</span>`
+    ).join("");
+
+}
+
+
+/*
+    Pseudo avec les avantages de la boutique
+    (cadre doré, arc-en-ciel), utilisé dans les cartes,
+    les mises et le fil en direct.
+    Pour soi-même, on passe par hasMyReward (aperçu admin).
+*/
+
+/*
+    Tous les effets de boutique actifs d'un joueur.
+    Pour soi-même, on passe par l'aperçu admin (hasMyReward / hasMyCosmetic).
+*/
+
+function getEffects(profile) {
+
+    const isMe =
+        currentProfile && profile.username === currentProfile.username;
+
+    const active = id => isMe
+        ? hasMyCosmetic(id)
+        : isRewardActive(profile.cosmetics?.[id]?.until) && !profile.cosmetics?.[id]?.off;
+
+    const option = id => {
+
+        const fallback =
+            COSMETICS.find(c => c.id === id)?.options?.[0] || null;
+
+        return (isMe ? myCosmeticOption(id) : profile.cosmetics?.[id]?.option) || fallback;
+
+    };
+
+    // Un seul métal affiché : le plus prestigieux.
+    const metal =
+        ["or", "argent", "bronze", "rose"].find(m => active("metal_" + m)) || null;
+
+    return {
+        gold: isMe ? hasMyReward("gold_frame_until") : isRewardActive(profile.gold_frame_until) && !profile.cosmetics?.cadre?.off,
+        rainbow: isMe ? hasMyReward("name_color_until") : isRewardActive(profile.name_color_until) && !profile.cosmetics?.couleur?.off,
+        metal,
+        neon: active("neon") ? option("neon") : null,
+        emoji: active("emoji") ? option("emoji") : null,
+        title: active("titre") ? option("titre") : null,
+        sparkle: active("etincelles"),
+        aura: active("aura"),
+        theme: active("theme") ? option("theme") : null
+    };
+
+}
+
+
+/*
+    Pseudo avec ses effets (couleur, emoji, titre, étincelles).
+    Priorité de la couleur : métal > arc-en-ciel > néon.
+*/
+
+function nameHtml(profile, effects = getEffects(profile)) {
+
+    let name;
+
+    if (effects.metal) {
+        name = `<span class="name-metal metal-${effects.metal}">${escapeHtml(profile.username)}</span>`;
+    } else if (effects.rainbow) {
+        name = `<span class="pseudo-color">${rainbowName(profile.username)}</span>`;
+    } else if (effects.neon) {
+        name = `<span class="name-neon neon-${effects.neon}">${escapeHtml(profile.username)}</span>`;
+    } else {
+        name = escapeHtml(profile.username);
+    }
+
+
+    if (effects.sparkle) {
+        name = `<span class="name-sparkle">${name}<i>✦</i><i>✦</i><i>✦</i><i>✦</i></span>`;
+    }
+
+    if (effects.emoji) {
+        name += ` <span class="name-emoji">${escapeHtml(effects.emoji)}</span>`;
+    }
+
+    if (effects.title) {
+        name += ` <span class="name-title">${escapeHtml(effects.title)}</span>`;
+    }
+
+    return name;
+
+}
+
+
+function styledName(profile, fallback = "Utilisateur") {
+
+    if (!profile?.username) {
+        return escapeHtml(fallback);
+    }
+
+    const effects =
+        getEffects(profile);
+
+    return `<span class="user-name${effects.gold ? " name-gold" : ""}">${nameHtml(profile, effects)}</span>`;
+
+}
+
+
+/*
+    Ligne du classement (joueur classé ou admin épinglé).
+*/
+
+function leaderboardRowHtml(profile, { rank, medal, balance, extraClass = "", effects: forcedEffects = null }) {
+
+    const effects =
+        forcedEffects || getEffects(profile);
+
+    const hasEffect =
+        effects.metal || effects.rainbow || effects.neon || effects.sparkle || effects.emoji || effects.title;
+
+    return `
+        <div class="leaderboard-row${extraClass}${effects.gold ? " leaderboard-row--gold" : ""}${effects.aura ? " leaderboard-row--aura" : ""}">
+            <span class="leaderboard-rank">${rank}</span>
+            <span class="leaderboard-medal">${medal}</span>
+            <span class="leaderboard-pseudo${hasEffect ? " has-effect" : ""}">${nameHtml(profile, effects)}</span>
+            <span class="leaderboard-balance">${balance}</span>
+        </div>
+    `;
 
 }
 
@@ -432,26 +586,18 @@ async function displayLeaderboard() {
 
         const adminRow =
             currentProfile?.is_admin
-                ? `
-                    <div class="leaderboard-row leaderboard-row--admin">
-                        <span class="leaderboard-rank">—</span>
-                        <span class="leaderboard-medal">👑</span>
-                        <span class="leaderboard-pseudo">${escapeHtml(currentProfile.username)}</span>
-                        <span class="leaderboard-balance">∞</span>
-                    </div>
-                `
+                ? leaderboardRowHtml(
+                    currentProfile,
+                    { rank: "—", medal: "👑", balance: "∞", extraClass: " leaderboard-row--admin" }
+                )
                 : "";
 
 
         container.innerHTML = adminRow + profiles.map(
-            (profile, index) => `
-                <div class="leaderboard-row${isRewardActive(profile.gold_frame_until) ? " leaderboard-row--gold" : ""}">
-                    <span class="leaderboard-rank">${index + 1}</span>
-                    <span class="leaderboard-medal">${medals[index] || ""}</span>
-                    <span class="leaderboard-pseudo${isRewardActive(profile.name_color_until) ? " pseudo-color" : ""}">${escapeHtml(profile.username)}</span>
-                    <span class="leaderboard-balance">${formatMoney(profile.balance)}</span>
-                </div>
-            `
+            (profile, index) => leaderboardRowHtml(
+                profile,
+                { rank: index + 1, medal: medals[index] || "", balance: formatMoney(profile.balance) }
+            )
         ).join("");
 
 
@@ -797,9 +943,9 @@ async function getBets() {
         .select(`
             *,
             bet_choices!bet_choices_bet_id_fkey (*),
-            profiles!bets_author_id_fkey ( username ),
-            target:profiles!bets_target_user_id_fkey ( username ),
-            stakes ( id, user_id, choice_id, stake, potential_win, profiles!stakes_user_id_fkey ( username ) )
+            profiles!bets_author_id_fkey ( username, gold_frame_until, name_color_until, cosmetics ),
+            target:profiles!bets_target_user_id_fkey ( username, gold_frame_until, name_color_until, cosmetics ),
+            stakes ( id, user_id, choice_id, stake, potential_win, profiles!stakes_user_id_fkey ( username, gold_frame_until, name_color_until, cosmetics ) )
         `)
         .order("created_at", { ascending: false });
 
@@ -860,10 +1006,6 @@ function renderBetSummaryHtml(
         interactive = true
     } = {}
 ) {
-
-    const author =
-        bet.profiles?.username ||
-        "Utilisateur";
 
 
     const choices =
@@ -935,7 +1077,7 @@ function renderBetSummaryHtml(
             <span>🏆</span>
 
             <span class="bet-author">
-                Créé par ${escapeHtml(author)}
+                Créé par ${styledName(bet.profiles)}
             </span>
 
         </div>
@@ -1086,6 +1228,23 @@ async function displayBets() {
                     (isBlockedTarget(bet) ? " bet-card-locked" : "") +
                     (isCreatedToday(bet.created_at) ? " bet-card-new" : "");
 
+
+                /*
+                    Thème de carte acheté par le créateur.
+                */
+
+                const authorTheme =
+                    bet.profiles?.username
+                        ? getEffects(bet.profiles).theme
+                        : null;
+
+                if (authorTheme) {
+
+                    card.className +=
+                        " bet-card-theme bet-theme-" + authorTheme;
+
+                }
+
                 card.dataset.betId =
                     bet.id;
 
@@ -1113,7 +1272,7 @@ async function displayBets() {
                     <div class="bet-footer">
 
                         ${bet.target_user_id
-                            ? `<span class="bet-target-footer">🎯 ${bet.target_blocked ? "Bloqué pour" : "Concerne"} ${escapeHtml(bet.target?.username || "un parieur")}</span>`
+                            ? `<span class="bet-target-footer">🎯 ${bet.target_blocked ? "Bloqué pour" : "Concerne"} ${styledName(bet.target, "un parieur")}</span>`
                             : ""
                         }
 
@@ -1271,8 +1430,8 @@ function openBetModal(
 
     document.getElementById(
         "modal-author"
-    ).textContent =
-        `Créé par ${bet.profiles?.username || "Utilisateur"}`;
+    ).innerHTML =
+        `Créé par ${styledName(bet.profiles)}`;
 
 
     document.getElementById(
@@ -1487,6 +1646,10 @@ async function placeBet() {
    7. MES PARIS
 ========================================================= */
 
+// Filtre actif de l'onglet « Mes paris » : all, open, win ou lose.
+let myBetsFilter = "all";
+
+
 async function displayMyBets() {
 
     const container =
@@ -1567,104 +1730,180 @@ async function displayMyBets() {
         }
 
 
-        data.forEach(
+        /*
+            Statut de chaque mise : en cours, gagné ou perdu.
+        */
+
+        const stakes =
+            data.map(stake => ({
+                ...stake,
+                result:
+                    stake.bets.status !== "resolved" ? "open"
+                    : stake.bets.winner_choice_id === stake.bet_choices.id ? "win"
+                    : "lose"
+            }));
+
+        const countOf = result =>
+            stakes.filter(s => result === "all" || s.result === result).length;
+
+        const totalStaked =
+            stakes.reduce((sum, s) => sum + Number(s.stake), 0);
+
+        const totalWon =
+            stakes
+                .filter(s => s.result === "win")
+                .reduce((sum, s) => sum + Number(s.potential_win), 0);
+
+
+        /*
+            Mini bilan + filtres.
+        */
+
+        container.innerHTML = `
+
+            <div class="my-bets-summary">
+
+                <div>
+                    <span>Gagnés</span>
+                    <b class="text-win">${countOf("win")} / ${countOf("win") + countOf("lose")}</b>
+                </div>
+
+                <div>
+                    <span>Total misé</span>
+                    <b>${formatMoney(totalStaked)}</b>
+                </div>
+
+                <div>
+                    <span>Total gagné</span>
+                    <b class="text-win">${formatMoney(totalWon)}</b>
+                </div>
+
+            </div>
+
+
+            <div class="my-bets-filters">
+
+                ${[
+                    ["all", "Tous"],
+                    ["open", "En cours"],
+                    ["win", "Gagnés"],
+                    ["lose", "Perdus"]
+                ].map(([key, label]) => `
+                    <button
+                        class="my-bets-filter${myBetsFilter === key ? " active" : ""}"
+                        data-filter="${key}"
+                    >
+                        ${label}<span>${countOf(key)}</span>
+                    </button>
+                `).join("")}
+
+            </div>
+
+
+            <div class="my-bets-rows"></div>
+
+        `;
+
+
+        const rows =
+            container.querySelector(".my-bets-rows");
+
+
+        stakes.forEach(
             stake => {
 
                 const bet =
                     stake.bets;
 
-
                 const choice =
                     stake.bet_choices;
-
-
-                let statusText =
-                    "En cours";
-
-
-                if (
-                    bet.status === "resolved"
-                ) {
-
-                    if (
-                        bet.winner_choice_id ===
-                        choice.id
-                    ) {
-
-                        statusText =
-                            "Gagné";
-
-                    } else {
-
-                        statusText =
-                            "Perdu";
-
-                    }
-
-                }
 
 
                 const item =
                     document.createElement("div");
 
-
                 item.className =
-                    "my-bet-item" +
-                    (statusText === "Gagné" ? " my-bet-won" : "") +
-                    (statusText === "Perdu" ? " my-bet-lost" : "");
+                    "my-bet-item my-bet-row my-bet-row--" + stake.result +
+                    (stake.result === "win" ? " my-bet-won" : "") +
+                    (stake.result === "lose" ? " my-bet-lost" : "");
+
+                item.dataset.result =
+                    stake.result;
+
+
+                const icon =
+                    stake.result === "win" ? "✓"
+                    : stake.result === "lose" ? "✗"
+                    : "⏳";
+
+                const amount =
+                    stake.result === "win" ? "+" + formatMoney(stake.potential_win)
+                    : stake.result === "lose" ? "−" + formatMoney(stake.stake)
+                    : formatMoney(stake.potential_win);
 
 
                 item.innerHTML = `
 
-                    <div>
+                    <span class="my-bet-dot">${icon}</span>
 
-                        <h3>
-                            ${escapeHtml(
-                                bet.question
-                            )}
-                        </h3>
+                    <div class="my-bet-text">
+
+                        <h3>${escapeHtml(bet.question)}</h3>
 
                         <p>
-                            Choix :
-                            <strong>
-                                ${escapeHtml(
-                                    choice.label
-                                )}
-                            </strong>
-                        </p>
-
-                        <p>
-                            Mise :
-                            ${formatMoney(
-                                stake.stake
-                            )}
-                        </p>
-
-                        <p>
-                            Gain potentiel :
-                            ${formatMoney(
-                                stake.potential_win
-                            )}
+                            ${escapeHtml(choice.label)}
+                            · ${Number(choice.odds).toFixed(2)}
+                            · mise ${formatMoney(stake.stake)}
                         </p>
 
                     </div>
 
-
-                    <div>
-
-                        <strong>
-                            ${statusText}
-                        </strong>
-
-                    </div>
+                    <span class="my-bet-amount">${amount}</span>
 
                 `;
 
 
-                container.appendChild(item);
+                rows.appendChild(item);
 
             }
         );
+
+
+        /*
+            Filtres (le choix est gardé entre deux rechargements de la liste).
+        */
+
+        const applyFilter = () => {
+
+            container
+                .querySelectorAll(".my-bets-filter")
+                .forEach(button => button.classList.toggle("active", button.dataset.filter === myBetsFilter));
+
+            rows
+                .querySelectorAll(".my-bet-row")
+                .forEach(row => row.classList.toggle(
+                    "hidden",
+                    myBetsFilter !== "all" && row.dataset.result !== myBetsFilter
+                ));
+
+        };
+
+        container
+            .querySelectorAll(".my-bets-filter")
+            .forEach(button => {
+
+                button.addEventListener("click", () => {
+
+                    myBetsFilter = button.dataset.filter;
+
+                    applyFilter();
+
+                });
+
+            });
+
+        applyFilter();
+
 
 
     } catch (error) {
@@ -1720,6 +1959,7 @@ async function displayMyCreatedBets() {
                 status,
                 created_at,
                 winner_choice_id,
+                deadline_at,
                 bet_choices!bet_choices_bet_id_fkey (
                     id,
                     label,
@@ -1768,86 +2008,103 @@ async function displayMyCreatedBets() {
                     document.createElement("div");
 
 
-                item.className =
-                    "my-bet-item";
-
-
                 const choices =
                     bet.bet_choices || [];
 
+                const isResolved =
+                    bet.status === "resolved";
 
-                let resolveButton = "";
+
+                /*
+                    Pari validé : badge, gagnant en vert avec 🏆,
+                    perdants barrés et grisés.
+                */
+
+                if (isResolved) {
+
+                    item.className =
+                        "my-bet-item created-bet created-bet--resolved";
+
+                    item.innerHTML = `
+
+                        <div class="created-bet-head">
+
+                            <div>
+
+                                <h3>${escapeHtml(bet.question)}</h3>
+
+                                ${bet.deadline_at
+                                    ? `<p class="created-bet-meta">Terminé le ${formatDeadline(bet.deadline_at)}</p>`
+                                    : ""
+                                }
+
+                            </div>
+
+                            <span class="created-bet-badge done">✓ Validé</span>
+
+                        </div>
 
 
-                if (
-                    bet.status === "open"
-                ) {
+                        <div class="created-bet-results">
 
-                    resolveButton = `
+                            ${choices.map(choice => {
 
-                        <button
-                            class="primary-button resolve-button"
-                            data-bet-id="${bet.id}"
-                        >
-                            Valider le résultat
-                        </button>
+                                const isWinner =
+                                    choice.id === bet.winner_choice_id;
+
+                                return `
+                                    <div class="created-bet-result ${isWinner ? "win" : "lose"}">
+                                        <span>${isWinner ? "🏆 " : ""}${escapeHtml(choice.label)}</span>
+                                        <strong>${Number(choice.odds).toFixed(2)}</strong>
+                                    </div>
+                                `;
+
+                            }).join("")}
+
+                        </div>
+
+                    `;
+
+                } else {
+
+                    /*
+                        Pari en cours : badge, échéance, cotes
+                        et bouton de validation.
+                    */
+
+                    item.className =
+                        "my-bet-item created-bet";
+
+                    item.innerHTML = `
+
+                        <div class="created-bet-open">
+
+                            <span class="created-bet-badge open">⏳ En cours</span>
+
+                            <h3>${escapeHtml(bet.question)}</h3>
+
+                            <p class="created-bet-meta">
+                                ${bet.deadline_at ? "Se ferme le " + formatDeadline(bet.deadline_at) + " · " : ""}${choices.map(choice => escapeHtml(choice.label) + " " + Number(choice.odds).toFixed(2)).join(" · ")}
+                            </p>
+
+                        </div>
+
+
+                        ${bet.status === "open"
+                            ? `
+                                <button
+                                    class="primary-button resolve-button"
+                                    data-bet-id="${bet.id}"
+                                >
+                                    Valider le résultat
+                                </button>
+                            `
+                            : ""
+                        }
 
                     `;
 
                 }
-
-
-                item.innerHTML = `
-
-                    <div>
-
-                        <h3>
-                            ${escapeHtml(
-                                bet.question
-                            )}
-                        </h3>
-
-
-                        <p>
-                            Statut :
-                            <strong>
-                                ${escapeHtml(
-                                    bet.status
-                                )}
-                            </strong>
-                        </p>
-
-
-                        <div class="created-bet-choices">
-
-                            ${choices.map(
-                                choice => `
-
-                                    <span>
-                                        ${escapeHtml(
-                                            choice.label
-                                        )}
-                                        —
-                                        ${Number(
-                                            choice.odds
-                                        ).toFixed(2)}
-                                    </span>
-
-                                `
-                            ).join("")}
-
-                        </div>
-
-                    </div>
-
-
-                    <div>
-
-                        ${resolveButton}
-
-                    </div>
-
-                `;
 
 
                 container.appendChild(item);
@@ -1908,72 +2165,184 @@ async function displayMyCreatedBets() {
    9. MODAL RÉSOLUTION
 ========================================================= */
 
-function openResolveModal(bet) {
+/*
+    Validation en deux étapes :
+    1. choisir le choix gagnant ;
+    2. voir le bilan joueur par joueur, puis confirmer (ou revenir).
+*/
+
+async function openResolveModal(bet) {
 
     currentResolveBet = bet;
 
-
-    document.getElementById(
-        "resolve-question"
-    ).textContent =
+    document.getElementById("resolve-question").textContent =
         bet.question;
 
+    document.getElementById("resolve-error").textContent = "";
 
     const container =
-        document.getElementById(
-            "resolve-choices"
-        );
+        document.getElementById("resolve-choices");
 
+    container.innerHTML =
+        `<p class="resolve-loading">Chargement des mises...</p>`;
 
-    container.innerHTML = "";
-
-
-    bet.bet_choices.forEach(
-        choice => {
-
-            const button =
-                document.createElement(
-                    "button"
-                );
-
-
-            button.className =
-                "primary-button";
-
-
-            button.textContent =
-                choice.label;
-
-
-            button.addEventListener(
-                "click",
-                () => {
-
-                    resolveBet(
-                        bet.id,
-                        choice.id
-                    );
-
-                }
-            );
-
-
-            container.appendChild(button);
-
-        }
-    );
-
-
-    document.getElementById(
-        "resolve-error"
-    ).textContent = "";
-
+    showResolveStep(1);
 
     document
-        .getElementById(
-            "resolve-modal"
-        )
+        .getElementById("resolve-modal")
         .classList.remove("hidden");
+
+
+    /*
+        Mises du pari, pour le bilan de l'étape 2.
+    */
+
+    const { data: stakes, error } =
+        await supabaseClient
+            .from("stakes")
+            .select("choice_id, stake, potential_win, profiles!stakes_user_id_fkey ( username, gold_frame_until, name_color_until, cosmetics )")
+            .eq("bet_id", bet.id);
+
+    if (error) {
+        console.error(error);
+    }
+
+    renderResolveStepOne(bet, stakes || []);
+
+}
+
+
+function showResolveStep(step) {
+
+    document
+        .querySelectorAll("#resolve-steps div")
+        .forEach((bar, index) => bar.classList.toggle("active", index < step));
+
+    document.getElementById("resolve-info").textContent = step === 1
+        ? "Étape 1 sur 2 : choisis le choix gagnant."
+        : "Étape 2 sur 2 : vérifie le bilan, puis confirme.";
+
+}
+
+
+function renderResolveStepOne(bet, stakes) {
+
+    showResolveStep(1);
+
+    const container =
+        document.getElementById("resolve-choices");
+
+    container.innerHTML = `
+        <div class="resolve-pick">
+            ${bet.bet_choices.map(choice => {
+
+                const count =
+                    stakes.filter(s => s.choice_id === choice.id).length;
+
+                return `
+                    <button
+                        class="resolve-pick-button"
+                        data-choice-id="${choice.id}"
+                    >
+                        <span>
+                            <b>${escapeHtml(choice.label)}</b>
+                            <small>${count} parieur${count > 1 ? "s" : ""}</small>
+                        </span>
+                        <span class="resolve-pick-odds">${Number(choice.odds).toFixed(2)} →</span>
+                    </button>
+                `;
+
+            }).join("")}
+        </div>
+    `;
+
+    container
+        .querySelectorAll(".resolve-pick-button")
+        .forEach(button => {
+
+            button.addEventListener("click", () => {
+
+                const choice =
+                    bet.bet_choices.find(c => c.id === button.dataset.choiceId);
+
+                renderResolveStepTwo(bet, stakes, choice);
+
+            });
+
+        });
+
+}
+
+
+function renderResolveStepTwo(bet, stakes, winner) {
+
+    showResolveStep(2);
+
+    const container =
+        document.getElementById("resolve-choices");
+
+    const winners =
+        stakes.filter(s => s.choice_id === winner.id);
+
+    const paid =
+        winners.reduce((sum, s) => sum + Number(s.potential_win), 0);
+
+
+    const rows = stakes.length === 0
+        ? `<p class="resolve-empty">Personne n'a misé sur ce pari.</p>`
+        : stakes
+            .slice()
+            .sort((a, b) => (b.choice_id === winner.id) - (a.choice_id === winner.id))
+            .map(s => s.choice_id === winner.id
+                ? `<div class="resolve-row win"><span>✓ ${styledName(s.profiles)}</span><b>+${formatMoney(s.potential_win)}</b></div>`
+                : `<div class="resolve-row lose"><span>✗ ${styledName(s.profiles)}</span><b>−${formatMoney(s.stake)}</b></div>`
+            )
+            .join("");
+
+
+    container.innerHTML = `
+
+        <p class="resolve-if">
+            Si « ${escapeHtml(winner.label)} » gagne :
+            <span>${winners.length} gagnant${winners.length > 1 ? "s" : ""} · ${formatMoney(paid)} reversés</span>
+        </p>
+
+        <div class="resolve-list">${rows}</div>
+
+        <div class="resolve-warning">⚠️ Cette action est définitive.</div>
+
+        <div class="resolve-nav">
+
+            <button class="resolve-back">
+                ← Changer
+            </button>
+
+            <button class="primary-button resolve-confirm">
+                Confirmer
+            </button>
+
+        </div>
+
+    `;
+
+
+    container
+        .querySelector(".resolve-back")
+        .addEventListener("click", () => renderResolveStepOne(bet, stakes));
+
+    container
+        .querySelector(".resolve-confirm")
+        .addEventListener("click", event => {
+
+            const button = event.currentTarget;
+
+            button.disabled = true;
+
+            resolveBet(bet.id, winner.id).finally(() => {
+                button.disabled = false;
+            });
+
+        });
 
 }
 
@@ -1996,7 +2365,7 @@ function openStakesModal(bet) {
             <div class="bet-footer">
 
                 ${bet.target_user_id
-                    ? `<span class="bet-target-footer">🎯 ${bet.target_blocked ? "Bloqué pour" : "Concerne"} ${escapeHtml(bet.target?.username || "un parieur")}</span>`
+                    ? `<span class="bet-target-footer">🎯 ${bet.target_blocked ? "Bloqué pour" : "Concerne"} ${styledName(bet.target, "un parieur")}</span>`
                     : ""
                 }
 
@@ -2044,10 +2413,6 @@ function openStakesModal(bet) {
         stakes.forEach(
             stake => {
 
-                const author =
-                    stake.profiles?.username ||
-                    "Utilisateur";
-
                 const choice =
                     bet.bet_choices.find(
                         item =>
@@ -2070,7 +2435,7 @@ function openStakesModal(bet) {
 
                 row.innerHTML = `
                     <div class="stake-row-header">
-                        <strong>${escapeHtml(author)}</strong>
+                        <strong>${styledName(stake.profiles)}</strong>
                         <span class="stake-choice-badge">
                             ${escapeHtml(choiceLabel)}
                         </span>
@@ -2256,63 +2621,51 @@ async function createBet() {
     }
 
 
-    const deadlineMode =
-        document.querySelector(
-            ".deadline-mode-toggle.active"
-        )?.dataset.mode ||
-        "none";
+    /*
+        L'échéance est obligatoire
+        (sélecteur jour + heure, voir setupDeadlinePicker).
+    */
+
+    const deadlineError =
+        document.getElementById("deadline-error");
+
+    const showDeadlineError = text => {
+
+        deadlineError.textContent = text;
+
+        deadlineError.classList.remove("hidden");
+
+        deadlineError.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    };
+
+    deadlineError.classList.add("hidden");
 
 
-    let deadlineAt = null;
+    const deadline =
+        getSelectedDeadline();
 
 
-    if (deadlineMode === "datetime") {
+    if (!deadline) {
 
-        const deadlineDatetimeValue =
-            document.getElementById(
-                "bet-deadline-datetime"
-            ).value;
+        showDeadlineError("Choisis le jour de fin du pari.");
 
-
-        if (!deadlineDatetimeValue) {
-
-            return;
-
-        }
-
-
-        deadlineAt =
-            new Date(deadlineDatetimeValue).toISOString();
-
-    } else if (deadlineMode === "time") {
-
-        const deadlineTimeValue =
-            document.getElementById(
-                "bet-deadline-time"
-            ).value;
-
-
-        if (!deadlineTimeValue) {
-
-            return;
-
-        }
-
-
-        const [hours, minutes] =
-            deadlineTimeValue.split(":").map(Number);
-
-
-        const todayWithTime =
-            new Date();
-
-        todayWithTime.setHours(hours, minutes, 0, 0);
-
-
-        deadlineAt =
-            todayWithTime.toISOString();
+        return;
 
     }
+
+
+    if (deadline <= new Date()) {
+
+        showDeadlineError("L'échéance doit être dans le futur.");
+
+        return;
+
+    }
+
+
+    const deadlineAt =
+        deadline.toISOString();
 
 
     if (!question) {
@@ -2446,21 +2799,7 @@ async function createBet() {
             "bet-target-options"
         ).classList.add("hidden");
 
-        document.getElementById(
-            "bet-deadline-datetime"
-        ).classList.add("hidden");
-
-        document.getElementById(
-            "bet-deadline-time"
-        ).classList.add("hidden");
-
-        document
-            .querySelectorAll(
-                ".deadline-mode-toggle"
-            )
-            .forEach(button =>
-                button.classList.remove("active")
-            );
+        resetDeadlinePicker();
 
 
         /*
@@ -2495,6 +2834,157 @@ async function createBet() {
     Cote du 2e choix telle que 1/cote1 + 1/cote2 = 1 :
     parier sur les deux choix ne peut jamais rapporter d'argent.
 */
+
+/*
+    Sélecteur d'échéance : un jour parmi les 7 prochains
+    + une heure au curseur (par pas de 15 minutes).
+    Aucun jour n'est choisi au départ : l'échéance est obligatoire.
+*/
+
+let deadlineDayOffset = null;
+
+const DEFAULT_DEADLINE_STEP = 80; // 80 × 15 min = 20h00
+
+
+function getSelectedDeadline() {
+
+    if (deadlineDayOffset === null) {
+        return null;
+    }
+
+    const minutes =
+        Number(document.getElementById("deadline-range").value) * 15;
+
+    const date = new Date();
+
+    date.setDate(date.getDate() + deadlineDayOffset);
+
+    date.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
+
+    return date;
+
+}
+
+
+function updateDeadlinePreview() {
+
+    const range =
+        document.getElementById("deadline-range");
+
+    const minutes = Number(range.value) * 15;
+
+    document.getElementById("deadline-time").textContent =
+        String(Math.floor(minutes / 60)).padStart(2, "0") + ":" +
+        String(minutes % 60).padStart(2, "0");
+
+
+    const result =
+        document.getElementById("deadline-result");
+
+    const deadline =
+        getSelectedDeadline();
+
+    if (!deadline) {
+        result.className = "deadline-result empty";
+        result.textContent = "Choisis le jour de fin du pari";
+        return;
+    }
+
+    const dayLabel =
+        deadlineDayOffset === 0 ? "Aujourd'hui"
+        : deadlineDayOffset === 1 ? "Demain"
+        : deadline.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+
+    const label =
+        dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1) +
+        " à " + document.getElementById("deadline-time").textContent.replace(":", "h");
+
+    if (deadline <= new Date()) {
+        result.className = "deadline-result empty";
+        result.textContent = "⚠️ " + label + " : c'est déjà passé";
+        return;
+    }
+
+    result.className = "deadline-result";
+    result.textContent = "✅ Se ferme : " + label;
+
+}
+
+
+function setupDeadlinePicker() {
+
+    const daysContainer =
+        document.getElementById("deadline-days");
+
+    if (!daysContainer) {
+        return;
+    }
+
+
+    for (let i = 0; i < 7; i++) {
+
+        const date = new Date();
+
+        date.setDate(date.getDate() + i);
+
+        const dayButton =
+            document.createElement("button");
+
+        dayButton.type = "button";
+
+        dayButton.className = "deadline-day";
+
+        dayButton.dataset.offset = i;
+
+        dayButton.innerHTML = `
+            <small>${i === 0 ? "auj." : i === 1 ? "dem." : date.toLocaleDateString("fr-FR", { weekday: "short" })}</small>
+            <b>${date.getDate()}</b>
+        `;
+
+        dayButton.addEventListener("click", () => {
+
+            deadlineDayOffset = i;
+
+            daysContainer
+                .querySelectorAll(".deadline-day")
+                .forEach(button => button.classList.toggle("active", button === dayButton));
+
+            document.getElementById("deadline-error").classList.add("hidden");
+
+            updateDeadlinePreview();
+
+        });
+
+        daysContainer.appendChild(dayButton);
+
+    }
+
+
+    document
+        .getElementById("deadline-range")
+        .addEventListener("input", updateDeadlinePreview);
+
+    resetDeadlinePicker();
+
+}
+
+
+function resetDeadlinePicker() {
+
+    deadlineDayOffset = null;
+
+    document
+        .querySelectorAll(".deadline-day")
+        .forEach(button => button.classList.remove("active"));
+
+    document.getElementById("deadline-range").value =
+        DEFAULT_DEADLINE_STEP;
+
+    updateDeadlinePreview();
+
+}
+
+
 
 function calculerCoteComplementaire(cote) {
 
@@ -2653,18 +3143,163 @@ const REWARDS = [
     {
         id: "cadre",
         title: "Cadre doré",
-        description: "Ta ligne du classement passe en doré pendant 7 jours.",
+        description: "Ta ligne du classement passe en doré, pour toujours.",
         price: 250,
         field: "gold_frame_until"
     },
     {
         id: "couleur",
         title: "Pseudo en couleur",
-        description: "Ton pseudo s'affiche en couleur dans le classement pendant 24 heures.",
+        description: "Ton pseudo s'affiche en arc-en-ciel animé, pour toujours.",
         price: 100,
         field: "name_color_until"
     }
 ];
+
+
+/*
+    Cosmétiques (voir cosmetiques.sql : prix, durées et options
+    y sont vérifiés, ce tableau ne sert qu'à l'affichage).
+*/
+
+const COSMETICS = [
+    {
+        id: "emoji",
+        title: "Emoji à côté du pseudo",
+        description: "Un emoji à côté de ton pseudo, partout sur le site.",
+        price: 15,
+        options: ["🔥", "⚡", "🍀", "🦊", "💎", "🎯"]
+    },
+    {
+        id: "titre",
+        title: "Titre à côté du pseudo",
+        description: "Un petit titre affiché à côté de ton pseudo.",
+        price: 20,
+        options: ["Le Prophète", "Chanceux", "Outsider", "Requin", "Débutant"]
+    },
+    {
+        id: "neon",
+        title: "Pseudo néon",
+        description: "Ton pseudo brille d'une couleur néon.",
+        price: 80,
+        options: ["rose", "bleu", "vert", "jaune"]
+    },
+    {
+        id: "metal_rose",
+        title: "Pseudo rose gold",
+        description: "Un reflet rose gold qui brille sur ton pseudo.",
+        price: 100,
+    },
+    {
+        id: "etincelles",
+        title: "Pseudo étincelant",
+        description: "De petites étoiles scintillent autour de ton pseudo.",
+        price: 100,
+    },
+    {
+        id: "metal_bronze",
+        title: "Pseudo bronze",
+        description: "Un reflet bronze qui brille sur ton pseudo.",
+        price: 150,
+    },
+    {
+        id: "metal_argent",
+        title: "Pseudo argent",
+        description: "Un reflet argenté qui brille sur ton pseudo.",
+        price: 200,
+    },
+    {
+        id: "metal_or",
+        title: "Pseudo or",
+        description: "Un reflet doré qui brille sur ton pseudo.",
+        price: 250,
+    },
+    {
+        id: "aura",
+        title: "Aura animée",
+        description: "Un contour lumineux tourne autour de ta ligne du classement.",
+        price: 300,
+    },
+    {
+        id: "theme",
+        title: "Thème de carte",
+        description: "Les paris que tu crées ont un fond spécial, visible par tous.",
+        price: 450,
+        options: ["galaxie", "carbone", "sunset"]
+    }
+];
+
+
+/*
+    Catégories de la boutique (ordre d'affichage).
+    Mélange les avantages historiques (REWARDS) et les cosmétiques.
+*/
+
+const SHOP_CATEGORIES = [
+    {
+        icon: "✨",
+        title: "Additionnels au pseudo",
+        items: ["emoji", "titre", "etincelles"]
+    },
+    {
+        icon: "🎨",
+        title: "Couleurs et animations du pseudo",
+        items: ["couleur", "neon", "metal_rose", "metal_bronze", "metal_argent", "metal_or"]
+    },
+    {
+        icon: "🖼️",
+        title: "Cadres",
+        items: ["cadre", "aura"]
+    },
+    {
+        icon: "🃏",
+        title: "Thèmes de cartes",
+        items: ["theme"]
+    }
+];
+
+
+// Option choisie dans la boutique pour chaque cosmétique (avant achat).
+const shopSelections = {};
+
+
+function cosmeticOptionLabel(option) {
+
+    return option.charAt(0).toUpperCase() + option.slice(1);
+
+}
+
+
+function hasMyCosmetic(id) {
+
+    if (!currentProfile) {
+        return false;
+    }
+
+    const preview =
+        getAdminPreview()["cosmetic:" + id];
+
+    if (currentProfile.is_admin && preview !== undefined) {
+        return Boolean(preview);
+    }
+
+    return isRewardActive(currentProfile.cosmetics?.[id]?.until) && !currentProfile.cosmetics?.[id]?.off;
+
+}
+
+
+function myCosmeticOption(id) {
+
+    const preview =
+        getAdminPreview()["cosmetic:" + id];
+
+    if (currentProfile?.is_admin && typeof preview === "string") {
+        return preview;
+    }
+
+    return currentProfile?.cosmetics?.[id]?.option || null;
+
+}
 
 
 function isRewardActive(until) {
@@ -2899,6 +3534,57 @@ async function claimMission(missionId, button) {
 }
 
 
+/*
+    Aperçu admin des avantages : choix gardé dans le navigateur.
+    Pour l'admin, l'aperçu remplace l'état réel de l'avantage.
+*/
+
+function getAdminPreview() {
+
+    try {
+        return JSON.parse(localStorage.getItem("betlab-admin-preview")) || {};
+    } catch (error) {
+        return {};
+    }
+
+}
+
+
+function setAdminPreview(field, value) {
+
+    const preview = getAdminPreview();
+
+    preview[field] = value;
+
+    try {
+        localStorage.setItem("betlab-admin-preview", JSON.stringify(preview));
+    } catch (error) {
+        // Stockage indisponible : l'aperçu ne sera pas mémorisé.
+    }
+
+}
+
+
+function hasMyReward(field) {
+
+    if (!currentProfile) {
+        return false;
+    }
+
+    const preview = getAdminPreview();
+
+    if (currentProfile.is_admin && typeof preview[field] === "boolean") {
+        return preview[field];
+    }
+
+    const rewardId =
+        field === "gold_frame_until" ? "cadre" : "couleur";
+
+    return isRewardActive(currentProfile[field]) && !currentProfile.cosmetics?.[rewardId]?.off;
+
+}
+
+
 function displayShop() {
 
     const container =
@@ -2912,7 +3598,9 @@ function displayShop() {
     const points = currentProfile.points || 0;
 
 
-    container.innerHTML = REWARDS.map(reward => {
+    const rewardCards = {};
+
+    REWARDS.forEach(reward => {
 
         const until = currentProfile[reward.field];
 
@@ -2922,12 +3610,32 @@ function displayShop() {
 
 
         const status = active
-            ? `<span class="mission-state done">Actif jusqu'au ${formatDeadline(until)}</span>`
+            ? `<span class="mission-state done">✓ Possédé</span>`
             : `<span class="mission-state">${canBuy ? "Disponible" : "Il te manque " + (reward.price - points) + " pts"}</span>`;
 
 
-        return `
-            <div class="mission-card">
+        /*
+            Admin : interrupteur d'aperçu pour tester l'effet
+            sans l'acheter (visible uniquement par l'admin).
+        */
+
+        const previewOn =
+            hasMyReward(reward.field);
+
+        const adminToggle = currentProfile.is_admin
+            ? `
+                <button
+                    class="reward-preview-toggle${previewOn ? " on" : ""}"
+                    data-preview="${reward.field}"
+                >
+                    👁 Aperçu : ${previewOn ? "activé" : "désactivé"}
+                </button>
+            `
+            : "";
+
+
+        rewardCards[reward.id] = `
+            <div class="mission-card shop-card" data-shop-item="${reward.id}">
 
                 <div class="mission-head">
                     <h3>${escapeHtml(reward.title)}</h3>
@@ -2941,16 +3649,67 @@ function displayShop() {
                     <button
                         class="primary-button reward-buy"
                         data-reward="${reward.id}"
-                        ${canBuy ? "" : "disabled"}
+                        ${canBuy && !active ? "" : "disabled"}
                     >
-                        ${active ? "Prolonger" : "Acheter"}
+                        ${active ? "Possédé" : "Acheter"}
                     </button>
                 </div>
+
+                ${adminToggle}
+
+                ${equipToggleHtml(reward.id, active)}
 
             </div>
         `;
 
-    }).join("");
+    });
+
+
+    /*
+        Boutique rangée par catégories.
+    */
+
+    const cardOf = id =>
+        rewardCards[id] ||
+        cosmeticCardHtml(COSMETICS.find(c => c.id === id));
+
+    container.innerHTML = SHOP_CATEGORIES.map(category => `
+
+        <section class="shop-category">
+
+            <h2 class="missions-title">
+                ${category.icon} ${escapeHtml(category.title)}
+            </h2>
+
+            <div class="missions-grid">
+                ${category.items.map(cardOf).join("")}
+            </div>
+
+        </section>
+
+    `).join("");
+
+
+    container
+        .querySelectorAll(".reward-preview-toggle")
+        .forEach(button => {
+
+            button.addEventListener(
+                "click",
+                () => {
+
+                    const field = button.dataset.preview;
+
+                    setAdminPreview(field, !hasMyReward(field));
+
+                    displayShop();
+
+                    displayLeaderboard();
+
+                }
+            );
+
+        });
 
 
     container
@@ -2963,6 +3722,481 @@ function displayShop() {
             );
 
         });
+
+
+    /*
+        Cosmétiques : choix de l'option, aperçu admin, achat.
+    */
+
+    container
+        .querySelectorAll(".cosmetic-option")
+        .forEach(button => {
+
+            button.addEventListener("click", () => {
+
+                shopSelections[button.dataset.cosmetic] = button.dataset.option;
+
+                // L'aperçu admin suit l'option choisie s'il est activé.
+                if (currentProfile.is_admin && hasMyCosmetic(button.dataset.cosmetic)) {
+                    setAdminPreview("cosmetic:" + button.dataset.cosmetic, button.dataset.option);
+                    displayLeaderboard();
+                }
+
+                displayShop();
+
+            });
+
+        });
+
+
+    container
+        .querySelectorAll(".cosmetic-preview-toggle")
+        .forEach(button => {
+
+            button.addEventListener("click", () => {
+
+                const id = button.dataset.cosmetic;
+
+                const item = COSMETICS.find(c => c.id === id);
+
+                setAdminPreview(
+                    "cosmetic:" + id,
+                    hasMyCosmetic(id)
+                        ? false
+                        : (item.options ? shopSelections[id] || item.options[0] : true)
+                );
+
+                displayShop();
+
+                displayLeaderboard();
+
+            });
+
+        });
+
+
+    container
+        .querySelectorAll(".equip-toggle")
+        .forEach(button => {
+
+            button.addEventListener(
+                "click",
+                () => toggleEquip(
+                    button.dataset.item,
+                    button.dataset.on !== "true",
+                    button
+                )
+            );
+
+        });
+
+
+    container
+        .querySelectorAll(".cosmetic-buy")
+        .forEach(button => {
+
+            button.addEventListener(
+                "click",
+                () => buyCosmetic(button.dataset.cosmetic, button)
+            );
+
+        });
+
+}
+
+
+/*
+    Aperçu d'un article de la boutique (clic sur la carte),
+    même s'il n'est pas encore achetable : l'effet est appliqué
+    à son propre pseudo, avec les vrais styles du site.
+*/
+
+function openShopPreview(itemId, option) {
+
+    const reward =
+        REWARDS.find(r => r.id === itemId);
+
+    const item =
+        reward || COSMETICS.find(c => c.id === itemId);
+
+    if (!item || !currentProfile) {
+        return;
+    }
+
+    const selected =
+        option || shopSelections[itemId] || item.options?.[0] || null;
+
+
+    // Uniquement l'effet de l'article prévisualisé.
+    const effects = {
+        gold: itemId === "cadre",
+        rainbow: itemId === "couleur",
+        metal: itemId.startsWith("metal_") ? itemId.slice(6) : null,
+        neon: itemId === "neon" ? selected : null,
+        emoji: itemId === "emoji" ? selected : null,
+        title: itemId === "titre" ? selected : null,
+        sparkle: itemId === "etincelles",
+        aura: itemId === "aura",
+        theme: itemId === "theme" ? selected : null
+    };
+
+    const me = {
+        username: currentProfile.username
+    };
+
+
+    const stage =
+        document.getElementById("shop-preview-stage");
+
+    if (itemId === "theme") {
+
+        stage.innerHTML = `
+            <div class="bet-card bet-card-theme bet-theme-${selected} shop-preview-bet">
+                <div class="bet-card-header">
+                    <span>🏆</span>
+                    <span class="bet-author">Créé par ${escapeHtml(me.username)}</span>
+                </div>
+                <div class="bet-question-row">
+                    <span class="bet-question-icon">🎲</span>
+                    <h3>Qui gagne le match ce soir ?</h3>
+                </div>
+            </div>
+        `;
+
+    } else {
+
+        stage.innerHTML = `
+            <div class="shop-preview-board">
+                ${leaderboardRowHtml({ username: "Emma" }, { rank: 2, medal: "🥈", balance: formatMoney(1840), effects: {} })}
+                ${leaderboardRowHtml(me, { rank: 3, medal: "🥉", balance: formatMoney(1520), effects })}
+                ${leaderboardRowHtml({ username: "Lucas" }, { rank: 4, medal: "", balance: formatMoney(1310), effects: {} })}
+            </div>
+            <p class="shop-preview-bet-line">
+                Sur une carte de pari : 🏆 Créé par
+                <span class="user-name${effects.gold ? " name-gold" : ""}">${nameHtml(me, effects)}</span>
+            </p>
+        `;
+
+    }
+
+
+    document.getElementById("shop-preview-title").textContent =
+        item.title;
+
+    document.getElementById("shop-preview-description").textContent =
+        item.description;
+
+    document.getElementById("shop-preview-price").textContent =
+        item.price + " pts · définitif";
+
+
+    const optionsContainer =
+        document.getElementById("shop-preview-options");
+
+    optionsContainer.innerHTML = (item.options || []).map(opt => `
+        <button
+            class="cosmetic-option cosmetic-option--${item.id}${opt === selected ? " active" : ""}"
+            data-option="${escapeHtml(opt)}"
+        >${escapeHtml(item.id === "emoji" ? opt : cosmeticOptionLabel(opt))}</button>
+    `).join("");
+
+    optionsContainer
+        .querySelectorAll(".cosmetic-option")
+        .forEach(button => {
+
+            button.addEventListener("click", () => {
+
+                // L'option testée devient celle sélectionnée pour l'achat.
+                shopSelections[itemId] = button.dataset.option;
+
+                openShopPreview(itemId, button.dataset.option);
+
+                displayShop();
+
+            });
+
+        });
+
+
+    document
+        .getElementById("shop-preview-modal")
+        .classList.remove("hidden");
+
+}
+
+
+function setupShopPreview() {
+
+    const modal =
+        document.getElementById("shop-preview-modal");
+
+    const container =
+        document.getElementById("shop-container");
+
+    if (!modal || !container) {
+        return;
+    }
+
+    document
+        .getElementById("close-shop-preview")
+        .addEventListener("click", () => modal.classList.add("hidden"));
+
+    modal.addEventListener("click", event => {
+        if (event.target === modal) {
+            modal.classList.add("hidden");
+        }
+    });
+
+
+    // Clic sur une carte (hors boutons) : ouvre l'aperçu.
+    container.addEventListener("click", event => {
+
+        if (event.target.closest("button")) {
+            return;
+        }
+
+        const card =
+            event.target.closest("[data-shop-item]");
+
+        if (card) {
+            openShopPreview(card.dataset.shopItem);
+        }
+
+    });
+
+}
+
+
+/*
+    Interrupteur « Équipé / Retiré » d'un article possédé
+    (joueurs ; l'admin garde son interrupteur d'aperçu).
+*/
+
+function equipToggleHtml(itemId, owned) {
+
+    if (!owned || currentProfile.is_admin) {
+        return "";
+    }
+
+    const on =
+        !currentProfile.cosmetics?.[itemId]?.off;
+
+    return `
+        <button
+            class="reward-preview-toggle equip-toggle${on ? " on" : ""}"
+            data-item="${itemId}"
+            data-on="${on}"
+        >
+            ${on ? "✓ Équipé · cliquer pour retirer" : "Retiré · cliquer pour équiper"}
+        </button>
+    `;
+
+}
+
+
+async function toggleEquip(itemId, turnOn, button) {
+
+    button.disabled = true;
+
+    const { error } =
+        await supabaseClient.rpc(
+            "toggle_cosmetic",
+            {
+                p_item: itemId,
+                p_on: turnOn
+            }
+        );
+
+    if (error) {
+
+        console.error(error);
+
+        showMissionsMessage(
+            error.message || "Impossible de changer l'équipement.",
+            true,
+            "shop-message"
+        );
+
+        button.disabled = false;
+
+        return;
+
+    }
+
+    await loadCurrentProfile();
+
+    displayShop();
+
+    await displayLeaderboard();
+
+    await displayBets();
+
+}
+
+
+function cosmeticCardHtml(item) {
+
+    const points =
+        currentProfile.points || 0;
+
+    const until =
+        currentProfile.cosmetics?.[item.id]?.until;
+
+    const active =
+        isRewardActive(until);
+
+    const canBuy =
+        points >= item.price;
+
+    const selected =
+        shopSelections[item.id] ||
+        currentProfile.cosmetics?.[item.id]?.option ||
+        item.options?.[0];
+
+
+    const status = active
+        ? `<span class="mission-state done">✓ Possédé</span>`
+        : `<span class="mission-state">${canBuy ? "Disponible" : "Il te manque " + (item.price - points) + " pts"}</span>`;
+
+
+    /*
+        Bouton : acheter, ou pour un article possédé à options,
+        équiper gratuitement l'option sélectionnée.
+    */
+
+    const ownedOption =
+        currentProfile.cosmetics?.[item.id]?.option;
+
+    const buttonLabel = !active
+        ? "Acheter"
+        : item.options && selected !== ownedOption
+            ? "Équiper"
+            : item.options ? "Équipé" : "Possédé";
+
+    const buttonEnabled = active
+        ? buttonLabel === "Équiper"
+        : canBuy;
+
+
+    const options = item.options
+        ? `
+            <div class="cosmetic-options">
+                ${item.options.map(option => `
+                    <button
+                        class="cosmetic-option cosmetic-option--${item.id}${option === selected ? " active" : ""}"
+                        data-cosmetic="${item.id}"
+                        data-option="${escapeHtml(option)}"
+                    >${escapeHtml(item.id === "emoji" ? option : cosmeticOptionLabel(option))}</button>
+                `).join("")}
+            </div>
+        `
+        : "";
+
+
+    const previewOn =
+        hasMyCosmetic(item.id);
+
+    const adminToggle = currentProfile.is_admin
+        ? `
+            <button
+                class="reward-preview-toggle cosmetic-preview-toggle${previewOn ? " on" : ""}"
+                data-cosmetic="${item.id}"
+            >
+                👁 Aperçu : ${previewOn ? "activé" : "désactivé"}
+            </button>
+        `
+        : "";
+
+
+    return `
+        <div class="mission-card shop-card" data-shop-item="${item.id}">
+
+            <div class="mission-head">
+                <h3>${escapeHtml(item.title)}</h3>
+                <span class="mission-points">${item.price} pts</span>
+            </div>
+
+            <p class="mission-description">${escapeHtml(item.description)}</p>
+
+            ${options}
+
+            <div class="mission-footer">
+                ${status}
+                <button
+                    class="primary-button cosmetic-buy"
+                    data-cosmetic="${item.id}"
+                    ${buttonEnabled ? "" : "disabled"}
+                >
+                    ${buttonLabel}
+                </button>
+            </div>
+
+            ${adminToggle}
+
+            ${equipToggleHtml(item.id, active)}
+
+        </div>
+    `;
+
+}
+
+
+async function buyCosmetic(id, button) {
+
+    button.disabled = true;
+
+    const item =
+        COSMETICS.find(c => c.id === id);
+
+    const option = item.options
+        ? shopSelections[id] || currentProfile.cosmetics?.[id]?.option || item.options[0]
+        : null;
+
+
+    try {
+
+        const { data, error } =
+            await supabaseClient.rpc(
+                "buy_cosmetic",
+                {
+                    p_item: id,
+                    p_option: option
+                }
+            );
+
+        if (error) {
+            throw error;
+        }
+
+        showMissionsMessage(
+            data === "option"
+                ? item.title + " : nouvelle option équipée !"
+                : item.title + " acheté, il est à toi pour toujours !",
+            false,
+            "shop-message"
+        );
+
+        await loadCurrentProfile();
+
+        displayShop();
+
+        await displayLeaderboard();
+
+        await displayBets();
+
+    } catch (error) {
+
+        console.error(error);
+
+        showMissionsMessage(
+            error.message || "Impossible d'acheter ce cosmétique.",
+            true,
+            "shop-message"
+        );
+
+        button.disabled = false;
+
+    }
 
 }
 
@@ -2989,7 +4223,7 @@ async function buyReward(rewardId, button) {
         }
 
 
-        showMissionsMessage("Avantage activé !", false, "shop-message");
+        showMissionsMessage("Avantage acheté, il est à toi pour toujours !", false, "shop-message");
 
         await loadCurrentProfile();
 
@@ -3099,6 +4333,174 @@ function showPage(pageId) {
 /* =========================================================
    12. DÉCONNEXION
 ========================================================= */
+
+/*
+    Changement de pseudo (voir profil.sql).
+    Le pseudo est aussi l'identifiant de connexion.
+*/
+
+function setupProfilePage() {
+
+    const form =
+        document.getElementById("username-form");
+
+    if (!form) {
+        return;
+    }
+
+
+    const input =
+        document.getElementById("username-input");
+
+    const submit =
+        document.getElementById("username-submit");
+
+    const message =
+        document.getElementById("username-message");
+
+
+    input.value =
+        currentProfile?.username || "";
+
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const newName =
+            input.value.trim();
+
+        if (newName === currentProfile.username) {
+            showMissionsMessage("C'est déjà ton pseudo.", true, "username-message");
+            return;
+        }
+
+        submit.disabled = true;
+
+        message.classList.add("hidden");
+
+
+        const { error } =
+            await supabaseClient.rpc(
+                "change_username",
+                {
+                    p_username: newName
+                }
+            );
+
+
+        submit.disabled = false;
+
+        if (error) {
+
+            console.error(error);
+
+            showMissionsMessage(
+                error.message || "Impossible de changer de pseudo.",
+                true,
+                "username-message"
+            );
+
+            return;
+
+        }
+
+
+        await loadCurrentProfile();
+
+        input.value = currentProfile.username;
+
+        showMissionsMessage(
+            "Pseudo changé ! Connecte-toi désormais avec « " + currentProfile.username + " ».",
+            false,
+            "username-message"
+        );
+
+        await displayLeaderboard();
+
+        await displayBets();
+
+    });
+
+}
+
+
+
+/*
+    Suppression définitive de son compte
+    (voir suppression-compte.sql).
+*/
+
+function setupDeleteAccount() {
+
+    const modal =
+        document.getElementById("delete-account-modal");
+
+    const openButton =
+        document.getElementById("delete-account-button");
+
+    if (!modal || !openButton) {
+        return;
+    }
+
+
+    const errorElement =
+        document.getElementById("delete-account-error");
+
+    const confirmButton =
+        document.getElementById("confirm-delete-account");
+
+    const close = () => modal.classList.add("hidden");
+
+
+    openButton.addEventListener("click", () => {
+
+        errorElement.textContent = "";
+
+        confirmButton.disabled = false;
+
+        modal.classList.remove("hidden");
+
+    });
+
+    document
+        .getElementById("close-delete-account-modal")
+        .addEventListener("click", close);
+
+    document
+        .getElementById("cancel-delete-account")
+        .addEventListener("click", close);
+
+
+    confirmButton.addEventListener("click", async () => {
+
+        confirmButton.disabled = true;
+
+        errorElement.textContent = "";
+
+        const { error } =
+            await supabaseClient.rpc("delete_my_account");
+
+        if (error) {
+
+            console.error(error);
+
+            errorElement.textContent =
+                error.message || "Impossible de supprimer le compte.";
+
+            confirmButton.disabled = false;
+
+            return;
+
+        }
+
+        await logout();
+
+    });
+
+}
+
+
 
 async function logout() {
 
@@ -3453,6 +4855,12 @@ async function initAppPage() {
 
         await checkAnnouncementPopup();
 
+        setupDeleteAccount();
+
+        setupProfilePage();
+
+        setupShopPreview();
+
         await initAnimations();
 
     } catch (error) {
@@ -3603,80 +5011,10 @@ async function initAppPage() {
 
 
     /*
-        Bascule des champs d'échéance
-        selon le mode choisi.
+        Sélecteur d'échéance (jour + heure).
     */
 
-    const deadlineDatetimeInput =
-        document.getElementById(
-            "bet-deadline-datetime"
-        );
-
-    const deadlineTimeInput =
-        document.getElementById(
-            "bet-deadline-time"
-        );
-
-
-    document
-        .querySelectorAll(
-            ".deadline-mode-toggle"
-        )
-        .forEach(toggleButton => {
-
-            toggleButton.addEventListener(
-                "click",
-                () => {
-
-                    if (!deadlineDatetimeInput || !deadlineTimeInput) {
-
-                        return;
-
-                    }
-
-
-                    const wasActive =
-                        toggleButton.classList.contains("active");
-
-
-                    document
-                        .querySelectorAll(
-                            ".deadline-mode-toggle"
-                        )
-                        .forEach(button =>
-                            button.classList.remove("active")
-                        );
-
-                    deadlineDatetimeInput.classList.add("hidden");
-
-                    deadlineTimeInput.classList.add("hidden");
-
-
-                    if (wasActive) {
-
-                        return;
-
-                    }
-
-
-                    toggleButton.classList.add("active");
-
-
-                    if (toggleButton.dataset.mode === "datetime") {
-
-                        deadlineDatetimeInput.classList.remove("hidden");
-
-                    } else if (toggleButton.dataset.mode === "time") {
-
-                        deadlineTimeInput.classList.remove("hidden");
-
-                    }
-
-                }
-            );
-
-        });
-
+    setupDeadlinePicker();
 
     /*
         Mise à jour gain potentiel.

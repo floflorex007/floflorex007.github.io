@@ -317,7 +317,7 @@ function showResultsPopup(results, totalWon) {
     overlay.innerHTML = `
         <div class="results-popup">
 
-            <h2>${totalWon > 0 ? "🎉 Voilà ton nouveau bilan !" : "Voilà ton nouveau bilan !"}</h2>
+            <h2>${totalWon > 0 ? "🎉 Il y a du mouvement !" : "Il y a du mouvement !"}</h2>
 
             <div class="results-lines">${lines}</div>
 
@@ -666,28 +666,35 @@ function animateLeaderboard(profiles) {
         const oldRank =
             oldRanks[profile.username] || profiles.length + 1;
 
-        if (!row || newRank >= oldRank) {
+        if (!row || newRank === oldRank) {
             return;
         }
 
 
-        const arrow =
+        // Places gagnées (+) ou perdues (-).
+        const climbed = newRank < oldRank;
+
+        const badge =
             document.createElement("span");
 
-        arrow.className = "leaderboard-up";
+        badge.className = climbed ? "leaderboard-up" : "leaderboard-down";
 
-        arrow.textContent = "↑" + (oldRank - newRank);
+        badge.textContent = (climbed ? "+" : "-") + Math.abs(oldRank - newRank);
 
-        row.querySelector(".leaderboard-pseudo").appendChild(arrow);
+        row.querySelector(".leaderboard-pseudo").appendChild(badge);
 
 
         const distance =
             Math.min(oldRank, profiles.length + 1) - newRank;
 
+        const color = climbed
+            ? "rgba(99, 214, 159, 0.25)"
+            : "rgba(255, 107, 107, 0.2)";
+
         row.animate(
             [
-                { transform: `translateY(${distance * row.offsetHeight}px)`, background: "rgba(99, 214, 159, 0.25)" },
-                { transform: "translateY(0)", background: "rgba(99, 214, 159, 0.25)", offset: 0.6 },
+                { transform: `translateY(${distance * row.offsetHeight}px)`, background: color },
+                { transform: "translateY(0)", background: color, offset: 0.6 },
                 { transform: "translateY(0)", background: "transparent" }
             ],
             {
@@ -912,7 +919,7 @@ async function pollActivity() {
 
         supabaseClient
             .from("stakes")
-            .select("created_at, stake, user_id, profiles!stakes_user_id_fkey ( username ), bets ( question )")
+            .select("created_at, stake, user_id, profiles!stakes_user_id_fkey ( username, gold_frame_until, name_color_until, cosmetics ), bets ( question )")
             .gt("created_at", since)
             .neq("user_id", currentUser.id)
             .order("created_at", { ascending: firstPass ? false : true })
@@ -920,7 +927,7 @@ async function pollActivity() {
 
         supabaseClient
             .from("bets")
-            .select("created_at, question, author_id, profiles!bets_author_id_fkey ( username )")
+            .select("created_at, question, author_id, profiles!bets_author_id_fkey ( username, gold_frame_until, name_color_until, cosmetics )")
             .gt("created_at", since)
             .neq("author_id", currentUser.id)
             .order("created_at", { ascending: firstPass ? false : true })
@@ -938,12 +945,12 @@ async function pollActivity() {
 
     (stakesResult.data || []).forEach(s => events.push({
         at: s.created_at,
-        html: `💸 <strong>${escapeHtml(s.profiles?.username || "Quelqu'un")}</strong> a misé ${formatMoney(s.stake)} sur « ${escapeHtml(s.bets?.question || "un pari")} »`
+        html: `💸 <strong>${styledName(s.profiles, "Quelqu'un")}</strong> a misé ${formatMoney(s.stake)} sur « ${escapeHtml(s.bets?.question || "un pari")} »`
     }));
 
     (betsResult.data || []).forEach(b => events.push({
         at: b.created_at,
-        html: `🆕 <strong>${escapeHtml(b.profiles?.username || "Quelqu'un")}</strong> a créé « ${escapeHtml(b.question)} »`
+        html: `🆕 <strong>${styledName(b.profiles, "Quelqu'un")}</strong> a créé « ${escapeHtml(b.question)} »`
     }));
 
     events.sort((a, b) => new Date(a.at) - new Date(b.at));

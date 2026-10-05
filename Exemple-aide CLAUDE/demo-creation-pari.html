@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BetLab – Créer un pari (propositions)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; }
+h1 { font-size: 26px; margin-bottom: 6px; }
+.sub { color: #858a98; margin-bottom: 20px; }
+input, select, button { font: inherit; }
+.hidden { display: none !important; }
+
+/* Onglets de choix des propositions */
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; position: sticky; top: 0; background: #0f1117; padding: 10px 0; z-index: 10; }
+.tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; }
+.tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.variant { display: none; }
+.variant.active { display: block; animation: fade .3s; }
+@keyframes fade { from { opacity: 0; transform: translateY(8px); } }
+.variant-desc { color: #aaaeba; font-size: 14px; margin-bottom: 18px; max-width: 760px; }
+
+/* Barre de choix */
+.bar { position: fixed; left: 0; right: 0; bottom: 0; background: #171a23; border-top: 1px solid #2c3040; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.bar strong { color: #f5c451; }
+.pick { background: #f5c451; color: #111; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 800; cursor: pointer; }
+
+/* Communs */
+.field-label { font-size: 12px; font-weight: 700; color: #858a98; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 6px; display: block; }
+.input { width: 100%; background: #0f1117; border: 1px solid #2c3040; color: white; border-radius: 10px; padding: 12px 14px; transition: border-color .2s, box-shadow .2s; }
+.input:focus { outline: none; border-color: #6c63ff; box-shadow: 0 0 0 3px rgba(108, 99, 255, .2); }
+.input[readonly] { color: #a59fff; background: #161827; }
+.btn-primary { width: 100%; border: none; background: linear-gradient(135deg, #6c63ff, #8b5cf6); color: white; font-weight: 800; padding: 14px; border-radius: 12px; cursor: pointer; box-shadow: 0 8px 24px rgba(108, 99, 255, .35); transition: transform .15s; }
+.btn-primary:hover { transform: translateY(-2px); }
+.seg { display: inline-flex; background: #0f1117; border: 1px solid #2c3040; border-radius: 10px; padding: 3px; }
+.seg button { border: none; background: none; color: #858a98; padding: 8px 14px; border-radius: 8px; cursor: pointer; }
+.seg button.on { background: #292d3b; color: white; }
+.switch { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; color: #c4c8d4; }
+.switch input { display: none; }
+.switch .track { width: 38px; height: 22px; background: #2c3040; border-radius: 99px; position: relative; transition: background .2s; flex-shrink: 0; }
+.switch .track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: white; transition: transform .2s; }
+.switch input:checked + .track { background: #6c63ff; }
+.switch input:checked + .track::after { transform: translateX(16px); }
+.card { background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; border-radius: 20px; }
+.stack { display: flex; flex-direction: column; gap: 18px; }
+
+/* ===== A : formulaire + aperçu en direct ===== */
+.a-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 24px; align-items: start; max-width: 1050px; }
+.a-form { padding: 24px; }
+.a-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.a-choice { background: #0f1117; border: 1px solid #2c3040; border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.a-preview { position: sticky; top: 80px; }
+.a-preview .label { font-size: 12px; color: #858a98; margin-bottom: 8px; display: block; }
+.bet-card { padding: 20px; border-radius: 18px; }
+.bet-card .author { font-size: 12px; color: #858a98; margin-bottom: 10px; }
+.bet-card h3 { font-size: 17px; margin-bottom: 14px; min-height: 22px; }
+.bet-card .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.bet-card .opt { background: #262a38; border-radius: 12px; padding: 12px; display: flex; justify-content: space-between; }
+.bet-card .opt strong { color: #a59fff; }
+.bet-card .deadline { font-size: 12px; color: #858a98; margin-top: 12px; }
+
+/* ===== B : étapes ===== */
+.b-wrap { max-width: 620px; padding: 26px; }
+.b-steps { display: flex; gap: 8px; margin-bottom: 24px; }
+.b-steps div { flex: 1; height: 6px; border-radius: 99px; background: #262a38; transition: background .3s; }
+.b-steps div.done { background: linear-gradient(90deg, #6c63ff, #8b5cf6); }
+.b-step-title { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+.b-step-sub { color: #858a98; font-size: 14px; margin-bottom: 20px; }
+.b-nav { display: flex; gap: 10px; margin-top: 24px; }
+.b-nav .back { border: 1px solid #2c3040; background: none; color: #aaaeba; padding: 14px 18px; border-radius: 12px; cursor: pointer; }
+.b-suggest { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.b-suggest button { border: 1px dashed #3a3f52; background: none; color: #aaaeba; padding: 6px 10px; border-radius: 99px; cursor: pointer; font-size: 12px; }
+
+/* ===== C : duel VS ===== */
+.c-wrap { max-width: 760px; padding: 28px; }
+.c-question { width: 100%; background: none; border: none; border-bottom: 2px solid #2c3040; color: white; font-size: 24px; font-weight: 800; padding: 8px 0 12px; }
+.c-question:focus { outline: none; border-color: #6c63ff; }
+.c-duel { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: center; margin: 26px 0; }
+.c-side { border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 10px; text-align: center; }
+.c-side.one { background: rgba(99, 214, 159, .08); border: 1px solid rgba(99, 214, 159, .35); }
+.c-side.two { background: rgba(255, 107, 107, .08); border: 1px solid rgba(255, 107, 107, .35); }
+.c-side input { text-align: center; background: transparent; border: none; color: white; font-size: 18px; font-weight: 800; }
+.c-side input:focus { outline: none; }
+.c-side .odds { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; color: #858a98; }
+.c-side .odds input { width: 70px; font-size: 22px; border-bottom: 1px dashed #454a5c; }
+.c-side.one .odds input { color: #63d69f; }
+.c-side.two .odds input { color: #ff8a8a; }
+.c-vs { width: 52px; height: 52px; border-radius: 50%; background: #6c63ff; display: flex; align-items: center; justify-content: center; font-weight: 900; box-shadow: 0 0 24px rgba(108, 99, 255, .5); }
+.c-options { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; background: #0f1117; border: 1px solid #2c3040; border-radius: 14px; padding: 16px; margin-bottom: 20px; }
+
+/* ===== D : sections à icônes ===== */
+.d-wrap { max-width: 640px; padding: 8px; }
+.d-section { display: flex; gap: 14px; padding: 18px; border-bottom: 1px solid #22252f; }
+.d-section:last-of-type { border-bottom: none; }
+.d-icon { width: 40px; height: 40px; flex-shrink: 0; border-radius: 12px; background: rgba(108, 99, 255, .15); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+.d-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.d-body h3 { font-size: 15px; }
+.d-row { display: grid; grid-template-columns: 1fr 110px; gap: 10px; }
+.d-footer { padding: 18px; }
+
+@media (max-width: 800px) {
+    .a-layout { grid-template-columns: 1fr; }
+    .a-preview { position: static; }
+    .c-duel { grid-template-columns: 1fr; }
+    .c-vs { margin: 0 auto; }
+    .c-options, .a-choices { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<h1>Créer un pari : 4 propositions</h1>
+<p class="sub">Tout est cliquable : remplis les champs, coche les options, change de mode d'échéance. La cote du choix 2 se calcule toute seule comme sur le site.</p>
+
+<div class="tabs">
+    <button class="tab active" data-v="A">A · Aperçu en direct</button>
+    <button class="tab" data-v="B">B · Étape par étape</button>
+    <button class="tab" data-v="C">C · Duel « VS »</button>
+    <button class="tab" data-v="D">D · Sections à icônes</button>
+</div>
+
+
+<!-- ================= A ================= -->
+<section class="variant active" id="v-A">
+    <p class="variant-desc">Le formulaire à gauche, et à droite la carte du pari telle qu'elle apparaîtra, qui se met à jour pendant que tu écris.</p>
+    <div class="a-layout">
+        <div class="card a-form stack">
+            <div><label class="field-label">Question du pari</label><input class="input" data-q placeholder="Ex : Est-ce que Thomas arrivera en retard demain ?"></div>
+            <div class="a-choices">
+                <div class="a-choice"><label class="field-label">Choix 1</label><input class="input" data-c1 placeholder="Oui"><label class="field-label">Cote</label><input class="input" type="number" step="0.01" min="1.01" data-o1 placeholder="1.80"></div>
+                <div class="a-choice"><label class="field-label">Choix 2</label><input class="input" data-c2 placeholder="Non"><label class="field-label">Cote (auto)</label><input class="input" data-o2 readonly placeholder="Calculée"></div>
+            </div>
+            <div><label class="field-label">Échéance</label><div class="seg" data-seg><button class="on" data-m="dt">Date / Heure</button><button data-m="t">Heure</button></div><input class="input" style="margin-top:10px" type="datetime-local" data-dt><input class="input hidden" style="margin-top:10px" type="time" data-t></div>
+            <label class="switch"><input type="checkbox" data-target><span class="track"></span>Ce pari concerne un autre parieur</label>
+            <div class="stack hidden" data-target-opts><select class="input"><option>Choisis un parieur</option><option>Lucas</option><option>Emma</option></select><label class="switch"><input type="checkbox" checked><span class="track"></span>Bloquer cette personne</label></div>
+            <button class="btn-primary">Créer le pari</button>
+        </div>
+        <div class="a-preview">
+            <span class="label">👀 Aperçu</span>
+            <div class="card bet-card">
+                <div class="author">🏆 Créé par Toi</div>
+                <h3 data-p-q>Ta question apparaîtra ici…</h3>
+                <div class="opts">
+                    <div class="opt"><span data-p-c1>Oui</span><strong data-p-o1>–</strong></div>
+                    <div class="opt"><span data-p-c2>Non</span><strong data-p-o2>–</strong></div>
+                </div>
+                <div class="deadline" data-p-d>⏳ Pas d'échéance</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ================= B ================= -->
+<section class="variant" id="v-B">
+    <p class="variant-desc">Une question à la fois, en 3 étapes avec une barre de progression. Plus guidé et moins chargé visuellement.</p>
+    <div class="card b-wrap">
+        <div class="b-steps"><div class="done"></div><div></div><div></div></div>
+
+        <div data-step="1">
+            <div class="b-step-title">🎲 Sur quoi on parie ?</div>
+            <div class="b-step-sub">Écris une question simple, à laquelle on peut répondre par un des choix.</div>
+            <input class="input" data-q placeholder="Ex : Est-ce que Thomas arrivera en retard demain ?">
+            <div class="b-suggest"><button>Il va pleuvoir demain ?</button><button>Qui gagne le match ce soir ?</button><button>Thomas arrivera en retard ?</button></div>
+        </div>
+
+        <div data-step="2" class="hidden stack">
+            <div><div class="b-step-title">⚖️ Les choix et les cotes</div><div class="b-step-sub">Mets la cote du premier choix : la seconde se calcule toute seule.</div></div>
+            <div class="d-row"><input class="input" data-c1 placeholder="Oui"><input class="input" type="number" step="0.01" min="1.01" data-o1 placeholder="1.80"></div>
+            <div class="d-row"><input class="input" data-c2 placeholder="Non"><input class="input" data-o2 readonly placeholder="auto"></div>
+        </div>
+
+        <div data-step="3" class="hidden stack">
+            <div><div class="b-step-title">⏳ Derniers réglages</div><div class="b-step-sub">Quand le pari se ferme-t-il, et concerne-t-il quelqu'un ?</div></div>
+            <div><div class="seg" data-seg><button class="on" data-m="dt">Date / Heure</button><button data-m="t">Heure</button></div><input class="input" style="margin-top:10px" type="datetime-local" data-dt><input class="input hidden" style="margin-top:10px" type="time" data-t></div>
+            <label class="switch"><input type="checkbox" data-target><span class="track"></span>Ce pari concerne un autre parieur</label>
+            <div class="stack hidden" data-target-opts><select class="input"><option>Choisis un parieur</option><option>Lucas</option></select><label class="switch"><input type="checkbox" checked><span class="track"></span>Bloquer cette personne</label></div>
+        </div>
+
+        <div class="b-nav"><button class="back hidden" data-back>← Retour</button><button class="btn-primary" data-next>Continuer →</button></div>
+    </div>
+</section>
+
+
+<!-- ================= C ================= -->
+<section class="variant" id="v-C">
+    <p class="variant-desc">La question en grand titre, et les deux choix face à face comme un duel, avec leur cote bien visible. Les options sont regroupées en bas.</p>
+    <div class="card c-wrap">
+        <label class="field-label">Ta question</label>
+        <input class="c-question" data-q placeholder="Thomas arrivera-t-il en retard demain ?">
+        <div class="c-duel">
+            <div class="c-side one"><input data-c1 placeholder="Oui"><div class="odds">cote <input type="number" step="0.01" min="1.01" data-o1 placeholder="1.80"></div></div>
+            <div class="c-vs">VS</div>
+            <div class="c-side two"><input data-c2 placeholder="Non"><div class="odds">cote <input data-o2 readonly placeholder="auto"></div></div>
+        </div>
+        <div class="c-options">
+            <div><label class="field-label">Échéance</label><div class="seg" data-seg><button class="on" data-m="dt">Date / Heure</button><button data-m="t">Heure</button></div><input class="input" style="margin-top:10px" type="datetime-local" data-dt><input class="input hidden" style="margin-top:10px" type="time" data-t></div>
+            <div class="stack" style="gap:10px"><label class="field-label">Parieur concerné</label><label class="switch"><input type="checkbox" data-target><span class="track"></span>Concerne quelqu'un</label><div class="stack hidden" style="gap:10px" data-target-opts><select class="input"><option>Choisis un parieur</option><option>Lucas</option></select><label class="switch"><input type="checkbox" checked><span class="track"></span>Le bloquer</label></div></div>
+        </div>
+        <button class="btn-primary">⚡ Lancer le pari</button>
+    </div>
+</section>
+
+
+<!-- ================= D ================= -->
+<section class="variant" id="v-D">
+    <p class="variant-desc">Proche de la version actuelle, mais rangée en sections claires avec une icône chacune, des interrupteurs à la place des cases à cocher, et des champs plus aérés.</p>
+    <div class="card d-wrap">
+        <div class="d-section"><div class="d-icon">🎲</div><div class="d-body"><h3>Question</h3><input class="input" data-q placeholder="Ex : Est-ce que Thomas arrivera en retard demain ?"></div></div>
+        <div class="d-section"><div class="d-icon">⚖️</div><div class="d-body"><h3>Choix et cotes</h3>
+            <div class="d-row"><input class="input" data-c1 placeholder="Choix 1 : Oui"><input class="input" type="number" step="0.01" min="1.01" data-o1 placeholder="Cote 1.80"></div>
+            <div class="d-row"><input class="input" data-c2 placeholder="Choix 2 : Non"><input class="input" data-o2 readonly placeholder="Auto"></div></div></div>
+        <div class="d-section"><div class="d-icon">⏳</div><div class="d-body"><h3>Échéance</h3><div><div class="seg" data-seg><button class="on" data-m="dt">Date / Heure</button><button data-m="t">Heure</button></div></div><input class="input" type="datetime-local" data-dt><input class="input hidden" type="time" data-t></div></div>
+        <div class="d-section"><div class="d-icon">🎯</div><div class="d-body"><h3>Parieur concerné</h3><label class="switch"><input type="checkbox" data-target><span class="track"></span>Ce pari concerne un autre parieur</label><div class="stack hidden" style="gap:10px" data-target-opts><select class="input"><option>Choisis un parieur</option><option>Lucas</option></select><label class="switch"><input type="checkbox" checked><span class="track"></span>Bloquer cette personne : elle ne pourra pas parier</label></div></div></div>
+        <div class="d-footer"><button class="btn-primary">Créer le pari</button></div>
+    </div>
+</section>
+
+
+<div class="bar">
+    <span>Proposition affichée : <strong id="current">A · Aperçu en direct</strong></span>
+    <button class="pick" id="pick">Je choisis celle-ci</button>
+</div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+
+function complement(c) {
+    return !c || c <= 1 ? 0 : Math.round(c / (c - 1) * 100) / 100;
+}
+
+/* Onglets */
+document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t === tab));
+    document.querySelectorAll(".variant").forEach(v => v.classList.toggle("active", v.id === "v-" + tab.dataset.v));
+    $("#current").textContent = tab.textContent;
+}));
+
+/* Comportements communs à chaque proposition */
+document.querySelectorAll(".variant").forEach(v => {
+
+    const o1 = $("[data-o1]", v), o2 = $("[data-o2]", v);
+    o1.addEventListener("input", () => { const c = complement(+o1.value); o2.value = c ? c.toFixed(2) : ""; preview(v); });
+
+    v.querySelectorAll("[data-seg] button").forEach(b => b.addEventListener("click", e => {
+        e.preventDefault();
+        b.parentElement.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+        $("[data-dt]", v).classList.toggle("hidden", b.dataset.m !== "dt");
+        $("[data-t]", v).classList.toggle("hidden", b.dataset.m !== "t");
+    }));
+
+    const target = $("[data-target]", v);
+    target.addEventListener("change", () => $("[data-target-opts]", v).classList.toggle("hidden", !target.checked));
+
+    v.querySelectorAll("input").forEach(i => i.addEventListener("input", () => preview(v)));
+});
+
+/* Aperçu en direct (A) */
+function preview(v) {
+    if (v.id !== "v-A") return;
+    const val = s => $(s, v).value.trim();
+    $("[data-p-q]").textContent = val("[data-q]") || "Ta question apparaîtra ici…";
+    $("[data-p-c1]").textContent = val("[data-c1]") || "Oui";
+    $("[data-p-c2]").textContent = val("[data-c2]") || "Non";
+    $("[data-p-o1]").textContent = val("[data-o1]") ? (+val("[data-o1]")).toFixed(2) : "–";
+    $("[data-p-o2]").textContent = val("[data-o2]") || "–";
+    const dt = $("[data-dt]", v).value, t = $("[data-t]", v).value;
+    $("[data-p-d]").textContent = dt ? "⏳ " + new Date(dt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }) : t ? "⏳ Aujourd'hui à " + t : "⏳ Pas d'échéance";
+}
+document.querySelectorAll("#v-A [data-dt], #v-A [data-t]").forEach(i => i.addEventListener("change", () => preview($("#v-A"))));
+
+/* Étapes (B) */
+let step = 1;
+const B = $("#v-B");
+function showStep() {
+    B.querySelectorAll("[data-step]").forEach(s => s.classList.toggle("hidden", +s.dataset.step !== step));
+    B.querySelectorAll(".b-steps div").forEach((d, i) => d.classList.toggle("done", i < step));
+    $("[data-back]", B).classList.toggle("hidden", step === 1);
+    $("[data-next]", B).textContent = step === 3 ? "Créer le pari" : "Continuer →";
+}
+$("[data-next]", B).addEventListener("click", () => { if (step < 3) { step++; showStep(); } });
+$("[data-back]", B).addEventListener("click", () => { step--; showStep(); });
+B.querySelectorAll(".b-suggest button").forEach(b => b.addEventListener("click", () => { $("[data-q]", B).value = b.textContent; }));
+
+/* Choix final */
+$("#pick").addEventListener("click", () => {
+    const txt = "Je choisis la proposition " + $("#current").textContent;
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).catch(() => {});
+    $("#pick").textContent = "✔ Copié ! Colle-le dans le chat";
+    setTimeout(() => $("#pick").textContent = "Je choisis celle-ci", 2500);
+});
+</script>
+</body>
+</html>

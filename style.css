@@ -1216,11 +1216,35 @@ input {
     color: #f5c451;
 }
 
+/* Pseudo arc-en-ciel animé en vague */
 .leaderboard-pseudo.pseudo-color {
-    background: linear-gradient(90deg, #ff6b9d, #a78bfa, #63d6ff);
+    overflow: visible;
+    font-weight: 800;
+}
+
+.rainbow-letter {
+    display: inline-block;
+    background: linear-gradient(
+        90deg,
+        #ff4d4d, #ff9f43, #ffe14d, #4dff88, #4dd2ff, #6c63ff, #d24dff, #ff4d4d
+    );
+    background-size: 800% 100%;
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
+    animation:
+        rainbow-shift 2.4s linear infinite,
+        rainbow-wave 1.2s ease-in-out infinite;
+}
+
+@keyframes rainbow-shift {
+    from { background-position: 0% 50%; }
+    to { background-position: 100% 50%; }
+}
+
+@keyframes rainbow-wave {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
 }
 
 
@@ -1759,14 +1783,1246 @@ input {
 }
 
 .leaderboard-row--admin {
-    background: rgba(245, 196, 81, 0.1);
-    border: 1px dashed rgba(245, 196, 81, 0.5);
-    padding-left: 8px;
-    padding-right: 8px;
     margin-bottom: 6px;
 }
 
-.leaderboard-row--admin .leaderboard-pseudo,
-.leaderboard-row--admin .leaderboard-balance {
+/* Admin avec le cadre doré : bordure pleine et lueur */
+.leaderboard-row--admin.leaderboard-row--gold {
+    border: 1px solid #f5c451;
+    box-shadow: 0 0 12px rgba(245, 196, 81, 0.35);
+}
+
+/* Interrupteur d'aperçu des avantages (admin) */
+.reward-preview-toggle {
+    align-self: flex-start;
+    border: 1px dashed #454a5c;
+    background: none;
+    color: #858a98;
+    font: inherit;
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.reward-preview-toggle.on {
+    border-color: #f5c451;
     color: #f5c451;
+    background: rgba(245, 196, 81, 0.1);
+}
+
+/* Pseudos avec avantages hors classement */
+.user-name.name-gold {
+    display: inline-block;
+    padding: 0 6px;
+    border: 1px solid #f5c451;
+    border-radius: 6px;
+    background: rgba(245, 196, 81, 0.12);
+    color: #f5c451;
+    box-shadow: 0 0 8px rgba(245, 196, 81, 0.3);
+}
+
+.user-name.pseudo-color {
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+
+/* Suppression du compte (discret, en bas à droite de la boutique) */
+
+.delete-account-actions {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.secondary-button,
+.danger-button {
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.secondary-button {
+    background: #292d3b;
+    color: white;
+}
+
+.danger-button {
+    background: #e04a5a;
+    color: white;
+}
+
+.danger-button:hover {
+    background: #f05a6a;
+}
+
+.danger-button:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.leaderboard-down {
+    margin-left: 6px;
+    color: #ff6b6b;
+    font-weight: 800;
+    font-size: 12px;
+}
+
+
+/* Bouton de suppression du compte : petit, fixé en bas à droite (page Profil) */
+.delete-account-area {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 1500;
+}
+
+.delete-account-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(255, 107, 107, 0.35);
+    background: rgba(255, 107, 107, 0.08);
+    color: #ff8a8a;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 5px 11px;
+    border-radius: 999px;
+    cursor: pointer;
+    backdrop-filter: blur(6px);
+    transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s;
+}
+
+.delete-account-button::before {
+    content: "🗑️";
+    font-size: 11px;
+}
+
+.delete-account-button:hover {
+    background: #e04a5a;
+    border-color: #e04a5a;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(224, 74, 90, 0.35);
+}
+
+@media (max-width: 500px) {
+    .delete-account-area {
+        right: 16px;
+        bottom: 16px;
+    }
+}
+
+
+/* =========================================================
+   PAGE PROFIL
+========================================================= */
+
+.profile-nav-button {
+    border: 1px solid #343846;
+}
+
+.profile-card {
+    max-width: 560px;
+    background: linear-gradient(180deg, #1c202c 0%, #14161e 100%);
+    border: 1px solid #2c3040;
+    border-radius: 18px;
+    padding: 20px;
+    margin-bottom: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.profile-card h2 {
+    font-size: 17px;
+}
+
+.profile-hint {
+    color: #858a98;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.profile-form {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.profile-form input {
+    flex: 1;
+    min-width: 180px;
+    background: #0f1117;
+    border: 1px solid #2c3040;
+    color: white;
+    border-radius: 8px;
+    padding: 11px 12px;
+    font: inherit;
+}
+
+.profile-form input:focus {
+    outline: none;
+    border-color: #6c63ff;
+}
+
+.profile-card .missions-message {
+    width: 100%;
+}
+
+
+/* =========================================================
+   CRÉER UN PARI : sections à icônes (proposition D)
+========================================================= */
+
+.create-card.create-card--sections {
+    max-width: 680px;
+    padding: 8px;
+    background: linear-gradient(180deg, #1c202c 0%, #14161e 100%);
+    border: 1px solid #2c3040;
+    border-radius: 20px;
+}
+
+.create-section {
+    display: flex;
+    gap: 14px;
+    padding: 18px;
+    border-bottom: 1px solid #22252f;
+}
+
+.create-section-icon {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: 12px;
+    background: rgba(108, 99, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+}
+
+.create-section-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.create-card--sections .create-section-body > label:first-child {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: white;
+}
+
+.create-card--sections input,
+.create-card--sections select {
+    border-radius: 10px;
+    border-color: #2c3040;
+    background: #0f1117;
+    padding: 12px 14px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.create-card--sections input:focus,
+.create-card--sections select:focus {
+    border-color: #6c63ff;
+    box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.2);
+}
+
+.create-card--sections input[readonly] {
+    color: #a59fff;
+    background: #161827;
+}
+
+.create-choice-row {
+    display: grid;
+    grid-template-columns: 1fr 120px;
+    gap: 10px;
+}
+
+.create-hint {
+    color: #737887;
+    font-size: 12px;
+}
+
+
+/* Échéance en sélecteur segmenté */
+.create-card--sections .deadline-mode-options {
+    display: inline-flex;
+    align-self: flex-start;
+    gap: 0;
+    margin: 0;
+    background: #0f1117;
+    border: 1px solid #2c3040;
+    border-radius: 10px;
+    padding: 3px;
+}
+
+.create-card--sections .deadline-mode-toggle {
+    border: none;
+    background: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    color: #858a98;
+}
+
+.create-card--sections .deadline-mode-toggle.active {
+    background: #292d3b;
+    color: white;
+}
+
+
+/* Interrupteurs à la place des cases à cocher */
+.create-card--sections #bet-target-options:not(.hidden) {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.create-card--sections label.switch-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: #c4c8d4;
+    cursor: pointer;
+}
+
+.create-card--sections .switch-row input {
+    display: none;
+}
+
+.switch-track {
+    width: 38px;
+    height: 22px;
+    flex-shrink: 0;
+    border-radius: 99px;
+    background: #2c3040;
+    position: relative;
+    transition: background 0.2s;
+}
+
+.switch-track::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: white;
+    transition: transform 0.2s;
+}
+
+.switch-row input:checked + .switch-track {
+    background: #6c63ff;
+}
+
+.switch-row input:checked + .switch-track::after {
+    transform: translateX(16px);
+}
+
+
+.create-footer {
+    padding: 18px;
+}
+
+.create-footer .large-button {
+    background: linear-gradient(135deg, #6c63ff, #8b5cf6);
+    border-radius: 12px;
+    padding: 14px;
+    box-shadow: 0 8px 24px rgba(108, 99, 255, 0.35);
+}
+
+@media (max-width: 500px) {
+    .create-choice-row {
+        grid-template-columns: 1fr 96px;
+    }
+
+    .create-section {
+        padding: 14px 10px;
+    }
+}
+
+.create-error {
+    color: #ff6b6b;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+
+/* Sélecteur d'échéance : jour + heure */
+.deadline-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+}
+
+.deadline-day {
+    border: 1px solid #2c3040;
+    background: #0f1117;
+    color: #c4c8d4;
+    border-radius: 12px;
+    padding: 8px 0;
+    cursor: pointer;
+    text-align: center;
+    font: inherit;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.deadline-day:hover {
+    border-color: #454a5c;
+}
+
+.deadline-day b {
+    display: block;
+    font-size: 17px;
+}
+
+.deadline-day small {
+    font-size: 11px;
+    color: #858a98;
+    text-transform: capitalize;
+}
+
+.deadline-day.active {
+    background: #6c63ff;
+    border-color: #6c63ff;
+    color: white;
+    box-shadow: 0 4px 14px rgba(108, 99, 255, 0.35);
+}
+
+.deadline-day.active small {
+    color: #e0ddff;
+}
+
+.deadline-time-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.deadline-time {
+    min-width: 92px;
+    font-size: 30px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.create-card--sections input[type="range"] {
+    flex: 1;
+    padding: 0;
+    border: none;
+    background: none;
+    box-shadow: none;
+    accent-color: #6c63ff;
+    cursor: pointer;
+}
+
+.deadline-result {
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    background: rgba(99, 214, 159, 0.08);
+    border: 1px solid rgba(99, 214, 159, 0.35);
+    color: #63d69f;
+}
+
+.deadline-result.empty {
+    background: rgba(255, 107, 107, 0.06);
+    border-color: rgba(255, 107, 107, 0.3);
+    color: #ff8a8a;
+}
+
+@media (max-width: 500px) {
+    .deadline-days {
+        gap: 4px;
+    }
+
+    .deadline-time {
+        font-size: 24px;
+        min-width: 72px;
+    }
+}
+
+
+/* =========================================================
+   MES CRÉATIONS : cartes en cours / validées (proposition A)
+========================================================= */
+
+.created-bet {
+    background: linear-gradient(180deg, #1c202c 0%, #14161e 100%);
+    border: 1px solid #2c3040;
+    border-radius: 18px;
+    padding: 18px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.created-bet h3 {
+    font-size: 16px;
+}
+
+.created-bet-open {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    min-width: 0;
+}
+
+.created-bet-meta {
+    color: #858a98;
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+.created-bet-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 999px;
+}
+
+.created-bet-badge.done {
+    background: rgba(99, 214, 159, 0.12);
+    color: #63d69f;
+    border: 1px solid rgba(99, 214, 159, 0.35);
+}
+
+.created-bet-badge.open {
+    background: rgba(108, 99, 255, 0.15);
+    color: #a59fff;
+    border: 1px solid rgba(108, 99, 255, 0.4);
+}
+
+.created-bet--resolved {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.created-bet-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.created-bet-results {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+}
+
+.created-bet-result {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #0f1117;
+    border: 1px solid #2c3040;
+    color: #737887;
+}
+
+.created-bet-result.win {
+    background: rgba(99, 214, 159, 0.1);
+    border-color: #63d69f;
+    color: white;
+    font-weight: 700;
+    box-shadow: 0 0 18px rgba(99, 214, 159, 0.15);
+}
+
+.created-bet-result.win strong {
+    color: #63d69f;
+}
+
+.created-bet-result.lose {
+    text-decoration: line-through;
+    opacity: 0.6;
+}
+
+
+/* Mes créations : cartes compactes */
+#my-created-bets-container {
+    gap: 8px;
+}
+
+.created-bet {
+    max-width: 760px;
+    padding: 12px 16px;
+    border-radius: 14px;
+    gap: 10px;
+}
+
+.created-bet h3 {
+    font-size: 14px;
+}
+
+.created-bet-open {
+    gap: 4px;
+}
+
+.created-bet-meta {
+    font-size: 11px;
+    margin-top: 0;
+}
+
+.created-bet-badge {
+    font-size: 10px;
+    padding: 2px 8px;
+}
+
+.created-bet-results {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 6px;
+}
+
+.created-bet-result {
+    padding: 7px 10px;
+    border-radius: 9px;
+    font-size: 13px;
+}
+
+.created-bet-result.win {
+    box-shadow: none;
+}
+
+.created-bet .resolve-button {
+    padding: 8px 12px;
+    font-size: 13px;
+}
+
+
+/* =========================================================
+   MES PARIS : bilan + filtres + lignes compactes (proposition C)
+========================================================= */
+
+.my-bets-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    max-width: 760px;
+}
+
+.my-bets-summary div {
+    background: #161922;
+    border: 1px solid #22252f;
+    border-radius: 12px;
+    padding: 10px 12px;
+}
+
+.my-bets-summary span {
+    display: block;
+    font-size: 10px;
+    color: #858a98;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.my-bets-summary b {
+    font-size: 18px;
+}
+
+.text-win {
+    color: #63d69f;
+}
+
+.my-bets-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.my-bets-filter {
+    border: 1px solid #2c3040;
+    background: #1c202c;
+    color: #aaaeba;
+    padding: 6px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+}
+
+.my-bets-filter span {
+    margin-left: 6px;
+    opacity: 0.6;
+}
+
+.my-bets-filter.active {
+    background: #292d3b;
+    border-color: #454a5c;
+    color: white;
+}
+
+.my-bets-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 760px;
+}
+
+.my-bet-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: linear-gradient(180deg, #1c202c 0%, #14161e 100%);
+    border: 1px solid #2c3040;
+    border-radius: 14px;
+    padding: 12px 16px;
+}
+
+.my-bet-dot {
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 14px;
+}
+
+.my-bet-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.my-bet-text h3 {
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.my-bet-text p {
+    color: #858a98;
+    font-size: 11px;
+    margin-top: 2px;
+}
+
+.my-bet-amount {
+    flex-shrink: 0;
+    font-weight: 800;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.my-bet-row--open .my-bet-dot {
+    background: rgba(108, 99, 255, 0.15);
+    color: #a59fff;
+}
+
+.my-bet-row--open .my-bet-amount {
+    color: #a59fff;
+}
+
+.my-bet-row--win {
+    border-color: rgba(99, 214, 159, 0.4);
+}
+
+.my-bet-row--win .my-bet-dot {
+    background: rgba(99, 214, 159, 0.15);
+    color: #63d69f;
+}
+
+.my-bet-row--win .my-bet-amount {
+    color: #63d69f;
+}
+
+.my-bet-row--lose .my-bet-dot {
+    background: rgba(255, 107, 107, 0.12);
+    color: #ff8a8a;
+}
+
+.my-bet-row--lose .my-bet-amount {
+    color: #ff8a8a;
+}
+
+/* Perdu : légèrement atténué, sans tout griser */
+.my-bet-item.my-bet-row--lose {
+    filter: none;
+    opacity: 0.75;
+}
+
+@media (max-width: 500px) {
+    .my-bets-summary b {
+        font-size: 15px;
+    }
+}
+
+
+/* =========================================================
+   COSMÉTIQUES DE LA BOUTIQUE
+========================================================= */
+
+/* Le pseudo du classement ne coupe plus les effets */
+.leaderboard-pseudo.has-effect {
+    overflow: visible;
+    white-space: nowrap;
+}
+
+/* Pseudo métallique : reflet qui défile */
+.name-metal {
+    font-weight: 900;
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: metal-shine 2.5s linear infinite;
+}
+
+.metal-or { background-image: linear-gradient(90deg, #b88a1d, #ffe69a, #f5c451, #b88a1d); }
+.metal-argent { background-image: linear-gradient(90deg, #8a8f9c, #ffffff, #c4c8d4, #8a8f9c); }
+.metal-bronze { background-image: linear-gradient(90deg, #7a4a1d, #e0a46a, #b8733a, #7a4a1d); }
+.metal-rose { background-image: linear-gradient(90deg, #b76e79, #ffd6dc, #e8a0a8, #b76e79); }
+
+@keyframes metal-shine {
+    from { background-position: 200% 0; }
+    to { background-position: 0 0; }
+}
+
+/* Pseudo néon */
+.name-neon {
+    font-weight: 700;
+    color: var(--neon);
+    text-shadow: 0 0 6px var(--neon), 0 0 14px var(--neon);
+}
+
+.neon-rose { --neon: #ff4d9d; }
+.neon-bleu { --neon: #4dd2ff; }
+.neon-vert { --neon: #63ff9a; }
+.neon-jaune { --neon: #ffd24d; }
+
+/* Emoji et titre */
+.name-emoji {
+    font-size: 0.95em;
+}
+
+.name-title {
+    display: inline-block;
+    vertical-align: middle;
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: rgba(108, 99, 255, 0.18);
+    color: #a59fff;
+    border: 1px solid rgba(108, 99, 255, 0.4);
+    -webkit-text-fill-color: #a59fff;
+}
+
+/* Pseudo étincelant */
+.name-sparkle {
+    position: relative;
+    display: inline-block;
+}
+
+.name-sparkle i {
+    position: absolute;
+    font-style: normal;
+    font-size: 9px;
+    color: #ffe69a;
+    -webkit-text-fill-color: #ffe69a;
+    pointer-events: none;
+    animation: name-sparkle 1.6s ease-in-out infinite;
+}
+
+.name-sparkle i:nth-of-type(1) { left: -8px; top: -6px; }
+.name-sparkle i:nth-of-type(2) { right: -8px; top: -7px; animation-delay: 0.4s; }
+.name-sparkle i:nth-of-type(3) { right: -6px; bottom: -5px; animation-delay: 0.8s; }
+.name-sparkle i:nth-of-type(4) { left: -6px; bottom: -6px; animation-delay: 1.2s; }
+
+@keyframes name-sparkle {
+    0%, 100% { opacity: 0; transform: scale(0.4); }
+    50% { opacity: 1; transform: scale(1); }
+}
+
+/* Aura animée autour de la ligne du classement */
+@property --aura-angle {
+    syntax: "<angle>";
+    initial-value: 0deg;
+    inherits: false;
+}
+
+.leaderboard-row--aura {
+    background: rgba(108, 99, 255, 0.08);
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+.leaderboard-row--aura::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: 8px;
+    padding: 2px;
+    background: conic-gradient(from var(--aura-angle), #6c63ff, #c86bff, #3aa0ff, #6c63ff);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: aura-spin 3s linear infinite;
+    pointer-events: none;
+}
+
+@keyframes aura-spin {
+    to { --aura-angle: 360deg; }
+}
+
+/* Thèmes de carte des paris créés */
+.bet-card.bet-theme-galaxie {
+    background:
+        radial-gradient(circle at 20% 30%, rgba(108, 70, 220, 0.45) 0, transparent 40%),
+        radial-gradient(circle at 80% 70%, rgba(40, 110, 200, 0.4) 0, transparent 45%),
+        #0d0b1d;
+    border-color: #4b3fa0;
+}
+
+.bet-card.bet-theme-carbone {
+    background: repeating-linear-gradient(45deg, #1a1c22 0 6px, #14161b 6px 12px);
+    border-color: #3a3d48;
+}
+
+.bet-card.bet-theme-sunset {
+    background: linear-gradient(135deg, #3d1f3a, #6b2f2f 55%, #7a4a1d);
+    border-color: #a0563a;
+}
+
+/* Choix des options dans la boutique */
+.cosmetic-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.cosmetic-option {
+    border: 1px solid #2c3040;
+    background: #0f1117;
+    color: #c4c8d4;
+    padding: 4px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+}
+
+.cosmetic-option.active {
+    border-color: #6c63ff;
+    background: rgba(108, 99, 255, 0.2);
+    color: white;
+}
+
+.cosmetic-option--neon[data-option="rose"] { color: #ff4d9d; }
+.cosmetic-option--neon[data-option="bleu"] { color: #4dd2ff; }
+.cosmetic-option--neon[data-option="vert"] { color: #63ff9a; }
+.cosmetic-option--neon[data-option="jaune"] { color: #ffd24d; }
+
+
+/* Aperçu d'un article de la boutique */
+.shop-card {
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.15s;
+}
+
+.shop-card:hover {
+    border-color: #6c63ff;
+}
+
+.shop-card .mission-description::after {
+    content: " 👁 Clique pour voir l'aperçu";
+    display: block;
+    margin-top: 6px;
+    color: #6c63ff;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.shop-preview-content {
+    max-width: 460px;
+}
+
+.shop-preview-stage {
+    background: #0f1117;
+    border: 1px solid #22252f;
+    border-radius: 14px;
+    padding: 14px;
+    margin: 14px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.shop-preview-board .leaderboard-row {
+    margin: 2px 0;
+}
+
+.shop-preview-bet-line {
+    color: #858a98;
+    font-size: 12px;
+    border-top: 1px solid #22252f;
+    padding-top: 10px;
+}
+
+.shop-preview-bet {
+    cursor: default;
+}
+
+.shop-preview-price {
+    margin-top: 12px;
+    color: #f5c451;
+    font-weight: 800;
+}
+
+
+/* =========================================================
+   VALIDATION D'UN PARI EN DEUX ÉTAPES
+========================================================= */
+
+.resolve-steps {
+    display: flex;
+    gap: 6px;
+    margin: 14px 0 8px;
+}
+
+.resolve-steps div {
+    flex: 1;
+    height: 5px;
+    border-radius: 99px;
+    background: #262a38;
+    transition: background 0.3s;
+}
+
+.resolve-steps div.active {
+    background: #6c63ff;
+}
+
+#resolve-choices.resolve-choices {
+    display: block;
+}
+
+.resolve-loading,
+.resolve-empty {
+    color: #858a98;
+    font-size: 13px;
+}
+
+.resolve-pick {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.resolve-pick-button {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    border: 1px solid #2c3040;
+    background: #0f1117;
+    color: white;
+    border-radius: 12px;
+    padding: 12px 14px;
+    cursor: pointer;
+    font: inherit;
+    transition: border-color 0.15s;
+}
+
+.resolve-pick-button:hover {
+    border-color: #6c63ff;
+}
+
+.resolve-pick-button b {
+    display: block;
+}
+
+.resolve-pick-button small {
+    color: #858a98;
+    font-size: 12px;
+}
+
+.resolve-pick-odds {
+    color: #a59fff;
+    font-weight: 800;
+}
+
+.resolve-if {
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.resolve-if span {
+    display: block;
+    margin-top: 2px;
+    color: #858a98;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.resolve-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.resolve-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: #0f1117;
+}
+
+.resolve-row.win b {
+    color: #63d69f;
+}
+
+.resolve-row.lose {
+    color: #737887;
+}
+
+.resolve-row.lose b {
+    color: #ff8a8a;
+}
+
+.resolve-warning {
+    margin-top: 14px;
+    background: rgba(245, 196, 81, 0.08);
+    border: 1px solid rgba(245, 196, 81, 0.3);
+    color: #f5c451;
+    font-size: 12px;
+    padding: 8px 12px;
+    border-radius: 10px;
+}
+
+.resolve-nav {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.resolve-back {
+    border: 1px solid #2c3040;
+    background: none;
+    color: #aaaeba;
+    border-radius: 10px;
+    padding: 12px 16px;
+    cursor: pointer;
+    font: inherit;
+}
+
+.resolve-confirm {
+    flex: 1;
+    background: linear-gradient(135deg, #2fa36f, #63d69f);
+    color: #0b1f15;
+}
+
+.resolve-confirm:hover {
+    background: linear-gradient(135deg, #36b47b, #74e0ab);
+}
+
+
+/* Fenêtre de validation : plus d'espace entre les éléments */
+#resolve-modal .modal-content {
+    padding: 28px;
+}
+
+#resolve-modal h2 {
+    margin-bottom: 10px;
+}
+
+#resolve-question {
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.4;
+    margin-bottom: 18px;
+}
+
+#resolve-modal .resolve-steps {
+    margin: 0 0 12px;
+}
+
+#resolve-info {
+    margin: 0 0 20px;
+    color: #858a98;
+    font-size: 13px;
+}
+
+#resolve-modal .resolve-pick {
+    gap: 12px;
+}
+
+#resolve-modal .resolve-pick-button {
+    padding: 16px 18px;
+}
+
+#resolve-modal .resolve-pick-button small {
+    display: block;
+    margin-top: 4px;
+}
+
+#resolve-modal .resolve-if {
+    margin-bottom: 14px;
+    line-height: 1.4;
+}
+
+#resolve-modal .resolve-if span {
+    margin-top: 4px;
+}
+
+#resolve-modal .resolve-list {
+    gap: 8px;
+}
+
+#resolve-modal .resolve-row {
+    padding: 11px 14px;
+}
+
+#resolve-modal .resolve-warning {
+    margin-top: 20px;
+    padding: 10px 14px;
+}
+
+#resolve-modal .resolve-nav {
+    gap: 10px;
+    margin-top: 20px;
+}
+
+#resolve-error:not(:empty) {
+    margin-top: 14px;
 }

@@ -144,9 +144,8 @@ begin
     v_points := case
         when v_roll < 0.40 then 5
         when v_roll < 0.70 then 10
-        when v_roll < 0.88 then 15
-        when v_roll < 0.97 then 25
-        else 50
+        when v_roll < 0.90 then 15
+        else 20
     end;
 
     perform set_config('betlab.allow_points', 'on', true);
@@ -168,7 +167,17 @@ $$;
 -- 5. XP du joueur connecté
 --    10 XP par mise, 25 XP par pari gagné.
 --    Les missions ne donnent pas d'XP.
+--    Seules les mises faites après la dernière réinitialisation
+--    de l'XP comptent (voir reinitialisation.sql).
 -- ---------------------------------------------------------
+
+create table if not exists public.app_settings (
+    key text primary key,
+    value timestamptz
+);
+
+alter table public.app_settings enable row level security;
+
 
 create or replace function public.player_xp()
 returns integer
@@ -177,12 +186,23 @@ stable
 security definer
 set search_path = public
 as $$
+    with reset as (
+        select coalesce(
+            (select value from app_settings where key = 'xp_reset_at'),
+            '-infinity'::timestamptz
+        ) as at
+    )
     select (
-        (select count(*) * 10 from stakes where user_id = auth.uid())
+        (select count(*) * 10
+         from stakes, reset
+         where user_id = auth.uid()
+           and created_at >= reset.at)
         + (select count(*) * 25
            from stakes s
            join bets b on b.id = s.bet_id
+           cross join reset
            where s.user_id = auth.uid()
+             and s.created_at >= reset.at
              and b.status = 'resolved'
              and b.winner_choice_id = s.choice_id)
     )::integer;
