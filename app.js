@@ -320,6 +320,8 @@ async function loadCurrentProfile() {
 
     updateBalance();
 
+    refreshInPlay();
+
 }
 
 
@@ -327,6 +329,44 @@ async function loadCurrentProfile() {
 /* =========================================================
    SOLDE
 ========================================================= */
+
+/*
+    Argent en jeu : total de mes mises pas encore récupérées
+    (paris en cours + paris validés à récupérer).
+    Affiché en petit sous le solde.
+*/
+
+async function refreshInPlay() {
+
+    const element =
+        document.getElementById("in-play");
+
+    if (!element || !currentUser) {
+        return;
+    }
+
+    const { data, error } =
+        await supabaseClient
+            .from("stakes")
+            .select("stake")
+            .eq("user_id", currentUser.id)
+            .is("claimed_at", null);
+
+    if (error) {
+        console.error(error);
+        return;
+    }
+
+    const total =
+        (data || []).reduce((sum, s) => sum + Number(s.stake), 0);
+
+    element.textContent =
+        "En jeu : " + formatMoney(total);
+
+    element.classList.toggle("hidden", total <= 0);
+
+}
+
 
 function updateBalance() {
 
@@ -945,7 +985,7 @@ async function getBets() {
             bet_choices!bet_choices_bet_id_fkey (*),
             profiles!bets_author_id_fkey ( username, gold_frame_until, name_color_until, cosmetics ),
             target:profiles!bets_target_user_id_fkey ( username, gold_frame_until, name_color_until, cosmetics ),
-            stakes ( id, user_id, choice_id, stake, potential_win, profiles!stakes_user_id_fkey ( username, gold_frame_until, name_color_until, cosmetics ) )
+            stakes ( id, user_id, choice_id, stake, potential_win, claimed_at, profiles!stakes_user_id_fkey ( username, gold_frame_until, name_color_until, cosmetics ) )
         `)
         .order("created_at", { ascending: false });
 
@@ -1173,6 +1213,130 @@ function renderBetSummaryHtml(
 
 
 
+/*
+    Carte d'un pari validé à récupérer (page principale).
+    Un clic solde mes mises : gain ajouté au solde, ou mise perdue.
+*/
+
+function renderClaimCard(bet) {
+
+    const myStakes =
+        bet.stakes.filter(
+            s => s.user_id === currentUser.id && !s.claimed_at
+        );
+
+    const won =
+        myStakes.some(s => s.choice_id === bet.winner_choice_id);
+
+    const amount = won
+        ? myStakes
+            .filter(s => s.choice_id === bet.winner_choice_id)
+            .reduce((sum, s) => sum + Number(s.potential_win), 0)
+        : myStakes.reduce((sum, s) => sum + Number(s.stake), 0);
+
+    const winner =
+        (bet.bet_choices || []).find(c => c.id === bet.winner_choice_id);
+
+
+    const card =
+        document.createElement("div");
+
+    card.className =
+        "bet-card claim-card " + (won ? "claim-card--win" : "claim-card--lose");
+
+    card.innerHTML = `
+
+        <div class="claim-card-top">
+            <span class="claim-card-badge">${won ? "🏆 Pari gagné" : "Pari perdu"}</span>
+            <span class="claim-card-result">Résultat : <b>${escapeHtml(winner?.label || "—")}</b></span>
+        </div>
+
+        <h3>${escapeHtml(bet.question)}</h3>
+
+        <button class="claim-card-button">
+            ${won ? "💰 Récupérer " + formatMoney(amount) : "Perdre la mise (" + formatMoney(amount) + ")"}
+        </button>
+
+    `;
+
+    card.addEventListener("click", () => claimBet(bet.id, won, card));
+
+    return card;
+
+}
+
+
+async function claimBet(betId, won, card) {
+
+    if (card.classList.contains("claiming")) {
+        return;
+    }
+
+    card.classList.add("claiming");
+
+
+    const oldBalance =
+        Number(currentProfile?.balance || 0);
+
+    const { data, error } =
+        await supabaseClient.rpc(
+            "claim_bet",
+            {
+                p_bet_id: betId
+            }
+        );
+
+    if (error) {
+
+        console.error(error);
+
+        card.classList.remove("claiming");
+
+        alertToast(escapeHtml(error.message || "Impossible de récupérer ce pari."));
+
+        return;
+
+    }
+
+
+    await loadCurrentProfile();
+
+    if (won) {
+
+        launchConfetti();
+
+        animateNumber(
+            document.getElementById("balance"),
+            oldBalance,
+            Number(currentProfile.balance),
+            1400
+        );
+
+        card.classList.add("claim-card--done-win");
+
+    } else {
+
+        card.classList.add("claim-card--done-lose");
+
+    }
+
+
+    // Laisse l'animation se jouer avant de recharger les listes.
+    setTimeout(async () => {
+
+        await displayBets();
+
+        await displayLeaderboard();
+
+        await displayMyBets();
+
+        await refreshMissions();
+
+    }, won ? 1200 : 700);
+
+}
+
+
 async function displayBets() {
 
     const container =
@@ -1204,7 +1368,26 @@ async function displayBets() {
             );
 
 
-        if (openBets.length === 0) {
+        /*
+            Paris validés où j'ai encore des mises à récupérer :
+            affichés en premier, avec « Récupérer » ou « Perdre la mise ».
+        */
+
+        const claimableBets =
+            bets.filter(
+                bet =>
+                    bet.status === "resolved" &&
+                    (bet.stakes || []).some(
+                        s => s.user_id === currentUser?.id && !s.claimed_at
+                    )
+            );
+
+        claimableBets.forEach(bet => {
+            container.appendChild(renderClaimCard(bet));
+        });
+
+
+        if (openBets.length === 0 && claimableBets.length === 0) {
 
             container.innerHTML = `
                 <div class="empty-state">
@@ -1354,7 +1537,7 @@ async function displayBets() {
         */
 
         document
-            .querySelectorAll(".bet-card")
+            .querySelectorAll(".bet-card:not(.claim-card)")
             .forEach(card => {
 
                 card.addEventListener(
@@ -3867,9 +4050,9 @@ function openShopPreview(itemId, option) {
 
         stage.innerHTML = `
             <div class="shop-preview-board">
-                ${leaderboardRowHtml({ username: "Emma" }, { rank: 2, medal: "🥈", balance: formatMoney(1840), effects: {} })}
+                ${leaderboardRowHtml({ username: "Emma" }, { rank: 2, medal: "🥈", balance: formatMoney(1840), effects: {}, extraClass: " shop-preview-dim" })}
                 ${leaderboardRowHtml(me, { rank: 3, medal: "🥉", balance: formatMoney(1520), effects })}
-                ${leaderboardRowHtml({ username: "Lucas" }, { rank: 4, medal: "", balance: formatMoney(1310), effects: {} })}
+                ${leaderboardRowHtml({ username: "Lucas" }, { rank: 4, medal: "", balance: formatMoney(1310), effects: {}, extraClass: " shop-preview-dim" })}
             </div>
             <p class="shop-preview-bet-line">
                 Sur une carte de pari : 🏆 Créé par
@@ -3878,16 +4061,6 @@ function openShopPreview(itemId, option) {
         `;
 
     }
-
-
-    document.getElementById("shop-preview-title").textContent =
-        item.title;
-
-    document.getElementById("shop-preview-description").textContent =
-        item.description;
-
-    document.getElementById("shop-preview-price").textContent =
-        item.price + " pts · définitif";
 
 
     const optionsContainer =
@@ -3921,6 +4094,40 @@ function openShopPreview(itemId, option) {
     document
         .getElementById("shop-preview-modal")
         .classList.remove("hidden");
+
+}
+
+
+/*
+    Toutes les fenêtres (pari, parieurs, validation...) se ferment
+    aussi en cliquant sur le fond sombre, hors de la carte.
+    Sauf l'annonce admin, qui doit être fermée avec son bouton
+    pour être marquée comme lue.
+*/
+
+function setupModalBackdrops() {
+
+    document
+        .querySelectorAll(".modal:not(#announcement-modal)")
+        .forEach(modal => {
+
+            modal.addEventListener("mousedown", event => {
+
+                // On retient où le clic a commencé, pour ne pas fermer
+                // si on sélectionne du texte en glissant hors de la carte.
+                modal._pressedOnBackdrop = event.target === modal;
+
+            });
+
+            modal.addEventListener("click", event => {
+
+                if (event.target === modal && modal._pressedOnBackdrop) {
+                    modal.classList.add("hidden");
+                }
+
+            });
+
+        });
 
 }
 
@@ -4860,6 +5067,8 @@ async function initAppPage() {
         setupProfilePage();
 
         setupShopPreview();
+
+        setupModalBackdrops();
 
         await initAnimations();
 

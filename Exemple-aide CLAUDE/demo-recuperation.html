@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BetLab – Cartes à récupérer (propositions)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; overflow-x: hidden; }
+h1 { font-size: 26px; margin-bottom: 6px; }
+.sub { color: #858a98; margin-bottom: 20px; max-width: 760px; }
+button { font: inherit; }
+
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; position: sticky; top: 0; background: #0f1117; padding: 10px 0; z-index: 10; }
+.tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; }
+.tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.variant { display: none; }
+.variant.active { display: block; animation: fade .3s; }
+@keyframes fade { from { opacity: 0; transform: translateY(8px); } }
+.variant-desc { color: #aaaeba; font-size: 14px; margin-bottom: 18px; max-width: 700px; }
+.pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; max-width: 760px; }
+.reset { margin-top: 14px; background: none; border: 1px dashed #3a3f52; color: #858a98; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; }
+
+.card { position: relative; border-radius: 18px; padding: 18px; background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; cursor: pointer; overflow: hidden; user-select: none; }
+.q { font-size: 15px; font-weight: 700; margin: 8px 0 12px; }
+.meta { color: #858a98; font-size: 12px; }
+.money-w { color: #63d69f; } .money-l { color: #ff8a8a; }
+
+/* A : coffre à ouvrir */
+.a.win { border-color: #f5c451; box-shadow: 0 0 26px rgba(245, 196, 81, .25); animation: a-glow 1.8s ease-in-out infinite; }
+@keyframes a-glow { 50% { box-shadow: 0 0 40px rgba(245, 196, 81, .45); } }
+.a .row { display: flex; align-items: center; gap: 14px; }
+.a .chest { font-size: 42px; animation: wiggle 2.2s ease-in-out infinite; }
+@keyframes wiggle { 0%, 80%, 100% { transform: rotate(0); } 85%, 95% { transform: rotate(-12deg); } 90% { transform: rotate(12deg); } }
+.a .cta { font-weight: 800; color: #f5c451; }
+.a.lose .chest { filter: grayscale(1); animation: none; opacity: .6; }
+.a.lose .cta { color: #ff8a8a; }
+.a.opened .chest { animation: open .6s forwards; }
+@keyframes open { 50% { transform: scale(1.4) rotate(-10deg); } 100% { transform: scale(1.2); } }
+
+/* B : ticket à gratter */
+.b .scratch { position: relative; height: 70px; border-radius: 12px; overflow: hidden; background: #0f1117; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; }
+.b .foil { position: absolute; inset: 0; background: repeating-linear-gradient(45deg, #8a8f9c 0 8px, #b4b8c3 8px 16px); display: flex; align-items: center; justify-content: center; color: #2c3040; font-weight: 800; font-size: 13px; transition: clip-path .8s ease-in; clip-path: inset(0 0 0 0); }
+.b.opened .foil { clip-path: inset(0 0 0 100%); }
+
+/* C : bandeau de statut */
+.c { padding: 0; }
+.c .band { padding: 10px 18px; font-weight: 800; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+.c.win .band { background: linear-gradient(90deg, #2fa36f, #63d69f); color: #0b1f15; }
+.c.lose .band { background: linear-gradient(90deg, #8a3a4a, #c24a5a); color: white; }
+.c .body { padding: 14px 18px 18px; }
+.c .btn { width: 100%; border: none; border-radius: 12px; padding: 12px; font-weight: 800; cursor: pointer; }
+.c.win .btn { background: rgba(99, 214, 159, .15); color: #63d69f; border: 1px solid rgba(99, 214, 159, .4); }
+.c.lose .btn { background: rgba(255, 107, 107, .1); color: #ff8a8a; border: 1px solid rgba(255, 107, 107, .3); }
+
+/* D : retournement */
+.d { perspective: 900px; background: none; border: none; padding: 0; height: 170px; }
+.d .inner { position: relative; width: 100%; height: 100%; transition: transform .7s; transform-style: preserve-3d; }
+.d.opened .inner { transform: rotateY(180deg); }
+.d .face { position: absolute; inset: 0; backface-visibility: hidden; border-radius: 18px; padding: 18px; border: 1px solid #2c3040; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 6px; }
+.d .front { background: linear-gradient(135deg, #2a2560, #1c202c); border-color: #6c63ff; }
+.d .front .ico { font-size: 34px; }
+.d .back { transform: rotateY(180deg); }
+.d.win .back { background: linear-gradient(135deg, #123826, #1c202c); border-color: #63d69f; }
+.d.lose .back { background: linear-gradient(135deg, #3a1c22, #1c202c); border-color: #ff6b6b; }
+.d .big { font-size: 26px; font-weight: 900; }
+
+/* Effets communs à la récupération */
+.msg { margin-top: 10px; font-size: 14px; font-weight: 800; text-align: center; opacity: 0; transition: opacity .3s; }
+.opened .msg { opacity: 1; }
+.lose.opened:not(.d) { animation: shake .5s; }
+@keyframes shake { 20%, 60% { transform: translateX(-7px); } 40%, 80% { transform: translateX(7px); } }
+.confetti { position: fixed; top: -12px; width: 8px; height: 12px; border-radius: 2px; z-index: 50; animation: fall linear forwards; }
+@keyframes fall { to { transform: translateY(105vh) rotate(800deg); } }
+.coin { position: fixed; z-index: 50; font-size: 20px; animation: coin 1s ease-out forwards; pointer-events: none; }
+@keyframes coin { to { transform: translate(var(--x), var(--y)) scale(.6); opacity: 0; } }
+
+.bar { position: fixed; left: 0; right: 0; bottom: 0; background: #171a23; border-top: 1px solid #2c3040; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; z-index: 20; }
+.bar strong { color: #f5c451; }
+.pick { background: #f5c451; color: #111; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 800; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<h1>Cartes « à récupérer » : 4 styles</h1>
+<p class="sub">Chaque style montre une carte gagnée et une carte perdue. <b>Clique sur les cartes</b> pour voir l'animation de récupération (confettis et pièces si gagné, secousse si perdu). « ↺ Recommencer » pour rejouer.</p>
+
+<div class="tabs">
+    <button class="tab active" data-v="A">A · Coffre à ouvrir</button>
+    <button class="tab" data-v="B">B · Ticket à gratter</button>
+    <button class="tab" data-v="C">C · Bandeau de statut</button>
+    <button class="tab" data-v="D">D · Carte à retourner</button>
+</div>
+
+<section class="variant active" id="v-A"><p class="variant-desc">Un coffre qui gigote et une lueur dorée sur la carte gagnée : on clique pour l'ouvrir. La carte perdue a un coffre gris.</p><div class="pair" data-mount></div></section>
+<section class="variant" id="v-B"><p class="variant-desc">Une zone argentée « à gratter » : on clique, elle se retire et révèle le gain ou la perte. Le suspense reste jusqu'au clic.</p><div class="pair" data-mount></div></section>
+<section class="variant" id="v-C"><p class="variant-desc">Un bandeau coloré en haut (vert gagné, rouge perdu) et un gros bouton clair. La plus simple et la plus lisible.</p><div class="pair" data-mount></div></section>
+<section class="variant" id="v-D"><p class="variant-desc">La carte est face cachée (« Résultat disponible ! ») : au clic elle se retourne en 3D et affiche le gain ou la perte. Effet surprise maximal.</p><div class="pair" data-mount></div></section>
+
+<div class="bar">
+    <span>Style affiché : <strong id="current">A · Coffre à ouvrir</strong></span>
+    <button class="pick" id="pick">Je choisis celui-ci</button>
+</div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const BETS = [
+    { win: true, q: "Thomas arrivera-t-il en retard demain ?", res: "Oui", amount: "150,00 €" },
+    { win: false, q: "Il va pleuvoir samedi ?", res: "Non", amount: "50,00 €" }
+];
+
+const tpl = {
+    A: b => `<div class="card a ${b.win ? "win" : "lose"}">
+        <div class="row"><span class="chest">🎁</span><div><div class="meta">Résultat : <b>${b.res}</b></div><div class="q">${b.q}</div>
+        <div class="cta">${b.win ? "Ouvre pour récupérer " + b.amount : "Perdu · clique pour solder"}</div></div></div>
+        <div class="msg ${b.win ? "money-w" : "money-l"}">${b.win ? "+" + b.amount + " ajoutés à ton solde !" : "−" + b.amount + ", pas de chance…"}</div></div>`,
+    B: b => `<div class="card b ${b.win ? "win" : "lose"}">
+        <div class="meta">Résultat : <b>${b.res}</b></div><div class="q">${b.q}</div>
+        <div class="scratch"><span class="${b.win ? "money-w" : "money-l"}">${b.win ? "🏆 +" + b.amount : "✗ −" + b.amount}</span><div class="foil">🪙 CLIQUE POUR GRATTER</div></div>
+        <div class="msg ${b.win ? "money-w" : "money-l"}">${b.win ? "Gagné !" : "Perdu…"}</div></div>`,
+    C: b => `<div class="card c ${b.win ? "win" : "lose"}">
+        <div class="band"><span>${b.win ? "🏆 PARI GAGNÉ" : "✗ PARI PERDU"}</span><span>Résultat : ${b.res}</span></div>
+        <div class="body"><div class="q" style="margin-top:0">${b.q}</div>
+        <button class="btn">${b.win ? "💰 Récupérer " + b.amount : "Perdre la mise (" + b.amount + ")"}</button>
+        <div class="msg ${b.win ? "money-w" : "money-l"}">${b.win ? "+" + b.amount + " ajoutés !" : "Mise soldée."}</div></div></div>`,
+    D: b => `<div class="card d ${b.win ? "win" : "lose"}"><div class="inner">
+        <div class="face front"><span class="ico">🎴</span><b>Résultat disponible !</b><span class="meta">${b.q}</span><span class="meta" style="color:#a59fff">Clique pour retourner</span></div>
+        <div class="face back"><span class="meta">Résultat : ${b.res}</span><span class="big ${b.win ? "money-w" : "money-l"}">${b.win ? "🏆 +" + b.amount : "✗ −" + b.amount}</span><span class="meta">${b.win ? "Ajoutés à ton solde" : "Pas de chance cette fois"}</span></div>
+    </div></div>`
+};
+
+function celebrate(card) {
+    const cols = ["#f5c451", "#6c63ff", "#63d69f", "#ff6b6b", "#3aa0ff"];
+    for (let i = 0; i < 90; i++) { const c = document.createElement("div"); c.className = "confetti"; c.style.cssText = `left:${Math.random() * 100}vw;background:${cols[i % 5]};animation-duration:${1.6 + Math.random() * 1.4}s;animation-delay:${Math.random() * .4}s`; document.body.appendChild(c); setTimeout(() => c.remove(), 3500); }
+    const r = card.getBoundingClientRect();
+    for (let i = 0; i < 8; i++) { const c = document.createElement("div"); c.className = "coin"; c.textContent = "🪙"; c.style.left = r.left + r.width / 2 + "px"; c.style.top = r.top + r.height / 2 + "px"; c.style.setProperty("--x", (Math.random() * 200 - 100) + "px"); c.style.setProperty("--y", (-80 - Math.random() * 120) + "px"); c.style.animationDelay = i * 40 + "ms"; document.body.appendChild(c); setTimeout(() => c.remove(), 1400); }
+}
+
+function mount(k) {
+    const m = $("#v-" + k + " [data-mount]");
+    m.innerHTML = BETS.map(tpl[k]).join("");
+    m.querySelectorAll(".card").forEach((card, i) => card.addEventListener("click", () => {
+        if (card.classList.contains("opened")) return;
+        card.classList.add("opened");
+        if (BETS[i].win) setTimeout(() => celebrate(card), k === "D" || k === "B" ? 500 : 100);
+    }));
+}
+
+Object.keys(tpl).forEach(k => {
+    mount(k);
+    const r = document.createElement("button"); r.className = "reset"; r.textContent = "↺ Recommencer";
+    r.onclick = () => mount(k);
+    $("#v-" + k + " [data-mount]").after(r);
+});
+
+document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t === tab));
+    document.querySelectorAll(".variant").forEach(v => v.classList.toggle("active", v.id === "v-" + tab.dataset.v));
+    $("#current").textContent = tab.textContent;
+}));
+
+$("#pick").addEventListener("click", () => {
+    const txt = "Je choisis pour les cartes à récupérer : " + $("#current").textContent;
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).catch(() => {});
+    $("#pick").textContent = "✔ Copié ! Colle-le dans le chat";
+    setTimeout(() => $("#pick").textContent = "Je choisis celui-ci", 2500);
+});
+</script>
+</body>
+</html>

@@ -3026,3 +3026,120 @@ input {
 #resolve-error:not(:empty) {
     margin-top: 14px;
 }
+
+/* Aperçu boutique : les autres joueurs en noir et blanc */
+.shop-preview-dim {
+    filter: grayscale(1);
+    opacity: 0.4;
+}
+
+#shop-preview-modal .shop-preview-stage {
+    margin-top: 6px;
+}
+
+
+/* =========================================================
+   CARTES « À RÉCUPÉRER » (paris validés, page principale)
+========================================================= */
+
+.claim-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.claim-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.claim-card-badge {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 999px;
+}
+
+.claim-card-result {
+    color: #858a98;
+    font-size: 12px;
+}
+
+.claim-card h3 {
+    font-size: 16px;
+}
+
+.claim-card-button {
+    border: none;
+    border-radius: 12px;
+    padding: 13px;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.claim-card--win {
+    border-color: #63d69f;
+    box-shadow: 0 0 24px rgba(99, 214, 159, 0.2);
+}
+
+.claim-card--win .claim-card-badge {
+    background: rgba(99, 214, 159, 0.15);
+    color: #63d69f;
+}
+
+.claim-card--win .claim-card-button {
+    background: linear-gradient(135deg, #2fa36f, #63d69f);
+    color: #0b1f15;
+}
+
+.claim-card--lose {
+    border-color: rgba(255, 107, 107, 0.45);
+}
+
+.claim-card--lose .claim-card-badge {
+    background: rgba(255, 107, 107, 0.12);
+    color: #ff8a8a;
+}
+
+.claim-card--lose .claim-card-button {
+    background: #2a2d38;
+    color: #ff8a8a;
+}
+
+.claim-card.claiming {
+    pointer-events: none;
+}
+
+.claim-card--done-win {
+    animation: claim-win 1.2s ease-in forwards;
+}
+
+.claim-card--done-lose {
+    animation: claim-lose 0.7s ease-in forwards;
+}
+
+@keyframes claim-win {
+    20% { transform: scale(1.04); }
+    100% { transform: translateY(-30px) scale(0.9); opacity: 0; }
+}
+
+@keyframes claim-lose {
+    15%, 45% { transform: translateX(-8px); }
+    30%, 60% { transform: translateX(8px); }
+    100% { transform: none; opacity: 0; filter: grayscale(1); }
+}
+
+/* Argent en jeu, sous le solde */
+.balance .in-play {
+    display: block;
+    margin-top: 1px;
+    font-size: 10px;
+    color: #f5c451;
+    white-space: nowrap;
+}

@@ -246,42 +246,20 @@ async function checkNewResults() {
 
 
     /*
-        Le solde affiché remonte jusqu'au nouveau montant.
+        Les gains ne sont plus versés automatiquement :
+        la pop-up annonce les résultats, et l'argent se récupère
+        en cliquant sur les cartes de la page principale.
     */
-
-    const oldBalance =
-        Number(currentProfile?.balance || 0);
-
-    await loadCurrentProfile();
-
-    if (totalWon > 0) {
-
-        animateNumber(
-            document.getElementById("balance"),
-            Number(currentProfile.balance) - totalWon,
-            Number(currentProfile.balance),
-            1600
-        );
-
-    } else {
-
-        animateNumber(
-            document.getElementById("balance"),
-            oldBalance,
-            Number(currentProfile.balance)
-        );
-
-    }
 
     showResultsPopup(fresh, totalWon);
 
 
-    if (typeof displayMyBets === "function") {
-        displayMyBets();
+    if (typeof displayBets === "function") {
+        displayBets();
     }
 
-    if (typeof displayLeaderboard === "function") {
-        displayLeaderboard();
+    if (typeof displayMyBets === "function") {
+        displayMyBets();
     }
 
     refreshProgression();
@@ -325,11 +303,11 @@ function showResultsPopup(results, totalWon) {
                 class="results-total"
                 style="animation-delay: ${0.4 + results.length * 0.35}s"
             >
-                Total gagné
+                À récupérer
                 <strong>${formatMoney(totalWon)}</strong>
             </div>
 
-            <button class="primary-button results-close">Continuer</button>
+            <button class="primary-button results-close">Aller récupérer</button>
 
         </div>
     `;
@@ -338,11 +316,16 @@ function showResultsPopup(results, totalWon) {
 
     overlay
         .querySelector(".results-close")
-        .addEventListener("click", () => overlay.remove());
+        .addEventListener("click", () => {
 
-    if (totalWon > 0) {
-        setTimeout(() => launchConfetti(), 300);
-    }
+            overlay.remove();
+
+            // Les cartes à récupérer sont en haut de la page principale.
+            if (typeof showPage === "function") {
+                showPage("bets-page");
+            }
+
+        });
 
 }
 
@@ -919,7 +902,7 @@ async function pollActivity() {
 
         supabaseClient
             .from("stakes")
-            .select("created_at, stake, user_id, profiles!stakes_user_id_fkey ( username, gold_frame_until, name_color_until, cosmetics ), bets ( question )")
+            .select("created_at, stake, user_id, profiles!stakes_user_id_fkey ( username, is_admin, gold_frame_until, name_color_until, cosmetics ), bets ( question )")
             .gt("created_at", since)
             .neq("user_id", currentUser.id)
             .order("created_at", { ascending: firstPass ? false : true })
@@ -927,7 +910,7 @@ async function pollActivity() {
 
         supabaseClient
             .from("bets")
-            .select("created_at, question, author_id, profiles!bets_author_id_fkey ( username, gold_frame_until, name_color_until, cosmetics )")
+            .select("created_at, question, author_id, profiles!bets_author_id_fkey ( username, is_admin, gold_frame_until, name_color_until, cosmetics )")
             .gt("created_at", since)
             .neq("author_id", currentUser.id)
             .order("created_at", { ascending: firstPass ? false : true })
@@ -943,12 +926,13 @@ async function pollActivity() {
 
     const events = [];
 
-    (stakesResult.data || []).forEach(s => events.push({
+    // Les actions de l'admin ne sont pas montrées aux joueurs.
+    (stakesResult.data || []).filter(s => !s.profiles?.is_admin).forEach(s => events.push({
         at: s.created_at,
         html: `💸 <strong>${styledName(s.profiles, "Quelqu'un")}</strong> a misé ${formatMoney(s.stake)} sur « ${escapeHtml(s.bets?.question || "un pari")} »`
     }));
 
-    (betsResult.data || []).forEach(b => events.push({
+    (betsResult.data || []).filter(b => !b.profiles?.is_admin).forEach(b => events.push({
         at: b.created_at,
         html: `🆕 <strong>${styledName(b.profiles, "Quelqu'un")}</strong> a créé « ${escapeHtml(b.question)} »`
     }));
@@ -961,8 +945,14 @@ async function pollActivity() {
     });
 
 
-    feedCursor = events.length > 0
-        ? events[events.length - 1].at
+    // Le curseur avance aussi après des actions masquées (admin).
+    const allDates = [
+        ...(stakesResult.data || []),
+        ...(betsResult.data || [])
+    ].map(row => row.created_at).sort();
+
+    feedCursor = allDates.length > 0
+        ? allDates[allDates.length - 1]
         : feedCursor || new Date().toISOString();
 
     writeStorage("feed-cursor", feedCursor);
