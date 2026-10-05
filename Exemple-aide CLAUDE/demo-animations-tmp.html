@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BetLab – Démo animations</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 120px; }
+h1 { font-size: 26px; margin-bottom: 6px; }
+.sub { color: #858a98; margin-bottom: 26px; }
+h2 { font-size: 17px; margin: 30px 0 12px; color: #aaaeba; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.demo { background: linear-gradient(180deg, #1c202c, #14161e); border: 1px solid #2c3040; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; transition: border-color .2s; }
+.demo.selected { border-color: #6c63ff; box-shadow: 0 0 0 1px #6c63ff; }
+.demo-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.demo-head h3 { font-size: 15px; }
+.tag { font-size: 11px; color: #858a98; }
+.desc { font-size: 13px; color: #aaaeba; }
+.stage { position: relative; min-height: 130px; background: #0f1117; border-radius: 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 14px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+button { font: inherit; cursor: pointer; border: none; border-radius: 8px; padding: 8px 12px; font-size: 13px; }
+.play { background: #6c63ff; color: white; }
+.play:hover { filter: brightness(1.1); }
+label.pick { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #aaaeba; cursor: pointer; }
+label.pick input { width: 16px; height: 16px; accent-color: #6c63ff; }
+.card { background: #1c202c; border: 1px solid #2c3040; border-radius: 10px; padding: 10px 14px; font-size: 13px; }
+.money { font-weight: 800; font-size: 22px; color: #63d69f; font-variant-numeric: tabular-nums; }
+.gold { color: #f5c451; }
+
+/* barre de sélection */
+.bar { position: fixed; left: 0; right: 0; bottom: 0; background: #171a23; border-top: 1px solid #2c3040; padding: 12px 16px; display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.bar strong { color: #f5c451; }
+.bar textarea { position: absolute; left: -9999px; }
+
+/* 1 vol de mise */
+.coin { position: absolute; width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffe69a, #f5c451 55%, #b88a1d); box-shadow: 0 0 10px #f5c45188; }
+/* 2 gain */
+.bump { animation: bump .25s; }
+@keyframes bump { 50% { transform: scale(1.18); } }
+input.num { background: #1c202c; border: 1px solid #2c3040; color: white; border-radius: 8px; padding: 8px; width: 100px; font: inherit; }
+/* 3 ripple */
+.choice { position: relative; overflow: hidden; background: #1c202c; border: 1px solid #2c3040; color: white; padding: 14px 20px; border-radius: 10px; }
+.choice.picked { border-color: #6c63ff; animation: pulse .5s; }
+.ripple { position: absolute; border-radius: 50%; background: #6c63ff66; transform: scale(0); animation: ripple .6s ease-out forwards; pointer-events: none; }
+@keyframes ripple { to { transform: scale(4); opacity: 0; } }
+@keyframes pulse { 50% { transform: scale(1.05); } }
+/* 4 confettis */
+.confetti { position: absolute; top: -10px; width: 8px; height: 12px; animation: fall linear forwards; }
+@keyframes fall { to { transform: translateY(170px) rotate(720deg); opacity: .8; } }
+/* 5 popup */
+.popup { background: #1c202c; border: 1px solid #f5c451; border-radius: 12px; padding: 14px 18px; text-align: center; animation: popin .4s cubic-bezier(.2,1.6,.4,1); }
+.popup .line { opacity: 0; animation: fadeup .4s forwards; font-size: 13px; margin-top: 4px; }
+@keyframes popin { from { transform: scale(.5); opacity: 0; } }
+@keyframes fadeup { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+/* 6 perte */
+.lost { animation: shake .4s; filter: grayscale(1); opacity: .55; transition: filter .4s, opacity .4s; }
+@keyframes shake { 20%,60% { transform: translateX(-6px); } 40%,80% { transform: translateX(6px); } }
+/* 7 flamme */
+.flame { font-size: 40px; display: inline-block; transition: transform .3s; animation: flicker 1.2s infinite alternate; }
+@keyframes flicker { to { transform: scale(1.08) rotate(-3deg); filter: brightness(1.2); } }
+.flame.out { animation: none; filter: grayscale(1); opacity: .4; transform: scale(.7); }
+/* 8 coffre */
+.chest { font-size: 54px; cursor: pointer; }
+.chest.shake { animation: chestshake .8s; }
+@keyframes chestshake { 10%,30%,50%,70% { transform: rotate(-10deg); } 20%,40%,60%,80% { transform: rotate(10deg); } }
+.loot { position: absolute; font-weight: 800; color: #f5c451; font-size: 20px; animation: lootup 1.2s forwards; }
+@keyframes lootup { from { transform: translateY(10px) scale(.5); opacity: 0; } 40% { opacity: 1; transform: translateY(-30px) scale(1.2); } to { transform: translateY(-40px) scale(1); } }
+/* 9 roue */
+.wheel-wrap { position: relative; width: 120px; height: 120px; }
+.wheel { width: 120px; height: 120px; border-radius: 50%; border: 3px solid #2c3040; background: conic-gradient(#6c63ff 0 60deg, #f5c451 0 120deg, #63d69f 0 180deg, #ff6b6b 0 240deg, #3aa0ff 0 300deg, #c86bff 0 360deg); transition: transform 3.5s cubic-bezier(.15,.8,.2,1); }
+.pointer { position: absolute; top: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border: 9px solid transparent; border-top: 14px solid white; }
+/* 10 urgence */
+.urgent { border-color: #ff6b6b; animation: urgent 1s infinite; }
+.urgent .time { color: #ff6b6b; font-weight: 800; }
+@keyframes urgent { 50% { box-shadow: 0 0 16px #ff6b6b88; } }
+/* 11 xp */
+.xpbar { width: 220px; height: 10px; background: #262a38; border-radius: 99px; overflow: hidden; }
+.xpbar div { height: 100%; width: 60%; background: linear-gradient(90deg, #6c63ff, #c86bff); transition: width .8s; }
+.lvlup { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 900; color: #f5c451; background: radial-gradient(#6c63ff55, transparent 70%); animation: lvl 1.6s forwards; }
+@keyframes lvl { from { opacity: 0; transform: scale(.4); } 25% { opacity: 1; transform: scale(1.15); } 70% { opacity: 1; transform: scale(1); } to { opacity: 0; } }
+/* 12 classement */
+.lb { width: 100%; display: flex; flex-direction: column; gap: 4px; }
+.lb div { background: #1c202c; border-radius: 6px; padding: 5px 10px; font-size: 12px; display: flex; justify-content: space-between; transition: transform .7s cubic-bezier(.3,1.3,.5,1); }
+.lb .me { background: #292d3b; border: 1px solid #6c63ff; }
+.up { color: #63d69f; font-weight: 800; }
+/* 13 badge */
+.badge { position: relative; overflow: hidden; background: linear-gradient(135deg, #3a2f10, #6b5420); border: 1px solid #f5c451; color: #f5c451; padding: 12px 18px; border-radius: 12px; font-weight: 800; animation: popin .5s cubic-bezier(.2,1.6,.4,1); }
+.badge::after { content: ""; position: absolute; top: 0; left: -60%; width: 40%; height: 100%; background: linear-gradient(90deg, transparent, #fff8, transparent); transform: skewX(-20deg); animation: shine 1.2s .4s; }
+@keyframes shine { to { left: 130%; } }
+/* 14 cascade */
+.casc { width: 100%; display: flex; flex-direction: column; gap: 6px; }
+.casc .card { opacity: 0; animation: fadeup .45s forwards; }
+/* 15 tilt */
+.tilt { width: 200px; height: 100px; display: flex; align-items: center; justify-content: center; transition: transform .15s, box-shadow .15s; }
+/* 17 fil */
+.ticker { position: absolute; bottom: 0; left: 0; right: 0; background: #171a23; border-top: 1px solid #2c3040; padding: 8px; font-size: 12px; white-space: nowrap; overflow: hidden; }
+.ticker span { display: inline-block; padding-left: 100%; animation: ticker 12s linear infinite; }
+@keyframes ticker { to { transform: translateX(-100%); } }
+.feed { position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 6px; }
+.feed .card { font-size: 12px; padding: 6px 10px; animation: slidein .4s; }
+@keyframes slidein { from { transform: translateX(120%); } }
+</style>
+</head>
+<body>
+
+<h1>Démo des animations BetLab</h1>
+<p class="sub">Clique sur « Jouer » pour voir chaque animation, puis coche celles que tu veux garder.</p>
+
+<div id="sections"></div>
+
+<div class="bar">
+    <span><strong id="count">0</strong> animation(s) sélectionnée(s)</span>
+    <div class="row">
+        <button class="play" id="all">Tout cocher / décocher</button>
+        <button class="play" id="copy" style="background:#f5c451;color:#111">Copier ma sélection</button>
+    </div>
+    <textarea id="out"></textarea>
+</div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+
+/* compteur qui défile */
+function countTo(el, from, to, ms = 900, suffix = " €") {
+    const t0 = performance.now();
+    (function step(t) {
+        const p = Math.min(1, (t - t0) / ms), e = 1 - Math.pow(1 - p, 3);
+        el.textContent = Math.round(from + (to - from) * e).toLocaleString("fr-FR") + suffix;
+        if (p < 1) requestAnimationFrame(step);
+    })(t0);
+}
+
+/* petit son généré */
+let ctx;
+function beep(freqs, dur = .12) {
+    ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+    freqs.forEach((f, i) => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = "triangle"; o.frequency.value = f;
+        g.gain.setValueAtTime(.15, ctx.currentTime + i * dur);
+        g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + (i + 1) * dur + .1);
+        o.connect(g).connect(ctx.destination);
+        o.start(ctx.currentTime + i * dur); o.stop(ctx.currentTime + (i + 1) * dur + .1);
+    });
+}
+
+const DEMOS = [
+ { section: "🎯 Quand on mise", items: [
+  { id: "vol-mise", title: "Mise qui vole vers le solde", tag: "⚡ facile",
+    desc: "Des pièces partent du bouton vers le solde, qui descend avec un compteur.",
+    html: `<button class="play" style="position:absolute;left:20px;bottom:20px" data-b>Miser 200 €</button>
+           <div class="card" style="position:absolute;right:20px;top:20px">Solde <div class="money" data-s>1 000 €</div></div>`,
+    play(st) {
+        const b = $("[data-b]", st), s = $("[data-s]", st), r = st.getBoundingClientRect();
+        const a = b.getBoundingClientRect(), z = s.getBoundingClientRect();
+        for (let i = 0; i < 6; i++) {
+            const c = document.createElement("div"); c.className = "coin"; st.appendChild(c);
+            const x0 = a.left - r.left + a.width / 2, y0 = a.top - r.top, x1 = z.left - r.left + 30, y1 = z.top - r.top + 10;
+            c.animate([{ transform: `translate(${x0}px,${y0}px)` }, { transform: `translate(${(x0 + x1) / 2}px,${y0 - 60}px)` }, { transform: `translate(${x1}px,${y1}px) scale(.5)`, opacity: .3 }],
+                { duration: 700, delay: i * 70, easing: "ease-in", fill: "forwards" }).onfinish = () => c.remove();
+        }
+        setTimeout(() => countTo(s, 1000, 800), 600);
+    } },
+  { id: "gain-live", title: "Gain potentiel en direct", tag: "⚡ facile",
+    desc: "Le gain possible grossit et défile pendant que tu tapes la mise.",
+    html: `<div class="row" style="align-items:center;gap:14px"><input class="num" type="number" value="50" data-i> <span>× 2,4 =</span> <span class="money" data-g>120 €</span></div>`,
+    setup(st) { const i = $("[data-i]", st), g = $("[data-g]", st); let last = 120;
+        i.addEventListener("input", () => { const v = Math.round((+i.value || 0) * 2.4); countTo(g, last, v, 300); last = v; g.classList.remove("bump"); void g.offsetWidth; g.classList.add("bump"); }); },
+    play(st) { const i = $("[data-i]", st); let v = 50; const t = setInterval(() => { v += 50; i.value = v; i.dispatchEvent(new Event("input")); if (v >= 300) clearInterval(t); }, 250); } },
+  { id: "choix-ripple", title: "Choix qui pulse (onde au clic)", tag: "⚙️ moyen",
+    desc: "Une onde part du point cliqué et la carte du choix pulse.",
+    html: `<div class="row"><button class="choice" data-c>PSG @ 1,8</button><button class="choice" data-c>OM @ 3,2</button></div>`,
+    setup(st) { st.querySelectorAll("[data-c]").forEach(b => b.addEventListener("click", e => {
+        st.querySelectorAll("[data-c]").forEach(x => x.classList.remove("picked"));
+        const r = b.getBoundingClientRect(), d = document.createElement("span"), s = Math.max(r.width, r.height);
+        d.className = "ripple"; d.style.cssText = `width:${s}px;height:${s}px;left:${(e.clientX || r.left + r.width / 2) - r.left - s / 2}px;top:${(e.clientY || r.top + r.height / 2) - r.top - s / 2}px`;
+        b.appendChild(d); setTimeout(() => d.remove(), 600); void b.offsetWidth; b.classList.add("picked"); })); },
+    play(st) { st.querySelectorAll("[data-c]")[1].click(); } }
+ ]},
+ { section: "💰 Quand un pari est résolu", items: [
+  { id: "confettis", title: "Confettis + solde qui monte", tag: "⚙️ moyen · ⭐ top",
+    desc: "Pluie de confettis et le solde qui grimpe jusqu'au nouveau montant.",
+    html: `<div class="card" style="text-align:center">🎉 Pari gagné !<div class="money" data-s>1 000 €</div></div>`,
+    play(st) { const cols = ["#f5c451", "#6c63ff", "#63d69f", "#ff6b6b", "#3aa0ff"];
+        for (let i = 0; i < 70; i++) { const c = document.createElement("div"); c.className = "confetti";
+            c.style.cssText = `left:${Math.random() * 100}%;background:${cols[i % 5]};animation-duration:${1 + Math.random() * 1.2}s;animation-delay:${Math.random() * .4}s`;
+            st.appendChild(c); setTimeout(() => c.remove(), 2700); }
+        countTo($("[data-s]", st), 1000, 1480, 1400); } },
+  { id: "popup-absence", title: "Récap « pendant ton absence »", tag: "⚙️ moyen",
+    desc: "Au retour sur le site, une pop-up liste les gains un par un.",
+    html: ``,
+    play(st) { st.innerHTML = `<div class="popup"><div class="gold" style="font-weight:800">Pendant ton absence</div>
+        <div class="line" style="animation-delay:.4s">✅ PSG – OM : <b class="gold">+180 €</b></div>
+        <div class="line" style="animation-delay:.8s">✅ Pluie demain : <b class="gold">+160 €</b></div>
+        <div class="line" style="animation-delay:1.2s;font-size:16px">Total <b class="money">+340 €</b></div></div>`; } },
+  { id: "perte", title: "Pari perdu (discret)", tag: "⚡ facile",
+    desc: "Petite secousse puis la carte se grise, sans punir.",
+    html: `<div class="card" data-k>❌ Finale Roland-Garros · mise 100 €</div>`,
+    play(st) { const k = $("[data-k]", st); k.classList.remove("lost"); void k.offsetWidth; k.classList.add("lost"); } }
+ ]},
+ { section: "🔥 Pour donner envie de revenir", items: [
+  { id: "serie", title: "Série de connexions 🔥", tag: "⚙️ moyen · ⭐ top",
+    desc: "La flamme grandit chaque jour ; elle s'éteint si tu rates un jour.",
+    html: `<div style="text-align:center"><span class="flame" data-f>🔥</span><div data-n style="font-weight:800">4 jours</div></div>`,
+    state: 4,
+    play(st, d) { const f = $("[data-f]", st), n = $("[data-n]", st);
+        if (d.state >= 7) { d.state = 0; f.classList.add("out"); n.textContent = "Série perdue…"; return; }
+        d.state++; f.classList.remove("out"); f.style.fontSize = (34 + d.state * 4) + "px";
+        n.textContent = d.state + " jour" + (d.state > 1 ? "s" : ""); n.classList.remove("bump"); void n.offsetWidth; n.classList.add("bump"); beep([660, 880]); } },
+  { id: "coffre", title: "Coffre quotidien", tag: "⚙️ moyen · ⭐ top",
+    desc: "Le coffre tremble, s'ouvre et révèle une récompense aléatoire.",
+    html: `<span class="chest" data-c>🎁</span>`,
+    play(st) { const c = $("[data-c]", st); c.textContent = "🎁"; c.classList.remove("shake"); void c.offsetWidth; c.classList.add("shake");
+        setTimeout(() => { c.textContent = "📦"; const l = document.createElement("div"); l.className = "loot";
+            l.textContent = ["+15 pts", "+50 €", "+100 €", "+30 pts"][Math.floor(Math.random() * 4)]; st.appendChild(l); beep([523, 659, 784, 1047], .09); setTimeout(() => l.remove(), 2000); }, 800); } },
+  { id: "roue", title: "Roue de la fortune", tag: "🔧 gros chantier",
+    desc: "Débloquée en finissant les missions de la semaine.",
+    html: `<div class="wheel-wrap"><div class="pointer"></div><div class="wheel" data-w></div></div>`,
+    rot: 0,
+    play(st, d) { d.rot += 1440 + Math.random() * 360; $("[data-w]", st).style.transform = `rotate(${d.rot}deg)`; } },
+  { id: "urgence", title: "Compte à rebours qui pulse", tag: "⚡ facile · ⭐ top",
+    desc: "Dans la dernière heure, la carte passe au rouge et pulse.",
+    html: `<div class="card" data-u>⏳ Qui gagne le match ? · <span class="time" data-t>59:59</span></div>`,
+    play(st, d) { const u = $("[data-u]", st), t = $("[data-t]", st); u.classList.add("urgent"); let s = 59 * 60 + 59;
+        clearInterval(d.iv); d.iv = setInterval(() => { s -= 7; t.textContent = String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); }, 100);
+        setTimeout(() => clearInterval(d.iv), 4000); } }
+ ]},
+ { section: "🏆 Progression et statut", items: [
+  { id: "niveaux", title: "Niveaux & XP", tag: "⚙️ moyen",
+    desc: "La barre d'XP se remplit, puis flash « Niveau 7 ! ».",
+    html: `<div style="text-align:center"><div style="font-size:12px;margin-bottom:6px" data-l>Niveau 6</div><div class="xpbar"><div data-x></div></div></div>`,
+    play(st) { const x = $("[data-x]", st); x.style.width = "100%";
+        setTimeout(() => { const l = document.createElement("div"); l.className = "lvlup"; l.textContent = "Niveau 7 !"; st.appendChild(l); $("[data-l]", st).textContent = "Niveau 7"; beep([523, 784, 1047]);
+            x.style.transition = "none"; x.style.width = "0"; void x.offsetWidth; x.style.transition = ""; x.style.width = "15%"; setTimeout(() => l.remove(), 1700); }, 850); } },
+  { id: "classement", title: "Remontée au classement", tag: "⚙️ moyen",
+    desc: "Ta ligne remonte en glissant avec une flèche verte.",
+    html: ``,
+    play(st) { st.innerHTML = `<div class="lb"><div>1. Lucas<span>2 340 €</span></div><div>2. Emma<span>2 100 €</span></div><div>3. Hugo<span>1 900 €</span></div><div class="me">4. Toi<span>1 480 €</span></div></div>`;
+        const rows = st.querySelectorAll(".lb div"), h = rows[0].offsetHeight + 4;
+        setTimeout(() => { rows[3].style.transform = `translateY(${-h * 2}px)`; rows[1].style.transform = rows[2].style.transform = `translateY(${h}px)`;
+            rows[3].innerHTML = `2. Toi <span class="up">↑2</span><span>2 200 €</span>`; }, 400); } },
+  { id: "badges", title: "Badge débloqué (brillance)", tag: "⚡ facile",
+    desc: "Le badge apparaît avec un reflet brillant.",
+    html: ``,
+    play(st) { st.innerHTML = `<div class="badge">🏅 Badge débloqué : Outsider</div>`; beep([880, 1320]); } }
+ ]},
+ { section: "✨ Ambiance générale", items: [
+  { id: "cascade", title: "Cartes en cascade", tag: "⚡ facile",
+    desc: "Les cartes apparaissent l'une après l'autre au chargement.",
+    html: ``,
+    play(st) { st.innerHTML = `<div class="casc">${[1, 2, 3, 4].map(i => `<div class="card" style="animation-delay:${i * .1}s">Pari n°${i}</div>`).join("")}</div>`; } },
+  { id: "survol", title: "Cartes qui suivent la souris", tag: "⚡ facile",
+    desc: "Passe la souris sur la carte : elle s'incline et se soulève.",
+    html: `<div class="card tilt" data-t>Survole-moi 🖱️</div>`,
+    setup(st) { const t = $("[data-t]", st);
+        t.addEventListener("mousemove", e => { const r = t.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
+            t.style.transform = `perspective(500px) rotateY(${x * 18}deg) rotateX(${-y * 18}deg) translateY(-4px)`; t.style.boxShadow = "0 12px 24px #0008"; });
+        t.addEventListener("mouseleave", () => { t.style.transform = ""; t.style.boxShadow = ""; }); },
+    play(st) { const t = $("[data-t]", st); t.style.transform = "perspective(500px) rotateY(12deg) rotateX(6deg) translateY(-4px)"; setTimeout(() => t.style.transform = "", 700); } },
+  { id: "sons", title: "Sons courts", tag: "⚡ facile",
+    desc: "Pièce, victoire, défaite (avec bouton pour couper le son).",
+    html: `<div class="row"><button class="choice" data-s="coin">🪙 Pièce</button><button class="choice" data-s="win">🏆 Victoire</button><button class="choice" data-s="lose">😕 Défaite</button></div>`,
+    setup(st) { const S = { coin: () => beep([988, 1319], .07), win: () => beep([523, 659, 784, 1047], .11), lose: () => beep([392, 330, 262], .16) };
+        st.querySelectorAll("[data-s]").forEach(b => b.addEventListener("click", S[b.dataset.s])); },
+    play() { beep([523, 659, 784, 1047], .11); } },
+  { id: "fil-direct", title: "Fil d'activité en direct", tag: "⚙️ moyen",
+    desc: "Les mises des autres joueurs défilent / apparaissent en direct.",
+    html: `<div class="feed" data-f></div><div class="ticker"><span>💸 Lucas vient de miser 200 € sur PSG · 🎉 Emma a gagné 450 € · 🔥 Hugo est sur une série de 6 jours · 🆕 Nouveau pari : « Il neigera à Noël ? »</span></div>`,
+    play(st) { const f = $("[data-f]", st); const msgs = ["💸 Lucas a misé 200 €", "🎉 Emma a gagné 450 €", "🆕 Nouveau pari créé"]; let i = 0;
+        const t = setInterval(() => { const c = document.createElement("div"); c.className = "card"; c.textContent = msgs[i]; f.prepend(c); setTimeout(() => c.remove(), 2500); if (++i >= 3) clearInterval(t); }, 500); } }
+ ]}
+];
+
+const root = $("#sections");
+DEMOS.forEach(sec => {
+    root.insertAdjacentHTML("beforeend", `<h2>${sec.section}</h2><div class="grid"></div>`);
+    const grid = root.lastElementChild;
+    sec.items.forEach(d => {
+        const el = document.createElement("div"); el.className = "demo";
+        el.innerHTML = `<div class="demo-head"><h3>${d.title}</h3><span class="tag">${d.tag}</span></div>
+            <p class="desc">${d.desc}</p><div class="stage">${d.html}</div>
+            <div class="demo-head"><button class="play">▶ Jouer</button>
+            <label class="pick"><input type="checkbox" value="${d.id}"> Je garde</label></div>`;
+        grid.appendChild(el);
+        const st = $(".stage", el);
+        if (d.setup) d.setup(st, d);
+        if (d.html === "") d.play(st, d);
+        $(".play", el).addEventListener("click", () => d.play(st, d));
+        $("input", el).addEventListener("change", e => { el.classList.toggle("selected", e.target.checked); update(); });
+    });
+});
+
+function update() { $("#count").textContent = document.querySelectorAll(".pick input:checked").length; }
+
+$("#all").addEventListener("click", () => {
+    const boxes = [...document.querySelectorAll(".pick input")], on = boxes.some(b => !b.checked);
+    boxes.forEach(b => { b.checked = on; b.closest(".demo").classList.toggle("selected", on); }); update();
+});
+
+$("#copy").addEventListener("click", () => {
+    const picked = [...document.querySelectorAll(".pick input:checked")].map(b => "- " + b.closest(".demo").querySelector("h3").textContent);
+    const txt = picked.length ? "Animations choisies :\n" + picked.join("\n") : "Aucune animation choisie";
+    const out = $("#out"); out.value = txt; out.select();
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).catch(() => document.execCommand("copy"));
+    $("#copy").textContent = "✔ Copié ! Colle-le dans le chat";
+    setTimeout(() => $("#copy").textContent = "Copier ma sélection", 2500);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,492 @@
+<title>Missions BetLab</title>
+<style>
+/* Mise en page : en-tête, légende, filtres, grilles de cartes à cocher par groupe, barre de sélection collante, récapitulatif copiable */
+:root {
+    --bg: #f4f5fa;
+    --surface: #ffffff;
+    --surface-2: #eceef6;
+    --line: #d9dcea;
+    --fg: #1a1c28;
+    --muted: #5d6275;
+    --accent: #5a50e6;
+    --accent-soft: #e6e4ff;
+    --on-accent: #ffffff;
+    --simple: #1f8f5f;
+    --moyen: #a8680a;
+    --complexe: #c0364a;
+    --simple-bg: #dcf3e8;
+    --moyen-bg: #fbecd2;
+    --complexe-bg: #fbe0e4;
+}
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --bg: #0f1117;
+        --surface: #1a1d28;
+        --surface-2: #232736;
+        --line: #2c3040;
+        --fg: #f1f2f7;
+        --muted: #9a9fb2;
+        --accent: #8a82ff;
+        --accent-soft: #2a2850;
+        --on-accent: #0f1117;
+        --simple: #5fd3a0;
+        --moyen: #f0b45a;
+        --complexe: #ff8a99;
+        --simple-bg: #14352a;
+        --moyen-bg: #3a2c12;
+        --complexe-bg: #3d1a22;
+        color-scheme: dark;
+    }
+}
+:root[data-theme="dark"] {
+    --bg: #0f1117;
+    --surface: #1a1d28;
+    --surface-2: #232736;
+    --line: #2c3040;
+    --fg: #f1f2f7;
+    --muted: #9a9fb2;
+    --accent: #8a82ff;
+    --accent-soft: #2a2850;
+    --on-accent: #0f1117;
+    --simple: #5fd3a0;
+    --moyen: #f0b45a;
+    --complexe: #ff8a99;
+    --simple-bg: #14352a;
+    --moyen-bg: #3a2c12;
+    --complexe-bg: #3d1a22;
+    color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    padding-inline: 16px;
+    padding-block: 28px 120px;
+}
+main { max-width: 1040px; margin: 0 auto; }
+
+h1 { font-size: 28px; letter-spacing: -0.5px; margin: 0 0 6px; }
+.intro { color: var(--muted); max-width: 62ch; margin: 0 0 22px; }
+
+.legend {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+}
+.legend div {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 13px;
+    color: var(--muted);
+}
+.legend strong { display: block; color: var(--fg); margin-bottom: 2px; }
+
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.filters button {
+    font: inherit;
+    font-size: 13px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--fg);
+    cursor: pointer;
+}
+.filters button[aria-pressed="true"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
+    font-weight: 700;
+}
+.filters button:focus-visible, .bar button:focus-visible, .copy-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+h2.part {
+    font-size: 20px;
+    margin: 36px 0 4px;
+    letter-spacing: -0.3px;
+}
+.part-note { color: var(--muted); margin: 0 0 6px; max-width: 70ch; }
+h3.group {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin: 22px 0 10px;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+    gap: 12px;
+}
+.item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px 14px 14px 44px;
+    cursor: pointer;
+}
+.item:hover { border-color: var(--accent); }
+.item.on {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+}
+.item input {
+    position: absolute;
+    left: 14px;
+    top: 16px;
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+.item-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.item-name { font-weight: 700; font-size: 15px; }
+.pts {
+    font-weight: 700;
+    color: var(--accent);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+.rule { color: var(--muted); font-size: 13px; }
+.note { font-size: 12px; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 8px; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--muted);
+}
+.tag.simple { background: var(--simple-bg); color: var(--simple); }
+.tag.moyen { background: var(--moyen-bg); color: var(--moyen); }
+.tag.complexe { background: var(--complexe-bg); color: var(--complexe); }
+
+.result {
+    margin-top: 40px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px;
+}
+.result h2 { margin: 0 0 4px; font-size: 18px; }
+.result p { margin: 0 0 10px; color: var(--muted); }
+.result textarea {
+    width: 100%;
+    min-height: 180px;
+    resize: vertical;
+    font: 13px/1.5 ui-monospace, Consolas, monospace;
+    background: var(--bg);
+    color: var(--fg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px;
+}
+.copy-btn, .bar button {
+    font: inherit;
+    font-weight: 700;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--fg);
+    padding: 9px 14px;
+    cursor: pointer;
+}
+.copy-btn.primary, .bar button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
+}
+
+.bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    align-items: center;
+    justify-content: space-between;
+}
+.bar .stats { min-width: 0; }
+.bar .stats strong { font-variant-numeric: tabular-nums; }
+.bar .stats small { display: block; color: var(--muted); font-size: 12px; }
+.bar .btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.toast { color: var(--simple); font-weight: 700; font-size: 13px; }
+
+[hidden] { display: none !important; }
+@media (prefers-reduced-motion: no-preference) {
+    .item { transition: border-color .15s, background .15s; }
+}
+</style>
+
+<main>
+
+<h1>Missions et avantages</h1>
+<p class="intro">
+    Coche ce que tu veux garder dans BetLab. Les missions rapportent des points,
+    les points s'échangent contre des avantages. Quand tu as fini, copie ta sélection
+    en bas de page et colle-la dans la conversation.
+</p>
+
+<div class="legend">
+    <div><strong class="tag simple" style="display:inline-block">Simple</strong>
+        Utilise les données qui existent déjà. Aucun risque pour les soldes en euros.</div>
+    <div><strong class="tag moyen" style="display:inline-block">Moyen</strong>
+        Demande une nouvelle table ou un calcul de dates. Je te donne le SQL à lancer.</div>
+    <div><strong class="tag complexe" style="display:inline-block">Complexe</strong>
+        Touche aux fonctions qui placent les mises ou paient les gains. Je dois d'abord lire leur code.</div>
+</div>
+
+<div class="filters" role="group" aria-label="Filtrer par difficulté">
+    <button type="button" data-filter="all" aria-pressed="true">Tout</button>
+    <button type="button" data-filter="simple" aria-pressed="false">Simple</button>
+    <button type="button" data-filter="moyen" aria-pressed="false">Moyen</button>
+    <button type="button" data-filter="complexe" aria-pressed="false">Complexe</button>
+</div>
+
+<h2 class="part">Missions</h2>
+<p class="part-note">
+    Chaque mission se vérifie à partir des mises et des paris déjà enregistrés.
+    Le joueur clique sur « Récupérer » et le serveur contrôle avant d'ajouter les points.
+</p>
+<div id="missions"></div>
+
+<h2 class="part">Avantages à acheter avec les points</h2>
+<p class="part-note">
+    Les prix sont un point de départ à régler ensemble. Les avantages qui changent
+    un gain ou une mise sont les plus délicats : je les garderais pour plus tard.
+</p>
+<div id="rewards"></div>
+
+<section class="result" aria-labelledby="res-title">
+    <h2 id="res-title">Ma sélection</h2>
+    <p>Ce texte se met à jour tout seul. Copie-le et colle-le dans la conversation.</p>
+    <textarea id="out" readonly aria-label="Sélection à copier"></textarea>
+    <p style="margin:10px 0 0">
+        <button type="button" class="copy-btn primary" id="copy2">Copier ma sélection</button>
+        <span class="toast" id="toast2" hidden>Copié</span>
+    </p>
+</section>
+
+</main>
+
+<div class="bar">
+    <div class="stats">
+        <strong id="count">0 choisi</strong>
+        <small id="weekly">Points par semaine pour un joueur très actif : 0</small>
+    </div>
+    <div class="btns">
+        <button type="button" id="pack">Pack conseillé</button>
+        <button type="button" id="clear">Tout décocher</button>
+        <button type="button" class="primary" id="copy1">Copier ma sélection</button>
+    </div>
+</div>
+
+<script>
+/* freq : d = quotidienne, w = hebdomadaire, s = série, p = palier, r = prise de risque. mult = nombre de fois par semaine. */
+var MISSIONS = [
+ { g: "Quotidiennes", id: "m-connexion", name: "Connexion du jour", rule: "Placer au moins une mise dans la journée.", pts: 10, mult: 7, cx: "simple", tag: "Chaque jour", note: "Se vérifie avec la date des mises.", rec: true },
+ { g: "Quotidiennes", id: "m-touche", name: "Touche-à-tout", rule: "Miser sur 3 paris différents le même jour.", pts: 25, mult: 7, cx: "simple", tag: "Chaque jour", note: "Compte les paris distincts parmi les mises du jour.", rec: true },
+ { g: "Quotidiennes", id: "m-premier", name: "Premier sur le coup", rule: "Être le premier à miser sur un pari.", pts: 15, mult: 7, cx: "moyen", tag: "Chaque jour", note: "Compare l'heure de ta mise à celle des autres sur le même pari." },
+ { g: "Quotidiennes", id: "m-defi", name: "Défi du jour", rule: "Jouer le pari choisi par l'admin. Bonus pour ceux qui y participent.", pts: 30, mult: 7, cx: "moyen", tag: "Chaque jour", note: "Ajoute un champ « pari du jour » que l'admin peut modifier." },
+
+ { g: "Hebdomadaires", id: "m-assidu", name: "Assidu", rule: "Placer une mise sur 5 jours différents dans la semaine.", pts: 60, mult: 1, cx: "simple", tag: "Chaque semaine", note: "La semaine va du lundi au dimanche.", rec: true },
+ { g: "Hebdomadaires", id: "m-gros", name: "Gros joueur", rule: "Miser 700 € au total dans la semaine.", pts: 50, mult: 1, cx: "simple", tag: "Chaque semaine", note: "Additionne les mises de la semaine. 700 € représente 70 % du solde de départ de 1000 € : la récompense de 50 pts est peut-être à revoir.", rec: true },
+ { g: "Hebdomadaires", id: "m-createur", name: "Créateur", rule: "Créer un pari qui reçoit au moins 5 mises.", pts: 40, mult: 1, cx: "moyen", tag: "Chaque semaine", note: "Évite de créer des paris juste pour les points : il faut 5 mises de joueurs différents." },
+
+ { g: "Séries de jours", id: "m-serie", name: "Série (streak)", rule: "Parier 3, 7 puis 14 jours d'affilée. Le bonus grandit avec la série.", ptsLabel: "30 / 100 / 250", pts: 0, mult: 0, cx: "moyen", tag: "Paliers", note: "Demande de calculer des jours consécutifs. Une journée manquée remet la série à zéro.", rec: true },
+
+ { g: "Paliers de mises", id: "m-marathon", name: "Le marathonien", rule: "Atteindre 10, 25 puis 50 mises au total.", ptsLabel: "50 / 150 / 400", pts: 0, mult: 0, cx: "simple", tag: "Une seule fois", note: "Un simple compteur sur tes mises.", rec: true },
+ { g: "Paliers de mises", id: "m-premier-gain", name: "Premier gain", rule: "Gagner un premier pari.", pts: 20, mult: 0, cx: "simple", tag: "Une seule fois", note: "Un bon départ pour les nouveaux joueurs.", rec: true },
+
+ { g: "Prise de risque", id: "m-outsider", name: "Outsider", rule: "Gagner un pari avec une cote supérieure à 3.", pts: 60, mult: 0, cx: "moyen", tag: "Répétable", note: "Se calcule à la récupération en comparant ton choix gagnant à sa cote." },
+ { g: "Prise de risque", id: "m-contre", name: "Contre tous", rule: "Miser sur le choix le moins joué d'un pari, et gagner.", pts: 80, mult: 0, cx: "moyen", tag: "Répétable", note: "Le choix « le moins joué » se juge à la fin du pari." },
+ { g: "Prise de risque", id: "m-combo", name: "Série de victoires", rule: "Gagner 3 paris d'affilée.", pts: 70, mult: 0, cx: "complexe", tag: "Répétable", note: "Il faut garder l'heure de résolution de chaque pari, ce qui touche à la fonction de résolution." }
+];
+
+var REWARDS = [
+ { g: "Statut et apparence", id: "r-badges", name: "Badges et titres", rule: "« Roi de la série », « Outsider »… affichés à côté du pseudo.", price: "50 à 300", cx: "simple", tag: "Permanent", note: "Un simple texte ajouté au profil. Aucun risque.", rec: true },
+ { g: "Statut et apparence", id: "r-cadre", name: "Cadre doré au classement", rule: "Ta ligne du « Top Parieurs » passe en doré.", price: "150", cx: "simple", tag: "Permanent", note: "Changement de style sur le classement.", rec: true },
+ { g: "Statut et apparence", id: "r-couleur", name: "Pseudo en couleur", rule: "Ton pseudo s'affiche en couleur pendant 24 heures.", price: "60", cx: "moyen", tag: "24 heures", note: "Garde une date de fin sur le profil.", rec: true },
+ { g: "Statut et apparence", id: "r-officiel", name: "Pari officiel en haut de liste", rule: "Ton pari est mis en avant en haut de la liste.", price: "200", cx: "moyen", tag: "Une fois", note: "Ajoute un marqueur sur le pari et trie la liste en conséquence." },
+
+ { g: "Information", id: "r-voir", name: "Voir les mises", rule: "Afficher qui a misé sur quoi avant l'échéance.", price: "80", cx: "moyen", tag: "Une fois par pari", note: "Aujourd'hui tout le monde voit déjà les mises. Cet avantage n'a de sens que si on les cache par défaut avant l'échéance." },
+ { g: "Information", id: "r-secret", name: "Pari secret", rule: "Ta mise est cachée aux autres jusqu'à la fin du pari.", price: "150", cx: "complexe", tag: "Une fois", note: "Demande des règles de sécurité sur les mises dans Supabase." },
+
+ { g: "Avantages sur les gains", id: "r-gratuite", name: "Mise gratuite", rule: "Une mise offerte : le gain est pour toi, la perte ne coûte rien.", price: "100", cx: "complexe", tag: "Une fois", note: "Modifie la fonction qui place les mises. Je dois la lire avant." },
+ { g: "Avantages sur les gains", id: "r-boost", name: "Cote boostée", rule: "+10 % sur une cote, utilisable une seule fois.", price: "120", cx: "complexe", tag: "Une fois", note: "Change le calcul du gain potentiel dans la fonction de mise." },
+ { g: "Avantages sur les gains", id: "r-rembourse", name: "Remboursement", rule: "Une mise perdue t'est remboursée, une fois.", price: "150", cx: "complexe", tag: "Une fois", note: "Modifie la fonction de résolution qui paie les gains." },
+ { g: "Avantages sur les gains", id: "r-double", name: "Double ou rien", rule: "Le gain d'un pari est doublé, ou la mise est perdue.", price: "200", cx: "complexe", tag: "Une fois", note: "Même fonction de résolution. À réserver pour la fin." }
+];
+
+var ALL = MISSIONS.concat(REWARDS);
+var STORE = "betlab-missions-selection";
+var selected = {};
+var filter = "all";
+
+try {
+    var saved = JSON.parse(localStorage.getItem(STORE) || "{}");
+    if (saved && typeof saved === "object") selected = saved;
+} catch (e) { selected = {}; }
+
+function save() {
+    try { localStorage.setItem(STORE, JSON.stringify(selected)); } catch (e) {}
+}
+
+var CX = { simple: "Simple", moyen: "Moyen", complexe: "Complexe" };
+
+function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+}
+
+function render(list, mountId, isReward) {
+    var mount = document.getElementById(mountId);
+    var groups = [];
+    list.forEach(function (it) { if (groups.indexOf(it.g) < 0) groups.push(it.g); });
+    mount.innerHTML = groups.map(function (g) {
+        var items = list.filter(function (it) { return it.g === g; });
+        return '<h3 class="group" data-group="' + esc(g) + '">' + esc(g) + '</h3>' +
+            '<div class="grid">' + items.map(function (it) {
+                var amount = isReward ? (it.price + " pts") : ((it.ptsLabel || it.pts) + " pts");
+                return '<label class="item" data-id="' + it.id + '" data-cx="' + it.cx + '" for="' + it.id + '">' +
+                    '<input type="checkbox" id="' + it.id + '">' +
+                    '<div class="item-head"><span class="item-name">' + esc(it.name) + '</span>' +
+                    '<span class="pts">' + esc(amount) + '</span></div>' +
+                    '<div class="rule">' + esc(it.rule) + '</div>' +
+                    '<div class="tags"><span class="tag ' + it.cx + '">' + CX[it.cx] + '</span>' +
+                    '<span class="tag">' + esc(it.tag) + '</span></div>' +
+                    '<div class="note">' + esc(it.note) + '</div></label>';
+            }).join("") + '</div>';
+    }).join("");
+}
+
+render(MISSIONS, "missions", false);
+render(REWARDS, "rewards", true);
+
+function sync() {
+    ALL.forEach(function (it) {
+        var el = document.getElementById(it.id);
+        var on = !!selected[it.id];
+        el.checked = on;
+        el.closest(".item").classList.toggle("on", on);
+    });
+    var m = MISSIONS.filter(function (it) { return selected[it.id]; });
+    var r = REWARDS.filter(function (it) { return selected[it.id]; });
+    var weekly = m.reduce(function (sum, it) { return sum + it.pts * it.mult; }, 0);
+    document.getElementById("count").textContent =
+        m.length + (m.length > 1 ? " missions" : " mission") + " · " + r.length + (r.length > 1 ? " avantages" : " avantage");
+    document.getElementById("weekly").textContent =
+        "Points par semaine pour un joueur très actif : " + weekly;
+    document.getElementById("out").value = summary(m, r, weekly);
+}
+
+function summary(m, r, weekly) {
+    if (!m.length && !r.length) return "Rien n'est coché pour le moment.";
+    var lines = ["MA SÉLECTION BETLAB", ""];
+    if (m.length) {
+        lines.push("Missions :");
+        m.forEach(function (it) {
+            lines.push("- " + it.name + " (" + (it.ptsLabel || it.pts) + " pts, " + CX[it.cx] + ")");
+        });
+        lines.push("");
+    }
+    if (r.length) {
+        lines.push("Avantages :");
+        r.forEach(function (it) {
+            lines.push("- " + it.name + " (" + it.price + " pts, " + CX[it.cx] + ")");
+        });
+        lines.push("");
+    }
+    lines.push("Points par semaine pour un joueur très actif : " + weekly);
+    return lines.join("\n");
+}
+
+document.addEventListener("change", function (e) {
+    var t = e.target;
+    if (t && t.type === "checkbox" && t.closest(".item")) {
+        if (t.checked) selected[t.id] = true; else delete selected[t.id];
+        save();
+        sync();
+    }
+});
+
+document.querySelectorAll(".filters button").forEach(function (b) {
+    b.addEventListener("click", function () {
+        filter = b.dataset.filter;
+        document.querySelectorAll(".filters button").forEach(function (x) {
+            x.setAttribute("aria-pressed", x === b ? "true" : "false");
+        });
+        document.querySelectorAll(".item").forEach(function (el) {
+            el.hidden = filter !== "all" && el.dataset.cx !== filter;
+        });
+        document.querySelectorAll("h3.group").forEach(function (h) {
+            var grid = h.nextElementSibling;
+            var visible = grid.querySelectorAll(".item:not([hidden])").length;
+            h.hidden = !visible;
+            grid.hidden = !visible;
+        });
+    });
+});
+
+document.getElementById("pack").addEventListener("click", function () {
+    selected = {};
+    ALL.forEach(function (it) { if (it.rec) selected[it.id] = true; });
+    save(); sync();
+});
+
+document.getElementById("clear").addEventListener("click", function () {
+    selected = {};
+    save(); sync();
+});
+
+function flash() {
+    ["toast2"].forEach(function (id) {
+        var t = document.getElementById(id);
+        t.hidden = false;
+        setTimeout(function () { t.hidden = true; }, 2200);
+    });
+}
+
+function copy() {
+    var area = document.getElementById("out");
+    var text = area.value;
+    function fallback() {
+        area.focus();
+        area.select();
+        try { document.execCommand("copy"); flash(); } catch (e) {}
+        area.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(flash, fallback);
+    } else {
+        fallback();
+    }
+}
+document.getElementById("copy1").addEventListener("click", copy);
+document.getElementById("copy2").addEventListener("click", copy);
+
+sync();
+</script>
