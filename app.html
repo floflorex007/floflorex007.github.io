@@ -14,6 +14,8 @@
 
     <link rel="stylesheet" href="style.css">
 
+    <link rel="stylesheet" href="missions.css">
+
 </head>
 
 
@@ -62,6 +64,14 @@
                 data-page="create-page"
             >
                 Créer un pari
+            </button>
+
+
+            <button
+                class="nav-button"
+                data-page="missions-page"
+            >
+                Missions
             </button>
 
 
@@ -474,6 +484,71 @@
 
 
         <!-- =====================================
+             PAGE : MISSIONS ET AVANTAGES
+        ====================================== -->
+
+        <section
+            id="missions-page"
+            class="app-page hidden"
+        >
+
+            <div class="page-header">
+
+                <div>
+
+                    <h1>
+                        Missions
+                    </h1>
+
+                    <p>
+                        Accomplis des missions, gagne des points et échange-les contre des avantages.
+                    </p>
+
+                </div>
+
+                <div class="points-balance">
+
+                    <span>Mes points</span>
+
+                    <strong id="points-balance">
+                        0
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <p
+                id="missions-message"
+                class="missions-message hidden"
+            ></p>
+
+
+            <h2 class="missions-title">
+                Missions
+            </h2>
+
+            <div
+                id="missions-list"
+                class="missions-grid"
+            ></div>
+
+
+            <h2 class="missions-title">
+                Avantages
+            </h2>
+
+            <div
+                id="perks-list"
+                class="missions-grid"
+            ></div>
+
+        </section>
+
+
+
+        <!-- =====================================
              PAGE : MESSAGE ADMIN
         ====================================== -->
 
@@ -794,6 +869,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <!-- APPLICATION -->
+
+    <script src="missions.js"></script>
 
     <script src="app.js"></script>
 

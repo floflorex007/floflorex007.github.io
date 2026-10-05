@@ -1,0 +1,162 @@
+
+/* ================================
+   MISSIONS ET AVANTAGES
+================================ */
+
+.points-balance {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    background: #1c202c;
+    border: 1px solid #2c3040;
+    border-radius: 14px;
+    padding: 10px 18px;
+}
+
+.points-balance span {
+    color: #858a98;
+    font-size: 12px;
+}
+
+.points-balance strong {
+    color: #f5c451;
+    font-size: 22px;
+}
+
+.missions-title {
+    font-size: 18px;
+    margin: 26px 0 14px;
+}
+
+.missions-message {
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: #1c202c;
+    border: 1px solid #2c3040;
+    font-size: 14px;
+}
+
+.missions-message.error {
+    border-color: #ff6b81;
+    color: #ff8a99;
+}
+
+.missions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+}
+
+.mission-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: linear-gradient(180deg, #1c202c 0%, #14161e 100%);
+    border: 1px solid #2c3040;
+    border-radius: 16px;
+    padding: 16px;
+}
+
+.mission-card.done {
+    opacity: 0.6;
+}
+
+.mission-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.mission-card h3 {
+    font-size: 15px;
+}
+
+.mission-card p {
+    color: #858a98;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.mission-reward {
+    flex-shrink: 0;
+    color: #f5c451;
+    font-weight: 800;
+    font-size: 14px;
+}
+
+.mission-meta {
+    display: flex;
+    gap: 8px;
+    font-size: 11px;
+    color: #737887;
+}
+
+.mission-progress {
+    height: 6px;
+    border-radius: 3px;
+    background: #262a38;
+    overflow: hidden;
+}
+
+.mission-progress div {
+    height: 100%;
+    background: #6c63ff;
+}
+
+.mission-button {
+    margin-top: auto;
+    padding: 9px 12px;
+    border: none;
+    border-radius: 10px;
+    background: #6c63ff;
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.mission-button:disabled {
+    background: #262a38;
+    color: #737887;
+    cursor: default;
+}
+
+.perk-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: auto;
+    font-size: 13px;
+}
+
+.perk-controls input[type="color"] {
+    width: 36px;
+    height: 28px;
+    border: none;
+    background: none;
+    cursor: pointer;
+}
+
+
+/* Rendu des avantages dans le classement */
+
+.leaderboard-badge {
+    font-size: 11px;
+    color: #c4c8d4;
+    margin-left: 6px;
+}
+
+.leaderboard-row.gold-frame {
+    border: 2px solid #f5c451;
+    border-radius: 10px;
+    padding: 9px 8px;
+    margin: 3px 0;
+    box-shadow: 0 0 10px rgba(245, 196, 81, 0.35);
+}
+
+@media (max-width: 700px) {
+    .points-balance {
+        align-self: flex-start;
+    }
+}

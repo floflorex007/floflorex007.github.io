@@ -369,7 +369,7 @@ async function getLeaderboard() {
         error
     } = await supabaseClient
         .from("profiles")
-        .select("username, balance")
+        .select("username, balance, equipped_badge, username_color, gold_frame")
         .eq("is_admin", false)
         .order("balance", { ascending: false })
         .limit(10);
@@ -407,10 +407,10 @@ async function displayLeaderboard() {
 
         container.innerHTML = profiles.map(
             (profile, index) => `
-                <div class="leaderboard-row">
+                <div class="leaderboard-row ${profile.gold_frame ? "gold-frame" : ""}">
                     <span class="leaderboard-rank">${index + 1}</span>
                     <span class="leaderboard-medal">${medals[index] || ""}</span>
-                    <span class="leaderboard-pseudo">${escapeHtml(profile.username)}</span>
+                    <span class="leaderboard-pseudo">${renderPseudoHtml(profile)}</span>
                     <span class="leaderboard-balance">${formatMoney(profile.balance)}</span>
                 </div>
             `
@@ -2872,6 +2872,8 @@ async function initAppPage() {
         await displayMyCreatedBets();
 
         await loadTargetUsers();
+
+        await initMissions();
 
 
         if (currentProfile?.is_admin) {
