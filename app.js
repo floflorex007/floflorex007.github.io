@@ -733,8 +733,6 @@ async function savePermanentMessage() {
 
         await displayAdminMessage();
 
-        alert("Message permanent enregistré.");
-
     } catch (error) {
 
         console.error(error);
@@ -759,6 +757,7 @@ async function getBets() {
             *,
             bet_choices!bet_choices_bet_id_fkey (*),
             profiles!bets_author_id_fkey ( username ),
+            target:profiles!bets_target_user_id_fkey ( username ),
             stakes ( id, choice_id, stake, potential_win, profiles!stakes_user_id_fkey ( username ) )
         `)
         .order("created_at", { ascending: false });
@@ -776,6 +775,24 @@ async function getBets() {
 /* =========================================================
    AFFICHER LES PARIS
 ========================================================= */
+
+/*
+    Vrai si l'utilisateur connecté est la personne concernée
+    par le pari et que le créateur l'a bloquée.
+*/
+
+function isBlockedTarget(bet) {
+
+    return Boolean(
+        bet.target_blocked &&
+        bet.target_user_id &&
+        currentUser &&
+        bet.target_user_id === currentUser.id
+    );
+
+}
+
+
 
 function renderBetSummaryHtml(
     bet,
@@ -798,6 +815,10 @@ function renderBetSummaryHtml(
             (sum, s) => sum + Number(s.stake),
             0
         );
+
+
+    const isTargetBlocked =
+        isBlockedTarget(bet);
 
 
     const isClosed =
@@ -867,6 +888,8 @@ function renderBetSummaryHtml(
         </div>
 
 
+
+
         <div class="bet-choices">
 
             ${stakesByChoice.map(
@@ -896,9 +919,9 @@ function renderBetSummaryHtml(
                             }
 
                             <${tag}
-                                class="bet-choice-button${isClosed ? " bet-choice-closed" : ""}${interactive ? "" : " bet-choice-readonly"}"
+                                class="bet-choice-button${isClosed || isTargetBlocked ? " bet-choice-closed" : ""}${interactive ? "" : " bet-choice-readonly"}"
                                 ${interactive
-                                    ? `data-bet-id="${bet.id}" data-choice-id="${choice.id}" ${isClosed ? "disabled" : ""}`
+                                    ? `data-bet-id="${bet.id}" data-choice-id="${choice.id}" ${isClosed || isTargetBlocked ? "disabled" : ""}`
                                     : ""
                                 }
                             >
@@ -913,7 +936,9 @@ function renderBetSummaryHtml(
 
                             </${tag}>
 
-                            ${isClosed
+                            ${isTargetBlocked
+                                ? ""
+                                : isClosed
                                 ? `<div class="choice-closed-label">Mises closes</div>`
                                 : `
                                     <div class="choice-bar-track">
@@ -989,7 +1014,8 @@ async function displayBets() {
                     document.createElement("div");
 
                 card.className =
-                    "bet-card";
+                    "bet-card" +
+                    (isBlockedTarget(bet) ? " bet-card-locked" : "");
 
                 card.dataset.betId =
                     bet.id;
@@ -1006,6 +1032,11 @@ async function displayBets() {
                     renderBetSummaryHtml(bet) + `
 
                     <div class="bet-footer">
+
+                        ${bet.target_user_id
+                            ? `<span class="bet-target-footer">🎯 Concerne ${escapeHtml(bet.target?.username || "un parieur")}</span>`
+                            : ""
+                        }
 
                         <div class="bet-total-footer">
                             <span>Solde misé</span>
@@ -1262,6 +1293,16 @@ async function placeBet() {
     errorElement.textContent = "";
 
 
+    if (currentBet && isBlockedTarget(currentBet)) {
+
+        errorElement.textContent =
+            "Tu es concerné(e) par ce pari, tu ne peux pas parier.";
+
+        return;
+
+    }
+
+
     if (!stake || stake <= 0) {
 
         errorElement.textContent =
@@ -1336,10 +1377,6 @@ async function placeBet() {
 
         await displayMyBets();
 
-
-        alert(
-            "Pari enregistré !"
-        );
 
 
     } catch (error) {
@@ -1863,6 +1900,30 @@ function openStakesModal(bet) {
         renderBetSummaryHtml(
             bet,
             { interactive: false }
+        ) + `
+
+            <div class="bet-footer">
+
+                ${bet.target_user_id
+                    ? `<span class="bet-target-footer">🎯 Concerne ${escapeHtml(bet.target?.username || "un parieur")}</span>`
+                    : ""
+                }
+
+                <div class="bet-total-footer">
+                    <span>Solde misé</span>
+                    <strong>${formatMoney((bet.stakes || []).reduce((sum, s) => sum + Number(s.stake), 0))}</strong>
+                </div>
+
+            </div>
+
+        `;
+
+
+    document
+        .querySelector(".stakes-modal-content")
+        .classList.toggle(
+            "bet-card-locked",
+            isBlockedTarget(bet)
         );
 
 
@@ -2015,10 +2076,6 @@ async function resolveBet(
         await displayMyCreatedBets();
 
 
-        alert(
-            "Le pari a été validé."
-        );
-
 
     } catch (error) {
 
@@ -2067,12 +2124,41 @@ async function createBet() {
         );
 
 
+    /*
+        La cote 2 est toujours recalculée à partir de la cote 1
+        (pas d'arbitrage possible entre les deux choix).
+    */
+
     const oddsTwo =
-        Number(
-            document.getElementById(
-                "odds-two"
+        calculerCoteComplementaire(oddsOne);
+
+
+    const hasTarget =
+        document.getElementById(
+            "bet-has-target"
+        ).checked;
+
+
+    const targetUserId =
+        hasTarget
+            ? document.getElementById(
+                "bet-target-user"
             ).value
-        );
+            : "";
+
+
+    const targetBlocked =
+        hasTarget &&
+        document.getElementById(
+            "bet-target-blocked"
+        ).checked;
+
+
+    if (hasTarget && !targetUserId) {
+
+        return;
+
+    }
 
 
     const deadlineMode =
@@ -2181,7 +2267,13 @@ async function createBet() {
                 status: "open",
 
                 deadline_at:
-                    deadlineAt
+                    deadlineAt,
+
+                target_user_id:
+                    targetUserId || null,
+
+                target_blocked:
+                    targetBlocked
 
             })
             .select()
@@ -2256,6 +2348,10 @@ async function createBet() {
         ).reset();
 
         document.getElementById(
+            "bet-target-options"
+        ).classList.add("hidden");
+
+        document.getElementById(
             "bet-deadline-datetime"
         ).classList.add("hidden");
 
@@ -2284,22 +2380,97 @@ async function createBet() {
         await displayMyCreatedBets();
 
 
-        alert(
-            "Ton pari a été créé !"
-        );
-
 
     } catch (error) {
 
         console.error(error);
 
 
-        alert(
-            error.message ||
-            "Impossible de créer le pari."
-        );
+    }
+
+}
+
+
+
+/* =========================================================
+   Cote complémentaire (pari à 2 choix)
+   ========================================================= */
+
+/*
+    Cote du 2e choix telle que 1/cote1 + 1/cote2 = 1 :
+    parier sur les deux choix ne peut jamais rapporter d'argent.
+*/
+
+function calculerCoteComplementaire(cote) {
+
+    if (!cote || cote <= 1) {
+
+        return 0;
 
     }
+
+    return Math.round(
+        (cote / (cote - 1)) * 100
+    ) / 100;
+
+}
+
+
+
+/* =========================================================
+   Parieur concerné (création de pari)
+   ========================================================= */
+
+async function loadTargetUsers() {
+
+    const select =
+        document.getElementById(
+            "bet-target-user"
+        );
+
+
+    if (!select) {
+
+        return;
+
+    }
+
+
+    const {
+        data,
+        error
+    } = await supabaseClient
+        .from("profiles")
+        .select("id, username")
+        .eq("is_admin", false)
+        .order("username");
+
+
+    if (error) {
+
+        console.error("Erreur loadTargetUsers :", error);
+
+        return;
+
+    }
+
+
+    (data || []).forEach(
+        profile => {
+
+            const option =
+                document.createElement("option");
+
+            option.value =
+                profile.id;
+
+            option.textContent =
+                profile.username;
+
+            select.appendChild(option);
+
+        }
+    );
 
 }
 
@@ -2700,6 +2871,8 @@ async function initAppPage() {
 
         await displayMyCreatedBets();
 
+        await loadTargetUsers();
+
 
         if (currentProfile?.is_admin) {
 
@@ -2717,10 +2890,6 @@ async function initAppPage() {
     } catch (error) {
 
         console.error(error);
-
-        alert(
-            "Impossible de charger ton compte."
-        );
 
     }
 
@@ -2782,6 +2951,61 @@ async function initAppPage() {
         document.getElementById(
             "create-bet-form"
         );
+
+
+    const oddsOneInput =
+        document.getElementById(
+            "odds-one"
+        );
+
+    const oddsTwoInput =
+        document.getElementById(
+            "odds-two"
+        );
+
+
+    const hasTargetCheckbox =
+        document.getElementById(
+            "bet-has-target"
+        );
+
+    if (hasTargetCheckbox) {
+
+        hasTargetCheckbox.addEventListener(
+            "change",
+            () => {
+
+                document
+                    .getElementById("bet-target-options")
+                    .classList.toggle(
+                        "hidden",
+                        !hasTargetCheckbox.checked
+                    );
+
+            }
+        );
+
+    }
+
+
+    if (oddsOneInput && oddsTwoInput) {
+
+        oddsOneInput.addEventListener(
+            "input",
+            () => {
+
+                const cote =
+                    calculerCoteComplementaire(
+                        Number(oddsOneInput.value)
+                    );
+
+                oddsTwoInput.value =
+                    cote ? cote.toFixed(2) : "";
+
+            }
+        );
+
+    }
 
 
     if (createForm) {

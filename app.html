@@ -300,6 +300,52 @@
                     >
 
 
+                    <label class="checkbox-row">
+
+                        <input
+                            type="checkbox"
+                            id="bet-has-target"
+                        >
+
+                        Ce pari concerne un autre parieur
+
+                    </label>
+
+
+                    <div
+                        id="bet-target-options"
+                        class="hidden"
+                    >
+
+                        <label for="bet-target-user">
+                            Parieur concerné
+                        </label>
+
+
+                        <select id="bet-target-user">
+
+                            <option value="">
+                                Choisis un parieur
+                            </option>
+
+                        </select>
+
+
+                        <label class="checkbox-row">
+
+                            <input
+                                type="checkbox"
+                                id="bet-target-blocked"
+                                checked
+                            >
+
+                            Bloquer cette personne : elle ne pourra pas parier
+
+                        </label>
+
+                    </div>
+
+
                     <label>
                         Échéance du pari
                     </label>
@@ -402,7 +448,8 @@
                                 id="odds-two"
                                 min="1.01"
                                 step="0.01"
-                                placeholder="2.10"
+                                placeholder="Calculée automatiquement"
+                                readonly
                                 required
                             >
 

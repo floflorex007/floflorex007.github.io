@@ -139,6 +139,55 @@ input {
     resize: vertical;
 }
 
+.create-card select {
+    width: 100%;
+    padding: 13px;
+    border-radius: 8px;
+    border: 1px solid #343846;
+    background: #101219;
+    color: white;
+    outline: none;
+    font-family: inherit;
+}
+
+.create-card select:focus {
+    border-color: #6c63ff;
+}
+
+.create-card label.checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.create-card .checkbox-row input {
+    width: auto;
+    margin: 0;
+}
+
+.bet-target-footer {
+    color: #b9b5ff;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.bet-card.bet-card-locked,
+.modal-content.bet-card-locked {
+    background: linear-gradient(180deg, #1f1a22 0%, #181418 100%);
+    border-color: #3a2a33;
+}
+
+.bet-card-locked .bet-target-footer {
+    color: #e0a8bc;
+}
+
+.bet-card-locked .bet-choice-button {
+    opacity: 0.45;
+    filter: grayscale(1);
+    cursor: not-allowed;
+}
+
 .auth-card input:focus,
 .create-card input:focus,
 .modal-content input:focus,

@@ -18,9 +18,12 @@ CREATE TABLE public.bets (
   created_at timestamp with time zone DEFAULT now(),
   winner_choice_id uuid,
   deadline_at timestamp with time zone,
+  target_user_id uuid,
+  target_blocked boolean NOT NULL DEFAULT false,
   CONSTRAINT bets_pkey PRIMARY KEY (id),
   CONSTRAINT bets_winner_choice_id_fkey FOREIGN KEY (winner_choice_id) REFERENCES public.bet_choices(id),
-  CONSTRAINT bets_author_id_fkey FOREIGN KEY (author_id) REFERENCES public.profiles(id)
+  CONSTRAINT bets_author_id_fkey FOREIGN KEY (author_id) REFERENCES public.profiles(id),
+  CONSTRAINT bets_target_user_id_fkey FOREIGN KEY (target_user_id) REFERENCES public.profiles(id)
 );
 CREATE TABLE public.bet_choices (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
