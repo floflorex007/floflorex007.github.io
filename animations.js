@@ -161,6 +161,8 @@ function launchConfetti(count = 120) {
 
     layer.className = "confetti-layer";
 
+    let lastPieceEnd = 0;
+
     for (let i = 0; i < count; i++) {
 
         const piece = document.createElement("div");
@@ -169,8 +171,14 @@ function launchConfetti(count = 120) {
 
         piece.style.left = Math.random() * 100 + "%";
         piece.style.background = colors[i % colors.length];
-        piece.style.animationDuration = 1.8 + Math.random() * 1.6 + "s";
-        piece.style.animationDelay = Math.random() * 0.5 + "s";
+
+        const duration = 1.8 + Math.random() * 1.6;
+        const delay = Math.random() * 0.5;
+
+        piece.style.animationDuration = duration + "s";
+        piece.style.animationDelay = delay + "s";
+
+        lastPieceEnd = Math.max(lastPieceEnd, (duration + delay) * 1000);
 
         layer.appendChild(piece);
 
@@ -178,7 +186,210 @@ function launchConfetti(count = 120) {
 
     document.body.appendChild(layer);
 
-    setTimeout(() => layer.remove(), 4500);
+    setTimeout(() => layer.remove(), lastPieceEnd + 100);
+
+    // Durée totale (ms) : permet d'enchaîner une animation après.
+    return lastPieceEnd;
+
+}
+
+
+
+/* =========================================================
+   3 BIS. BILLETS ENTRE LE PERROQUET ET LE SOLDE
+      Gagné : les billets jaillissent de la liasse du perroquet,
+      flottent, puis filent en spirale vers le solde (traînée
+      lumineuse) ; le solde monte à chaque billet encaissé.
+      Perdu : les billets quittent le solde et tombent en
+      virevoltant jusqu'au perroquet, qui tremble à chaque impact.
+========================================================= */
+
+const FLY_BILL_IMAGE = "assets/perroquet/win-bill2.png";
+
+
+function flyBills(mode, fromBalance = 0, toBalance = 0) {
+
+    const balanceEl =
+        document.getElementById("balance");
+
+    if (!balanceEl || typeof Parrot === "undefined") {
+        return;
+    }
+
+    const rnd = (a, b) => a + Math.random() * (b - a);
+
+    const balanceRect = balanceEl.getBoundingClientRect();
+
+    const balancePoint = {
+        x: balanceRect.left + balanceRect.width / 2,
+        y: balanceRect.top + balanceRect.height / 2
+    };
+
+    const parrotPoint =
+        Parrot.billsPoint();
+
+
+    // Axe perroquet → solde : direction et perpendiculaire.
+    const dx = balancePoint.x - parrotPoint.x;
+    const dy = balancePoint.y - parrotPoint.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const dir = { x: dx / len, y: dy / len };
+    const perp = { x: dy / len, y: -dx / len };
+
+    const COUNT = 10;
+
+    // Fin prévue de l'animation : le perroquet grandit jusqu'à ce moment-là.
+    window.billsAnimationEnd =
+        performance.now() + (mode === "win" ? 400 + (COUNT - 1) * 70 + 1500 : 150 + (COUNT - 1) * 120 + 1700);
+
+
+    const makeBill = () => {
+        const el = document.createElement("img");
+        el.src = FLY_BILL_IMAGE;
+        el.alt = "";
+        el.className = "fly-bill";
+        document.body.appendChild(el);
+        return el;
+    };
+
+
+    if (mode === "win") {
+
+        let shown = fromBalance;
+
+        // Le solde repart de l'ancien montant et monte billet par billet.
+        animateNumber(balanceEl, fromBalance, fromBalance, 0);
+
+        for (let i = 0; i < COUNT; i++) {
+
+            const go = rnd(60, 150);
+            const side = rnd(-45, 45);
+
+            const burst = {
+                x: parrotPoint.x + dir.x * go + perp.x * side,
+                y: parrotPoint.y + dir.y * go + perp.y * side
+            };
+
+            const swirl = rnd(0, Math.PI * 2);
+
+            const frames = [
+                { transform: `translate(${parrotPoint.x}px,${parrotPoint.y}px) rotate(0deg) scale(.3)`, opacity: 0, offset: 0 },
+                { transform: `translate(${burst.x}px,${burst.y}px) rotate(${rnd(-60, 60)}deg) scale(.9)`, opacity: 1, offset: 0.25 },
+                { transform: `translate(${burst.x + rnd(-15, 15)}px,${burst.y - 18}px) rotate(${rnd(-30, 30)}deg) scale(.9)`, opacity: 1, offset: 0.42 }
+            ];
+
+            for (let k = 1; k <= 12; k++) {
+
+                const t = k / 12;
+                const radius = (1 - t) * 35;
+                const angle = swirl + t * Math.PI * 3;
+
+                frames.push({
+                    transform: `translate(${burst.x + (balancePoint.x - burst.x) * t + Math.cos(angle) * radius}px,${burst.y + (balancePoint.y - burst.y) * t + Math.sin(angle) * radius}px) rotate(${t * 540}deg) scale(${0.9 - t * 0.55})`,
+                    opacity: 1,
+                    offset: 0.42 + t * 0.58
+                });
+
+            }
+
+            setTimeout(() => {
+
+                const el = makeBill();
+
+                const anim = el.animate(frames, { duration: 1500, easing: "ease-in-out", fill: "forwards" });
+
+                // Traînée lumineuse.
+                const trail = setInterval(() => {
+
+                    const m = new DOMMatrix(getComputedStyle(el).transform);
+                    const dot = document.createElement("div");
+
+                    dot.className = "fly-trail";
+                    document.body.appendChild(dot);
+
+                    dot.animate(
+                        [
+                            { opacity: 0.8, transform: `translate(${m.e}px,${m.f}px) scale(1)` },
+                            { opacity: 0, transform: `translate(${m.e}px,${m.f}px) scale(.2)` }
+                        ],
+                        { duration: 400, fill: "forwards" }
+                    ).onfinish = () => dot.remove();
+
+                }, 45);
+
+                anim.onfinish = () => {
+
+                    clearInterval(trail);
+                    el.remove();
+
+                    const next = fromBalance + (toBalance - fromBalance) * (i + 1) / COUNT;
+
+                    animateNumber(balanceEl, shown, next, 250);
+                    shown = next;
+
+                    bump(balanceEl);
+
+                };
+
+            }, 400 + i * 70);
+
+        }
+
+        return;
+
+    }
+
+
+    // Perdu (ou nouvelle mise, mode « stake ») : du solde vers
+    // le perroquet, en feuilles mortes.
+    const inPlay =
+        document.getElementById("in-play");
+
+    for (let i = 0; i < COUNT; i++) {
+
+        const end = {
+            x: parrotPoint.x + rnd(-20, 20),
+            y: parrotPoint.y + rnd(-15, 15)
+        };
+
+        const sway = rnd(20, 45);
+        const phase = rnd(0, Math.PI * 2);
+        const frames = [];
+
+        for (let k = 0; k <= 20; k++) {
+
+            const t = k / 20;
+            const wave = Math.sin(phase + t * Math.PI * 4);
+            const size = 0.5 + t * 0.4;
+
+            frames.push({
+                transform: `translate(${balancePoint.x + (end.x - balancePoint.x) * t + wave * sway * (1 - t * 0.6)}px,${balancePoint.y + (end.y - balancePoint.y) * (t * t * 0.6 + t * 0.4)}px) rotate(${wave * 40}deg) scale(${size},${size * (Math.cos(t * 14 + phase) * 0.35 + 0.65)})`,
+                opacity: t > 0.9 ? (1 - t) * 10 : 1,
+                offset: t
+            });
+
+        }
+
+        setTimeout(() => {
+
+            if (inPlay) {
+                bump(inPlay);
+            }
+
+            const el = makeBill();
+
+            el.animate(frames, { duration: 1700, easing: "linear", fill: "forwards" }).onfinish = () => {
+                el.remove();
+
+                // Pari perdu : le perroquet tremble à chaque billet.
+                if (mode === "lose") {
+                    Parrot.hit();
+                }
+            };
+
+        }, 150 + i * 120);
+
+    }
 
 }
 
@@ -614,6 +825,13 @@ function animateLeaderboard(profiles) {
         document.getElementById("bets-page");
 
     if (!betsPage || betsPage.classList.contains("hidden")) {
+        return;
+    }
+
+
+    // Animation du perroquet en cours (pari gagné / perdu) :
+    // on attend la fin avant de jouer les remontées du classement.
+    if (performance.now() < (window.leaderboardHoldUntil || 0)) {
         return;
     }
 

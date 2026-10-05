@@ -365,6 +365,112 @@ async function refreshInPlay() {
 
     element.classList.toggle("hidden", total <= 0);
 
+
+    updateParrotSize(total);
+
+}
+
+
+/*
+    Le perroquet grandit (ou rapetisse) lentement avec l'argent en jeu,
+    de 350 px (0 €) à 450 px (1 500 € et plus).
+    Si des billets sont en train de voler, la croissance dure jusqu'à
+    la fin de leur animation, et la pile change à ce moment-là.
+*/
+
+const PARROT_GROW_SECONDS = 2.5;
+
+let parrotLevelTimer = null;
+
+function updateParrotSize(total) {
+
+    const parrotElement =
+        document.getElementById("parrot");
+
+    if (!parrotElement || typeof Parrot === "undefined") {
+        return;
+    }
+
+    const billsLeft =
+        Math.max(0, (window.billsAnimationEnd || 0) - performance.now()) / 1000;
+
+    const seconds =
+        Math.max(PARROT_GROW_SECONDS, billsLeft);
+
+    parrotElement.style.transitionDuration = seconds + "s";
+
+    parrotElement.style.width =
+        `min(${parrotWidthFor(total)}px, 42vw)`;
+
+
+    // Changement de pile une fois les billets arrivés.
+    clearTimeout(parrotLevelTimer);
+
+    parrotLevelTimer = setTimeout(
+        () => Parrot.level(parrotLevelFor(total)),
+        billsLeft * 1000
+    );
+
+}
+
+
+/*
+    Largeur du perroquet selon l'argent en jeu, proportionnelle
+    dans chaque palier (de plus en plus vite d'un palier à l'autre) :
+    0 € → 350 px, 300 € → 375 px, 800 € → 410 px, 1 500 € → 450 px (max).
+*/
+
+const PARROT_SIZE_STEPS = [
+    { amount: 0, width: 350 },
+    { amount: 299, width: 375 },
+    { amount: 300, width: 375 },
+    { amount: 799, width: 410 },
+    { amount: 800, width: 410 },
+    { amount: 1500, width: 450 }
+];
+
+function parrotWidthFor(amount) {
+
+    const steps = PARROT_SIZE_STEPS;
+
+    if (amount >= steps[steps.length - 1].amount) {
+        return steps[steps.length - 1].width;
+    }
+
+    for (let i = 1; i < steps.length; i++) {
+
+        const a = steps[i - 1];
+        const b = steps[i];
+
+        if (amount <= b.amount) {
+
+            const t = b.amount > a.amount
+                ? (amount - a.amount) / (b.amount - a.amount)
+                : 1;
+
+            return Math.round(a.width + (b.width - a.width) * Math.max(0, t));
+
+        }
+
+    }
+
+    return steps[0].width;
+
+}
+
+
+/*
+    Niveau d'attente du perroquet selon l'argent en jeu :
+    1 = classique (0 €), 2 = petite pile (1 à 299 €),
+    3 = pile moyenne (300 à 799 €), 4 = énorme pile (800 € et plus).
+*/
+
+const PARROT_LEVEL_THRESHOLDS = [1, 300, 800];
+
+function parrotLevelFor(amount) {
+
+    return 1 + PARROT_LEVEL_THRESHOLDS.filter(min => amount >= min).length;
+
 }
 
 
@@ -1301,16 +1407,28 @@ async function claimBet(betId, won, card) {
 
     await loadCurrentProfile();
 
+    // Durée des confettis (0 si perdu), pour enchaîner la suite.
+    let confettiMs = 0;
+
     if (won) {
 
-        launchConfetti();
+        // 1. Confettis. Le solde affiche encore l'ancien montant.
+        animateNumber(document.getElementById("balance"), oldBalance, oldBalance, 0);
 
-        animateNumber(
-            document.getElementById("balance"),
-            oldBalance,
-            Number(currentProfile.balance),
-            1400
-        );
+        const newBalance = Number(currentProfile.balance);
+
+        confettiMs = launchConfetti();
+
+        // 2. Une fois les confettis tombés : le perroquet passe en
+        // « gagné » et les billets volent vers le solde, qui monte
+        // à chaque billet encaissé.
+        setTimeout(() => {
+
+            Parrot.win();
+
+            flyBills("win", oldBalance, newBalance);
+
+        }, confettiMs);
 
         card.classList.add("claim-card--done-win");
 
@@ -1318,7 +1436,23 @@ async function claimBet(betId, won, card) {
 
         card.classList.add("claim-card--done-lose");
 
+        Parrot.lose();
+
+        // Les billets quittent le solde et tombent sur le perroquet.
+        flyBills("lose");
+
     }
+
+
+    // Le classement ne s'anime qu'après la pose « gagné » / « perdu »
+    // du perroquet (confettis éventuels + durée de la pose).
+    const parrotPoseEnd =
+        confettiMs + Parrot.HOLD_SECONDS * 1000;
+
+    window.leaderboardHoldUntil =
+        performance.now() + parrotPoseEnd;
+
+    setTimeout(() => displayLeaderboard(), parrotPoseEnd + 200);
 
 
     // Laisse l'animation se jouer avant de recharger les listes.
@@ -1326,13 +1460,11 @@ async function claimBet(betId, won, card) {
 
         await displayBets();
 
-        await displayLeaderboard();
-
         await displayMyBets();
 
         await refreshMissions();
 
-    }, won ? 1200 : 700);
+    }, won ? confettiMs + 2800 : 2400);
 
 }
 
@@ -1620,7 +1752,12 @@ function openBetModal(
     document.getElementById(
         "modal-choice"
     ).textContent =
-        `${choice.label} — cote ${Number(choice.odds).toFixed(2)}`;
+        choice.label;
+
+    document.getElementById(
+        "modal-odds"
+    ).textContent =
+        "× " + Number(choice.odds).toFixed(2);
 
 
     document.getElementById(
@@ -1635,6 +1772,8 @@ function openBetModal(
         formatMoney(0);
 
     potentialWinElement._lastValue = 0;
+
+    updateBetGauge(0, 0);
 
 
     document.getElementById(
@@ -1674,6 +1813,8 @@ function updatePotentialWin() {
 
         animatePotentialWin(0);
 
+        updateBetGauge(0, 0);
+
         return;
 
     }
@@ -1685,6 +1826,67 @@ function updatePotentialWin() {
 
 
     animatePotentialWin(potentialWin);
+
+    updateBetGauge(value, potentialWin);
+
+}
+
+
+/*
+    Jauge de gain de la fenêtre de mise : elle se remplit avec le gain
+    (pleine à 500 €), un message motive vers le palier suivant,
+    et le bouton affiche le montant misé.
+*/
+
+const BET_GAUGE_FULL = 500;
+
+const BET_GAIN_GOALS = [50, 100, 200, 500, 1000];
+
+function updateBetGauge(stake, gain) {
+
+    const percent =
+        Math.min(100, gain / BET_GAUGE_FULL * 100);
+
+    document.getElementById("bet-gauge-fill").style.height =
+        percent + "%";
+
+    document.getElementById("bet-gauge-coin").style.bottom =
+        `calc(${percent}% - 4px)`;
+
+
+    const tip =
+        document.getElementById("bet-tip");
+
+    const nextGoal =
+        BET_GAIN_GOALS.find(goal => goal > gain);
+
+    if (!stake) {
+
+        tip.textContent = "💡 Choisis une mise pour voir ton gain.";
+
+    } else if (nextGoal && currentChoice) {
+
+        const missing =
+            Math.ceil((nextGoal - gain) / Number(currentChoice.odds));
+
+        tip.textContent =
+            `🔥 Encore ${formatMoney(missing)} pour viser ${formatMoney(nextGoal)} !`;
+
+    } else {
+
+        tip.textContent = "🤑 Gros coup en vue !";
+
+    }
+
+
+    const button =
+        document.getElementById("confirm-bet");
+
+    button.disabled = !stake;
+
+    button.textContent = stake
+        ? "🎟️ Miser " + formatMoney(stake)
+        : "Placer le pari";
 
 }
 
@@ -1781,19 +1983,28 @@ async function placeBet() {
 
 
         /*
-            On recharge le profil.
-        */
-
-        await loadCurrentProfile();
-
-
-        /*
             On ferme la fenêtre.
         */
 
         document
             .getElementById("bet-modal")
             .classList.add("hidden");
+
+
+        /*
+            La mise part du solde vers le perroquet
+            (l'argent en jeu grossit). Lancée avant le rechargement
+            du profil pour que le perroquet grandisse au rythme des billets.
+        */
+
+        flyBills("stake");
+
+
+        /*
+            On recharge le profil.
+        */
+
+        await loadCurrentProfile();
 
 
         /*
@@ -4511,6 +4722,31 @@ function showPage(pageId) {
     }
 
 
+    /*
+        Le perroquet est présent sur toutes les pages sauf le Profil.
+        Il repart en attente en revenant du Profil ou sur la page des paris.
+    */
+
+    const parrotElement =
+        document.getElementById("parrot");
+
+    if (parrotElement) {
+
+        const hideParrot =
+            pageId === "profile-page";
+
+        const wasHidden =
+            parrotElement.classList.contains("parrot-hidden");
+
+        parrotElement.classList.toggle("parrot-hidden", hideParrot);
+
+        if (!hideParrot && (wasHidden || pageId === "bets-page")) {
+            Parrot.wait();
+        }
+
+    }
+
+
     document
         .querySelectorAll(".nav-button")
         .forEach(button => {
@@ -5243,6 +5479,25 @@ async function initAppPage() {
         );
 
     }
+
+
+    /*
+        Mises rapides (20 €, 50 €, 100 €).
+    */
+
+    document
+        .querySelectorAll(".bet-quick button")
+        .forEach(button => {
+
+            button.addEventListener("click", () => {
+
+                stakeInput.value = button.dataset.stake;
+
+                updatePotentialWin();
+
+            });
+
+        });
 
 
     /*

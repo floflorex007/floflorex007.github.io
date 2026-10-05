@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BetLab – Fenêtre de mise (propositions)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; }
+button, input { font: inherit; }
+h1 { font-size: 26px; margin-bottom: 6px; }
+.sub { color: #858a98; margin-bottom: 20px; max-width: 760px; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; position: sticky; top: 0; background: #0f1117; padding: 10px 0; z-index: 10; }
+.tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; }
+.tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.variant { display: none; }
+.variant.active { display: block; animation: fade .3s; }
+@keyframes fade { from { opacity: 0; transform: translateY(8px); } }
+.variant-desc { color: #aaaeba; font-size: 14px; margin-bottom: 18px; max-width: 520px; }
+
+.modal { position: relative; max-width: 440px; background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; border-radius: 22px; padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+.close { position: absolute; top: 14px; right: 16px; background: none; border: none; color: #858a98; font-size: 22px; cursor: pointer; }
+.q { font-size: 18px; font-weight: 800; padding-right: 24px; }
+.author { color: #858a98; font-size: 12px; margin: 4px 0 16px; }
+.pick { display: flex; justify-content: space-between; align-items: center; background: rgba(108,99,255,.12); border: 1px solid rgba(108,99,255,.45); border-radius: 14px; padding: 12px 14px; margin-bottom: 18px; }
+.pick b { font-size: 16px; }
+.odds { background: #6c63ff; color: white; font-weight: 900; padding: 4px 10px; border-radius: 999px; }
+.label { font-size: 11px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; color: #858a98; margin-bottom: 8px; display: block; }
+.solde { color: #858a98; font-size: 12px; text-align: right; margin-top: 6px; }
+.go { width: 100%; margin-top: 18px; border: none; border-radius: 14px; padding: 15px; font-weight: 900; font-size: 16px; cursor: pointer; color: #0b1f15; background: linear-gradient(135deg, #2fa36f, #63d69f); box-shadow: 0 10px 26px rgba(99,214,159,.3); transition: transform .15s; }
+.go:hover { transform: translateY(-2px); }
+.go:disabled { background: #2c3040; color: #737887; box-shadow: none; cursor: not-allowed; transform: none; }
+.done { text-align: center; padding: 30px 0 10px; }
+.done .big { font-size: 46px; animation: pop .5s cubic-bezier(.2,1.6,.4,1); }
+@keyframes pop { from { transform: scale(0); } }
+.reset { margin-top: 12px; background: none; border: 1px dashed #3a3f52; color: #858a98; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; }
+.bump { animation: bump .25s; display: inline-block; }
+@keyframes bump { 50% { transform: scale(1.15); } }
+
+/* A : jetons */
+.chips { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.chip { aspect-ratio: 1; border-radius: 50%; border: 3px dashed rgba(255,255,255,.35); font-weight: 900; cursor: pointer; color: white; display: flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: inset 0 0 0 4px rgba(0,0,0,.18), 0 4px 10px rgba(0,0,0,.3); transition: transform .12s; }
+.chip:hover { transform: translateY(-3px) rotate(-6deg); }
+.chip.c10 { background: #3aa0ff; } .chip.c25 { background: #63d69f; color: #0b1f15; } .chip.c50 { background: #f5c451; color: #3a2a00; } .chip.c100 { background: #ff6b6b; } .chip.call { background: #6c63ff; font-size: 11px; }
+.a-row { display: flex; gap: 10px; align-items: center; margin-top: 14px; }
+.a-stake { flex: 1; background: #0f1117; border: 1px solid #2c3040; border-radius: 12px; padding: 12px; font-size: 22px; font-weight: 900; color: white; }
+.a-clear { border: 1px solid #2c3040; background: none; color: #aaaeba; border-radius: 12px; padding: 12px 14px; cursor: pointer; }
+.a-gain { margin-top: 14px; text-align: center; background: rgba(99,214,159,.08); border: 1px solid rgba(99,214,159,.3); border-radius: 14px; padding: 12px; }
+.a-gain span { display: block; font-size: 12px; color: #858a98; }
+.a-gain b { font-size: 30px; color: #63d69f; }
+
+/* B : curseur % du solde */
+.b-gain { text-align: center; margin: 4px 0 16px; }
+.b-gain span { display: block; font-size: 12px; color: #858a98; }
+.b-gain b { font-size: 44px; font-weight: 900; color: #63d69f; text-shadow: 0 0 24px rgba(99,214,159,.35); }
+.b-gain small { display: block; color: #a59fff; font-weight: 800; margin-top: 2px; }
+.b-range { width: 100%; accent-color: #6c63ff; height: 24px; }
+.b-marks { display: flex; justify-content: space-between; font-size: 11px; color: #737887; margin-top: 2px; }
+.b-marks button { background: none; border: none; color: #a59fff; cursor: pointer; font-size: 12px; }
+.b-stake { text-align: center; margin-top: 10px; font-size: 14px; color: #aaaeba; }
+.b-stake b { color: white; font-size: 18px; }
+
+/* C : ticket */
+.ticket { background: #f4f1e8; color: #1a1a1a; border-radius: 14px; padding: 18px; position: relative; }
+.ticket::before, .ticket::after { content: ""; position: absolute; top: 50%; width: 22px; height: 22px; border-radius: 50%; background: #181b23; transform: translateY(-50%); }
+.ticket::before { left: -11px; } .ticket::after { right: -11px; }
+.ticket .t-head { display: flex; justify-content: space-between; font-size: 11px; font-weight: 800; letter-spacing: .5px; color: #7a7466; }
+.ticket .t-q { font-weight: 800; margin: 8px 0 4px; }
+.ticket .t-pick { display: flex; justify-content: space-between; font-weight: 800; }
+.ticket hr { border: none; border-top: 2px dashed #c9c2b0; margin: 14px 0; }
+.t-line { display: flex; justify-content: space-between; align-items: center; margin: 6px 0; }
+.t-step { display: flex; align-items: center; gap: 8px; }
+.t-step button { width: 34px; height: 34px; border-radius: 50%; border: none; background: #1a1a1a; color: white; font-weight: 900; cursor: pointer; }
+.t-step b { min-width: 80px; text-align: center; font-size: 20px; }
+.t-total { font-size: 26px; font-weight: 900; color: #1f8a55; }
+.t-quick { display: flex; gap: 6px; margin-top: 10px; }
+.t-quick button { flex: 1; border: 1px solid #c9c2b0; background: white; border-radius: 8px; padding: 6px; cursor: pointer; font-weight: 700; font-size: 12px; }
+
+/* D : jauge + palier */
+.d-wrap { display: flex; gap: 16px; align-items: stretch; }
+.d-gauge { width: 46px; border-radius: 14px; background: #0f1117; border: 1px solid #2c3040; position: relative; overflow: hidden; }
+.d-fill { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(0deg, #2fa36f, #63d69f, #f5c451); transition: height .3s; }
+.d-coin { position: absolute; left: 50%; transform: translateX(-50%); font-size: 20px; transition: bottom .3s; }
+.d-main { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+.d-gain b { font-size: 34px; font-weight: 900; color: #63d69f; }
+.d-gain span { display: block; font-size: 12px; color: #858a98; }
+.d-input { background: #0f1117; border: 1px solid #2c3040; border-radius: 12px; padding: 12px; font-size: 20px; font-weight: 800; color: white; width: 100%; }
+.d-tip { font-size: 13px; color: #f5c451; min-height: 18px; }
+.d-quick { display: flex; gap: 6px; }
+.d-quick button { flex: 1; border: 1px solid #2c3040; background: #1c202c; color: white; border-radius: 10px; padding: 8px; cursor: pointer; font-weight: 700; }
+
+.bar { position: fixed; left: 0; right: 0; bottom: 0; background: #171a23; border-top: 1px solid #2c3040; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.bar strong { color: #f5c451; }
+.choose { background: #f5c451; color: #111; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 800; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<h1>Fenêtre de mise : 4 propositions</h1>
+<p class="sub">Celle qui s'ouvre quand on clique sur une cote. Toutes sont interactives : choisis une mise et regarde le gain bouger. Solde fictif : 1 520 €.</p>
+
+<div class="tabs">
+    <button class="tab active" data-v="A">A · Jetons de casino</button>
+    <button class="tab" data-v="B">B · Curseur « % du solde »</button>
+    <button class="tab" data-v="C">C · Ticket de pari</button>
+    <button class="tab" data-v="D">D · Jauge de gain</button>
+</div>
+
+<section class="variant active" id="v-A"><p class="variant-desc">On clique sur des jetons colorés pour empiler sa mise (comme au casino). Le gain s'affiche en gros et grossit à chaque jeton.</p><div data-mount></div></section>
+<section class="variant" id="v-B"><p class="variant-desc">Un seul curseur : on choisit quelle part de son solde on mise. Le gain est le héros, en énorme au centre, avec le multiplicateur.</p><div data-mount></div></section>
+<section class="variant" id="v-C"><p class="variant-desc">Un vrai ticket de bookmaker (papier crème, découpes). On ajuste la mise avec − et +, le total à gagner est imprimé en bas.</p><div data-mount></div></section>
+<section class="variant" id="v-D"><p class="variant-desc">Une jauge qui se remplit avec le gain et des petits messages qui motivent (« encore 20 € pour gagner 100 € ! »).</p><div data-mount></div></section>
+
+<div class="bar">
+    <span>Proposition affichée : <strong id="current">A · Jetons de casino</strong></span>
+    <button class="choose" id="choose">Je choisis celle-ci</button>
+</div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const money = n => n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+const BAL = 1520, ODDS = 1.8;
+const head = `<button class="close">×</button><div class="q">Qui gagne le match ce soir ?</div><div class="author">🏆 Créé par Lucas · ⏳ ferme ce soir à 21h</div><div class="pick"><span>Ton choix : <b>PSG</b></span><span class="odds">× ${ODDS.toFixed(2)}</span></div>`;
+const done = s => `<div class="done"><div class="big">🎟️</div><h3 style="margin:8px 0 4px">Pari placé !</h3><p style="color:#858a98">${money(s)} sur PSG · gain possible ${money(s * ODDS)}</p></div>`;
+const bump = el => { el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump"); };
+
+const V = {
+    A(m) {
+        let s = 0;
+        m.innerHTML = `<div class="modal">${head}
+            <span class="label">Choisis tes jetons</span>
+            <div class="chips"><button class="chip c10" data-v="10">10</button><button class="chip c25" data-v="25">25</button><button class="chip c50" data-v="50">50</button><button class="chip c100" data-v="100">100</button><button class="chip call" data-v="all">TAPIS</button></div>
+            <div class="a-row"><input class="a-stake" value="0 €" readonly><button class="a-clear">Effacer</button></div>
+            <div class="solde">Solde : ${money(BAL)}</div>
+            <div class="a-gain"><span>Tu peux gagner</span><b>${money(0)}</b></div>
+            <button class="go" disabled>Placer le pari</button></div>`;
+        const upd = () => { $(".a-stake", m).value = money(s); const g = $(".a-gain b", m); g.textContent = money(s * ODDS); bump(g); $(".go", m).disabled = !s; $(".go", m).textContent = s ? `🎟️ Miser ${money(s)}` : "Placer le pari"; };
+        m.querySelectorAll(".chip").forEach(c => c.onclick = () => { s = c.dataset.v === "all" ? BAL : Math.min(BAL, s + +c.dataset.v); upd(); });
+        $(".a-clear", m).onclick = () => { s = 0; upd(); };
+        $(".go", m).onclick = () => { $(".modal", m).innerHTML = done(s); };
+    },
+    B(m) {
+        m.innerHTML = `<div class="modal">${head}
+            <div class="b-gain"><span>Tu peux gagner</span><b>0,00 €</b><small>mise × ${ODDS.toFixed(2)}</small></div>
+            <input type="range" class="b-range" min="0" max="100" value="0">
+            <div class="b-marks"><button data-p="5">5 %</button><button data-p="10">10 %</button><button data-p="25">25 %</button><button data-p="50">50 %</button><button data-p="100">Tout</button></div>
+            <div class="b-stake">Mise : <b>0,00 €</b> · ${"0"} % de ton solde</div>
+            <button class="go" disabled>Placer le pari</button></div>`;
+        const r = $(".b-range", m);
+        const upd = () => { const s = Math.round(BAL * r.value / 100); $(".b-gain b", m).textContent = money(s * ODDS); $(".b-stake", m).innerHTML = `Mise : <b>${money(s)}</b> · ${r.value} % de ton solde`; $(".go", m).disabled = !s; $(".go", m).textContent = s ? `🎟️ Miser ${money(s)}` : "Placer le pari"; };
+        r.oninput = upd;
+        m.querySelectorAll(".b-marks button").forEach(b => b.onclick = () => { r.value = b.dataset.p; upd(); bump($(".b-gain b", m)); });
+        $(".go", m).onclick = () => { $(".modal", m).innerHTML = done(Math.round(BAL * r.value / 100)); };
+    },
+    C(m) {
+        let s = 20;
+        m.innerHTML = `<div class="modal"><button class="close">×</button>
+            <div class="ticket">
+                <div class="t-head"><span>BETLAB · TICKET</span><span>N° 004218</span></div>
+                <div class="t-q">Qui gagne le match ce soir ?</div>
+                <div class="t-pick"><span>PSG</span><span>× ${ODDS.toFixed(2)}</span></div>
+                <hr>
+                <div class="t-line"><span>Mise</span><span class="t-step"><button data-d="-10">−</button><b>${money(s)}</b><button data-d="10">+</button></span></div>
+                <div class="t-quick"><button data-q="10">10 €</button><button data-q="50">50 €</button><button data-q="100">100 €</button><button data-q="200">200 €</button></div>
+                <hr>
+                <div class="t-line"><span>À GAGNER</span><span class="t-total">${money(s * ODDS)}</span></div>
+            </div>
+            <button class="go">🎟️ Valider le ticket</button></div>`;
+        const upd = () => { $(".t-step b", m).textContent = money(s); const t = $(".t-total", m); t.textContent = money(s * ODDS); bump(t); };
+        m.querySelectorAll(".t-step button").forEach(b => b.onclick = () => { s = Math.max(10, Math.min(BAL, s + +b.dataset.d)); upd(); });
+        m.querySelectorAll(".t-quick button").forEach(b => b.onclick = () => { s = +b.dataset.q; upd(); });
+        $(".go", m).onclick = () => { $(".modal", m).innerHTML = done(s); };
+    },
+    D(m) {
+        m.innerHTML = `<div class="modal">${head}
+            <div class="d-wrap"><div class="d-gauge"><div class="d-fill" style="height:0"></div><span class="d-coin" style="bottom:0">🪙</span></div>
+            <div class="d-main">
+                <div class="d-gain"><span>Gain possible</span><b>0,00 €</b></div>
+                <input class="d-input" type="number" min="0" placeholder="Ta mise (€)">
+                <div class="d-quick"><button data-q="20">20 €</button><button data-q="50">50 €</button><button data-q="100">100 €</button></div>
+                <div class="d-tip">💡 Choisis une mise pour voir ton gain.</div>
+            </div></div>
+            <button class="go" disabled>Placer le pari</button></div>`;
+        const inp = $(".d-input", m);
+        const upd = () => {
+            const s = Math.max(0, Math.min(BAL, +inp.value || 0)), g = s * ODDS, pct = Math.min(100, g / 500 * 100);
+            $(".d-gain b", m).textContent = money(g); $(".d-fill", m).style.height = pct + "%"; $(".d-coin", m).style.bottom = `calc(${pct}% - 4px)`;
+            const goals = [50, 100, 200, 500], next = goals.find(x => x > g);
+            $(".d-tip", m).textContent = !s ? "💡 Choisis une mise pour voir ton gain." : next ? `🔥 Encore ${money(Math.ceil((next - g) / ODDS))} pour viser ${money(next)} !` : "🤑 Gros coup en vue !";
+            $(".go", m).disabled = !s; $(".go", m).textContent = s ? `🎟️ Miser ${money(s)}` : "Placer le pari";
+        };
+        inp.oninput = upd;
+        m.querySelectorAll(".d-quick button").forEach(b => b.onclick = () => { inp.value = b.dataset.q; upd(); });
+        $(".go", m).onclick = () => { $(".modal", m).innerHTML = done(+inp.value); };
+    }
+};
+
+Object.keys(V).forEach(k => {
+    const mount = $("#v-" + k + " [data-mount]");
+    V[k](mount);
+    const r = document.createElement("button"); r.className = "reset"; r.textContent = "↺ Recommencer";
+    r.onclick = () => V[k](mount); mount.after(r);
+});
+
+document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t === tab));
+    document.querySelectorAll(".variant").forEach(v => v.classList.toggle("active", v.id === "v-" + tab.dataset.v));
+    $("#current").textContent = tab.textContent;
+}));
+
+$("#choose").addEventListener("click", () => {
+    const txt = "Je choisis pour la fenêtre de mise : " + $("#current").textContent;
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).catch(() => {});
+    $("#choose").textContent = "✔ Copié ! Colle-le dans le chat";
+    setTimeout(() => $("#choose").textContent = "Je choisis celle-ci", 2500);
+});
+</script>
+</body>
+</html>

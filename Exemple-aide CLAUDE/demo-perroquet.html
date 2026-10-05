@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BetLab – Aperçu du perroquet</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; min-height: 100vh; }
+button { font: inherit; }
+
+/* Fausse page principale, pour juger la place du perroquet */
+.top { display: flex; justify-content: space-between; align-items: center; padding: 14px 24px; border-bottom: 1px solid #22252f; }
+.top b { font-size: 20px; color: #6c63ff; }
+.top span { color: #63d69f; font-weight: 800; }
+.main { max-width: 900px; margin: 0 auto; padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+.main h1 { font-size: 24px; }
+.main p { color: #858a98; }
+.fake-card { background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; border-radius: 18px; padding: 20px; }
+.fake-card h3 { margin-bottom: 12px; }
+.fake-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.fake-choices div { background: #262a38; border-radius: 12px; padding: 12px; }
+
+.controls { position: fixed; left: 16px; bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap; z-index: 20; }
+.controls button { border: 2px solid #3a3f52; background: #1c202c; color: #e6e8ee; padding: 8px 14px; border-radius: 999px; cursor: pointer; }
+.controls button.on { border-color: #f5b919; color: #f5b919; }
+.size { position: fixed; left: 16px; bottom: 64px; display: flex; gap: 8px; align-items: center; font-size: 13px; color: #858a98; z-index: 20; }
+
+.missing { position: fixed; inset: auto 16px 120px auto; max-width: 280px; background: #3a1c22; border: 1px solid #ff6b6b; color: #ffb3b3; padding: 12px; border-radius: 12px; font-size: 13px; z-index: 30; display: none; }
+
+/* ===== LE PERROQUET (512 × 650, mis à l'échelle) ===== */
+.parrot { position: fixed; right: 12px; bottom: 0; width: var(--w, 200px); aspect-ratio: 512 / 650; z-index: 10; pointer-events: none; }
+.parrot .inner { position: absolute; left: 0; top: 0; width: 512px; height: 650px; transform-origin: 0 0; }
+.parrot .pose { position: absolute; left: 0; top: 0; width: 512px; height: 650px; transform-origin: 256px 560px; will-change: transform, opacity; }
+.parrot img { position: absolute; pointer-events: none; user-select: none; }
+</style>
+</head>
+<body>
+
+<div class="top"><b>BetLab</b><span>1 520,00 €</span></div>
+
+<div class="main">
+    <h1>Paris disponibles</h1>
+    <p>Fausse page principale pour juger la taille et la place du perroquet. Bouge la souris : il te suit du regard.</p>
+    <div class="fake-card"><h3>🎲 Qui gagne le match ce soir ?</h3><div class="fake-choices"><div>PSG · 1.80</div><div>OM · 2.25</div></div></div>
+    <div class="fake-card"><h3>🎲 Thomas arrivera-t-il en retard ?</h3><div class="fake-choices"><div>Oui · 1.50</div><div>Non · 3.00</div></div></div>
+    <div class="fake-card"><h3>🎲 Il va pleuvoir samedi ?</h3><div class="fake-choices"><div>Oui · 2.40</div><div>Non · 1.71</div></div></div>
+</div>
+
+<div class="size">Taille : <input type="range" min="120" max="320" value="200" id="size"> <span id="size-val">200 px</span></div>
+<div class="controls">
+    <button data-s="waiting" class="on">En attente</button>
+    <button data-s="win">Pari gagné</button>
+    <button data-s="lose">Pari perdu</button>
+</div>
+
+<div class="missing" id="missing">⚠️ Images introuvables. Dépose les 12 fichiers PNG du dossier <b>assets/v2</b> de Claude Design dans <b>assets/perroquet/</b> du projet.</div>
+
+<!-- Structure reprise de « Perroquet v2 » (Claude Design) -->
+<div class="parrot" id="parrot">
+    <div class="inner">
+
+        <div class="pose" data-pose="waiting">
+            <div style="position:absolute;left:0;top:0;width:512px;height:650px;transform:scaleX(-1);transform-origin:256px 0">
+                <img src="../assets/perroquet/wait-body.png" alt="" style="left:2px;top:119px;width:392px;height:441px">
+                <div data-ref="waitHead" style="position:absolute;left:2px;top:119px;width:392px;height:441px;transform-origin:288px 181px">
+                    <img src="../assets/perroquet/wait-head.png" alt="Perroquet" style="left:0;top:0;width:392px;height:441px">
+                </div>
+                <img data-ref="waitLines" src="../assets/perroquet/wait-lines.png" alt="" style="left:343px;top:109px;width:39px;height:42px;transform-origin:0 100%;opacity:0">
+            </div>
+        </div>
+
+        <div class="pose" data-pose="win" style="opacity:0">
+            <img data-ref="winBill1" src="../assets/perroquet/win-bill1.png" alt="" style="left:19px;top:224px;width:55px;height:70px">
+            <img src="../assets/perroquet/win-main.png" alt="Pari gagné" style="left:2px;top:71px;width:508px;height:562px">
+            <img data-ref="winLines" src="../assets/perroquet/win-lines.png" alt="" style="left:254px;top:59px;width:117px;height:189px">
+            <img data-ref="winBill2" src="../assets/perroquet/win-bill2.png" alt="" style="left:346px;top:257px;width:114px;height:51px">
+            <img data-ref="winBill3" src="../assets/perroquet/win-bill3.png" alt="" style="left:431px;top:319px;width:58px;height:53px">
+            <img data-ref="winBubble" src="../assets/perroquet/win-bubble.png" alt="Bravo !" style="left:321px;top:36px;width:171px;height:146px;transform-origin:9px 140px">
+        </div>
+
+        <div class="pose" data-pose="lose" style="opacity:0">
+            <img src="../assets/perroquet/lose-main.png" alt="Pari perdu" style="left:25px;top:95px;width:442px;height:489px">
+            <img data-ref="loseLines" src="../assets/perroquet/lose-lines.png" alt="" style="left:374px;top:245px;width:40px;height:47px;transform-origin:0 100%">
+            <img data-ref="loseBubble" src="../assets/perroquet/lose-bubble.png" alt="Tant pis…" style="left:335px;top:36px;width:156px;height:157px;transform-origin:62px 150px">
+        </div>
+
+        <div data-ref="fx" style="position:absolute;left:0;top:0;width:512px;height:650px"></div>
+    </div>
+</div>
+
+<script>
+/* Animation reprise de « Perroquet v2 » (Claude Design), sans React. */
+(() => {
+    const root = document.getElementById("parrot");
+    const inner = root.querySelector(".inner");
+    const ref = n => root.querySelector(`[data-ref="${n}"]`);
+    const pose = { waiting: root.querySelector('[data-pose="waiting"]'), win: root.querySelector('[data-pose="win"]'), lose: root.querySelector('[data-pose="lose"]') };
+    const R = { waitHead: ref("waitHead"), waitLines: ref("waitLines"), winBubble: ref("winBubble"), winLines: ref("winLines"), winBill1: ref("winBill1"), winBill2: ref("winBill2"), winBill3: ref("winBill3"), loseBubble: ref("loseBubble"), loseLines: ref("loseLines"), fx: ref("fx") };
+
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+    const ease = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    const easeIn = t => t * t, easeOut = t => 1 - Math.pow(1 - t, 3);
+    const kf = (t, keys) => { if (t <= keys[0][0]) return keys[0][1]; for (let i = 1; i < keys.length; i++) { const [t1, v1] = keys[i], [t0, v0] = keys[i - 1]; if (t <= t1) return v0 + (v1 - v0) * ease((t - t0) / (t1 - t0)); } return keys[keys.length - 1][1]; };
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    const POP = [[0, .9], [.16, 1.05], [.3, .98], [.45, 1]];
+    const BUB = [[0, 0], [.35, 0], [.55, 1.12], [.68, .95], [.8, 1]];
+    const BILL = "../assets/perroquet/win-bill2.png";
+    const HOLD = 4;
+
+    let mode = "waiting", mouse = null, lastMove = -1e9, parts = [], shake = 0, prevT = null, holdT;
+    const cur = { rot: 0, x: 0, y: 0, speed: 0 };
+    const op = { waiting: 1, win: 0, lose: 0 };
+    const enter = { waiting: performance.now() / 1000 - 1, win: -10, lose: -10 };
+
+    const fit = () => { inner.style.transform = `scale(${root.clientWidth / 512})`; };
+    new ResizeObserver(fit).observe(root); fit();
+
+    window.addEventListener("mousemove", e => {
+        const n = performance.now();
+        if (mouse) { const d = Math.hypot(e.clientX - mouse.x, e.clientY - mouse.y) / Math.max(1, n - lastMove); cur.speed = Math.max(cur.speed, clamp(d / 2.5, 0, 1)); }
+        mouse = { x: e.clientX, y: e.clientY }; lastMove = n;
+    });
+
+    const bill = () => { const el = document.createElement("img"); el.src = BILL; el.style.cssText = "left:0;top:0;width:114px;height:51px;margin:-25px 0 0 -57px;opacity:0"; R.fx.appendChild(el); return el; };
+
+    function trigger(m) {
+        clearTimeout(holdT); parts.forEach(p => p.el.remove()); parts = []; R.fx.innerHTML = "";
+        const now = performance.now() / 1000; enter[m] = now; mode = m;
+        if (m === "win") for (let i = 0; i < 8; i++) parts.push({ el: bill(), t0: now + .35 + i * .2, dur: rnd(.55, .65), p0: { x: rnd(335, 365), y: rnd(355, 375) }, p1: { x: rnd(410, 440), y: rnd(320, 345) }, p2: { x: rnd(452, 468), y: rnd(445, 460) }, r0: rnd(-25, -10), r1: rnd(15, 35), s0: .45, s1: .38, ez: easeOut, fade: [.12, .8] });
+        if (m === "lose") for (let i = 0; i < 6; i++) parts.push({ el: bill(), t0: now + .45 + i * .16, dur: rnd(.6, .75), p0: { x: rnd(540, 620), y: rnd(120, 520) }, p1: { x: rnd(430, 500), y: rnd(180, 260) }, p2: { x: rnd(340, 370), y: rnd(330, 345) }, r0: rnd(-160, 160), r1: rnd(-15, 15), s0: .7, s1: .3, ez: easeIn, fade: [.15, .85], hit: true });
+        if (m !== "waiting") holdT = setTimeout(() => trigger("waiting"), HOLD * 1000);
+        document.querySelectorAll(".controls button").forEach(b => b.classList.toggle("on", b.dataset.s === m));
+    }
+    window.Parrot = { wait: () => trigger("waiting"), win: () => trigger("win"), lose: () => trigger("lose") };
+
+    function loop(ms) {
+        requestAnimationFrame(loop);
+        const now = ms / 1000, dt = Math.min(.05, now - (prevT ?? now)); prevT = now;
+        for (const m of ["waiting", "win", "lose"]) { const tgt = m === mode ? 1 : 0; op[m] += (tgt - op[m]) * (1 - Math.exp(-dt * (tgt ? 14 : 20))); }
+        const r = root.getBoundingClientRect(), s = r.width / 512 || 1;
+        const idle = ms - lastMove > 2500 || !mouse;
+        let tx, ty; if (idle) { tx = 222 + Math.sin(now * .5) * 240; ty = 150 + Math.sin(now * .37 + 1) * 150; } else { tx = (mouse.x - r.left) / s; ty = (mouse.y - r.top) / s; }
+        const dx = 222 - tx, dy = ty - 220;
+        const T = { rot: clamp(dy * .02, -6, 6), x: clamp(dx * .02, -8, 8), y: clamp(dy * .012, -5, 5) };
+        const k = 1 - Math.exp(-dt * (idle ? 3 : 9)); for (const key in T) cur[key] += (T[key] - cur[key]) * k;
+        cur.speed *= Math.exp(-dt * 2.5);
+        const br = Math.sin(now * 2.3);
+
+        { const sc = kf(now - enter.waiting, POP), p = pose.waiting; p.style.opacity = op.waiting.toFixed(3); p.style.visibility = op.waiting < .01 ? "hidden" : "visible";
+          p.style.transform = `scale(${sc * (1 - br * .004)},${sc * (1 + br * .008)})`;
+          R.waitHead.style.transform = `translate(${cur.x}px,${cur.y + br * 1.2}px) rotate(${cur.rot}deg)`;
+          const lo = clamp(cur.speed * 1.6, 0, 1); R.waitLines.style.opacity = lo.toFixed(2); R.waitLines.style.transform = `translate(${cur.x}px,${cur.y}px) scale(${.7 + lo * .4})`; }
+
+        { const te = now - enter.win, sc = kf(te, POP), bob = Math.abs(Math.sin(now * 4.2)), p = pose.win; p.style.opacity = op.win.toFixed(3); p.style.visibility = op.win < .01 ? "hidden" : "visible";
+          p.style.transform = `translateY(${-bob * 6}px) scale(${sc * (1 - bob * .012)},${sc * (1 + bob * .015)})`;
+          R.winBubble.style.transform = `translateY(${Math.sin(now * 1.8) * 4}px) scale(${kf(te, BUB)}) rotate(${Math.sin(now * 1.3) * 2}deg)`;
+          R.winLines.style.opacity = Math.sin(now * 9) > -.2 ? 1 : .25;
+          R.winBill1.style.transform = `translate(${Math.sin(now * 1.7) * 6}px,${Math.sin(now * 2.1) * 10}px) rotate(${Math.sin(now * 1.4) * 12}deg)`;
+          R.winBill2.style.transform = `translate(${Math.sin(now * 1.5 + 1) * 8}px,${Math.sin(now * 1.9 + 2) * 9}px) rotate(${Math.sin(now * 1.2 + 1) * 8}deg)`;
+          R.winBill3.style.transform = `translate(${Math.sin(now * 1.6 + 3) * 6}px,${Math.sin(now * 2.3 + 1) * 10}px) rotate(${Math.sin(now * 1.5 + 2) * 14}deg)`; }
+
+        { const te = now - enter.lose, sc = kf(te, POP); shake *= Math.exp(-dt * 8); const sh = Math.sin(now * 40) * shake, p = pose.lose;
+          p.style.opacity = op.lose.toFixed(3); p.style.visibility = op.lose < .01 ? "hidden" : "visible";
+          p.style.transform = `rotate(${Math.sin(now * 1.6) * 1.3 + sh}deg) scale(${sc * (1 - br * .004)},${sc * (1 + br * .008)})`;
+          R.loseBubble.style.transform = `translateY(${Math.sin(now * 1.7) * 4}px) scale(${kf(te, BUB)}) rotate(${Math.sin(now * 1.1) * 2}deg)`;
+          const w = Math.sin(now * 6); R.loseLines.style.transform = `rotate(${w * 8}deg) scale(${1 + w * .08})`; R.loseLines.style.opacity = (.6 + .4 * Math.abs(w)).toFixed(2); }
+
+        parts = parts.filter(p => {
+            const t = (now - p.t0) / p.dur; if (t < 0) return true;
+            if (t >= 1) { if (p.hit) shake = Math.min(3, shake + 1.6); p.el.remove(); return false; }
+            const e = p.ez(t), u = 1 - e, x = u * u * p.p0.x + 2 * u * e * p.p1.x + e * e * p.p2.x, y = u * u * p.p0.y + 2 * u * e * p.p1.y + e * e * p.p2.y;
+            const o = t < p.fade[0] ? t / p.fade[0] : t > p.fade[1] ? 1 - (t - p.fade[1]) / (1 - p.fade[1]) : 1;
+            const sc = p.s0 + (p.s1 - p.s0) * e, flip = Math.cos(now * 8 + p.t0 * 13) * .35 + .65;
+            p.el.style.opacity = o.toFixed(3); p.el.style.transform = `translate(${x}px,${y}px) rotate(${p.r0 + (p.r1 - p.r0) * e}deg) scale(${sc},${sc * flip})`;
+            return true;
+        });
+    }
+    requestAnimationFrame(loop);
+
+    document.querySelectorAll(".controls button").forEach(b => b.addEventListener("click", () => trigger(b.dataset.s)));
+    const size = document.getElementById("size");
+    size.addEventListener("input", () => { root.style.setProperty("--w", size.value + "px"); document.getElementById("size-val").textContent = size.value + " px"; });
+
+    const test = new Image();
+    test.onerror = () => { document.getElementById("missing").style.display = "block"; };
+    test.src = "../assets/perroquet/win-main.png";
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Les chemins (style.css, parrot.js, images) partent de la racine du projet -->
+<base href="../">
+<title>BetLab – Billets perroquet ↔ solde</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body { background: #0f1117; min-height: 100vh; overflow: hidden; }
+.demo-top { display: flex; justify-content: space-between; align-items: center; padding: 14px 24px; border-bottom: 1px solid #22252f; }
+.demo-top b { font-size: 20px; color: #6c63ff; }
+.demo-balance { text-align: right; }
+.demo-balance span { display: block; font-size: 11px; color: #858a98; }
+.demo-balance strong { color: #63d69f; font-size: 18px; font-variant-numeric: tabular-nums; display: inline-block; transition: transform .15s; }
+.demo-balance strong.hit-win { transform: scale(1.25); color: #9ff0c6; }
+.demo-balance strong.hit-lose { transform: scale(.85); color: #ff8a8a; }
+.demo-main { padding: 30px 24px; max-width: 640px; color: #aaaeba; }
+.demo-main h1 { color: white; font-size: 24px; margin-bottom: 8px; }
+.demo-panel { margin-top: 22px; display: flex; flex-direction: column; gap: 14px; }
+.demo-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.demo-row b { width: 120px; color: white; }
+.demo-row button { border: 2px solid #3a3f52; background: #1c202c; color: #e6e8ee; padding: 9px 16px; border-radius: 999px; cursor: pointer; font: inherit; }
+.demo-row button.win { border-color: #6cc04a; }
+.demo-row button.lose { border-color: #ef4a5a; }
+.demo-note { font-size: 13px; color: #737887; margin-top: 6px; }
+.fly-bill { position: fixed; left: 0; top: 0; width: 70px; height: 31px; margin: -15px 0 0 -35px; pointer-events: none; z-index: 200; will-change: transform, opacity; }
+.fly-trail { position: fixed; left: 0; top: 0; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: #9ff0c6; pointer-events: none; z-index: 199; }
+</style>
+</head>
+<body>
+
+<div class="demo-top">
+    <b>BetLab</b>
+    <div class="demo-balance"><span>Solde</span><strong id="balance">1 520,00 €</strong></div>
+</div>
+
+<div class="demo-main">
+    <h1>Billets : perroquet ↔ solde</h1>
+    <p>Chaque bouton joue l'état du perroquet <b>et</b> le trajet des billets. Gagné : du perroquet vers le solde (qui monte). Perdu : du solde vers le perroquet (qui baisse).</p>
+
+    <div class="demo-panel">
+        <div class="demo-row"><b>Version 1 · Arc</b><button class="win" data-v="1" data-m="win">▶ Gagné</button><button class="lose" data-v="1" data-m="lose">▶ Perdu</button></div>
+        <p class="demo-note">Les billets partent un par un en traçant une belle courbe, en tournoyant. Le solde « encaisse » chaque billet avec un petit rebond.</p>
+
+        <div class="demo-row"><b>Version 2 · Tornade</b><button class="win" data-v="2" data-m="win">▶ Gagné</button><button class="lose" data-v="2" data-m="lose">▶ Perdu</button></div>
+        <p class="demo-note">Gagné : les billets jaillissent en gerbe, flottent un instant, puis filent en spirale vers le solde avec une traînée lumineuse. Perdu : ils s'échappent du solde et tombent en virevoltant comme des feuilles jusqu'au perroquet.</p>
+    </div>
+</div>
+
+<section id="bets-page" class="app-page">
+    <div id="parrot" class="parrot" aria-hidden="true"></div>
+</section>
+
+<script src="parrot.js"></script>
+<script>
+const BILL = "assets/perroquet/win-bill2.png";
+const balanceEl = document.getElementById("balance");
+let balance = 1520;
+
+const fmt = v => v.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+const rnd = (a, b) => a + Math.random() * (b - a);
+
+/* Points de départ / d'arrivée */
+function parrotPoint() {
+    return Parrot.billsPoint();   // la liasse de billets du perroquet
+}
+
+/* Axe perroquet → solde : direction + perpendiculaire (côté gauche) */
+function axis(a, b) {
+    const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
+    return { dir: { x: dx / len, y: dy / len }, perp: { x: dy / len, y: -dx / len }, len };
+}
+function balancePoint() {
+    const r = balanceEl.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+}
+
+function makeBill() {
+    const el = document.createElement("img");
+    el.src = BILL; el.className = "fly-bill"; el.alt = "";
+    document.body.appendChild(el);
+    return el;
+}
+
+/* Solde : petit rebond à chaque billet, montant qui défile */
+function hitBalance(delta, kind) {
+    const from = balance; balance += delta;
+    const t0 = performance.now();
+    (function step(t) {
+        const p = Math.min(1, (t - t0) / 250);
+        balanceEl.textContent = fmt(from + (balance - from) * p);
+        if (p < 1) requestAnimationFrame(step);
+    })(t0);
+    balanceEl.classList.remove("hit-win", "hit-lose"); void balanceEl.offsetWidth;
+    balanceEl.classList.add(kind === "win" ? "hit-win" : "hit-lose");
+    setTimeout(() => balanceEl.classList.remove("hit-win", "hit-lose"), 160);
+}
+
+/* Bézier quadratique échantillonnée en étapes d'animation */
+function curve(a, c, b, n, extra) {
+    const frames = [];
+    for (let i = 0; i <= n; i++) {
+        const t = i / n, u = 1 - t;
+        const x = u * u * a.x + 2 * u * t * c.x + t * t * b.x;
+        const y = u * u * a.y + 2 * u * t * c.y + t * t * b.y;
+        frames.push({ transform: `translate(${x}px,${y}px) ${extra(t)}`, offset: t });
+    }
+    return frames;
+}
+
+/* ===== Version 1 : Arc ===== */
+function v1(mode) {
+    const COUNT = 8, TOTAL = mode === "win" ? 150 : -50;
+    const start = mode === "win" ? parrotPoint() : balancePoint();
+    const end = mode === "win" ? balancePoint() : parrotPoint();
+    for (let i = 0; i < COUNT; i++) {
+        setTimeout(() => {
+            const el = makeBill();
+            const ax = axis(start, end), bend = rnd(20, 110);
+            const ctrl = { x: (start.x + end.x) / 2 + ax.perp.x * bend, y: (start.y + end.y) / 2 + ax.perp.y * bend };
+            const spin = rnd(360, 720) * (Math.random() < .5 ? -1 : 1);
+            const anim = el.animate(curve(start, ctrl, end, 24, t => `rotate(${spin * t}deg) scale(${mode === "win" ? 1 - t * .45 : .55 + t * .45})`), {
+                duration: 900, easing: "cubic-bezier(.45,0,.35,1)", fill: "forwards"
+            });
+            anim.onfinish = () => {
+                el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, fill: "forwards" }).onfinish = () => el.remove();
+                if (mode === "win") hitBalance(TOTAL / COUNT, "win"); else Parrot.hit();
+            };
+            if (mode === "lose") hitBalance(TOTAL / COUNT, "lose");
+        }, (mode === "win" ? 500 : 150) + i * 110);
+    }
+}
+
+/* ===== Version 2 : Tornade / feuilles ===== */
+function v2(mode) {
+    const COUNT = 10, TOTAL = mode === "win" ? 150 : -50;
+    if (mode === "win") {
+        const p = parrotPoint(), b = balancePoint();
+        for (let i = 0; i < COUNT; i++) {
+            const el = makeBill();
+            const ax = axis(p, b), go = rnd(60, 150), side = rnd(-45, 45);
+            const burst = { x: p.x + ax.dir.x * go + ax.perp.x * side, y: p.y + ax.dir.y * go + ax.perp.y * side };
+            const swirl = rnd(0, Math.PI * 2);
+            const frames = [];
+            // 1. gerbe
+            frames.push({ transform: `translate(${p.x}px,${p.y}px) rotate(0deg) scale(.3)`, opacity: 0, offset: 0 });
+            frames.push({ transform: `translate(${burst.x}px,${burst.y}px) rotate(${rnd(-60, 60)}deg) scale(.9)`, opacity: 1, offset: .25 });
+            // 2. flottement
+            frames.push({ transform: `translate(${burst.x + rnd(-15, 15)}px,${burst.y - 18}px) rotate(${rnd(-30, 30)}deg) scale(.9)`, opacity: 1, offset: .42 });
+            // 3. spirale vers le solde
+            for (let k = 1; k <= 12; k++) {
+                const t = k / 12, rad = (1 - t) * 35, ang = swirl + t * Math.PI * 3;
+                const x = burst.x + (b.x - burst.x) * t + Math.cos(ang) * rad;
+                const y = burst.y + (b.y - burst.y) * t + Math.sin(ang) * rad;
+                frames.push({ transform: `translate(${x}px,${y}px) rotate(${t * 540}deg) scale(${.9 - t * .55})`, opacity: 1, offset: .42 + t * .58 });
+            }
+            setTimeout(() => {
+                const a = el.animate(frames, { duration: 1500, easing: "ease-in-out", fill: "forwards" });
+                // traînée lumineuse
+                const trail = setInterval(() => {
+                    const m = new DOMMatrix(getComputedStyle(el).transform);
+                    const d = document.createElement("div"); d.className = "fly-trail";
+                    d.style.transform = `translate(${m.e}px,${m.f}px)`;
+                    document.body.appendChild(d);
+                    d.animate([{ opacity: .8, transform: `translate(${m.e}px,${m.f}px) scale(1)` }, { opacity: 0, transform: `translate(${m.e}px,${m.f}px) scale(.2)` }], { duration: 400, fill: "forwards" }).onfinish = () => d.remove();
+                }, 45);
+                a.onfinish = () => { clearInterval(trail); el.remove(); hitBalance(TOTAL / COUNT, "win"); };
+            }, 400 + i * 70);
+        }
+    } else {
+        const b = balancePoint(), p = parrotPoint();
+        for (let i = 0; i < COUNT; i++) {
+            const el = makeBill();
+            const frames = [];
+            const end = { x: p.x + rnd(-20, 20), y: p.y + rnd(-15, 15) };
+            const sway = rnd(20, 45), phase = rnd(0, Math.PI * 2);
+            for (let k = 0; k <= 20; k++) {
+                const t = k / 20;
+                const x = b.x + (end.x - b.x) * t + Math.sin(phase + t * Math.PI * 4) * sway * (1 - t * .6);
+                const y = b.y + (end.y - b.y) * (t * t * .6 + t * .4);
+                frames.push({ transform: `translate(${x}px,${y}px) rotate(${Math.sin(phase + t * Math.PI * 4) * 40}deg) scale(${.5 + t * .4},${(.5 + t * .4) * (Math.cos(t * 14 + phase) * .35 + .65)})`, opacity: t > .9 ? (1 - t) * 10 : 1, offset: t });
+            }
+            setTimeout(() => {
+                hitBalance(TOTAL / COUNT, "lose");
+                el.animate(frames, { duration: 1700, easing: "linear", fill: "forwards" }).onfinish = () => { el.remove(); Parrot.hit(); };
+            }, 150 + i * 120);
+        }
+    }
+}
+
+document.querySelectorAll(".demo-row button").forEach(btn => btn.addEventListener("click", () => {
+    const mode = btn.dataset.m;
+    if (mode === "win") Parrot.win(); else Parrot.lose();
+    (btn.dataset.v === "1" ? v1 : v2)(mode);
+}));
+</script>
+</body>
+</html>

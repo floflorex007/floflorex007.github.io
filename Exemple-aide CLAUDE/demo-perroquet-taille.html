@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Perroquet : taille selon la mise</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body { background: #0f1117; min-height: 100vh; overflow: hidden; color: #e6e8ee; }
+.box { padding: 30px 24px; max-width: 560px; }
+.box h1 { font-size: 24px; margin-bottom: 8px; }
+.box p { color: #aaaeba; margin-bottom: 18px; }
+.amount { font-size: 34px; font-weight: 900; color: #f5c451; margin: 6px 0 2px; }
+.info { color: #a59fff; font-weight: 800; margin-bottom: 14px; }
+input[type=range] { width: 100%; accent-color: #f5c451; }
+.chart { margin-top: 22px; position: relative; height: 150px; border-left: 1px solid #2c3040; border-bottom: 1px solid #2c3040; }
+.chart svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.chart .lbl { position: absolute; font-size: 11px; color: #737887; }
+.legend { margin-top: 26px; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 14px; color: #aaaeba; }
+.legend b { color: white; }
+.legend .on { color: #f5c451; }
+.min-row { margin-top: 18px; font-size: 13px; color: #858a98; display: flex; gap: 10px; align-items: center; }
+.min-row input { width: 160px; }
+/* Taille pilotée par la démo (transition douce) */
+#parrot { transition: width .35s ease-out; }
+</style>
+</head>
+<body>
+
+<div class="box">
+    <h1>Perroquet : taille selon l'argent en jeu</h1>
+    <p>Fais glisser l'argent en jeu : le perroquet grandit en continu, et change de pile aux seuils de 300 € et 800 €. Il atteint sa taille maximale (450 px) à 1 500 €.</p>
+
+    <div class="amount" id="amount">0 €</div>
+    <div class="info" id="info"></div>
+    <input type="range" id="slider" min="0" max="2000" step="10" value="0">
+
+    <div class="chart" id="chart"></div>
+
+    <div class="legend" id="legend"></div>
+
+    <div class="min-row">Taille de départ (0 €) : <input type="range" id="min" min="150" max="350" step="10" value="250"> <span id="min-val">250 px</span></div>
+</div>
+
+<section id="bets-page" class="app-page">
+    <div id="parrot" class="parrot" aria-hidden="true"></div>
+</section>
+
+<script src="parrot.js"></script>
+<script>
+const MAX_WIDTH = 450;      // taille maximale, atteinte à 1 500 €
+const MAX_AMOUNT = 1500;
+let MIN_WIDTH = 250;        // taille à 0 € (réglable dans la démo)
+
+// Paliers : pile + plage de taille (en part de la croissance totale).
+const BANDS = [
+    { level: 1, from: 0,    to: 0,    label: "classique",      sizeFrom: 0,    sizeTo: 0 },
+    { level: 2, from: 1,    to: 299,  label: "petite pile",    sizeFrom: 0,    sizeTo: 0.25 },
+    { level: 3, from: 300,  to: 799,  label: "pile moyenne",   sizeFrom: 0.25, sizeTo: 0.6 },
+    { level: 4, from: 800,  to: 1500, label: "énorme pile",    sizeFrom: 0.6,  sizeTo: 1 }
+];
+
+function bandFor(amount) {
+    return BANDS.slice().reverse().find(b => amount >= b.from) || BANDS[0];
+}
+
+// Taille proportionnelle à l'intérieur de chaque palier.
+function widthFor(amount) {
+    const b = bandFor(Math.min(amount, MAX_AMOUNT));
+    const a = Math.min(amount, MAX_AMOUNT);
+    const t = b.to > b.from ? (a - b.from) / (b.to - b.from) : 0;
+    const part = b.sizeFrom + (b.sizeTo - b.sizeFrom) * Math.max(0, Math.min(1, t));
+    return Math.round(MIN_WIDTH + (MAX_WIDTH - MIN_WIDTH) * part);
+}
+
+function drawChart() {
+    const W = 100, pts = [];
+    for (let a = 0; a <= 2000; a += 20) pts.push(`${a / 2000 * W},${100 - (widthFor(a) - 100) / (MAX_WIDTH - 100) * 100}`);
+    document.getElementById("chart").innerHTML = `
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+            ${[300, 800, 1500].map(x => `<line x1="${x / 20}" x2="${x / 20}" y1="0" y2="100" stroke="#2c3040" stroke-dasharray="2 2" vector-effect="non-scaling-stroke"/>`).join("")}
+            <polyline points="${pts.join(" ")}" fill="none" stroke="#f5c451" stroke-width="2" vector-effect="non-scaling-stroke"/>
+            <circle id="dot" r="1.6" fill="#a59fff"/>
+        </svg>
+        <span class="lbl" style="left:15%;bottom:-18px">300 €</span>
+        <span class="lbl" style="left:40%;bottom:-18px">800 €</span>
+        <span class="lbl" style="left:75%;bottom:-18px">1 500 €</span>
+        <span class="lbl" style="left:-6px;top:-16px">${MAX_WIDTH} px</span>`;
+}
+
+function render() {
+    const amount = Number(document.getElementById("slider").value);
+    const b = bandFor(amount), w = widthFor(amount);
+    document.getElementById("parrot").style.width = w + "px";
+    Parrot.level(b.level);
+    document.getElementById("amount").textContent = amount.toLocaleString("fr-FR") + " €";
+    document.getElementById("info").textContent = `Niveau ${b.level} · ${b.label} · ${w} px de large${amount >= MAX_AMOUNT ? " (maximum)" : ""}`;
+    const dot = document.getElementById("dot");
+    if (dot) { dot.setAttribute("cx", amount / 2000 * 100); dot.setAttribute("cy", 100 - (w - 100) / (MAX_WIDTH - 100) * 100); }
+    document.getElementById("legend").innerHTML = BANDS.map(x => {
+        const on = x.level === b.level ? "on" : "";
+        const range = x.level === 1 ? "0 €" : x.level === 4 ? "800 € → 1 500 € et plus" : `${x.from} → ${x.to} €`;
+        return `<b class="${on}">Niveau ${x.level}</b><span class="${on}">${range} · ${x.label} · ${widthFor(x.from)} → ${widthFor(x.to)} px</span>`;
+    }).join("");
+}
+
+document.getElementById("slider").addEventListener("input", render);
+document.getElementById("min").addEventListener("input", e => {
+    MIN_WIDTH = Number(e.target.value);
+    document.getElementById("min-val").textContent = MIN_WIDTH + " px";
+    drawChart(); render();
+});
+document.addEventListener("DOMContentLoaded", () => { drawChart(); render(); });
+</script>
+</body>
+</html>

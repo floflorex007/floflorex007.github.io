@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Perroquet : niveaux d'attente</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body { background: #0f1117; min-height: 100vh; overflow: hidden; color: #e6e8ee; }
+.box { padding: 30px 24px; max-width: 560px; }
+.box h1 { font-size: 24px; margin-bottom: 8px; }
+.box p { color: #aaaeba; margin-bottom: 18px; }
+.amount { font-size: 34px; font-weight: 900; color: #f5c451; margin: 6px 0 4px; }
+.lvl { color: #a59fff; font-weight: 800; margin-bottom: 14px; }
+input[type=range] { width: 100%; accent-color: #f5c451; }
+.rules { margin-top: 20px; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 14px; color: #aaaeba; }
+.rules b { color: white; }
+.rules .on { color: #f5c451; }
+.states { margin-top: 20px; display: flex; gap: 8px; }
+.states button { border: 2px solid #3a3f52; background: #1c202c; color: #e6e8ee; padding: 8px 14px; border-radius: 999px; cursor: pointer; font: inherit; }
+</style>
+</head>
+<body>
+
+<div class="box">
+    <h1>Perroquet : 4 niveaux d'attente</h1>
+    <p>Fais glisser l'argent en jeu (tes mises pas encore récupérées) : le perroquet monte sur une pile de billets plus ou moins haute. Sa tête suit toujours la souris.</p>
+
+    <div class="amount" id="amount">0 €</div>
+    <div class="lvl" id="lvl">Niveau 1 · perroquet classique</div>
+    <input type="range" id="slider" min="0" max="1000" step="10" value="0">
+
+    <div class="rules" id="rules"></div>
+
+    <div class="states">
+        <button onclick="Parrot.win()">Tester « gagné »</button>
+        <button onclick="Parrot.lose()">Tester « perdu »</button>
+    </div>
+</div>
+
+<section id="bets-page" class="app-page">
+    <div id="parrot" class="parrot" aria-hidden="true"></div>
+</section>
+
+<script src="parrot.js"></script>
+<script>
+// Seuils proposés (à valider) : argent en jeu → niveau.
+const LEVELS = [
+    { min: 0,   label: "perroquet classique",      rule: "0 € en jeu" },
+    { min: 1,   label: "sur une petite pile",      rule: "de 1 à 199 €" },
+    { min: 200, label: "sur une pile moyenne",     rule: "de 200 à 499 €" },
+    { min: 500, label: "sur une énorme pile",      rule: "500 € et plus" }
+];
+const levelFor = amount => LEVELS.reduce((lvl, l, i) => amount >= l.min ? i + 1 : lvl, 1);
+
+const rules = document.getElementById("rules");
+function render(amount) {
+    const n = levelFor(amount);
+    Parrot.level(n);
+    document.getElementById("amount").textContent = amount.toLocaleString("fr-FR") + " €";
+    document.getElementById("lvl").textContent = "Niveau " + n + " · " + LEVELS[n - 1].label;
+    rules.innerHTML = LEVELS.map((l, i) => `<b class="${i + 1 === n ? "on" : ""}">Niveau ${i + 1}</b><span class="${i + 1 === n ? "on" : ""}">${l.rule} · ${l.label}</span>`).join("");
+}
+document.getElementById("slider").addEventListener("input", e => render(Number(e.target.value)));
+document.addEventListener("DOMContentLoaded", () => render(0));
+</script>
+</body>
+</html>

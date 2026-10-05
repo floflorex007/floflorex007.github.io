@@ -3143,3 +3143,290 @@ input {
     color: #f5c451;
     white-space: nowrap;
 }
+
+
+/* =========================================================
+   LE PERROQUET (parrot.js), bas à droite de la page des paris
+========================================================= */
+
+.parrot {
+    position: fixed;
+    right: 100px;
+    bottom: -50px;
+    width: min(450px, 42vw);
+    aspect-ratio: 512 / 650;
+    transition: width 2.5s ease-in-out;
+    z-index: 50;
+    pointer-events: none;
+}
+
+.parrot-inner {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 512px;
+    height: 650px;
+    transform-origin: 0 0;
+}
+
+.parrot-pose,
+.parrot-mirror,
+.parrot-fx {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 512px;
+    height: 650px;
+}
+
+.parrot-pose {
+    transform-origin: 256px 560px;
+    will-change: transform, opacity;
+}
+
+/* La pose d'attente regarde vers la gauche (vers le site). */
+.parrot-mirror {
+    transform: scaleX(-1);
+    transform-origin: 256px 0;
+}
+
+.parrot-head {
+    position: absolute;
+    transform-origin: 288px 181px;
+    will-change: transform;
+}
+
+.parrot img {
+    position: absolute;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+/* Pose gagné : la main dessinée dans l'image est masquée (découpe). */
+.parrot-win-main {
+    clip-path: polygon(0 0, 508px 0, 508px 250px, 420px 250px, 420px 335px, 405px 346px, 378px 359px, 348px 371px, 318px 380px, 312px 438px, 362px 460px, 362px 492px, 312px 494px, 312px 562px, 0 562px);
+}
+
+
+/* Billets volants perroquet ↔ solde (flyBills, animations.js) */
+.fly-bill {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 70px;
+    height: 31px;
+    margin: -15px 0 0 -35px;
+    pointer-events: none;
+    z-index: 3000;
+    will-change: transform, opacity;
+}
+
+.fly-trail {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 8px;
+    height: 8px;
+    margin: -4px 0 0 -4px;
+    border-radius: 50%;
+    background: #9ff0c6;
+    pointer-events: none;
+    z-index: 2999;
+}
+
+/* Niveaux d'attente du perroquet (pile de billets selon l'argent en jeu) */
+.parrot-level {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 512px;
+    height: 650px;
+    transform-origin: 256px 615px;
+}
+
+
+/* Place réservée à droite pour le perroquet, sur toutes les pages
+   sauf les paris (mise en page à 3 colonnes) et le Profil (pas de perroquet).
+   Le perroquet (fixe, jusqu'à 450 px, à 100 px du bord droit) occupe
+   la zone [largeur écran − 550 px ; largeur écran − 100 px].
+   On décale le contenu juste ce qu'il faut selon la largeur d'écran. */
+.app-page:not(#bets-page):not(#profile-page) {
+    padding-right: max(0px, calc(1190px - 50vw));
+}
+
+@media (max-width: 800px) {
+    .app-page:not(#bets-page):not(#profile-page) {
+        padding-right: 0;
+    }
+}
+
+/* Perroquet masqué (page Profil) */
+.parrot.parrot-hidden {
+    display: none;
+}
+
+/* Réserve toujours la place de la barre de défilement : sans ça,
+   le perroquet (et tout le site) se décale horizontalement entre
+   une page qui défile et une page qui ne défile pas. */
+html {
+    scrollbar-gutter: stable;
+}
+
+
+/* =========================================================
+   FENÊTRE DE MISE : jauge de gain (proposition D)
+========================================================= */
+
+.bet-modal-content {
+    max-width: 460px;
+    border-radius: 22px;
+    background: linear-gradient(180deg, #1c202c 0%, #14161e 100%);
+}
+
+.bet-modal-content #modal-question {
+    font-size: 19px;
+    padding-right: 24px;
+}
+
+.bet-modal-content #modal-author {
+    margin: 4px 0 16px;
+    font-size: 12px;
+}
+
+.bet-modal-pick {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    background: rgba(108, 99, 255, 0.12);
+    border: 1px solid rgba(108, 99, 255, 0.45);
+    border-radius: 14px;
+    padding: 12px 14px;
+    margin-bottom: 18px;
+}
+
+.bet-modal-pick b {
+    font-size: 16px;
+}
+
+.bet-modal-odds {
+    background: #6c63ff;
+    color: white;
+    font-weight: 900;
+    padding: 4px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.bet-gauge-wrap {
+    display: flex;
+    gap: 16px;
+    align-items: stretch;
+}
+
+.bet-gauge {
+    position: relative;
+    width: 46px;
+    flex-shrink: 0;
+    border-radius: 14px;
+    background: #0f1117;
+    border: 1px solid #2c3040;
+    overflow: hidden;
+}
+
+.bet-gauge-fill {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 0;
+    background: linear-gradient(0deg, #2fa36f, #63d69f, #f5c451);
+    transition: height 0.3s;
+}
+
+.bet-gauge-coin {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    font-size: 20px;
+    transition: bottom 0.3s;
+}
+
+.bet-gauge-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.bet-gauge-gain span {
+    display: block;
+    font-size: 12px;
+    color: #858a98;
+}
+
+.bet-gauge-gain strong {
+    font-size: 34px;
+    font-weight: 900;
+    color: #63d69f;
+}
+
+.bet-modal-content #stake-input {
+    font-size: 20px;
+    font-weight: 800;
+    border-radius: 12px;
+}
+
+.bet-quick {
+    display: flex;
+    gap: 6px;
+}
+
+.bet-quick button {
+    flex: 1;
+    border: 1px solid #2c3040;
+    background: #1c202c;
+    color: white;
+    border-radius: 10px;
+    padding: 8px;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 700;
+}
+
+.bet-quick button:hover {
+    border-color: #6c63ff;
+}
+
+.bet-tip {
+    min-height: 18px;
+    font-size: 13px;
+    color: #f5c451;
+}
+
+.bet-confirm {
+    width: 100%;
+    margin-top: 18px;
+    padding: 15px;
+    border-radius: 14px;
+    font-size: 16px;
+    font-weight: 900;
+    color: #0b1f15;
+    background: linear-gradient(135deg, #2fa36f, #63d69f);
+    box-shadow: 0 10px 26px rgba(99, 214, 159, 0.3);
+}
+
+.bet-confirm:hover {
+    background: linear-gradient(135deg, #36b47b, #74e0ab);
+}
+
+.bet-confirm:disabled {
+    background: #2c3040;
+    color: #737887;
+    box-shadow: none;
+    cursor: not-allowed;
+    transform: none;
+}

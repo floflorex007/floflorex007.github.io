@@ -292,6 +292,7 @@
 
             </div>
 
+
         </section>
 
 
@@ -932,6 +933,18 @@
     </main>
 
 
+    <!-- =========================================
+         LE PERROQUET (voir parrot.js)
+         Visible sur toutes les pages sauf le Profil.
+    ========================================== -->
+
+    <div
+        id="parrot"
+        class="parrot"
+        aria-hidden="true"
+    ></div>
+
+
 
     <!-- =========================================
          MODAL : PLACER UN PARI
@@ -942,7 +955,7 @@
         class="modal hidden"
     >
 
-        <div class="modal-content">
+        <div class="modal-content bet-modal-content">
 
             <button
                 id="close-modal"
@@ -956,47 +969,83 @@
                 Question
             </h2>
 
-
             <p id="modal-author" class="bet-author">
                 Créé par
             </p>
 
 
-            <p id="modal-choice">
-                Choix sélectionné
-            </p>
+            <!-- Choix sélectionné et sa cote -->
+
+            <div class="bet-modal-pick">
+
+                <span>
+                    Ton choix :
+                    <b id="modal-choice">Choix</b>
+                </span>
+
+                <span
+                    id="modal-odds"
+                    class="bet-modal-odds"
+                >
+                    × 1.00
+                </span>
+
+            </div>
 
 
-            <label for="stake-input">
-                Montant de la mise
-            </label>
+            <!-- Jauge de gain + mise -->
+
+            <div class="bet-gauge-wrap">
+
+                <div class="bet-gauge">
+                    <div
+                        id="bet-gauge-fill"
+                        class="bet-gauge-fill"
+                    ></div>
+                    <span
+                        id="bet-gauge-coin"
+                        class="bet-gauge-coin"
+                    >🪙</span>
+                </div>
 
 
-            <input
-                type="number"
-                id="stake-input"
-                min="1"
-                step="1"
-                placeholder="100"
-            >
+                <div class="bet-gauge-main">
 
+                    <div class="bet-gauge-gain">
+                        <span>Gain possible</span>
+                        <strong id="potential-win">0 €</strong>
+                    </div>
 
-            <div class="potential-win">
+                    <input
+                        type="number"
+                        id="stake-input"
+                        min="1"
+                        step="1"
+                        placeholder="Ta mise (€)"
+                    >
 
-                Gain potentiel :
+                    <div class="bet-quick">
+                        <button type="button" data-stake="20">20 €</button>
+                        <button type="button" data-stake="50">50 €</button>
+                        <button type="button" data-stake="100">100 €</button>
+                    </div>
 
-                <strong id="potential-win">
-                    0 €
-                </strong>
+                    <p
+                        id="bet-tip"
+                        class="bet-tip"
+                    ></p>
+
+                </div>
 
             </div>
 
 
             <button
                 id="confirm-bet"
-                class="primary-button"
+                class="primary-button bet-confirm"
+                disabled
             >
-                Confirmer la mise
+                Placer le pari
             </button>
 
 
@@ -1254,6 +1303,8 @@
     <script src="app.js"></script>
 
     <script src="animations.js"></script>
+
+    <script src="parrot.js"></script>
 
 </body>
 
