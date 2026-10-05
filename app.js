@@ -351,8 +351,15 @@ function updateBalance() {
     }
 
 
+    /*
+        L'administrateur a un solde et des points illimités
+        (voir animations.sql) : on affiche ∞.
+    */
+
     balanceElement.textContent =
-        formatMoney(currentProfile.balance);
+        currentProfile.is_admin
+            ? "∞ €"
+            : formatMoney(currentProfile.balance);
 
 
     const pointsElement =
@@ -361,7 +368,9 @@ function updateBalance() {
     if (pointsElement) {
 
         pointsElement.textContent =
-            (currentProfile.points || 0) + " pts";
+            currentProfile.is_admin
+                ? "∞ pts"
+                : (currentProfile.points || 0) + " pts";
 
     }
 
@@ -416,7 +425,25 @@ async function displayLeaderboard() {
         const medals =
             ["🥇", "🥈", "🥉"];
 
-        container.innerHTML = profiles.map(
+        /*
+            L'admin n'est jamais classé : seul lui voit
+            sa propre ligne, épinglée en haut, sans rang.
+        */
+
+        const adminRow =
+            currentProfile?.is_admin
+                ? `
+                    <div class="leaderboard-row leaderboard-row--admin">
+                        <span class="leaderboard-rank">—</span>
+                        <span class="leaderboard-medal">👑</span>
+                        <span class="leaderboard-pseudo">${escapeHtml(currentProfile.username)}</span>
+                        <span class="leaderboard-balance">∞</span>
+                    </div>
+                `
+                : "";
+
+
+        container.innerHTML = adminRow + profiles.map(
             (profile, index) => `
                 <div class="leaderboard-row${isRewardActive(profile.gold_frame_until) ? " leaderboard-row--gold" : ""}">
                     <span class="leaderboard-rank">${index + 1}</span>

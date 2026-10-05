@@ -102,7 +102,9 @@ begin
 
     end if;
 
-    chest_available := v_profile.last_chest is distinct from v_today;
+    -- L'administrateur peut ouvrir le coffre sans limite.
+    chest_available := v_profile.last_chest is distinct from v_today
+        or exists (select 1 from profiles where id = v_user and is_admin);
 
 end;
 $$;
@@ -130,7 +132,7 @@ begin
         raise exception 'Utilisateur non connecté.';
     end if;
 
-    select last_chest into v_last
+    select case when is_admin then null else last_chest end into v_last
     from profiles
     where id = v_user
     for update;
@@ -188,7 +190,49 @@ $$;
 
 
 -- ---------------------------------------------------------
--- 6. Droits d'appel
+-- 6. Administrateur : solde et points illimités
+--    Après chaque modification de son profil, le solde
+--    et les points de l'admin sont remis au plafond.
+--    (Le nom « zz_ » fait passer ce trigger après les autres.)
+-- ---------------------------------------------------------
+
+create or replace function public.admin_unlimited()
+returns trigger
+language plpgsql
+as $$
+begin
+
+    if new.is_admin then
+        new.balance := greatest(new.balance, 1000000000);
+        new.points := greatest(new.points, 1000000000);
+    end if;
+
+    return new;
+
+end;
+$$;
+
+drop trigger if exists zz_admin_unlimited on public.profiles;
+
+create trigger zz_admin_unlimited
+    before update on public.profiles
+    for each row
+    execute function public.admin_unlimited();
+
+
+-- Mise à niveau immédiate des comptes admin existants.
+select set_config('betlab.allow_points', 'on', false);
+
+update public.profiles
+set balance = greatest(balance, 1000000000),
+    points = greatest(points, 1000000000)
+where is_admin;
+
+select set_config('betlab.allow_points', 'off', false);
+
+
+-- ---------------------------------------------------------
+-- 7. Droits d'appel
 -- ---------------------------------------------------------
 
 grant execute on function public.daily_checkin() to authenticated;

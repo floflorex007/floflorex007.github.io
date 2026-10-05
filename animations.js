@@ -63,6 +63,15 @@ function animateNumber(element, from, to, duration = 900, format = formatMoney) 
         return;
     }
 
+    // L'admin garde l'affichage ∞ pour son solde et ses points.
+    if (
+        currentProfile?.is_admin &&
+        (element.id === "balance" || element.id === "points-balance")
+    ) {
+        updateBalance();
+        return;
+    }
+
     if (from === to) {
         element.textContent = format(to);
         return;
@@ -392,15 +401,10 @@ async function dailyCheckin() {
     const chest =
         document.getElementById("chest-button");
 
-    chest.classList.remove("hidden");
-
-    chest.classList.toggle("available", Boolean(row.chest_available));
+    // Le coffre n'apparaît que lorsqu'il peut être ouvert.
+    chest.classList.toggle("hidden", !row.chest_available);
 
     chest.disabled = !row.chest_available;
-
-    chest.title = row.chest_available
-        ? "Coffre du jour : clique pour l'ouvrir !"
-        : "Coffre déjà ouvert aujourd'hui. Reviens demain !";
 
 }
 
@@ -416,9 +420,10 @@ async function openChest() {
 
     chest.disabled = true;
 
-    chest.classList.remove("available");
-
     chest.classList.add("opening");
+
+    const icon =
+        chest.querySelector(".chest-icon");
 
 
     const {
@@ -434,12 +439,14 @@ async function openChest() {
         if (error) {
             console.error(error);
             alertToast(error.message || "Impossible d'ouvrir le coffre.");
+            chest.classList.add("hidden");
             return;
         }
 
-        chest.textContent = "📦";
+        icon.textContent = "📦";
 
-        chest.title = "Coffre déjà ouvert aujourd'hui. Reviens demain !";
+        chest.querySelector(".chest-text span").textContent =
+            "+" + data + " points gagnés !";
 
 
         const loot =
@@ -449,7 +456,7 @@ async function openChest() {
 
         loot.textContent = "+" + data + " pts";
 
-        const rect = chest.getBoundingClientRect();
+        const rect = icon.getBoundingClientRect();
 
         loot.style.left = rect.left + rect.width / 2 + "px";
         loot.style.top = rect.bottom + "px";
@@ -475,6 +482,30 @@ async function openChest() {
         if (typeof displayShop === "function") {
             displayShop();
         }
+
+
+        /*
+            Le coffre disparaît une fois ouvert
+            (il revient demain).
+        */
+
+        setTimeout(() => {
+            chest.classList.add("chest-leaving");
+            setTimeout(() => {
+
+                // L'admin peut rouvrir le coffre à l'infini.
+                if (currentProfile?.is_admin) {
+                    icon.textContent = "🎁";
+                    chest.querySelector(".chest-text span").textContent = "Clique pour l'ouvrir !";
+                    chest.classList.remove("chest-leaving");
+                    chest.disabled = false;
+                    return;
+                }
+
+                chest.classList.add("hidden");
+
+            }, 500);
+        }, 2000);
 
     }, 800);
 
@@ -524,21 +555,6 @@ async function refreshProgression() {
 
     const info =
         levelFromXp(Number(data) || 0);
-
-    const widget =
-        document.getElementById("level-widget");
-
-    widget.classList.remove("hidden");
-
-    document.getElementById("level-label").textContent =
-        "Niv. " + info.level;
-
-    document.getElementById("level-bar-fill").style.width =
-        Math.round(info.current / info.needed * 100) + "%";
-
-    widget.title =
-        info.current + " / " + info.needed + " XP avant le niveau " + (info.level + 1);
-
 
     /*
         Panneau « Ton niveau » à droite de la page principale.
@@ -600,7 +616,7 @@ function showLevelUp(level) {
 function animateLeaderboard(profiles) {
 
     const rows =
-        document.querySelectorAll("#leaderboard-list .leaderboard-row");
+        document.querySelectorAll("#leaderboard-list .leaderboard-row:not(.leaderboard-row--admin)");
 
     profiles.forEach((profile, index) => {
 

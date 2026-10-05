@@ -1423,31 +1423,67 @@ input {
 }
 
 
-/* Coffre du jour */
-.chest-button {
-    border: none;
-    background: none;
-    font-size: 22px;
+/* Coffre du jour (sous la carte « Ton niveau ») */
+.chest-card {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    text-align: left;
+    font: inherit;
+    color: inherit;
     cursor: pointer;
-    border-radius: 8px;
-    padding: 2px 6px;
+    background: linear-gradient(180deg, #2a2412 0%, #17150e 100%);
+    border: 1px solid rgba(245, 196, 81, 0.6);
+    border-radius: 18px;
+    padding: 16px 18px;
+    animation: chest-glow 2s ease-in-out infinite;
+    transition: opacity 0.5s, transform 0.5s;
 }
 
-.chest-button:disabled {
+.chest-card:hover {
+    border-color: #f5c451;
+}
+
+.chest-card:disabled {
     cursor: default;
-    opacity: 0.5;
 }
 
-.chest-button.available {
-    background: rgba(245, 196, 81, 0.12);
-    box-shadow: 0 0 0 1px rgba(245, 196, 81, 0.5);
+.chest-icon {
+    font-size: 34px;
+    display: inline-block;
     animation: chest-wiggle 2.4s ease-in-out infinite;
 }
 
-.chest-button.opening {
-    opacity: 1;
+.chest-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.chest-text strong {
+    color: #f5c451;
+    font-size: 15px;
+}
+
+.chest-text span {
+    color: #aaaeba;
+    font-size: 12px;
+}
+
+.chest-card.opening .chest-icon {
     animation: chest-shake 0.8s;
 }
+
+.chest-card.chest-leaving {
+    opacity: 0;
+    transform: scale(0.9);
+}
+
+@keyframes chest-glow {
+    50% { box-shadow: 0 0 22px rgba(245, 196, 81, 0.35); }
+}
+
 
 @keyframes chest-wiggle {
     0%, 80%, 100% { transform: rotate(0); }
@@ -1477,17 +1513,6 @@ input {
     to { opacity: 0; margin-top: 30px; }
 }
 
-
-/* Niveaux et XP */
-.level-widget {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    font-size: 12px;
-    font-weight: 800;
-    color: #c86bff;
-    min-width: 70px;
-}
 
 .level-bar {
     height: 5px;
@@ -1731,4 +1756,17 @@ input {
 .leaderboard-row {
     position: relative;
     border-radius: 6px;
+}
+
+.leaderboard-row--admin {
+    background: rgba(245, 196, 81, 0.1);
+    border: 1px dashed rgba(245, 196, 81, 0.5);
+    padding-left: 8px;
+    padding-right: 8px;
+    margin-bottom: 6px;
+}
+
+.leaderboard-row--admin .leaderboard-pseudo,
+.leaderboard-row--admin .leaderboard-balance {
+    color: #f5c451;
 }
