@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BetLab – Animation d'ouverture des pop-up (propositions)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; }
+button { font: inherit; }
+h1 { font-size: 26px; margin-bottom: 6px; }
+.sub { color: #858a98; margin-bottom: 20px; max-width: 760px; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; position: sticky; top: 0; background: #0f1117; padding: 10px 0; z-index: 10; }
+.tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; }
+.tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.desc { color: #aaaeba; font-size: 14px; max-width: 620px; margin-bottom: 14px; min-height: 42px; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 22px; }
+.btn { border: 1px solid #2c3040; background: #1c202c; color: #e6e8ee; padding: 10px 16px; border-radius: 12px; cursor: pointer; }
+.btn.main { background: #6c63ff; border-color: #6c63ff; color: white; font-weight: 800; }
+.btn.pick { background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; font-weight: 900; }
+
+/* Fausse page */
+.stage { position: relative; max-width: 520px; height: 520px; background: #12141c; border: 1px solid #2c3040; border-radius: 18px; padding: 20px; overflow: hidden; }
+.card { background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; border-radius: 18px; padding: 18px; cursor: pointer; transition: transform .15s, border-color .15s; }
+.card:hover { transform: translateY(-3px); border-color: #6c63ff; }
+.card h3 { font-size: 17px; margin: 6px 0 14px; }
+.card small { color: #858a98; }
+.choices { display: flex; gap: 10px; }
+.choice { flex: 1; display: flex; justify-content: space-between; background: #101219; border: 1px solid #343846; border-radius: 12px; padding: 10px 12px; }
+.card-hint { color: #737887; font-size: 12px; margin-top: 12px; text-align: center; }
+.ghost { opacity: .35; margin-top: 14px; pointer-events: none; }
+
+/* Pop-up */
+.overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(0,0,0,.7); z-index: 5; }
+.overlay.open { display: flex; }
+.overlay.sheet { align-items: flex-end; padding: 0; }
+.modal { position: relative; width: 100%; background: #181b24; border: 1px solid #343846; border-radius: 18px; padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+.overlay.sheet .modal { border-radius: 22px 22px 0 0; border-bottom: none; }
+.modal h2 { font-size: 18px; padding-right: 24px; }
+.modal .by { color: #858a98; font-size: 12px; margin: 4px 0 14px; }
+.close { position: absolute; top: 12px; right: 14px; background: none; border: none; color: #858a98; font-size: 22px; cursor: pointer; }
+.row { display: flex; justify-content: space-between; align-items: center; background: #101219; border: 1px solid #2c3040; border-radius: 12px; padding: 10px 12px; margin-top: 8px; font-size: 14px; }
+.row b { color: #63d69f; }
+.odds { background: #6c63ff; color: white; font-weight: 900; padding: 3px 9px; border-radius: 999px; font-size: 13px; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #2fa36f; color: #0b1f15; font-weight: 800; padding: 10px 18px; border-radius: 12px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<h1>Animation d'ouverture des pop-up</h1>
+<p class="sub">Clique sur la carte (ou sur « Ouvrir ») pour voir l'animation, puis ferme la pop-up avec la croix ou en cliquant à côté pour voir l'animation de fermeture. Elles servent pour toutes les pop-up (mise, détail des parieurs, validation…).</p>
+
+<div class="tabs" id="tabs"></div>
+<p class="desc" id="desc"></p>
+
+<div class="actions">
+    <button class="btn main" id="open">▶ Ouvrir la pop-up</button>
+    <button class="btn pick" id="choose">Je choisis celle-ci</button>
+</div>
+
+<div class="stage" id="stage">
+
+    <div class="card" id="card">
+        <small>🏆 Créé par Yann</small>
+        <h3>Lina part avant 16h15 précisément ?</h3>
+        <div class="choices">
+            <div class="choice"><span>Oui</span><b>2.43</b></div>
+            <div class="choice"><span>Non</span><b>1.60</b></div>
+        </div>
+        <p class="card-hint">👆 Clique sur la carte pour ouvrir le détail</p>
+    </div>
+
+    <div class="card ghost"><small>🏆 Créé par Balac</small><h3>Coupure de Wi-Fi aujourd'hui ?</h3></div>
+
+    <div class="overlay" id="overlay">
+        <div class="modal" id="modal">
+            <button class="close" id="close">×</button>
+            <h2>Lina part avant 16h15 précisément ?</h2>
+            <p class="by">Créé par Yann · Solde misé 450 €</p>
+            <div class="row"><span>Oui</span><span class="odds">× 2.43</span></div>
+            <div class="row"><span>Non</span><span class="odds">× 1.60</span></div>
+            <div class="row"><span>Balac · Non</span><b>309 €</b></div>
+            <div class="row"><span>jjj · Non</span><b>50 €</b></div>
+        </div>
+    </div>
+
+</div>
+
+<div class="toast" id="toast">Choix copié : dis-le à Claude 👍</div>
+
+<script>
+const EASE_POP = "cubic-bezier(.2,1.5,.4,1)";
+const EASE_OUT = "cubic-bezier(.2,.8,.2,1)";
+
+const VARIANTS = {
+
+    A: {
+        name: "A · Zoom rebond",
+        desc: "La pop-up grossit avec un petit rebond pendant que le fond s'assombrit. À la fermeture elle rétrécit et disparaît. Dynamique et ludique, dans l'esprit du perroquet et des billets.",
+        open(modal, overlay) {
+            overlay.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, fill: "both" });
+            return modal.animate(
+                [{ transform: "scale(.6)", opacity: 0 }, { transform: "scale(1)", opacity: 1 }],
+                { duration: 420, easing: EASE_POP, fill: "both" }
+            ).finished;
+        },
+        close(modal, overlay) {
+            overlay.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: "both" });
+            return modal.animate(
+                [{ transform: "scale(1)", opacity: 1 }, { transform: "scale(.85)", opacity: 0 }],
+                { duration: 200, easing: "ease-in", fill: "both" }
+            ).finished;
+        }
+    },
+
+    B: {
+        name: "B · Tiroir du bas",
+        desc: "La pop-up monte depuis le bas de l'écran comme un tiroir (style application mobile) et redescend à la fermeture. Calme et fluide, très naturel sur téléphone.",
+        sheet: true,
+        open(modal, overlay) {
+            overlay.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 250, fill: "both" });
+            return modal.animate(
+                [{ transform: "translateY(100%)" }, { transform: "translateY(0)" }],
+                { duration: 420, easing: EASE_OUT, fill: "both" }
+            ).finished;
+        },
+        close(modal, overlay) {
+            overlay.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 260, fill: "both" });
+            return modal.animate(
+                [{ transform: "translateY(0)" }, { transform: "translateY(100%)" }],
+                { duration: 260, easing: "ease-in", fill: "both" }
+            ).finished;
+        }
+    },
+
+    C: {
+        name: "C · Sort de la carte",
+        desc: "La pop-up part de l'endroit exact de la carte cliquée, grandit jusqu'au centre, puis retourne se ranger dans la carte à la fermeture. On comprend d'où elle vient.",
+        open(modal, overlay, card) { return fromCard(modal, overlay, card, true); },
+        close(modal, overlay, card) { return fromCard(modal, overlay, card, false); }
+    },
+
+    D: {
+        name: "D · Carte qui se retourne",
+        desc: "La pop-up apparaît en pivotant sur elle-même, comme une carte à jouer que l'on retourne sur la table. Effet casino, plus spectaculaire (un peu plus long).",
+        open(modal, overlay) {
+            overlay.parentElement.style.perspective = "1100px";
+            overlay.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 250, fill: "both" });
+            return modal.animate(
+                [{ transform: "rotateY(-90deg) scale(.9)", opacity: 0 }, { transform: "rotateY(0) scale(1)", opacity: 1 }],
+                { duration: 560, easing: EASE_POP, fill: "both" }
+            ).finished;
+        },
+        close(modal, overlay) {
+            overlay.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 260, fill: "both" });
+            return modal.animate(
+                [{ transform: "rotateY(0) scale(1)", opacity: 1 }, { transform: "rotateY(90deg) scale(.9)", opacity: 0 }],
+                { duration: 260, easing: "ease-in", fill: "both" }
+            ).finished;
+        }
+    }
+
+};
+
+function fromCard(modal, overlay, card, opening) {
+    const c = card.getBoundingClientRect();
+    const m = modal.getBoundingClientRect();
+    const dx = (c.left + c.width / 2) - (m.left + m.width / 2);
+    const dy = (c.top + c.height / 2) - (m.top + m.height / 2);
+    const sx = c.width / m.width;
+    const sy = c.height / m.height;
+    const small = `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
+    const frames = [{ transform: small, opacity: .2 }, { transform: "none", opacity: 1 }];
+    if (!opening) frames.reverse();
+    overlay.animate(opening ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 1 }, { opacity: 0 }], { duration: opening ? 300 : 260, fill: "both" });
+    return modal.animate(frames, { duration: opening ? 420 : 300, easing: opening ? EASE_OUT : "ease-in", fill: "both" }).finished;
+}
+
+const overlay = document.getElementById("overlay");
+const modal = document.getElementById("modal");
+const card = document.getElementById("card");
+let current = "A";
+let busy = false;
+
+function select(key) {
+    current = key;
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.key === key));
+    document.getElementById("desc").textContent = VARIANTS[key].desc;
+    overlay.classList.toggle("sheet", !!VARIANTS[key].sheet);
+    overlay.parentElement.style.perspective = "";
+}
+
+async function openPopup() {
+    if (busy || overlay.classList.contains("open")) return;
+    busy = true;
+    overlay.classList.add("open");
+    await VARIANTS[current].open(modal, overlay, card);
+    busy = false;
+}
+
+async function closePopup() {
+    if (busy || !overlay.classList.contains("open")) return;
+    busy = true;
+    await VARIANTS[current].close(modal, overlay, card);
+    overlay.classList.remove("open");
+    overlay.getAnimations().forEach(a => a.cancel());
+    modal.getAnimations().forEach(a => a.cancel());
+    busy = false;
+}
+
+const tabs = document.getElementById("tabs");
+Object.entries(VARIANTS).forEach(([key, v]) => {
+    const b = document.createElement("button");
+    b.className = "tab";
+    b.dataset.key = key;
+    b.textContent = v.name;
+    b.onclick = async () => { await closePopup(); select(key); };
+    tabs.appendChild(b);
+});
+
+document.getElementById("open").onclick = openPopup;
+card.onclick = openPopup;
+document.getElementById("close").onclick = closePopup;
+overlay.addEventListener("click", e => { if (e.target === overlay) closePopup(); });
+
+document.getElementById("choose").onclick = () => {
+    const text = "Animation pop-up choisie : " + VARIANTS[current].name;
+    (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.resolve()).catch(() => {});
+    const t = document.getElementById("toast");
+    t.textContent = "Copié : « " + text + " » → colle-le à Claude";
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 2500);
+};
+
+select("A");
+</script>
+</body>
+</html>

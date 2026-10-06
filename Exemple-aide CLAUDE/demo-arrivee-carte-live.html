@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BetLab – Arrivée d'une carte en direct (propositions)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; }
+button { font: inherit; }
+h1 { font-size: 26px; margin-bottom: 6px; }
+.sub { color: #858a98; margin-bottom: 16px; max-width: 760px; font-size: 14px; line-height: 1.5; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; position: sticky; top: 0; background: #0f1117; padding: 10px 0; z-index: 10; align-items: center; }
+.tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; }
+.tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.pick { margin-left: auto; background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; font-weight: 900; padding: 10px 16px; border-radius: 12px; cursor: pointer; }
+.desc { color: #aaaeba; font-size: 14px; max-width: 700px; margin-bottom: 14px; min-height: 42px; }
+.actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 22px; }
+.btn { border: none; background: #6c63ff; color: white; font-weight: 800; padding: 12px 18px; border-radius: 12px; cursor: pointer; box-shadow: 0 10px 26px rgba(108,99,255,.35); }
+.btn.ghost { background: #1c202c; border: 1px solid #2c3040; box-shadow: none; color: #c9ccd6; }
+.slow { color: #858a98; font-size: 13px; display: flex; gap: 6px; align-items: center; cursor: pointer; }
+
+/* Fausse page des paris (mêmes tailles que le site) */
+.stage { max-width: 520px; background: #12141c; border: 1px solid #2c3040; border-radius: 18px; padding: 24px 20px; overflow: hidden; }
+.list { display: flex; flex-direction: column; }
+.slot { margin-bottom: 40px; }
+.bet-card { width: 100%; background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; border-radius: 18px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,.35); position: relative; }
+.head { color: #858a98; font-size: 12px; }
+.q { font-size: 17px; font-weight: 800; margin: 8px 0 14px; }
+.choices { display: flex; gap: 10px; }
+.choice { flex: 1; }
+.choice-btn { display: flex; justify-content: space-between; background: #101219; border: 1px solid #343846; border-radius: 12px; padding: 10px 12px; }
+.choice-btn b { color: #a59fff; }
+.track { height: 5px; background: #23262f; border-radius: 99px; margin-top: 8px; }
+.pct { font-size: 11px; color: #737887; margin-top: 3px; }
+.foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; font-size: 13px; color: #858a98; }
+.foot strong { color: white; }
+.badge-new { position: absolute; top: -10px; right: 16px; background: #6c63ff; color: white; font-size: 11px; font-weight: 900; letter-spacing: 1px; padding: 3px 10px; border-radius: 999px; box-shadow: 0 4px 14px rgba(108,99,255,.5); }
+.glow { position: absolute; inset: -2px; border-radius: 20px; pointer-events: none; }
+.spark { position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; margin: -4px; border-radius: 50%; pointer-events: none; }
+.shine { position: absolute; inset: 0; border-radius: 18px; overflow: hidden; pointer-events: none; }
+.shine i { position: absolute; top: -20%; bottom: -20%; width: 40%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.28), transparent); transform: skewX(-18deg); }
+.slow select { background: #1c202c; color: #e6e8ee; border: 1px solid #2c3040; border-radius: 8px; padding: 6px 8px; }
+
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #2fa36f; color: #0b1f15; font-weight: 800; padding: 10px 18px; border-radius: 12px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 50; }
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<h1>Arrivée d'une carte en direct</h1>
+<p class="sub">
+    Clique sur « Un ami publie un pari » : une nouvelle carte arrive en haut de la liste, comme sur le site quand quelqu'un d'autre publie.
+    Dans toutes les versions, les cartes déjà là <b>descendent en douceur</b> pour lui faire de la place (plus de saut brutal).
+    Règle la vitesse avec la liste « Vitesse » (la version B, jugée trop discrète, est remplacée par E, F et G).
+</p>
+
+<div class="tabs" id="tabs">
+    <button class="tab active" data-v="A">A · Chute avec rebond</button>
+    <button class="tab" data-v="C">C · Carte lancée</button>
+    <button class="tab" data-v="D">D · Éclair néon</button>
+    <button class="tab" data-v="E">E · Carte retournée</button>
+    <button class="tab" data-v="F">F · Pop et étincelles</button>
+    <button class="tab" data-v="G">G · Balayage brillant</button>
+    <button class="pick" id="choose">Je choisis celle-ci</button>
+</div>
+<p class="desc" id="desc"></p>
+
+<div class="actions">
+    <button class="btn" id="publish">📡 Un ami publie un pari</button>
+    <button class="btn ghost" id="reset">↺ Remettre à zéro</button>
+    <label class="slow">Vitesse
+        <select id="speed">
+            <option value="1">Normale</option>
+            <option value="2" selected>Ralenti ×2</option>
+            <option value="3">Ralenti ×3</option>
+        </select>
+    </label>
+</div>
+
+<div class="stage">
+    <div class="list" id="list"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const POOL = [
+    { author: "Yann", q: "Lina part avant 16h15 précisément ?", c: [["Oui", "2.43", 18], ["Non", "1.60", 82]], total: "759 €" },
+    { author: "Balac", q: "Coupure de Wi-Fi aujourd'hui ?", c: [["Oui", "5.00", 30], ["Non", "1.20", 70]], total: "420 €" },
+    { author: "jjj", q: "Au moins 4 personnes s'appellent Florian", c: [["Oui", "2.00", 95], ["Non", "1.80", 5]], total: "10 500 €" },
+    { author: "victor", q: "Le café est vide avant 10h ?", c: [["Oui", "1.50", 60], ["Non", "2.60", 40]], total: "180 €" },
+    { author: "Lina", q: "Il pleut demain matin ?", c: [["Oui", "1.90", 50], ["Non", "1.90", 50]], total: "95 €" }
+];
+
+const cardHtml = (b, fresh) => `
+    ${fresh ? '<span class="badge-new">NOUVEAU</span>' : ""}
+    <div class="head">🏆 Créé par ${b.author}</div>
+    <div class="q">🎲 ${b.q}</div>
+    <div class="choices">${b.c.map(([l, o, p]) => `
+        <div class="choice">
+            <div class="choice-btn"><span>${l}</span><b>${o}</b></div>
+            <div class="track"><div style="height:100%;width:${p}%;background:#6c63ff;border-radius:99px"></div></div>
+            <div class="pct">${p}%</div>
+        </div>`).join("")}</div>
+    <div class="foot">Solde misé <strong>${b.total}</strong></div>`;
+
+const list = document.getElementById("list");
+let next = 0;
+let current = "A";
+let busy = false;
+
+const T = ms => ms * Number(document.getElementById("speed").value);
+const EASE = "cubic-bezier(.2,.8,.2,1)";
+const POP = "cubic-bezier(.2,1.4,.4,1)";
+
+function addStatic(b) {
+    const slot = document.createElement("div");
+    slot.className = "slot";
+    const card = document.createElement("div");
+    card.className = "bet-card";
+    card.innerHTML = cardHtml(b, false);
+    slot.appendChild(card);
+    list.appendChild(slot);
+}
+
+function reset() {
+    list.innerHTML = "";
+    next = 2;
+    addStatic(POOL[3]);
+    addStatic(POOL[4]);
+    busy = false;
+}
+
+/* Chaque variante anime la carte ; le « slot » fait descendre les autres cartes en douceur. */
+const VARIANTS = {
+
+    A: {
+        desc: "La carte tombe du haut, rebondit légèrement et un halo violet pulse autour d'elle. C'est l'animation actuelle du site, avec en plus les cartes du dessous qui descendent en douceur.",
+        card: [
+            { opacity: 0, transform: "translateY(-60px) scale(.94)", boxShadow: "0 0 0 0 rgba(108,99,255,.7)" },
+            { opacity: 1, transform: "none", boxShadow: "0 0 0 14px rgba(108,99,255,0)", offset: .7 },
+            { opacity: 1, transform: "none", boxShadow: "0 10px 30px rgba(0,0,0,.35)" }
+        ],
+        opts: { duration: 650, easing: POP }
+    },
+
+    C: {
+        desc: "La carte est « lancée » sur la table : elle arrive en tournant légèrement, atterrit avec un petit choc et son ombre s'élargit au moment de l'impact. Effet casino, très visible.",
+        card: [
+            { opacity: 0, transform: "translateY(-90px) rotate(-8deg) scale(.9)", boxShadow: "0 40px 60px rgba(0,0,0,.2)" },
+            { opacity: 1, transform: "translateY(6px) rotate(1.5deg) scale(1.02)", boxShadow: "0 22px 50px rgba(0,0,0,.55)", offset: .6 },
+            { transform: "translateY(-3px) rotate(-.6deg)", offset: .8 },
+            { opacity: 1, transform: "none", boxShadow: "0 10px 30px rgba(0,0,0,.35)" }
+        ],
+        opts: { duration: 750, easing: "ease-out" }
+    },
+
+    D: {
+        desc: "La carte se dévoile de haut en bas, pendant qu'un trait de lumière néon violet fait le tour de sa bordure, puis s'éteint. Futuriste, sans mouvement brusque.",
+        card: [
+            { opacity: 0, clipPath: "inset(0 0 100% 0 round 18px)", borderColor: "#a59fff" },
+            { opacity: 1, clipPath: "inset(0 0 0 0 round 18px)", borderColor: "#a59fff", offset: .55 },
+            { opacity: 1, clipPath: "inset(0 0 0 0 round 18px)", borderColor: "#2c3040" }
+        ],
+        opts: { duration: 800, easing: EASE },
+        extra(card) {
+            const glow = document.createElement("div");
+            glow.className = "glow";
+            glow.style.boxShadow = "0 0 0 2px #a59fff, 0 0 26px 4px rgba(165,159,255,.75)";
+            card.appendChild(glow);
+            glow.animate(
+                [{ opacity: 0 }, { opacity: 1, offset: .35 }, { opacity: 1, offset: .65 }, { opacity: 0 }],
+                { duration: T(1100), fill: "forwards" }
+            ).finished.then(() => glow.remove());
+        }
+    },
+
+    E: {
+        desc: "La carte se rabat depuis le haut comme une carte retournée sur la table : elle pivote autour de son bord supérieur, dépasse un peu, puis se pose à plat.",
+        origin: "50% 0%",
+        card: [
+            { opacity: 0, transform: "perspective(900px) rotateX(-95deg)" },
+            { opacity: 1, transform: "perspective(900px) rotateX(10deg)", offset: .65 },
+            { transform: "perspective(900px) rotateX(-4deg)", offset: .82 },
+            { opacity: 1, transform: "perspective(900px) rotateX(0)" }
+        ],
+        opts: { duration: 800, easing: "ease-out" }
+    },
+
+    F: {
+        desc: "La carte jaillit du centre avec un gros rebond élastique, pendant qu'une gerbe d'étincelles colorées s'échappe de la carte puis s'éteint. Joyeux, comme une petite célébration.",
+        card: [
+            { opacity: 0, transform: "scale(.3)" },
+            { opacity: 1, transform: "scale(1.08)", offset: .55 },
+            { transform: "scale(.97)", offset: .78 },
+            { opacity: 1, transform: "scale(1)" }
+        ],
+        opts: { duration: 700, easing: "ease-out" },
+        extra(card) {
+            const colors = ["#a59fff", "#63d69f", "#f5c451", "#ff6b6b", "#6cc4ff"];
+            for (let i = 0; i < 16; i++) {
+                const spark = document.createElement("span");
+                spark.className = "spark";
+                spark.style.background = colors[i % colors.length];
+                card.appendChild(spark);
+                const angle = (i / 16) * Math.PI * 2 + Math.random() * .4;
+                const dist = 110 + Math.random() * 90;
+                spark.animate([
+                    { transform: "translate(0,0) scale(.4)", opacity: 1 },
+                    { transform: `translate(${Math.cos(angle) * dist}px, ${Math.sin(angle) * dist * .7}px) scale(1.1)`, opacity: 1, offset: .5 },
+                    { transform: `translate(${Math.cos(angle) * dist * 1.25}px, ${Math.sin(angle) * dist * .9 + 24}px) scale(0)`, opacity: 0 }
+                ], { duration: T(900 + Math.random() * 300), delay: T(280), easing: "ease-out", fill: "both" })
+                    .finished.then(() => spark.remove());
+            }
+        }
+    },
+
+    G: {
+        desc: "La carte se dévoile de gauche à droite comme un rideau qui s'ouvre, pendant qu'un reflet brillant la traverse en diagonale. Élégant et fluide, sans rebond.",
+        card: [
+            { opacity: 0, clipPath: "inset(0 100% 0 0 round 18px)" },
+            { opacity: 1, clipPath: "inset(0 0 0 0 round 18px)" }
+        ],
+        opts: { duration: 700, easing: EASE },
+        extra(card) {
+            const shine = document.createElement("div");
+            shine.className = "shine";
+            shine.innerHTML = "<i></i>";
+            card.appendChild(shine);
+            shine.firstElementChild.animate(
+                [{ left: "-45%" }, { left: "115%" }],
+                { duration: T(900), delay: T(250), easing: "ease-in-out", fill: "both" }
+            ).finished.then(() => shine.remove());
+        }
+    }
+
+};
+
+async function publish() {
+    if (busy) return;
+    busy = true;
+    const v = VARIANTS[current];
+    const b = POOL[next % POOL.length];
+    next++;
+
+    const slot = document.createElement("div");
+    slot.className = "slot";
+    const card = document.createElement("div");
+    card.className = "bet-card";
+    card.innerHTML = cardHtml(b, true);
+    slot.appendChild(card);
+    list.prepend(slot);
+
+    // Les cartes du dessous descendent en douceur : la place s'agrandit.
+    const h = slot.getBoundingClientRect().height;
+    slot.animate(
+        [{ height: "0px", marginBottom: "0px" }, { height: h + "px", marginBottom: "40px" }],
+        { duration: T(380), easing: EASE }
+    );
+
+    if (v.origin) card.style.transformOrigin = v.origin;
+    const keyframes = v.card;
+    const anim = card.animate(keyframes, { ...v.opts, duration: T(v.opts.duration), delay: T(120), fill: "backwards" });
+    v.extra && v.extra(card);
+
+    await anim.finished.catch(() => {});
+    // La pastille « NOUVEAU » s'éteint un peu plus tard.
+    setTimeout(() => {
+        const badge = card.querySelector(".badge-new");
+        badge && badge.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 500, fill: "forwards" }).finished.then(() => badge.remove());
+    }, T(2500));
+    busy = false;
+}
+
+function select(key) {
+    current = key;
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.v === key));
+    document.getElementById("desc").textContent = VARIANTS[key].desc;
+}
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => { select(t.dataset.v); });
+document.getElementById("publish").onclick = publish;
+document.getElementById("reset").onclick = reset;
+
+document.getElementById("choose").onclick = () => {
+    const name = document.querySelector(`.tab[data-v="${current}"]`).textContent;
+    const text = "Arrivée de carte choisie : " + name;
+    navigator.clipboard && navigator.clipboard.writeText(text).catch(() => {});
+    const t = document.getElementById("toast");
+    t.textContent = "Copié : « " + text + " » → colle-le à Claude";
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 2500);
+};
+
+reset();
+select("A");
+</script>
+</body>
+</html>

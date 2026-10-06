@@ -4,7 +4,7 @@
    (série, coffre, niveaux, récap, fil en direct...)
 
    Chargé après app.js : utilise supabaseClient,
-   currentUser, currentProfile, formatMoney, escapeHtml.
+   currentUser, currentProfile, formatMoney, formatBalance, escapeHtml.
    Les fonctions SQL sont dans animations.sql.
 ========================================================= */
 
@@ -258,7 +258,7 @@ function flyBills(mode, fromBalance = 0, toBalance = 0) {
         let shown = fromBalance;
 
         // Le solde repart de l'ancien montant et monte billet par billet.
-        animateNumber(balanceEl, fromBalance, fromBalance, 0);
+        animateNumber(balanceEl, fromBalance, fromBalance, 0, formatBalance);
 
         for (let i = 0; i < COUNT; i++) {
 
@@ -324,7 +324,7 @@ function flyBills(mode, fromBalance = 0, toBalance = 0) {
 
                     const next = fromBalance + (toBalance - fromBalance) * (i + 1) / COUNT;
 
-                    animateNumber(balanceEl, shown, next, 250);
+                    animateNumber(balanceEl, shown, next, 250, formatBalance);
                     shown = next;
 
                     bump(balanceEl);
@@ -413,8 +413,9 @@ async function checkNewResults() {
         error
     } = await supabaseClient
         .from("stakes")
-        .select("id, choice_id, stake, potential_win, bets ( question, status, winner_choice_id )")
-        .eq("user_id", currentUser.id);
+        .select("id, choice_id, stake, potential_win, bets!inner ( question, status, winner_choice_id, group_id )")
+        .eq("user_id", currentUser.id)
+        .eq("bets.group_id", currentGroup?.id);
 
     if (error) {
         console.error(error);
@@ -551,7 +552,7 @@ async function dailyCheckin() {
     const {
         data,
         error
-    } = await supabaseClient.rpc("daily_checkin");
+    } = await supabaseClient.rpc("daily_checkin", { p_group: currentGroup.id });
 
     if (error) {
         console.error("Série / coffre indisponibles (animations.sql lancé ?)", error);
@@ -623,7 +624,7 @@ async function openChest() {
     const {
         data,
         error
-    } = await supabaseClient.rpc("open_daily_chest");
+    } = await supabaseClient.rpc("open_daily_chest", { p_group: currentGroup.id });
 
 
     setTimeout(async () => {
@@ -648,7 +649,7 @@ async function openChest() {
 
         loot.className = "chest-loot";
 
-        loot.textContent = "+" + data + " pts";
+        loot.textContent = "+" + data + " 🪙";
 
         const rect = icon.getBoundingClientRect();
 
@@ -670,7 +671,7 @@ async function openChest() {
             before,
             currentProfile.points || 0,
             900,
-            value => Math.round(value) + " pts"
+            value => Math.round(value) + " 🪙"
         );
 
         if (typeof displayShop === "function") {
@@ -985,8 +986,15 @@ function setupPointerEffects() {
 
     document.addEventListener("mousemove", event => {
 
-        const card =
+        let card =
             event.target.closest(".bet-card, .mission-card");
+
+        // La carte dépliée (détail des parieurs) reste bien à plat.
+        if (card && card.classList.contains("stakes-pop")) {
+
+            card = null;
+
+        }
 
         document
             .querySelectorAll(".tilting")
@@ -1120,7 +1128,8 @@ async function pollActivity() {
 
         supabaseClient
             .from("stakes")
-            .select("created_at, stake, user_id, profiles!stakes_user_id_fkey ( username, is_admin, gold_frame_until, name_color_until, cosmetics ), bets ( question )")
+            .select("created_at, stake, user_id, profiles!stakes_user_id_fkey ( username, is_admin, gold_frame_until, name_color_until, cosmetics ), bets!inner ( question, group_id )")
+            .eq("bets.group_id", currentGroup?.id)
             .gt("created_at", since)
             .neq("user_id", currentUser.id)
             .order("created_at", { ascending: firstPass ? false : true })
@@ -1129,6 +1138,7 @@ async function pollActivity() {
         supabaseClient
             .from("bets")
             .select("created_at, question, author_id, profiles!bets_author_id_fkey ( username, is_admin, gold_frame_until, name_color_until, cosmetics )")
+            .eq("group_id", currentGroup?.id)
             .gt("created_at", since)
             .neq("author_id", currentUser.id)
             .order("created_at", { ascending: firstPass ? false : true })
@@ -1213,6 +1223,10 @@ async function initAnimations() {
 
     setInterval(async () => {
 
+        await checkGroupRemovals();
+
+        await displayBets({ quiet: true });
+
         await pollActivity();
 
         await checkNewResults();
@@ -1220,5 +1234,467 @@ async function initAnimations() {
         await displayLeaderboard();
 
     }, FEED_INTERVAL_MS);
+
+}
+
+
+
+/* =========================================================
+   ANIMATION DES POP-UP
+   - Par défaut : zoom rebond à l'ouverture ; à la fermeture
+     une copie visuelle rétrécit et disparaît (la vraie fenêtre
+     est déjà masquée par le code existant).
+   - Détail des parieurs ouvert depuis une carte : la fenêtre
+     part de la carte, glisse au centre en se dévoilant, puis
+     y retourne à la fermeture.
+========================================================= */
+
+const MODAL_EASE_POP = "cubic-bezier(.2,1.5,.4,1)";
+
+const MODAL_EASE_OUT = "cubic-bezier(.2,.8,.2,1)";
+
+const MODAL_EASE_CLOSE = "cubic-bezier(.4,0,.2,1)";
+
+const MODAL_BACKDROP = "rgba(0, 0, 0, 0.7)";
+
+
+/*
+    Copie d'une carte posée par-dessus la page,
+    au rectangle donné (coordonnées de l'écran).
+*/
+
+function cardFlyer(card, rect) {
+
+    const flyer = card.cloneNode(true);
+
+    flyer.removeAttribute("id");
+
+    flyer.querySelectorAll("[id]").forEach(
+        element => element.removeAttribute("id")
+    );
+
+    Object.assign(flyer.style, {
+        position: "fixed",
+        left: rect.left + "px",
+        top: rect.top + "px",
+        width: rect.width + "px",
+        height: rect.height + "px",
+        margin: "0",
+        zIndex: "101",
+        pointerEvents: "none",
+        visibility: "visible",
+        boxSizing: "border-box"
+    });
+
+    document.body.appendChild(flyer);
+
+    return flyer;
+
+}
+
+
+/*
+    Décalage et découpe pour faire coïncider la fenêtre
+    avec le rectangle de la carte.
+*/
+
+function cardGeometry(cardRect, contentRect) {
+
+    const right = Math.max(0, contentRect.width - cardRect.width);
+
+    const bottom = Math.max(0, contentRect.height - cardRect.height);
+
+    return {
+        dx: cardRect.left - contentRect.left,
+        dy: cardRect.top - contentRect.top,
+        clip: "inset(0 " + right + "px " + bottom + "px 0 round 18px)"
+    };
+
+}
+
+
+/*
+    Carte encore affichée à l'écran pour ce pari
+    (la liste a pu être redessinée pendant l'ouverture).
+*/
+
+function findSourceCard(modal) {
+
+    let card = modal._sourceCard;
+
+    if ((!card || !card.isConnected) && modal._sourceBetId) {
+
+        card = document.querySelector(
+            '.bet-card:not(.claim-card)[data-bet-id="' + modal._sourceBetId + '"]'
+        );
+
+    }
+
+    if (!card || card.getClientRects().length === 0) {
+
+        return null;
+
+    }
+
+    return card;
+
+}
+
+
+function openModalFromCard(modal, content, card) {
+
+    const cardRect = card.getBoundingClientRect();
+
+    const geometry = cardGeometry(cardRect, content.getBoundingClientRect());
+
+    const flyer = cardFlyer(card, cardRect);
+
+    card.style.visibility = "hidden";
+
+
+    modal.animate(
+        [{ backgroundColor: "rgba(0, 0, 0, 0)" }, { backgroundColor: MODAL_BACKDROP }],
+        { duration: 300 }
+    );
+
+    flyer.animate(
+        [
+            { transform: "none", opacity: 1 },
+            { transform: "translate(" + -geometry.dx + "px, " + -geometry.dy + "px)", opacity: 0 }
+        ],
+        { duration: 260, easing: MODAL_EASE_OUT, fill: "forwards" }
+    ).finished.finally(() => flyer.remove());
+
+    content.animate(
+        [
+            { transform: "translate(" + geometry.dx + "px, " + geometry.dy + "px)", clipPath: geometry.clip },
+            { transform: "none", clipPath: "inset(0 0 0 0 round 18px)" }
+        ],
+        { duration: 440, easing: MODAL_EASE_OUT }
+    );
+
+}
+
+
+function closeModalToCard(ghost, ghostContent, card) {
+
+    const cardRect = card.getBoundingClientRect();
+
+    const geometry = cardGeometry(cardRect, ghostContent.getBoundingClientRect());
+
+    const flyer = cardFlyer(card, cardRect);
+
+    flyer.style.opacity = "0";
+
+
+    ghost.animate(
+        [{ backgroundColor: MODAL_BACKDROP }, { backgroundColor: "rgba(0, 0, 0, 0)" }],
+        { duration: 360, fill: "forwards" }
+    );
+
+    // La carte réapparaît pendant que la fenêtre s'efface,
+    // pour ne jamais voir deux textes l'un sur l'autre.
+    flyer.animate(
+        [
+            { transform: "translate(" + -geometry.dx + "px, " + -geometry.dy + "px)", opacity: 0 },
+            { opacity: 0, offset: 0.3 },
+            { opacity: 1, offset: 0.75 },
+            { transform: "none", opacity: 1 }
+        ],
+        { duration: 400, easing: MODAL_EASE_CLOSE, fill: "forwards" }
+    );
+
+    return ghostContent.animate(
+        [
+            { transform: "none", clipPath: "inset(0 0 0 0 round 18px)", opacity: 1 },
+            { opacity: 1, offset: 0.3 },
+            { opacity: 0, offset: 0.75 },
+            { transform: "translate(" + geometry.dx + "px, " + geometry.dy + "px)", clipPath: geometry.clip, opacity: 0 }
+        ],
+        { duration: 400, easing: MODAL_EASE_CLOSE, fill: "forwards" }
+    ).finished.finally(() => {
+
+        card.style.visibility = "";
+
+        flyer.remove();
+
+    });
+
+}
+
+
+function initModalAnimations() {
+
+    document.querySelectorAll(".modal").forEach(modal => {
+
+        let wasHidden = modal.classList.contains("hidden");
+
+        new MutationObserver(() => {
+
+            const hidden = modal.classList.contains("hidden");
+
+            if (hidden === wasHidden) {
+
+                return;
+
+            }
+
+            wasHidden = hidden;
+
+
+            const content = modal.querySelector(".modal-content");
+
+
+            /* ----- Ouverture ----- */
+
+            if (!hidden) {
+
+                const card = findSourceCard(modal);
+
+                if (card && content) {
+
+                    openModalFromCard(modal, content, card);
+
+                    return;
+
+                }
+
+                modal.animate(
+                    [{ opacity: 0 }, { opacity: 1 }],
+                    { duration: 150 }
+                );
+
+                if (content) {
+
+                    content.animate(
+                        [
+                            { transform: "scale(.6)", opacity: 0 },
+                            { transform: "scale(1)", opacity: 1 }
+                        ],
+                        { duration: 280, easing: MODAL_EASE_POP }
+                    );
+
+                }
+
+                return;
+
+            }
+
+
+            /* ----- Fermeture ----- */
+
+            const card = modal._skipReturn ? null : findSourceCard(modal);
+
+            const hiddenCard = modal._sourceCard;
+
+            modal._skipReturn = false;
+
+            modal._sourceCard = null;
+
+            modal._sourceBetId = null;
+
+
+            // La copie garde ses identifiants : une grande partie du style de la
+            // fenêtre (question, champ de mise...) est écrit avec ces identifiants,
+            // sans eux la copie aurait un autre aspect pendant le fondu.
+            // La vraie fenêtre est avant dans la page : le code la trouve en premier.
+            const ghost = modal.cloneNode(true);
+
+            ghost.classList.remove("hidden");
+
+            ghost.style.pointerEvents = "none";
+
+            document.body.appendChild(ghost);
+
+
+            const ghostContent = ghost.querySelector(".modal-content");
+
+            if (ghostContent && content) {
+
+                ghostContent.scrollTop = content.scrollTop;
+
+            }
+
+
+            let done;
+
+            if (card && ghostContent) {
+
+                done = closeModalToCard(ghost, ghostContent, card);
+
+            } else {
+
+                // Carte d'origine masquée mais pas de retour : on la réaffiche.
+                if (hiddenCard) {
+
+                    hiddenCard.style.visibility = "";
+
+                }
+
+                // Fermeture douce : fondu du fond et de la fenêtre, avec un très
+                // léger rétrécissement (rien de brusque).
+                ghost.animate(
+                    [{ opacity: 1 }, { opacity: 0 }],
+                    { duration: 320, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" }
+                );
+
+                done = ghostContent
+                    ? ghostContent.animate(
+                        [
+                            { transform: "scale(1)", opacity: 1 },
+                            { transform: "scale(.95) translateY(6px)", opacity: 0 }
+                        ],
+                        { duration: 320, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" }
+                    ).finished
+                    : Promise.resolve();
+
+            }
+
+            done.then(() => ghost.remove()).catch(() => ghost.remove());
+
+        }).observe(modal, { attributes: true, attributeFilter: ["class"] });
+
+    });
+
+}
+
+initModalAnimations();
+
+
+
+/* =========================================================
+   PIÈCES : MISSION RÉCUPÉRÉE
+   Des pièces partent du bouton « Récupérer » vers le compteur
+   de points ; le compteur monte à chaque pièce qui arrive.
+========================================================= */
+
+function flyCoins(fromRect, points, pointsBefore) {
+
+    const target = document.getElementById("points-balance");
+
+    if (!target || !fromRect || !(points > 0)) {
+
+        return Promise.resolve();
+
+    }
+
+    const isAdmin = !!currentProfile?.is_admin;
+
+    const toRect = target.getBoundingClientRect();
+
+    const start = {
+        x: fromRect.left + fromRect.width / 2,
+        y: fromRect.top + fromRect.height / 2
+    };
+
+    const end = {
+        x: toRect.left + toRect.width / 2,
+        y: toRect.top + toRect.height / 2
+    };
+
+    const count = Math.max(6, Math.min(14, Math.round(points / 2)));
+
+    const format = value => Math.round(value) + " 🪙";
+
+    let arrived = 0;
+
+    let shown = pointsBefore;
+
+    // Le compteur repart de l'ancien total et monte à chaque pièce.
+    if (!isAdmin) {
+
+        target.textContent = format(pointsBefore);
+
+    }
+
+    // Les pièces ne sortent jamais de la fenêtre.
+    const margin = 14;
+
+    const keep = point => ({
+        x: Math.min(Math.max(point.x, margin), window.innerWidth - margin),
+        y: Math.min(Math.max(point.y, margin), window.innerHeight - margin)
+    });
+
+    // Une pièce mesure 22 px : on centre sa position.
+    const at = point => `translate(${point.x - 11}px, ${point.y - 11}px)`;
+
+    // Direction perpendiculaire au trajet, pour courber le vol sans sortir de l'écran.
+    const dx = end.x - start.x;
+
+    const dy = end.y - start.y;
+
+    const length = Math.hypot(dx, dy) || 1;
+
+    const normal = { x: -dy / length, y: dx / length };
+
+    const done = [];
+
+    for (let i = 0; i < count; i++) {
+
+        const coin = document.createElement("span");
+
+        coin.className = "mission-coin";
+
+        document.body.appendChild(coin);
+
+        // Départ : le bouton « Récupérer » (à quelques pixels près).
+        const from = keep({
+            x: start.x + (Math.random() - 0.5) * 16,
+            y: start.y + (Math.random() - 0.5) * 10
+        });
+
+        const bend = (Math.random() < 0.5 ? -1 : 1) * (30 + Math.random() * 40);
+
+        const middle = keep({
+            x: from.x + (end.x - from.x) * 0.5 + normal.x * bend,
+            y: from.y + (end.y - from.y) * 0.5 + normal.y * bend
+        });
+
+        const arrival = keep(end);
+
+        const animation = coin.animate(
+            [
+                { transform: `${at(from)} scale(0.5)`, opacity: 0 },
+                { transform: `${at(from)} scale(1)`, opacity: 1, offset: 0.08 },
+                { transform: `${at(middle)} scale(1)`, opacity: 1, offset: 0.55 },
+                { transform: `${at(arrival)} scale(0.6)`, opacity: 1, offset: 0.95 },
+                { transform: `${at(arrival)} scale(0.4)`, opacity: 0 }
+            ],
+            {
+                duration: 900 + Math.random() * 150,
+                delay: i * 70,
+                easing: "ease-in-out",
+                fill: "both"
+            }
+        );
+
+        done.push(animation.finished.then(() => {
+
+            coin.remove();
+
+            arrived++;
+
+            const next = Math.round(pointsBefore + points * arrived / count);
+
+            if (!isAdmin) {
+
+                animateNumber(target, shown, next, 200, format);
+
+            }
+
+            shown = next;
+
+            bump(target);
+
+        }).catch(() => coin.remove()));
+
+    }
+
+    return Promise.all(done).then(() => {
+
+        // Valeur définitive, telle que la base la connaît.
+        updateBalance();
+
+    });
 
 }

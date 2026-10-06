@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Accueil sans groupe (propositions)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; }
+button, input { font: inherit; }
+h1.t { font-size: 26px; margin-bottom: 6px; }
+.sub { color: #858a98; margin-bottom: 16px; max-width: 780px; font-size: 14px; line-height: 1.5; }
+.sub code { background: #1c202c; padding: 1px 6px; border-radius: 6px; color: #a59fff; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; position: sticky; top: 0; background: #0f1117; padding: 10px 0; z-index: 10; align-items: center; }
+.tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; }
+.tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.pick { margin-left: auto; background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; font-weight: 900; padding: 10px 16px; border-radius: 12px; cursor: pointer; }
+.desc { color: #aaaeba; font-size: 14px; max-width: 700px; margin-bottom: 18px; }
+.variant { display: none; }
+.variant.active { display: block; animation: fade .3s; }
+@keyframes fade { from { opacity: 0; transform: translateY(8px); } }
+
+/* Éléments communs */
+.screen { min-height: 620px; background: radial-gradient(circle at 50% 0%, #1d1a3a 0%, #0f1117 60%); border: 1px solid #2c3040; border-radius: 22px; padding: 30px 20px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+.logo { font-size: 24px; font-weight: 800; letter-spacing: -1px; }
+.logo span { color: #6c63ff; }
+.card { background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; border-radius: 22px; padding: 28px; box-shadow: 0 20px 60px rgba(0,0,0,.45); }
+.muted { color: #858a98; font-size: 14px; line-height: 1.5; }
+.btn { border: none; border-radius: 14px; padding: 14px 18px; font-weight: 800; cursor: pointer; transition: transform .15s, box-shadow .15s; }
+.btn:hover { transform: translateY(-2px); }
+.btn.primary { background: #6c63ff; color: white; box-shadow: 0 10px 26px rgba(108,99,255,.35); }
+.btn.green { background: linear-gradient(135deg, #2fa36f, #63d69f); color: #0b1f15; box-shadow: 0 10px 26px rgba(99,214,159,.3); }
+.btn.ghost { background: transparent; border: 1px solid #343846; color: #c9ccd6; }
+.btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+.text-input { width: 100%; padding: 13px; border-radius: 12px; border: 1px solid #343846; background: #101219; color: white; outline: none; }
+.text-input:focus { border-color: #6c63ff; }
+
+.code { display: flex; gap: 8px; justify-content: center; }
+.code input { width: 46px; height: 56px; text-align: center; font-size: 24px; font-weight: 900; text-transform: uppercase; border-radius: 12px; border: 2px solid #343846; background: #101219; color: white; outline: none; transition: border-color .15s, transform .15s; }
+.code input:focus { border-color: #6c63ff; transform: translateY(-2px); }
+.code.ok input { border-color: #63d69f; color: #63d69f; }
+.code.err { animation: shake .35s; }
+.code.err input { border-color: #ff6b6b; }
+@keyframes shake { 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
+.msg { min-height: 22px; text-align: center; font-size: 14px; margin-top: 10px; }
+.msg.err { color: #ff6b6b; }
+.msg.ok { color: #63d69f; font-weight: 800; }
+.hidden { display: none !important; }
+
+.parrot { position: relative; width: 150px; height: 150px; margin: 0 auto; }
+.parrot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.parrot.bob img.head { animation: bob 2.4s ease-in-out infinite; transform-origin: 50% 80%; }
+@keyframes bob { 50% { transform: rotate(-6deg) translateY(-2px); } }
+
+.newcode { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 10px; }
+.newcode b { font-size: 30px; letter-spacing: 6px; color: #a59fff; background: #101219; border: 1px dashed #6c63ff; border-radius: 12px; padding: 8px 16px; }
+.copy { background: #23262f; border: 1px solid #343846; color: #c9ccd6; border-radius: 10px; padding: 8px 12px; cursor: pointer; }
+
+/* A */
+.a-card { width: 100%; max-width: 440px; text-align: center; }
+.a-card h2 { font-size: 24px; margin: 8px 0 6px; }
+.a-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 22px; }
+.a-panel { margin-top: 20px; text-align: left; }
+.a-panel .btn { width: 100%; margin-top: 14px; }
+.back { background: none; border: none; color: #858a98; cursor: pointer; margin-top: 12px; font-size: 13px; }
+
+/* B */
+.b-wrap { display: grid; grid-template-columns: 1.1fr 1fr; gap: 30px; width: 100%; max-width: 900px; align-items: center; }
+@media (max-width: 760px) { .b-wrap { grid-template-columns: 1fr; } }
+.b-hello h2 { font-size: 34px; line-height: 1.15; margin: 12px 0 10px; }
+.b-hello h2 em { font-style: normal; color: #a59fff; }
+.steps { margin-top: 22px; display: flex; flex-direction: column; gap: 12px; }
+.step { display: flex; gap: 14px; align-items: center; background: rgba(255,255,255,.03); border: 1px solid #2c3040; border-radius: 14px; padding: 12px 14px; }
+.step i { font-style: normal; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: #6c63ff; font-weight: 900; flex-shrink: 0; }
+.step.done i { background: #2fa36f; }
+.step b { display: block; }
+.b-card h3 { font-size: 18px; margin-bottom: 4px; }
+.b-card .btn { width: 100%; margin-top: 16px; }
+.or { display: flex; align-items: center; gap: 10px; color: #737887; font-size: 12px; margin: 18px 0 4px; }
+.or::before, .or::after { content: ""; flex: 1; height: 1px; background: #2c3040; }
+
+/* C */
+.c-wrap { width: 100%; max-width: 520px; text-align: center; }
+.c-wrap h2 { font-size: 26px; margin: 10px 0 6px; }
+.ticket { position: relative; margin: 24px auto 0; background: linear-gradient(135deg, #f5c451, #ffdf8a); color: #3a2a00; border-radius: 18px; padding: 22px 26px; text-align: left; box-shadow: 0 18px 40px rgba(245,196,81,.25); transform: rotate(-1.5deg); transition: transform .3s; }
+.ticket:hover { transform: rotate(0); }
+.ticket::before, .ticket::after { content: ""; position: absolute; top: 50%; width: 28px; height: 28px; border-radius: 50%; background: #13141f; transform: translateY(-50%); }
+.ticket::before { left: -14px; } .ticket::after { right: -14px; }
+.ticket .top { display: flex; justify-content: space-between; font-size: 12px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; opacity: .7; }
+.ticket .name { font-size: 22px; font-weight: 900; margin: 6px 0 14px; }
+.ticket .perf { border-top: 2px dashed rgba(58,42,0,.35); margin: 14px -26px; }
+.ticket .code input { background: rgba(255,255,255,.6); border-color: rgba(58,42,0,.25); color: #3a2a00; }
+.ticket .code input:focus { border-color: #3a2a00; }
+.ticket .code.ok input { border-color: #2fa36f; color: #1a6b45; }
+.ticket .msg.err { color: #b3261e; } .ticket .msg.ok { color: #1a6b45; }
+.stamp { position: absolute; right: 20px; top: 30px; border: 4px solid #2fa36f; color: #2fa36f; font-weight: 900; font-size: 26px; letter-spacing: 3px; padding: 4px 14px; border-radius: 10px; transform: rotate(-14deg) scale(2); opacity: 0; transition: transform .35s cubic-bezier(.2,1.6,.4,1), opacity .2s; }
+.stamp.show { opacity: 1; transform: rotate(-14deg) scale(1); }
+.c-links { margin-top: 26px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+/* D */
+.d-wrap { width: 100%; max-width: 860px; align-self: flex-start; }
+.d-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 26px; }
+.d-user { display: flex; align-items: center; gap: 10px; color: #aaaeba; font-size: 14px; }
+.avatar { width: 34px; height: 34px; border-radius: 50%; background: #6c63ff; display: grid; place-items: center; font-weight: 900; color: white; }
+.d-wrap h2 { font-size: 28px; }
+.groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin-top: 20px; }
+.gcard { border-radius: 20px; padding: 22px; min-height: 170px; display: flex; flex-direction: column; justify-content: space-between; }
+.gcard.add { border: 2px dashed #343846; background: rgba(255,255,255,.02); cursor: pointer; transition: border-color .15s, background .15s; text-align: left; color: inherit; }
+.gcard.add:hover { border-color: #6c63ff; background: rgba(108,99,255,.06); }
+.gcard.add .plus { font-size: 30px; }
+.gcard.add b { font-size: 17px; display: block; margin-top: 8px; }
+.gcard.group { background: linear-gradient(135deg, #2b2470, #6c63ff); box-shadow: 0 16px 40px rgba(108,99,255,.3); animation: popin .45s cubic-bezier(.2,1.5,.4,1); }
+@keyframes popin { from { transform: scale(.6); opacity: 0; } }
+.gcard.group h3 { font-size: 20px; }
+.gcard.group .meta { font-size: 13px; opacity: .85; margin-top: 4px; }
+.gcard.group .btn { background: white; color: #2b2470; align-self: flex-start; }
+.empty { margin-top: 18px; color: #858a98; font-size: 14px; display: flex; gap: 10px; align-items: center; }
+.sheet { margin-top: 20px; max-width: 460px; }
+
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #2fa36f; color: #0b1f15; font-weight: 800; padding: 10px 18px; border-radius: 12px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 50; }
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<h1 class="t">Page d'accueil sans groupe</h1>
+<p class="sub">
+    Ce qu'un joueur voit juste après avoir créé son compte, tant qu'il n'est dans aucun groupe privé.
+    Pour tester, le code <code>BUREAU</code> fait rejoindre le groupe « Bureau BE » ; tout autre code affiche une erreur.
+    « Créer un groupe » génère un code à partager.
+</p>
+
+<div class="tabs" id="tabs">
+    <button class="tab active" data-v="A">A · Bienvenue simple</button>
+    <button class="tab" data-v="B">B · Étapes guidées</button>
+    <button class="tab" data-v="C">C · Ticket d'entrée</button>
+    <button class="tab" data-v="D">D · Mes groupes</button>
+    <button class="pick" id="choose">Je choisis celle-ci</button>
+</div>
+
+<!-- ================= A ================= -->
+<section class="variant active" data-v="A">
+    <p class="desc">Une seule carte au centre avec le perroquet : deux gros boutons. « Rejoindre » déplie la saisie du code (6 cases), « Créer » demande un nom et donne le code à partager. Simple et rapide.</p>
+    <div class="screen">
+        <div class="card a-card">
+            <div class="logo"><span>BET</span>LAB</div>
+            <div class="parrot bob" style="margin-top:14px"><img src="assets/perroquet/wait-body.png" alt=""><img class="head" src="assets/perroquet/wait-head.png" alt=""></div>
+            <h2>Bienvenue Florian 👋</h2>
+            <p class="muted">Tu n'es encore dans aucun groupe. Rejoins celui de tes amis avec leur code, ou crée le tien.</p>
+
+            <div class="a-actions" data-step="choice">
+                <button class="btn primary" data-go="join">🔑 Rejoindre un groupe</button>
+                <button class="btn ghost" data-go="create">✨ Créer un groupe</button>
+            </div>
+
+            <div class="a-panel hidden" data-step="join">
+                <p class="muted" style="text-align:center;margin-bottom:12px">Entre le code que l'on t'a donné</p>
+                <div class="code" data-code></div>
+                <p class="msg" data-msg></p>
+                <button class="btn green" data-submit>Rejoindre</button>
+                <div style="text-align:center"><button class="back" data-go="choice">← Retour</button></div>
+            </div>
+
+            <div class="a-panel hidden" data-step="create">
+                <input class="text-input" placeholder="Nom du groupe (ex. Les potes du BE)" data-name>
+                <button class="btn primary" data-create>Créer le groupe</button>
+                <div class="hidden" data-created style="text-align:center;margin-top:16px">
+                    <p class="muted">Partage ce code à tes amis :</p>
+                    <div class="newcode"><b data-newcode></b><button class="copy" data-copy>Copier</button></div>
+                </div>
+                <div style="text-align:center"><button class="back" data-go="choice">← Retour</button></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ================= B ================= -->
+<section class="variant" data-v="B">
+    <p class="desc">Deux colonnes : à gauche un accueil chaleureux qui explique en 3 étapes comment marche BetLab, à droite la saisie du code toujours visible, avec « créer un groupe » en dessous. Plus explicatif pour les nouveaux.</p>
+    <div class="screen">
+        <div class="b-wrap">
+            <div class="b-hello">
+                <div class="logo"><span>BET</span>LAB</div>
+                <h2>Salut Florian,<br>prêt à parier <em>entre potes</em> ?</h2>
+                <p class="muted">Les paris se jouent dans des groupes privés : seuls les membres voient les paris et le classement.</p>
+                <div class="steps">
+                    <div class="step done"><i>✓</i><div><b>Compte créé</b><span class="muted">1 000 € fictifs t'attendent</span></div></div>
+                    <div class="step" data-step2><i>2</i><div><b>Rejoins ou crée un groupe</b><span class="muted">avec un code à 6 caractères</span></div></div>
+                    <div class="step"><i>3</i><div><b>Parie et grimpe au classement</b><span class="muted">missions, coffres, boutique…</span></div></div>
+                </div>
+            </div>
+            <div class="card b-card">
+                <h3>🔑 Rejoindre un groupe</h3>
+                <p class="muted" style="margin-bottom:16px">Demande le code à un membre du groupe.</p>
+                <div class="code" data-code></div>
+                <p class="msg" data-msg></p>
+                <button class="btn green" data-submit>Rejoindre le groupe</button>
+                <div class="or">ou</div>
+                <input class="text-input" placeholder="Nom de ton nouveau groupe" data-name>
+                <button class="btn ghost" data-create>✨ Créer mon groupe</button>
+                <div class="hidden" data-created style="text-align:center;margin-top:14px">
+                    <p class="muted">Code à partager :</p>
+                    <div class="newcode"><b data-newcode></b><button class="copy" data-copy>Copier</button></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ================= C ================= -->
+<section class="variant" data-v="C">
+    <p class="desc">Ambiance casino : le code s'entre sur un « ticket d'entrée » doré. Quand le code est bon, un tampon « VALIDÉ » s'écrase dessus et le perroquet passe en pose « gagné ». Le plus ludique.</p>
+    <div class="screen" style="background: radial-gradient(circle at 50% 0%, #2a2410 0%, #13141f 60%)">
+        <div class="c-wrap">
+            <div class="parrot bob" data-cparrot><img src="assets/perroquet/wait-body.png" alt=""><img class="head" src="assets/perroquet/wait-head.png" alt=""></div>
+            <h2>L'entrée du club est privée 🎩</h2>
+            <p class="muted">Présente ton ticket : le code de ton groupe.</p>
+            <div class="ticket">
+                <div class="top"><span>BetLab · Ticket d'entrée</span><span>N° 0001</span></div>
+                <div class="name">Florian</div>
+                <div class="perf"></div>
+                <div class="code" data-code></div>
+                <p class="msg" data-msg></p>
+                <div class="stamp" data-stamp>VALIDÉ</div>
+            </div>
+            <div class="c-links">
+                <button class="btn green" data-submit>Entrer dans le club</button>
+                <button class="btn ghost" data-go-create>✨ Ouvrir mon propre club</button>
+            </div>
+            <div class="card hidden" data-createbox style="margin-top:18px;text-align:left">
+                <input class="text-input" placeholder="Nom de ton club" data-name>
+                <button class="btn primary" data-create style="width:100%;margin-top:12px">Créer</button>
+                <div class="hidden" data-created style="text-align:center;margin-top:14px">
+                    <p class="muted">Ton code d'entrée :</p>
+                    <div class="newcode"><b data-newcode></b><button class="copy" data-copy>Copier</button></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ================= D ================= -->
+<section class="variant" data-v="D">
+    <p class="desc">Page « Mes groupes », celle que l'on retrouvera aussi plus tard pour changer de groupe : vide au départ avec deux cases « Rejoindre » et « Créer ». Quand on rejoint un groupe, sa carte apparaît avec un bouton « Entrer ». Pensé pour plusieurs groupes.</p>
+    <div class="screen">
+        <div class="d-wrap">
+            <div class="d-head">
+                <div class="logo"><span>BET</span>LAB</div>
+                <div class="d-user"><span>Florian</span><div class="avatar">F</div></div>
+            </div>
+            <h2>Mes groupes</h2>
+            <p class="empty" data-empty>🦜 Tu n'as encore aucun groupe. Commence par en rejoindre un ou en créer un !</p>
+            <div class="groups" data-groups>
+                <button class="gcard add" data-open="join"><span class="plus">🔑</span><span><b>Rejoindre un groupe</b><span class="muted">avec un code</span></span></button>
+                <button class="gcard add" data-open="create"><span class="plus">✨</span><span><b>Créer un groupe</b><span class="muted">et inviter tes amis</span></span></button>
+            </div>
+            <div class="card sheet hidden" data-sheet="join">
+                <h3 style="margin-bottom:12px">🔑 Code du groupe</h3>
+                <div class="code" data-code></div>
+                <p class="msg" data-msg></p>
+                <button class="btn green" data-submit style="width:100%">Rejoindre</button>
+            </div>
+            <div class="card sheet hidden" data-sheet="create">
+                <h3 style="margin-bottom:12px">✨ Nouveau groupe</h3>
+                <input class="text-input" placeholder="Nom du groupe" data-name>
+                <button class="btn primary" data-create style="width:100%;margin-top:12px">Créer</button>
+                <div class="hidden" data-created style="text-align:center;margin-top:14px">
+                    <p class="muted">Code à partager :</p>
+                    <div class="newcode"><b data-newcode></b><button class="copy" data-copy>Copier</button></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const VALID = { BUREAU: { name: "Bureau BE", members: 8 } };
+
+function toast(text) {
+    const t = document.getElementById("toast");
+    t.textContent = text;
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+function buildCode(box, onFull) {
+    box.innerHTML = "";
+    for (let i = 0; i < 6; i++) {
+        const input = document.createElement("input");
+        input.maxLength = 1;
+        input.autocomplete = "off";
+        input.addEventListener("input", () => {
+            input.value = input.value.replace(/[^a-z0-9]/gi, "").toUpperCase();
+            if (input.value && input.nextElementSibling) input.nextElementSibling.focus();
+            box.classList.remove("err");
+            if (readCode(box).length === 6) onFull();
+        });
+        input.addEventListener("keydown", e => {
+            if (e.key === "Backspace" && !input.value && input.previousElementSibling) input.previousElementSibling.focus();
+        });
+        input.addEventListener("paste", e => {
+            e.preventDefault();
+            const text = (e.clipboardData.getData("text") || "").replace(/[^a-z0-9]/gi, "").toUpperCase().slice(0, 6);
+            [...box.children].forEach((el, i) => el.value = text[i] || "");
+            if (text.length === 6) onFull();
+        });
+        box.appendChild(input);
+    }
+}
+const readCode = box => [...box.children].map(i => i.value).join("");
+
+function randomCode() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+}
+
+function setupVariant(section, onJoined) {
+    const box = section.querySelector("[data-code]");
+    const msg = section.querySelector("[data-msg]");
+    const submit = () => {
+        const code = readCode(box);
+        box.classList.remove("err", "ok");
+        msg.className = "msg";
+        if (code.length < 6) { msg.textContent = "Le code fait 6 caractères."; msg.classList.add("err"); return; }
+        const g = VALID[code];
+        if (!g) {
+            void box.offsetWidth;
+            box.classList.add("err");
+            msg.textContent = "Code inconnu, vérifie auprès de tes amis.";
+            msg.classList.add("err");
+            return;
+        }
+        box.classList.add("ok");
+        msg.textContent = `🎉 Bienvenue dans « ${g.name} » (${g.members} membres) !`;
+        msg.classList.add("ok");
+        onJoined && onJoined(g);
+    };
+    buildCode(box, submit);
+    section.querySelectorAll("[data-submit]").forEach(b => b.onclick = submit);
+
+    section.querySelectorAll("[data-create]").forEach(b => b.onclick = () => {
+        const name = section.querySelector("[data-name]").value.trim();
+        if (name.length < 3) { toast("Donne un nom d'au moins 3 caractères"); return; }
+        const created = section.querySelector("[data-created]");
+        created.classList.remove("hidden");
+        created.querySelector("[data-newcode]").textContent = randomCode();
+    });
+    section.querySelectorAll("[data-copy]").forEach(b => b.onclick = () => {
+        const code = section.querySelector("[data-newcode]").textContent;
+        navigator.clipboard && navigator.clipboard.writeText(code).catch(() => {});
+        toast("Code " + code + " copié");
+    });
+}
+
+/* A */
+const A = document.querySelector('[data-v="A"].variant');
+A.querySelectorAll("[data-go]").forEach(b => b.onclick = () => {
+    A.querySelectorAll("[data-step]").forEach(s => s.classList.toggle("hidden", s.dataset.step !== b.dataset.go));
+    const first = A.querySelector('[data-step="join"] .code input');
+    if (b.dataset.go === "join") setTimeout(() => first.focus(), 50);
+});
+setupVariant(A);
+
+/* B */
+const B = document.querySelector('[data-v="B"].variant');
+setupVariant(B, () => {
+    const s = B.querySelector("[data-step2]");
+    s.classList.add("done");
+    s.querySelector("i").textContent = "✓";
+});
+
+/* C */
+const C = document.querySelector('[data-v="C"].variant');
+setupVariant(C, () => {
+    C.querySelector("[data-stamp]").classList.add("show");
+    C.querySelector("[data-cparrot]").innerHTML = '<img src="assets/perroquet/win-main.png" alt="">';
+});
+C.querySelector("[data-go-create]").onclick = () => C.querySelector("[data-createbox]").classList.toggle("hidden");
+
+/* D */
+const D = document.querySelector('[data-v="D"].variant');
+D.querySelectorAll("[data-open]").forEach(b => b.onclick = () => {
+    D.querySelectorAll("[data-sheet]").forEach(s => s.classList.toggle("hidden", s.dataset.sheet !== b.dataset.open));
+});
+setupVariant(D, g => {
+    D.querySelector("[data-empty]").classList.add("hidden");
+    D.querySelector('[data-sheet="join"]').classList.add("hidden");
+    const card = document.createElement("div");
+    card.className = "gcard group";
+    card.innerHTML = `<div><h3>🏢 ${g.name}</h3><p class="meta">${g.members} membres · 12 paris en cours</p></div><button class="btn">Entrer →</button>`;
+    D.querySelector("[data-groups]").prepend(card);
+});
+
+/* Onglets + choix */
+let current = "A";
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+    current = t.dataset.v;
+    document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === t));
+    document.querySelectorAll(".variant").forEach(v => v.classList.toggle("active", v.dataset.v === current));
+});
+document.getElementById("choose").onclick = () => {
+    const name = document.querySelector(`.tab[data-v="${current}"]`).textContent;
+    const text = "Accueil sans groupe choisi : " + name;
+    navigator.clipboard && navigator.clipboard.writeText(text).catch(() => {});
+    toast("Copié : « " + text + " » → colle-le à Claude");
+};
+</script>
+</body>
+</html>

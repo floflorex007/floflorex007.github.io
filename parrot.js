@@ -433,8 +433,8 @@ const Parrot = (() => {
 
         });
 
-        // Arrivée sur la page : petit « pop » d'apparition en attente.
-        enter.waiting = performance.now() / 1000;
+        // Arrivée sur la page : le perroquet est déjà en place, sans animation.
+        enter.waiting = -10;
 
         requestAnimationFrame(loop);
 
@@ -445,9 +445,23 @@ const Parrot = (() => {
 
 
     // Change le niveau d'attente (1 à 4).
-    function setLevel(n) {
+    function setLevel(n, instant) {
 
         n = clamp(Math.round(Number(n)) || 1, 1, 4);
+
+        // Au chargement de la page : on pose le niveau tout de suite, sans fondu ni « pop ».
+        if (instant) {
+
+            level = n;
+
+            for (let i = 0; i < levelOpacity.length; i++) {
+                levelOpacity[i] = i === n - 1 ? 1 : 0;
+                levelEnter[i] = -10;
+            }
+
+            return;
+
+        }
 
         if (n === level) {
             return;
@@ -483,7 +497,13 @@ const Parrot = (() => {
 
 
     return {
-        wait: () => trigger("waiting"),
+        // wait(true) : retour en attente sans le petit rebond d'apparition.
+        wait: instant => {
+            trigger("waiting");
+            if (instant) {
+                enter.waiting = -10;
+            }
+        },
         win: () => trigger("win"),
         lose: () => trigger("lose"),
         hit,

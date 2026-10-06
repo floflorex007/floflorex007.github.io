@@ -17,7 +17,7 @@
 </head>
 
 
-<body>
+<body class="app-loading">
 
 
     <!-- =========================================
@@ -28,6 +28,28 @@
 
         <div class="logo">
             <span>BET</span>LAB
+        </div>
+
+
+        <!-- Sélecteur du groupe privé en cours -->
+
+        <div class="group-switcher">
+
+            <button
+                type="button"
+                id="group-switcher-button"
+                class="group-switcher-button"
+            >
+                👥
+                <span id="group-switcher-name">Groupe</span>
+                ▾
+            </button>
+
+            <div
+                id="group-menu"
+                class="group-menu hidden"
+            ></div>
+
         </div>
 
 
@@ -126,7 +148,7 @@
                 <span>Points</span>
 
                 <strong id="points-balance">
-                    0 pts
+                    0 🪙
                 </strong>
 
             </div>
@@ -143,6 +165,199 @@
         </div>
 
     </header>
+
+
+
+    <!-- =========================================
+         PAGE DE BIENVENUE (aucun groupe,
+         ou rejoindre / créer un autre groupe)
+    ========================================== -->
+
+    <section
+        id="welcome-page"
+        class="welcome-screen hidden"
+    >
+
+        <div class="welcome-card">
+
+            <div class="logo">
+                <span>BET</span>LAB
+            </div>
+
+
+            <div class="welcome-parrot">
+                <img src="assets/perroquet/wait-body.png" alt="">
+                <img class="welcome-parrot-head" src="assets/perroquet/wait-head.png" alt="">
+            </div>
+
+
+            <h2>
+                Bienvenue <span id="welcome-name"></span> 👋
+            </h2>
+
+            <p
+                id="welcome-intro"
+                class="welcome-intro"
+            ></p>
+
+
+            <!-- Choix -->
+
+            <div
+                class="welcome-actions"
+                data-welcome-step="choice"
+            >
+
+                <button
+                    type="button"
+                    class="primary-button welcome-big-button"
+                    data-welcome-go="join"
+                >
+                    🔑 Rejoindre un groupe
+                </button>
+
+                <button
+                    type="button"
+                    class="welcome-ghost-button welcome-big-button"
+                    data-welcome-go="create"
+                >
+                    ✨ Créer un groupe
+                </button>
+
+            </div>
+
+
+            <!-- Rejoindre avec un code -->
+
+            <div
+                class="welcome-panel hidden"
+                data-welcome-step="join"
+            >
+
+                <p class="welcome-intro">
+                    Entre le code que l'on t'a donné
+                </p>
+
+                <div
+                    id="welcome-code"
+                    class="welcome-code"
+                ></div>
+
+                <p
+                    id="welcome-join-message"
+                    class="welcome-message"
+                ></p>
+
+                <button
+                    type="button"
+                    id="welcome-join-button"
+                    class="welcome-green-button"
+                >
+                    Rejoindre
+                </button>
+
+                <button
+                    type="button"
+                    class="welcome-link"
+                    data-welcome-go="choice"
+                >
+                    ← Retour
+                </button>
+
+            </div>
+
+
+            <!-- Créer un groupe -->
+
+            <div
+                class="welcome-panel hidden"
+                data-welcome-step="create"
+            >
+
+                <input
+                    type="text"
+                    id="welcome-group-name"
+                    maxlength="40"
+                    placeholder="Nom du groupe (ex. Les potes du BE)"
+                >
+
+                <p
+                    id="welcome-create-error"
+                    class="error-message"
+                ></p>
+
+                <button
+                    type="button"
+                    id="welcome-create-button"
+                    class="primary-button welcome-big-button"
+                >
+                    Créer le groupe
+                </button>
+
+                <div
+                    id="welcome-created"
+                    class="welcome-created hidden"
+                >
+
+                    <p class="welcome-intro">
+                        Partage ce code à tes amis :
+                    </p>
+
+                    <div class="welcome-new-code">
+                        <b id="welcome-new-code"></b>
+                        <button
+                            type="button"
+                            id="welcome-copy-code"
+                            class="welcome-copy"
+                        >
+                            Copier
+                        </button>
+                    </div>
+
+                    <button
+                        type="button"
+                        id="welcome-enter-group"
+                        class="welcome-green-button"
+                    >
+                        Entrer dans le groupe →
+                    </button>
+
+                </div>
+
+                <button
+                    type="button"
+                    class="welcome-link"
+                    data-welcome-go="choice"
+                >
+                    ← Retour
+                </button>
+
+            </div>
+
+
+            <div class="welcome-footer">
+
+                <button
+                    type="button"
+                    id="welcome-back"
+                    class="welcome-link hidden"
+                >
+                    ← Revenir à mon groupe
+                </button>
+
+                <button
+                    type="button"
+                    id="welcome-logout"
+                    class="welcome-link"
+                >
+                    Se déconnecter
+                </button>
+
+            </div>
+
+        </div>
+
+    </section>
 
 
 
@@ -1005,7 +1220,7 @@
                     <span
                         id="bet-gauge-coin"
                         class="bet-gauge-coin"
-                    >🪙</span>
+                    >€</span>
                 </div>
 
 
@@ -1019,6 +1234,7 @@
                     <input
                         type="number"
                         id="stake-input"
+                        inputmode="numeric"
                         min="1"
                         step="1"
                         placeholder="Ta mise (€)"
@@ -1295,6 +1511,216 @@
 
 
     <!-- SUPABASE -->
+
+    <!-- =========================================
+         PANNEAU : DÉTAIL DES PARIEURS (sous la carte)
+    ========================================== -->
+
+    <div
+        id="stakes-panel-backdrop"
+        class="stakes-panel-backdrop hidden"
+    ></div>
+
+    <div
+        id="stakes-panel"
+        class="stakes-panel hidden"
+    ></div>
+
+
+
+    <!-- =========================================
+         MODAL : RETIRÉ D'UN GROUPE
+    ========================================== -->
+
+    <div
+        id="removed-modal"
+        class="modal hidden"
+    >
+
+        <div class="modal-content removed-modal-content">
+
+            <div class="removed-icon">🚪</div>
+
+            <h2>
+                Retiré du groupe
+            </h2>
+
+            <p id="removed-message"></p>
+
+            <p
+                id="removed-hint"
+                class="removed-hint"
+            ></p>
+
+            <button
+                type="button"
+                id="removed-ok"
+                class="primary-button removed-ok"
+            >
+                OK
+            </button>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =========================================
+         MODAL : GÉRER LE GROUPE
+    ========================================== -->
+
+    <div
+        id="group-modal"
+        class="modal hidden"
+    >
+
+        <div class="modal-content group-modal-content">
+
+            <button
+                id="close-group-modal"
+                class="close-modal"
+            >
+                ×
+            </button>
+
+
+            <h2 id="group-modal-title">
+                Groupe
+            </h2>
+
+
+            <div
+                id="group-manage-section"
+                class="group-manage-section hidden"
+            >
+
+                <label for="group-rename-input">
+                    Nom du groupe
+                </label>
+
+                <div class="group-inline">
+                    <input
+                        type="text"
+                        id="group-rename-input"
+                        maxlength="40"
+                    >
+                    <button
+                        type="button"
+                        id="group-rename-button"
+                        class="primary-button"
+                    >
+                        Renommer
+                    </button>
+                </div>
+
+
+                <label>
+                    Code d'invitation
+                </label>
+
+                <div class="group-inline">
+                    <b
+                        id="group-code"
+                        class="group-code"
+                    ></b>
+                    <button
+                        type="button"
+                        id="group-copy-code"
+                        class="welcome-copy"
+                    >
+                        Copier
+                    </button>
+                    <button
+                        type="button"
+                        id="group-regenerate-code"
+                        class="welcome-copy"
+                    >
+                        Changer le code
+                    </button>
+                </div>
+
+            </div>
+
+
+            <p
+                id="group-member-note"
+                class="group-member-note hidden"
+            >
+                Pour inviter quelqu'un, demande le code au créateur du groupe.
+            </p>
+
+
+            <div class="group-members-header">
+                <span>Membres</span>
+                <small id="group-members-count"></small>
+            </div>
+
+            <div
+                id="group-members-list"
+                class="group-members-list"
+            ></div>
+
+
+            <p
+                id="group-modal-error"
+                class="error-message"
+            ></p>
+
+
+            <div class="group-leave-section">
+
+                <button
+                    type="button"
+                    id="group-leave-button"
+                    class="group-leave-button"
+                >
+                    🚪 Quitter le groupe
+                </button>
+
+                <div
+                    id="group-leave-panel"
+                    class="group-leave-panel hidden"
+                >
+
+                    <p id="group-leave-text"></p>
+
+                    <div
+                        id="group-leave-owner"
+                        class="group-leave-owner hidden"
+                    >
+                        <label for="group-leave-owner-select">
+                            Nouveau créateur du groupe
+                        </label>
+                        <select id="group-leave-owner-select"></select>
+                    </div>
+
+                    <div class="group-inline">
+                        <button
+                            type="button"
+                            id="group-leave-confirm"
+                            class="group-leave-confirm"
+                        >
+                            Confirmer
+                        </button>
+                        <button
+                            type="button"
+                            id="group-leave-cancel"
+                            class="welcome-copy"
+                        >
+                            Annuler
+                        </button>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 

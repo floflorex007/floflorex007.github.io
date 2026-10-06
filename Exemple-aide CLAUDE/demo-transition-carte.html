@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BetLab – Transition carte → pop-up (propositions)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; }
+button { font: inherit; }
+h1 { font-size: 26px; margin-bottom: 6px; }
+.sub { color: #858a98; margin-bottom: 20px; max-width: 760px; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; position: sticky; top: 0; background: #0f1117; padding: 10px 0; z-index: 10; }
+.tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; }
+.tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.desc { color: #aaaeba; font-size: 14px; max-width: 620px; margin-bottom: 14px; min-height: 42px; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 22px; align-items: center; }
+.btn { border: 1px solid #2c3040; background: #1c202c; color: #e6e8ee; padding: 10px 16px; border-radius: 12px; cursor: pointer; }
+.btn.pick { background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; font-weight: 900; }
+.slow { color: #858a98; font-size: 13px; display: flex; gap: 6px; align-items: center; cursor: pointer; }
+
+/* Fausse page */
+.stage { position: relative; max-width: 560px; height: 640px; background: #12141c; border: 1px solid #2c3040; border-radius: 18px; padding: 20px; overflow: hidden; }
+.list { display: flex; flex-direction: column; gap: 14px; transition: filter .3s, opacity .3s; }
+.stage.dim .list { filter: blur(3px); opacity: .5; }
+.card, .flyer { background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; border-radius: 18px; padding: 18px; overflow: hidden; }
+.card { cursor: pointer; transition: transform .15s, border-color .15s; }
+.card:hover { transform: translateY(-3px); border-color: #6c63ff; }
+.card small, .modal small { color: #858a98; font-size: 12px; }
+.card h3, .modal h2, .flyer h3 { font-size: 17px; margin: 6px 0 14px; }
+.choices { display: flex; gap: 10px; }
+.choice { flex: 1; display: flex; justify-content: space-between; background: #101219; border: 1px solid #343846; border-radius: 12px; padding: 10px 12px; }
+.choice b { color: #a59fff; }
+
+/* Pop-up */
+.overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; padding: 20px; z-index: 5; }
+.overlay.open { display: flex; }
+.backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.65); z-index: 4; display: none; }
+.backdrop.open { display: block; }
+.modal { position: relative; width: 100%; max-width: 440px; background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #343846; border-radius: 18px; padding: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+.close { position: absolute; top: 12px; right: 14px; background: none; border: none; color: #858a98; font-size: 22px; cursor: pointer; }
+.m-title { font-size: 11px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; color: #858a98; margin: 16px 0 6px; }
+.row { display: flex; justify-content: space-between; align-items: center; background: #101219; border: 1px solid #2c3040; border-radius: 12px; padding: 10px 12px; margin-top: 8px; font-size: 14px; }
+.row b { color: #63d69f; }
+.flyer { position: absolute; z-index: 6; pointer-events: none; margin: 0; }
+.flip-face { backface-visibility: hidden; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #2fa36f; color: #0b1f15; font-weight: 800; padding: 10px 18px; border-radius: 12px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<h1>Transition carte → pop-up</h1>
+<p class="sub">Clique sur n'importe quelle carte pour ouvrir son détail, puis ferme (croix ou clic à côté) pour voir le retour vers la carte. Coche « ralenti » pour bien voir le mouvement.</p>
+
+<div class="tabs" id="tabs"></div>
+<p class="desc" id="desc"></p>
+
+<div class="actions">
+    <button class="btn pick" id="choose">Je choisis celle-ci</button>
+    <label class="slow"><input type="checkbox" id="slow"> Ralenti ×3</label>
+</div>
+
+<div class="stage" id="stage">
+
+    <div class="list" id="list"></div>
+
+    <div class="backdrop" id="backdrop"></div>
+
+    <div class="overlay" id="overlay">
+        <div class="modal" id="modal">
+            <button class="close" id="close">×</button>
+            <div id="m-card"></div>
+            <p class="m-title">Parieurs</p>
+            <div class="row"><span>Balac · Non</span><b>309 €</b></div>
+            <div class="row"><span>Florian · Non</span><b>100 €</b></div>
+            <div class="row"><span>Lina · Oui</span><b>100 €</b></div>
+        </div>
+    </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const BETS = [
+    { author: "Yann", q: "Lina part avant 16h15 précisément ?", c: [["Oui", "2.43"], ["Non", "1.60"]] },
+    { author: "Balac", q: "Coupure de Wi-Fi aujourd'hui ?", c: [["Oui", "5.00"], ["Non", "1.20"]] },
+    { author: "jjj", q: "Au moins 4 personnes s'appellent Florian", c: [["Oui", "2.00"], ["Non", "1.80"]] }
+];
+
+const cardHtml = b => `
+    <small>🏆 Créé par ${b.author}</small>
+    <h3>${b.q}</h3>
+    <div class="choices">${b.c.map(([l, o]) => `<div class="choice"><span>${l}</span><b>${o}</b></div>`).join("")}</div>`;
+
+const stage = document.getElementById("stage");
+const list = document.getElementById("list");
+const overlay = document.getElementById("overlay");
+const backdrop = document.getElementById("backdrop");
+const modal = document.getElementById("modal");
+
+BETS.forEach((b, i) => {
+    const el = document.createElement("div");
+    el.className = "card";
+    el.innerHTML = cardHtml(b);
+    el.onclick = () => openPopup(el, i);
+    list.appendChild(el);
+});
+
+const EASE_OUT = "cubic-bezier(.2,.8,.2,1)";
+const EASE_POP = "cubic-bezier(.2,1.4,.4,1)";
+const T = ms => ms * (document.getElementById("slow").checked ? 3 : 1);
+
+function rel(el) {
+    const r = el.getBoundingClientRect(), s = stage.getBoundingClientRect();
+    return { left: r.left - s.left, top: r.top - s.top, width: r.width, height: r.height };
+}
+const box = r => ({ left: r.left + "px", top: r.top + "px", width: r.width + "px", height: r.height + "px" });
+
+function flyer(card) {
+    const f = document.createElement("div");
+    f.className = "flyer";
+    f.innerHTML = card.innerHTML;
+    Object.assign(f.style, box(rel(card)));
+    stage.appendChild(f);
+    return f;
+}
+
+function fadeBackdrop(on, ms) {
+    backdrop.classList.add("open");
+    return backdrop.animate(on ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 1 }, { opacity: 0 }], { duration: T(ms), fill: "both" }).finished;
+}
+
+const VARIANTS = {
+
+    A: {
+        name: "A · La carte devient la pop-up",
+        desc: "La carte se détache de la liste, glisse au centre et s'agrandit jusqu'à devenir la pop-up ; le détail des parieurs apparaît dedans. À la fermeture elle rétrécit et reprend sa place exacte.",
+        async open(card, c, m) {
+            const f = flyer(card);
+            card.style.visibility = "hidden";
+            modal.style.opacity = 0;
+            fadeBackdrop(true, 260);
+            await f.animate([box(c), box(m)], { duration: T(380), easing: EASE_OUT, fill: "forwards" }).finished;
+            modal.style.opacity = "";
+            await Promise.all([
+                modal.animate([{ opacity: 0 }, { opacity: 1 }], { duration: T(140) }).finished,
+                f.animate([{ opacity: 1 }, { opacity: 0 }], { duration: T(140), fill: "forwards" }).finished
+            ]);
+            f.remove();
+        },
+        async close(card, c, m) {
+            const f = flyer(card);
+            Object.assign(f.style, box(m));
+            f.style.opacity = 0;
+            await Promise.all([
+                modal.animate([{ opacity: 1 }, { opacity: 0 }], { duration: T(120), fill: "forwards" }).finished,
+                f.animate([{ opacity: 0 }, { opacity: 1 }], { duration: T(120), fill: "forwards" }).finished
+            ]);
+            overlay.classList.remove("open");
+            fadeBackdrop(false, 300);
+            await f.animate([box(m), box(c)], { duration: T(340), easing: EASE_OUT, fill: "forwards" }).finished;
+            card.style.visibility = "";
+            f.remove();
+        }
+    },
+
+    B: {
+        name: "B · Soulève puis s'ouvre",
+        desc: "La carte se soulève comme si on la prenait en main, puis la pop-up jaillit depuis elle avec le petit rebond actuel. À la fermeture la pop-up retourne dans la carte, qui fait un léger « tac ».",
+        async open(card, c, m) {
+            await card.animate([{ transform: "none" }, { transform: "translateY(-6px) scale(1.03)", boxShadow: "0 16px 40px rgba(108,99,255,.35)", borderColor: "#6c63ff" }], { duration: T(150), easing: EASE_OUT, fill: "forwards" }).finished;
+            const dx = c.left + c.width / 2 - (m.left + m.width / 2), dy = c.top + c.height / 2 - (m.top + m.height / 2);
+            fadeBackdrop(true, 220);
+            await modal.animate([{ transform: `translate(${dx}px, ${dy}px) scale(.3)`, opacity: 0 }, { transform: "none", opacity: 1 }], { duration: T(320), easing: EASE_POP }).finished;
+            card.getAnimations().forEach(a => a.cancel());
+        },
+        async close(card, c, m) {
+            const dx = c.left + c.width / 2 - (m.left + m.width / 2), dy = c.top + c.height / 2 - (m.top + m.height / 2);
+            fadeBackdrop(false, 220);
+            await modal.animate([{ transform: "none", opacity: 1 }, { transform: `translate(${dx}px, ${dy}px) scale(.3)`, opacity: 0 }], { duration: T(240), easing: "ease-in", fill: "forwards" }).finished;
+            overlay.classList.remove("open");
+            await card.animate([{ transform: "scale(1)" }, { transform: "scale(.97)" }, { transform: "scale(1)" }], { duration: T(180) }).finished;
+        }
+    },
+
+    C: {
+        name: "C · Se déplie sous la carte",
+        desc: "La carte monte au centre (sans changer de taille) pendant que le reste de la page se floute, puis le détail des parieurs se déplie en dessous comme un tiroir. À la fermeture tout se replie dans la carte.",
+        async open(card, c, m) {
+            card.style.visibility = "hidden";
+            stage.classList.add("dim");
+            fadeBackdrop(true, 300);
+            const dx = c.left - m.left, dy = c.top - m.top;
+            await modal.animate([
+                { transform: `translate(${dx}px, ${dy}px)`, clipPath: `inset(0 0 ${m.height - c.height}px 0 round 18px)` },
+                { transform: "translate(0, 0)", clipPath: `inset(0 0 ${m.height - c.height}px 0 round 18px)`, offset: .55 },
+                { transform: "translate(0, 0)", clipPath: "inset(0 0 0 0 round 18px)" }
+            ], { duration: T(520), easing: EASE_OUT }).finished;
+        },
+        async close(card, c, m) {
+            const dx = c.left - m.left, dy = c.top - m.top;
+            stage.classList.remove("dim");
+            fadeBackdrop(false, 360);
+            await modal.animate([
+                { transform: "translate(0, 0)", clipPath: "inset(0 0 0 0 round 18px)" },
+                { transform: "translate(0, 0)", clipPath: `inset(0 0 ${m.height - c.height}px 0 round 18px)`, offset: .4 },
+                { transform: `translate(${dx}px, ${dy}px)`, clipPath: `inset(0 0 ${m.height - c.height}px 0 round 18px)` }
+            ], { duration: T(440), easing: EASE_OUT, fill: "forwards" }).finished;
+            overlay.classList.remove("open");
+            card.style.visibility = "";
+        }
+    },
+
+    D: {
+        name: "D · La carte se retourne",
+        desc: "La carte part vers le centre en se retournant comme une carte à jouer : au dos, on découvre la pop-up avec le détail. À la fermeture elle se retourne à nouveau et revient à sa place.",
+        async open(card, c, m) {
+            const f = flyer(card);
+            card.style.visibility = "hidden";
+            stage.style.perspective = "1200px";
+            modal.style.opacity = 0;
+            fadeBackdrop(true, 300);
+            const cx = m.left + m.width / 2 - c.width / 2, cy = m.top + m.height / 2 - c.height / 2;
+            await f.animate([
+                { ...box(c), transform: "rotateY(0)" },
+                { ...box({ left: cx, top: cy, width: c.width, height: c.height }), transform: "rotateY(90deg)" }
+            ], { duration: T(260), easing: "ease-in", fill: "forwards" }).finished;
+            f.remove();
+            modal.style.opacity = "";
+            await modal.animate([{ transform: "rotateY(-90deg)" }, { transform: "rotateY(0)" }], { duration: T(300), easing: EASE_POP }).finished;
+        },
+        async close(card, c, m) {
+            stage.style.perspective = "1200px";
+            fadeBackdrop(false, 420);
+            await modal.animate([{ transform: "rotateY(0)" }, { transform: "rotateY(90deg)" }], { duration: T(200), easing: "ease-in", fill: "forwards" }).finished;
+            overlay.classList.remove("open");
+            const f = flyer(card);
+            const cx = m.left + m.width / 2 - c.width / 2, cy = m.top + m.height / 2 - c.height / 2;
+            await f.animate([
+                { ...box({ left: cx, top: cy, width: c.width, height: c.height }), transform: "rotateY(-90deg)" },
+                { ...box(c), transform: "rotateY(0)" }
+            ], { duration: T(320), easing: EASE_OUT, fill: "forwards" }).finished;
+            f.remove();
+            card.style.visibility = "";
+        }
+    }
+
+};
+
+let current = "A", openCard = null, busy = false;
+
+function reset() {
+    [modal, backdrop, ...list.children].forEach(el => el.getAnimations().forEach(a => a.cancel()));
+    overlay.classList.remove("open");
+    backdrop.classList.remove("open");
+    stage.classList.remove("dim");
+    stage.style.perspective = "";
+    modal.style.opacity = "";
+    stage.querySelectorAll(".flyer").forEach(f => f.remove());
+    [...list.children].forEach(c => c.style.visibility = "");
+    openCard = null;
+    busy = false;
+}
+
+async function openPopup(card, i) {
+    if (busy || openCard) return;
+    busy = true;
+    document.getElementById("m-card").innerHTML = cardHtml(BETS[i]);
+    overlay.classList.add("open");
+    const c = rel(card), m = rel(modal);
+    openCard = card;
+    await VARIANTS[current].open(card, c, m);
+    modal.getAnimations().forEach(a => a.cancel());
+    modal.style.opacity = "";
+    busy = false;
+}
+
+async function closePopup() {
+    if (busy || !openCard) return;
+    busy = true;
+    const card = openCard;
+    const c = rel(card);
+    const m = rel(modal);
+    await VARIANTS[current].close(card, c, m);
+    backdrop.getAnimations().forEach(a => a.cancel());
+    reset();
+}
+
+function select(key) {
+    reset();
+    current = key;
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.key === key));
+    document.getElementById("desc").textContent = VARIANTS[key].desc;
+}
+
+const tabs = document.getElementById("tabs");
+Object.entries(VARIANTS).forEach(([key, v]) => {
+    const b = document.createElement("button");
+    b.className = "tab";
+    b.dataset.key = key;
+    b.textContent = v.name;
+    b.onclick = () => select(key);
+    tabs.appendChild(b);
+});
+
+document.getElementById("close").onclick = closePopup;
+overlay.addEventListener("click", e => { if (e.target === overlay) closePopup(); });
+
+document.getElementById("choose").onclick = () => {
+    const text = "Transition carte choisie : " + VARIANTS[current].name;
+    (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.resolve()).catch(() => {});
+    const t = document.getElementById("toast");
+    t.textContent = "Copié : « " + text + " » → colle-le à Claude";
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 2500);
+};
+
+select("A");
+</script>
+</body>
+</html>

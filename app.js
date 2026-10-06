@@ -44,6 +44,10 @@ let currentResolveBet = null;
 
 let currentAnnouncementId = null;
 
+let currentGroup = null;
+
+let myGroups = [];
+
 
 
 /* =========================================================
@@ -55,10 +59,24 @@ function formatMoney(value) {
     return Number(value).toLocaleString(
         "fr-FR",
         {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
         }
     ) + " €";
+
+}
+
+
+
+/*
+    Tous les montants en euros (soldes, mises, gains, « en jeu ») sont
+    affichés sans virgule. Seul l'affichage est arrondi : les calculs
+    et la base gardent les décimales. Les cotes restent à 2 décimales.
+*/
+
+function formatBalance(value) {
+
+    return Math.round(Number(value)).toLocaleString("fr-FR") + " €";
 
 }
 
@@ -318,9 +336,1060 @@ async function loadCurrentProfile() {
     currentProfile = data;
 
 
+    // Le solde affiché est celui du groupe en cours.
+    await loadMyGroups();
+
+    if (currentGroup) {
+
+        currentProfile.balance = currentGroup.balance;
+
+        currentProfile.points = currentGroup.points;
+
+        currentProfile.cosmetics = currentGroup.cosmetics;
+
+        currentProfile.gold_frame_until = currentGroup.gold_frame_until;
+
+        currentProfile.name_color_until = currentGroup.name_color_until;
+
+        await loadGroupStyles();
+
+    }
+
+
     updateBalance();
 
-    refreshInPlay();
+    // On attend l'argent en jeu : la taille du perroquet est ainsi connue
+    // avant que la page ne s'affiche.
+    await refreshInPlay();
+
+}
+
+
+
+/* =========================================================
+   GROUPES PRIVÉS
+   Chaque groupe a ses paris, son classement et un solde
+   propre à chaque membre (group_members.balance).
+   Le groupe en cours est retenu dans le navigateur.
+========================================================= */
+
+const GROUP_STORAGE_KEY = "betlab-group";
+
+
+function readSavedGroupId() {
+
+    try {
+        return localStorage.getItem(GROUP_STORAGE_KEY);
+    } catch (error) {
+        return null;
+    }
+
+}
+
+
+function saveGroupId(groupId) {
+
+    try {
+        localStorage.setItem(GROUP_STORAGE_KEY, groupId);
+    } catch (error) {
+        // Stockage indisponible (navigation privée) : on garde le premier groupe.
+    }
+
+}
+
+
+async function loadMyGroups() {
+
+    const { data, error } = await supabaseClient
+        .from("group_members")
+        .select("balance, points, cosmetics, gold_frame_until, name_color_until, is_manager, joined_at, groups ( id, name, code, created_by )")
+        .eq("user_id", currentUser.id)
+        .order("joined_at", { ascending: true });
+
+    if (error) {
+        throw error;
+    }
+
+    myGroups = (data || [])
+        .filter(member => member.groups)
+        .map(member => ({
+            ...member.groups,
+            balance: member.balance,
+            points: member.points,
+            cosmetics: member.cosmetics || {},
+            gold_frame_until: member.gold_frame_until,
+            name_color_until: member.name_color_until,
+            isCreator: member.groups.created_by === currentUser.id,
+            isManager: member.is_manager || member.groups.created_by === currentUser.id
+        }));
+
+    const savedId = readSavedGroupId();
+
+    currentGroup =
+        myGroups.find(group => group.id === savedId) ||
+        myGroups[0] ||
+        null;
+
+    if (currentGroup) {
+        saveGroupId(currentGroup.id);
+    }
+
+    renderGroupSwitcher();
+
+}
+
+
+/*
+    Cosmétiques des membres du groupe en cours, par pseudo :
+    les pseudos affichés partout (paris, classement, fil)
+    prennent les effets achetés dans ce groupe.
+*/
+
+let groupStyles = new Map();
+
+async function loadGroupStyles() {
+
+    const { data, error } = await supabaseClient
+        .from("group_members")
+        .select("cosmetics, gold_frame_until, name_color_until, profiles ( username )")
+        .eq("group_id", currentGroup.id);
+
+    if (error) {
+        console.error(error);
+        return;
+    }
+
+    groupStyles = new Map(
+        (data || [])
+            .filter(member => member.profiles)
+            .map(member => [
+                member.profiles.username,
+                {
+                    cosmetics: member.cosmetics || {},
+                    gold_frame_until: member.gold_frame_until,
+                    name_color_until: member.name_color_until
+                }
+            ])
+    );
+
+}
+
+
+function withGroupStyle(profile) {
+
+    if (!profile || !currentGroup) {
+        return profile;
+    }
+
+    // Hors du groupe (ancien membre) : aucun effet.
+    const style = groupStyles.get(profile.username) || {
+        cosmetics: {},
+        gold_frame_until: null,
+        name_color_until: null
+    };
+
+    return { ...profile, ...style };
+
+}
+
+
+/*
+    Changer de groupe : on recharge la page pour repartir
+    proprement (paris, classement, solde, fil en direct).
+*/
+
+function switchGroup(groupId) {
+
+    saveGroupId(groupId);
+
+    window.location.reload();
+
+}
+
+
+/* ----- Sélecteur de groupe (barre du haut) ----- */
+
+function renderGroupSwitcher() {
+
+    const nameElement = document.getElementById("group-switcher-name");
+
+    const menu = document.getElementById("group-menu");
+
+    if (!nameElement || !menu) {
+        return;
+    }
+
+    nameElement.textContent = currentGroup ? currentGroup.name : "Aucun groupe";
+
+    menu.innerHTML = `
+        ${myGroups.map(group => `
+            <button
+                type="button"
+                class="group-menu-item${currentGroup && group.id === currentGroup.id ? " active" : ""}"
+                data-group-id="${group.id}"
+            >
+                <span>${escapeHtml(group.name)}</span>
+                <small>${formatBalance(group.balance)}</small>
+            </button>
+        `).join("")}
+
+        <div class="group-menu-separator"></div>
+
+        <button type="button" class="group-menu-item" data-group-action="manage">
+            ${currentGroup && currentGroup.isManager ? "⚙️ Gérer le groupe" : "ℹ️ Infos du groupe"}
+        </button>
+
+        <button type="button" class="group-menu-item" data-group-action="join">
+            ＋ Rejoindre ou créer un groupe
+        </button>
+    `;
+
+    menu.querySelectorAll("[data-group-id]").forEach(button => {
+
+        button.addEventListener("click", () => {
+
+            if (currentGroup && button.dataset.groupId === currentGroup.id) {
+                menu.classList.add("hidden");
+                return;
+            }
+
+            switchGroup(button.dataset.groupId);
+
+        });
+
+    });
+
+    menu.querySelector('[data-group-action="manage"]').addEventListener("click", () => {
+        menu.classList.add("hidden");
+        openGroupModal();
+    });
+
+    menu.querySelector('[data-group-action="join"]').addEventListener("click", () => {
+        menu.classList.add("hidden");
+        showWelcome(true);
+    });
+
+}
+
+
+function setupGroupSwitcher() {
+
+    const button = document.getElementById("group-switcher-button");
+
+    const menu = document.getElementById("group-menu");
+
+    if (!button || !menu) {
+        return;
+    }
+
+    button.addEventListener("click", event => {
+        event.stopPropagation();
+        menu.classList.toggle("hidden");
+    });
+
+    document.addEventListener("click", event => {
+        if (!event.target.closest(".group-switcher")) {
+            menu.classList.add("hidden");
+        }
+    });
+
+}
+
+
+/* ----- Page de bienvenue (aucun groupe, ou rejoindre/créer) ----- */
+
+function showWelcome(canGoBack) {
+
+    document.body.classList.add("no-group");
+
+    document.getElementById("welcome-page").classList.remove("hidden");
+
+    document.getElementById("welcome-name").textContent =
+        currentProfile?.username || "";
+
+    document.getElementById("welcome-back").classList.toggle("hidden", !canGoBack);
+
+    document.getElementById("welcome-intro").textContent = canGoBack
+        ? "Rejoins un autre groupe avec son code, ou crée le tien."
+        : "Tu n'es encore dans aucun groupe. Rejoins celui de tes amis avec leur code, ou crée le tien.";
+
+    showWelcomeStep("choice");
+
+}
+
+
+function hideWelcome() {
+
+    document.body.classList.remove("no-group");
+
+    document.getElementById("welcome-page").classList.add("hidden");
+
+}
+
+
+function showWelcomeStep(step) {
+
+    document
+        .querySelectorAll("#welcome-page [data-welcome-step]")
+        .forEach(element => {
+            element.classList.toggle("hidden", element.dataset.welcomeStep !== step);
+        });
+
+    const message = document.getElementById("welcome-join-message");
+
+    message.textContent = "";
+
+    message.className = "welcome-message";
+
+    if (step === "join") {
+
+        document.querySelectorAll("#welcome-code input").forEach(input => {
+            input.value = "";
+        });
+
+        setTimeout(() => document.querySelector("#welcome-code input")?.focus(), 50);
+
+    }
+
+    if (step === "create") {
+
+        document.getElementById("welcome-group-name").value = "";
+
+        document.getElementById("welcome-create-error").textContent = "";
+
+        document.getElementById("welcome-created").classList.add("hidden");
+
+        document.getElementById("welcome-create-button").classList.remove("hidden");
+
+    }
+
+}
+
+
+function readWelcomeCode() {
+
+    return [...document.querySelectorAll("#welcome-code input")]
+        .map(input => input.value)
+        .join("");
+
+}
+
+
+/*
+    Dès que le code est complet : on affiche le nom du groupe trouvé,
+    mais on ne rejoint qu'en appuyant sur le bouton « Rejoindre ».
+*/
+
+function setWelcomeMessage(kind, icon, title, subtitle) {
+
+    const message = document.getElementById("welcome-join-message");
+
+    message.className = "welcome-message " + kind;
+
+    message.innerHTML = `
+        <span class="welcome-message-icon">${icon}</span>
+        <span class="welcome-message-text">
+            <b>${title}</b>
+            ${subtitle ? `<small>${subtitle}</small>` : ""}
+        </span>
+    `;
+
+}
+
+
+async function previewWelcomeCode() {
+
+    const box = document.getElementById("welcome-code");
+
+    const message = document.getElementById("welcome-join-message");
+
+    const code = readWelcomeCode();
+
+    box.classList.remove("error", "success");
+
+    message.className = "welcome-message";
+
+    message.textContent = "";
+
+    if (code.length < 6) {
+
+        return;
+
+    }
+
+    const { data, error } =
+        await supabaseClient.rpc("preview_group", { p_code: code });
+
+    // Le code a changé pendant la recherche : on ignore ce résultat.
+    if (readWelcomeCode() !== code) {
+
+        return;
+
+    }
+
+    if (error || !data || data.length === 0) {
+
+        void box.offsetWidth;
+
+        box.classList.add("error");
+
+        setWelcomeMessage(
+            "error",
+            "❌",
+            "Code inconnu",
+            "Vérifie le code auprès de tes amis."
+        );
+
+        return;
+
+    }
+
+    const group = data[0];
+
+    box.classList.add("success");
+
+    setWelcomeMessage(
+        "success",
+        "👥",
+        escapeHtml(group.name),
+        `${group.members} membre${group.members > 1 ? "s" : ""} · Appuie sur « Rejoindre » pour entrer`
+    );
+
+}
+
+
+let welcomeJoining = false;
+
+async function submitWelcomeCode() {
+
+    if (welcomeJoining) {
+
+        return;
+
+    }
+
+    const box = document.getElementById("welcome-code");
+
+    const code = readWelcomeCode();
+
+    if (code.length < 6) {
+
+        box.classList.remove("success");
+
+        setWelcomeMessage(
+            "error",
+            "⚠️",
+            "Le code fait 6 caractères",
+            ""
+        );
+
+        return;
+
+    }
+
+    // La carte « groupe trouvé » reste telle quelle pendant la demande
+    // (on ne touche ni à ses classes ni à son texte).
+    welcomeJoining = true;
+
+    const { data, error } =
+        await supabaseClient.rpc("join_group", { p_code: code });
+
+    if (error) {
+
+        welcomeJoining = false;
+
+        box.classList.remove("success");
+
+        void box.offsetWidth;
+
+        box.classList.add("error");
+
+        setWelcomeMessage(
+            "error",
+            "❌",
+            escapeHtml(error.message || "Impossible de rejoindre ce groupe."),
+            ""
+        );
+
+        return;
+
+    }
+
+    switchGroup(data.id);
+
+}
+
+
+async function createGroupFromWelcome() {
+
+    const errorElement = document.getElementById("welcome-create-error");
+
+    const name = document.getElementById("welcome-group-name").value.trim();
+
+    errorElement.textContent = "";
+
+    if (name.length < 3) {
+
+        errorElement.textContent = "Donne un nom d'au moins 3 caractères.";
+
+        return;
+
+    }
+
+    const { data, error } =
+        await supabaseClient.rpc("create_group", { p_name: name });
+
+    if (error) {
+
+        errorElement.textContent = error.message || "Impossible de créer le groupe.";
+
+        return;
+
+    }
+
+    document.getElementById("welcome-create-button").classList.add("hidden");
+
+    document.getElementById("welcome-new-code").textContent = data.code;
+
+    document.getElementById("welcome-created").classList.remove("hidden");
+
+    document.getElementById("welcome-enter-group").onclick = () => switchGroup(data.id);
+
+}
+
+
+async function copyText(text, button) {
+
+    try {
+
+        await navigator.clipboard.writeText(text);
+
+        const label = button.textContent;
+
+        button.textContent = "Copié ✓";
+
+        setTimeout(() => {
+            button.textContent = label;
+        }, 1500);
+
+    } catch (error) {
+
+        window.prompt("Copie ce code :", text);
+
+    }
+
+}
+
+
+function setupWelcome() {
+
+    const page = document.getElementById("welcome-page");
+
+    if (!page) {
+        return;
+    }
+
+    page.querySelectorAll("[data-welcome-go]").forEach(button => {
+        button.addEventListener("click", () => showWelcomeStep(button.dataset.welcomeGo));
+    });
+
+
+    // Six cases pour le code : lettres et chiffres, passage automatique.
+    const box = document.getElementById("welcome-code");
+
+    box.innerHTML = "";
+
+    for (let i = 0; i < 6; i++) {
+
+        const input = document.createElement("input");
+
+        input.maxLength = 1;
+
+        input.autocomplete = "off";
+
+        input.addEventListener("input", () => {
+
+            input.value = input.value.replace(/[^a-z0-9]/gi, "").toUpperCase().slice(0, 1);
+
+            box.classList.remove("error");
+
+            if (input.value && input.nextElementSibling) {
+                input.nextElementSibling.focus();
+            }
+
+            previewWelcomeCode();
+
+        });
+
+        input.addEventListener("keydown", event => {
+
+            if (event.key === "Backspace" && !input.value && input.previousElementSibling) {
+                input.previousElementSibling.focus();
+            }
+
+            if (event.key === "Enter") {
+                submitWelcomeCode();
+            }
+
+        });
+
+        input.addEventListener("paste", event => {
+
+            event.preventDefault();
+
+            const text = (event.clipboardData.getData("text") || "")
+                .replace(/[^a-z0-9]/gi, "")
+                .toUpperCase()
+                .slice(0, 6);
+
+            [...box.children].forEach((element, index) => {
+                element.value = text[index] || "";
+            });
+
+            // On ne rejoint qu'en appuyant sur le bouton « Rejoindre ».
+            previewWelcomeCode();
+
+            if (text.length === 6) {
+                document.getElementById("welcome-join-button").focus();
+            }
+
+        });
+
+        box.appendChild(input);
+
+    }
+
+
+    document.getElementById("welcome-join-button").addEventListener("click", submitWelcomeCode);
+
+    document.getElementById("welcome-create-button").addEventListener("click", createGroupFromWelcome);
+
+    document.getElementById("welcome-group-name").addEventListener("keydown", event => {
+        if (event.key === "Enter") {
+            createGroupFromWelcome();
+        }
+    });
+
+    document.getElementById("welcome-copy-code").addEventListener("click", event => {
+        copyText(document.getElementById("welcome-new-code").textContent, event.currentTarget);
+    });
+
+    document.getElementById("welcome-back").addEventListener("click", hideWelcome);
+
+    document.getElementById("welcome-logout").addEventListener("click", logout);
+
+}
+
+
+/* ----- Paris en direct (Supabase Realtime) ----- */
+
+let betsChannel = null;
+
+let betsRefreshTimer = null;
+
+function scheduleBetsRefresh() {
+
+    // Regroupe les événements rapprochés (un pari = pari + choix + mises).
+    clearTimeout(betsRefreshTimer);
+
+    betsRefreshTimer = setTimeout(() => {
+
+        displayBets({ quiet: true });
+
+    }, 600);
+
+}
+
+function setupBetsRealtime() {
+
+    if (!currentGroup || betsChannel) {
+
+        return;
+
+    }
+
+    betsChannel = supabaseClient
+        .channel("group-" + currentGroup.id)
+        .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "bets", filter: "group_id=eq." + currentGroup.id },
+            scheduleBetsRefresh
+        )
+        .on(
+            "postgres_changes",
+            { event: "INSERT", schema: "public", table: "bet_choices" },
+            scheduleBetsRefresh
+        )
+        .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "stakes" },
+            scheduleBetsRefresh
+        )
+        .subscribe();
+
+}
+
+
+/* ----- Quitter un groupe ----- */
+
+let groupHeirs = [];
+
+function setupGroupLeave() {
+
+    const button = document.getElementById("group-leave-button");
+
+    if (!button) {
+        return;
+    }
+
+    const panel = document.getElementById("group-leave-panel");
+
+    button.addEventListener("click", () => {
+
+        const group = currentGroup;
+
+        const ownerBox = document.getElementById("group-leave-owner");
+
+        const select = document.getElementById("group-leave-owner-select");
+
+        let text = `Tu vas quitter « ${group.name} ». Tu perdras ton solde, tes points et ta boutique dans ce groupe.`;
+
+        ownerBox.classList.add("hidden");
+
+        if (group.isCreator) {
+
+            if (groupHeirs.length === 0) {
+
+                text += " Tu es le dernier membre : le groupe sera supprimé avec tous ses paris.";
+
+            } else {
+
+                text += " Tu es le créateur : choisis qui reprend le groupe.";
+
+                select.innerHTML = groupHeirs.map(
+                    member => `<option value="${member.user_id}">${escapeHtml(member.profiles.username)}</option>`
+                ).join("");
+
+                ownerBox.classList.remove("hidden");
+
+            }
+
+        }
+
+        document.getElementById("group-leave-text").textContent = text;
+
+        document.getElementById("group-modal-error").textContent = "";
+
+        panel.classList.remove("hidden");
+
+        button.classList.add("hidden");
+
+    });
+
+    document.getElementById("group-leave-cancel").addEventListener("click", () => {
+
+        panel.classList.add("hidden");
+
+        button.classList.remove("hidden");
+
+    });
+
+    document.getElementById("group-leave-confirm").addEventListener("click", async () => {
+
+        const errorElement = document.getElementById("group-modal-error");
+
+        const ownerBox = document.getElementById("group-leave-owner");
+
+        const newOwner = ownerBox.classList.contains("hidden")
+            ? null
+            : document.getElementById("group-leave-owner-select").value;
+
+        errorElement.textContent = "";
+
+        const { error } = await supabaseClient.rpc(
+            "leave_group",
+            { p_group: currentGroup.id, p_new_owner: newOwner }
+        );
+
+        if (error) {
+
+            errorElement.textContent = error.message || "Impossible de quitter le groupe.";
+
+            return;
+
+        }
+
+        // On repart d'un autre groupe, ou de la page d'accueil s'il n'en reste aucun.
+        window.location.reload();
+
+    });
+
+}
+
+
+/* ----- Retrait d'un groupe : pop-up au retour ou en direct ----- */
+
+let removalPopupOpen = false;
+
+async function checkGroupRemovals() {
+
+    const modal = document.getElementById("removed-modal");
+
+    if (!modal || removalPopupOpen || !currentUser) {
+        return;
+    }
+
+    const { data, error } = await supabaseClient
+        .from("group_removals")
+        .select("id, group_id, group_name")
+        .eq("user_id", currentUser.id)
+        .is("seen_at", null)
+        .order("removed_at", { ascending: true });
+
+    if (error || !data || data.length === 0) {
+        return;
+    }
+
+    removalPopupOpen = true;
+
+    const names = data.map(row => `« ${escapeHtml(row.group_name)} »`);
+
+    document.getElementById("removed-message").innerHTML = data.length === 1
+        ? `Tu viens d'être retiré(e) du groupe <strong>${names[0]}</strong>.`
+        : `Tu viens d'être retiré(e) des groupes <strong>${names.join(", ")}</strong>.`;
+
+    // Le groupe en cours est-il concerné ?
+    const currentRemoved = !!currentGroup &&
+        data.some(row => row.group_id === currentGroup.id);
+
+    document.getElementById("removed-hint").textContent = currentRemoved
+        ? "Tu vas être redirigé(e) vers un autre groupe ou vers l'accueil."
+        : "";
+
+    modal.classList.remove("hidden");
+
+    document.getElementById("removed-ok").onclick = async () => {
+
+        await supabaseClient.rpc("ack_group_removals");
+
+        modal.classList.add("hidden");
+
+        removalPopupOpen = false;
+
+        if (currentRemoved) {
+
+            window.location.reload();
+
+            return;
+
+        }
+
+        await loadMyGroups();
+
+    };
+
+}
+
+
+/* ----- Gestion du groupe (fenêtre) ----- */
+
+async function openGroupModal() {
+
+    if (!currentGroup) {
+        return;
+    }
+
+    document.getElementById("group-modal-error").textContent = "";
+
+    document.getElementById("group-modal").classList.remove("hidden");
+
+    await renderGroupModal();
+
+}
+
+
+async function renderGroupModal() {
+
+    const group = currentGroup;
+
+    const manager = group.isManager;
+
+
+    document.getElementById("group-modal-title").textContent = group.name;
+
+    document.getElementById("group-manage-section").classList.toggle("hidden", !manager);
+
+    document.getElementById("group-member-note").classList.toggle("hidden", manager);
+
+    if (manager) {
+
+        document.getElementById("group-rename-input").value = group.name;
+
+        document.getElementById("group-code").textContent = group.code;
+
+    }
+
+
+    const list = document.getElementById("group-members-list");
+
+    list.innerHTML = "<p class=\"group-member-note\">Chargement...</p>";
+
+    const { data, error } = await supabaseClient
+        .from("group_members")
+        .select("user_id, balance, is_manager, profiles ( username, is_admin, gold_frame_until, name_color_until, cosmetics )")
+        .eq("group_id", group.id)
+        .order("balance", { ascending: false });
+
+    if (error) {
+
+        list.innerHTML = "<p class=\"error-message\">Impossible de charger les membres.</p>";
+
+        return;
+
+    }
+
+    // L'admin n'apparaît pas dans la liste (sauf pour lui-même).
+    const members = data.filter(
+        member => !member.profiles?.is_admin || member.user_id === currentUser.id
+    );
+
+    // Ceux qui peuvent reprendre le groupe si le créateur le quitte.
+    groupHeirs = members.filter(member => member.user_id !== currentUser.id);
+
+    // À chaque réaffichage, on referme le panneau « Quitter ».
+    document.getElementById("group-leave-panel").classList.add("hidden");
+
+    document.getElementById("group-leave-button").classList.remove("hidden");
+
+    document.getElementById("group-members-count").textContent =
+        `${members.length} membre${members.length > 1 ? "s" : ""}`;
+
+    list.innerHTML = members.map(member => {
+
+        const isCreator = member.user_id === group.created_by;
+
+        const isMe = member.user_id === currentUser.id;
+
+        const badge = isCreator
+            ? `<span class="group-badge">👑 Créateur</span>`
+            : member.is_manager
+            ? `<span class="group-badge">⭐ Pouvoirs</span>`
+            : "";
+
+        const actions = manager && !isCreator && !isMe
+            ? `
+                <div class="group-member-actions">
+                    <button type="button" class="${member.is_manager ? "power-on" : "power-off"}" data-member-power="${member.user_id}" data-on="${member.is_manager ? "0" : "1"}">
+                        ${member.is_manager ? "⭐ Retirer les pouvoirs" : "Donner les pouvoirs"}
+                    </button>
+                    <button type="button" class="danger" data-member-remove="${member.user_id}">
+                        Retirer
+                    </button>
+                </div>
+            `
+            : "";
+
+        return `
+            <div class="group-member-row">
+                <div class="group-member-main">
+                    <span>${styledName(member.profiles)}${isMe ? " <small>(toi)</small>" : ""}</span>
+                    ${badge}
+                </div>
+                <span class="group-member-balance">${member.profiles?.is_admin ? "∞" : formatBalance(member.balance)}</span>
+                ${actions}
+            </div>
+        `;
+
+    }).join("");
+
+
+    list.querySelectorAll("[data-member-power]").forEach(button => {
+
+        button.addEventListener("click", () => groupAction(
+            "set_group_manager",
+            { p_group: group.id, p_user: button.dataset.memberPower, p_on: button.dataset.on === "1" }
+        ));
+
+    });
+
+    list.querySelectorAll("[data-member-remove]").forEach(button => {
+
+        button.addEventListener("click", () => {
+
+            if (!window.confirm("Retirer ce membre du groupe ? Il perdra son solde dans ce groupe.")) {
+                return;
+            }
+
+            groupAction(
+                "remove_group_member",
+                { p_group: group.id, p_user: button.dataset.memberRemove }
+            );
+
+        });
+
+    });
+
+}
+
+
+async function groupAction(rpcName, params) {
+
+    const errorElement = document.getElementById("group-modal-error");
+
+    errorElement.textContent = "";
+
+    const { data, error } = await supabaseClient.rpc(rpcName, params);
+
+    if (error) {
+
+        errorElement.textContent = error.message || "Action impossible.";
+
+        return null;
+
+    }
+
+    await loadMyGroups();
+
+    await renderGroupModal();
+
+    return data;
+
+}
+
+
+function setupGroupModal() {
+
+    const modal = document.getElementById("group-modal");
+
+    if (!modal) {
+        return;
+    }
+
+    document.getElementById("close-group-modal").addEventListener("click", () => {
+        modal.classList.add("hidden");
+    });
+
+    document.getElementById("group-rename-button").addEventListener("click", async () => {
+
+        const name = document.getElementById("group-rename-input").value.trim();
+
+        await groupAction("rename_group", { p_group: currentGroup.id, p_name: name });
+
+    });
+
+    document.getElementById("group-copy-code").addEventListener("click", event => {
+        copyText(currentGroup.code, event.currentTarget);
+    });
+
+    document.getElementById("group-regenerate-code").addEventListener("click", async () => {
+
+        if (!window.confirm("Créer un nouveau code ? L'ancien ne fonctionnera plus.")) {
+            return;
+        }
+
+        await groupAction("regenerate_group_code", { p_group: currentGroup.id });
+
+    });
 
 }
 
@@ -341,15 +1410,16 @@ async function refreshInPlay() {
     const element =
         document.getElementById("in-play");
 
-    if (!element || !currentUser) {
+    if (!element || !currentUser || !currentGroup) {
         return;
     }
 
     const { data, error } =
         await supabaseClient
             .from("stakes")
-            .select("stake")
+            .select("stake, bets!inner ( group_id )")
             .eq("user_id", currentUser.id)
+            .eq("bets.group_id", currentGroup?.id)
             .is("claimed_at", null);
 
     if (error) {
@@ -380,6 +1450,126 @@ async function refreshInPlay() {
 
 const PARROT_GROW_SECONDS = 2.5;
 
+let parrotLastTotal = 0;
+
+let parrotFirstSizing = true;
+
+let parrotSettleUntil = 0;
+
+
+/*
+    Taille adaptée à l'écran : le perroquet reste en bas à droite et ne
+    descend jamais sur le coffre ni sur la carte d'expérience (colonne de
+    droite). S'il n'y a vraiment pas la place, il se cache.
+*/
+
+const PARROT_BOTTOM_OFFSET = 50;   // le perroquet dépasse de 50 px sous l'écran (bottom: -50px)
+
+const PARROT_GAP = 12;             // marge sous la colonne de droite
+
+const PARROT_MIN_WIDTH = 130;
+
+function parrotWidthLimit(wanted) {
+
+    const parrotElement = document.getElementById("parrot");
+
+    const column = document.querySelector(".right-column");
+
+    if (!parrotElement || !column || column.getClientRects().length === 0) {
+
+        return Infinity;
+
+    }
+
+    const columnRect = column.getBoundingClientRect();
+
+    const rightOffset = parseFloat(getComputedStyle(parrotElement).right) || 0;
+
+    const parrotRight = document.documentElement.clientWidth - rightOffset;
+
+    const parrotLeft = parrotRight - wanted;
+
+    // Pas au-dessus de la colonne ? Aucune contrainte de hauteur.
+    if (columnRect.left >= parrotRight || columnRect.right <= parrotLeft) {
+
+        return Infinity;
+
+    }
+
+    // Le haut du perroquet doit rester sous le bas de la colonne.
+    const room = window.innerHeight + PARROT_BOTTOM_OFFSET - columnRect.bottom - PARROT_GAP;
+
+    return room * 512 / 650;
+
+}
+
+function applyParrotWidth(seconds) {
+
+    const parrotElement = document.getElementById("parrot");
+
+    if (!parrotElement) {
+        return;
+    }
+
+    const wanted = Math.min(
+        parrotWidthFor(parrotLastTotal),
+        window.innerWidth * 0.42
+    );
+
+    const limit = parrotWidthLimit(wanted);
+
+    const width = Math.min(wanted, limit);
+
+    parrotElement.style.transitionDuration = seconds + "s";
+
+    parrotElement.style.width = Math.max(0, Math.round(width)) + "px";
+
+    parrotElement.classList.toggle("parrot-squeezed", width < PARROT_MIN_WIDTH);
+
+}
+
+function setupParrotFit() {
+
+    parrotSettleUntil = performance.now() + 2500;
+
+    let waiting = false;
+
+    const refit = () => {
+
+        if (waiting) {
+            return;
+        }
+
+        waiting = true;
+
+        requestAnimationFrame(() => {
+
+            waiting = false;
+
+            // Juste après le chargement, la mise en page se termine : on
+            // ajuste sans animation pour que le perroquet ne bouge pas.
+            applyParrotWidth(performance.now() < parrotSettleUntil ? 0 : 0.25);
+
+        });
+
+    };
+
+    window.addEventListener("resize", refit);
+
+    window.addEventListener("scroll", refit, { passive: true });
+
+    const column = document.querySelector(".right-column");
+
+    if (column && typeof ResizeObserver !== "undefined") {
+
+        new ResizeObserver(refit).observe(column);
+
+    }
+
+    refit();
+
+}
+
 let parrotLevelTimer = null;
 
 function updateParrotSize(total) {
@@ -397,17 +1587,22 @@ function updateParrotSize(total) {
     const seconds =
         Math.max(PARROT_GROW_SECONDS, billsLeft);
 
-    parrotElement.style.transitionDuration = seconds + "s";
+    parrotLastTotal = total;
 
-    parrotElement.style.width =
-        `min(${parrotWidthFor(total)}px, 42vw)`;
+    // Première fois (arrivée ou rafraîchissement de la page) : taille et pile
+    // posées directement, rien ne bouge.
+    const first = parrotFirstSizing;
+
+    parrotFirstSizing = false;
+
+    applyParrotWidth(first ? 0 : seconds);
 
 
     // Changement de pile une fois les billets arrivés.
     clearTimeout(parrotLevelTimer);
 
     parrotLevelTimer = setTimeout(
-        () => Parrot.level(parrotLevelFor(total)),
+        () => Parrot.level(parrotLevelFor(total), first),
         billsLeft * 1000
     );
 
@@ -505,7 +1700,7 @@ function updateBalance() {
     balanceElement.textContent =
         currentProfile.is_admin
             ? "∞ €"
-            : formatMoney(currentProfile.balance);
+            : formatBalance(currentProfile.balance);
 
 
     /*
@@ -530,8 +1725,8 @@ function updateBalance() {
 
         pointsElement.textContent =
             currentProfile.is_admin
-                ? "∞ pts"
-                : (currentProfile.points || 0) + " pts";
+                ? "∞ 🪙"
+                : (currentProfile.points || 0) + " 🪙";
 
     }
 
@@ -549,9 +1744,10 @@ async function getLeaderboard() {
         data,
         error
     } = await supabaseClient
-        .from("profiles")
-        .select("username, balance, gold_frame_until, name_color_until, cosmetics")
-        .eq("is_admin", false)
+        .from("group_members")
+        .select("balance, profiles!inner ( username, is_admin, gold_frame_until, name_color_until, cosmetics )")
+        .eq("group_id", currentGroup?.id)
+        .eq("profiles.is_admin", false)
         .order("balance", { ascending: false })
         .limit(10);
 
@@ -562,7 +1758,10 @@ async function getLeaderboard() {
     }
 
 
-    return data || [];
+    // Même forme qu'avant : un profil avec le solde du groupe.
+    return (data || []).map(
+        member => ({ ...member.profiles, balance: member.balance })
+    );
 
 }
 
@@ -595,6 +1794,8 @@ function rainbowName(username) {
 */
 
 function getEffects(profile) {
+
+    profile = withGroupStyle(profile);
 
     const isMe =
         currentProfile && profile.username === currentProfile.username;
@@ -742,7 +1943,7 @@ async function displayLeaderboard() {
         container.innerHTML = adminRow + profiles.map(
             (profile, index) => leaderboardRowHtml(
                 profile,
-                { rank: index + 1, medal: medals[index] || "", balance: formatMoney(profile.balance) }
+                { rank: index + 1, medal: medals[index] || "", balance: formatBalance(profile.balance) }
             )
         ).join("");
 
@@ -1091,8 +2292,9 @@ async function getBets() {
             bet_choices!bet_choices_bet_id_fkey (*),
             profiles!bets_author_id_fkey ( username, gold_frame_until, name_color_until, cosmetics ),
             target:profiles!bets_target_user_id_fkey ( username, gold_frame_until, name_color_until, cosmetics ),
-            stakes ( id, user_id, choice_id, stake, potential_win, claimed_at, profiles!stakes_user_id_fkey ( username, gold_frame_until, name_color_until, cosmetics ) )
+            stakes ( id, user_id, choice_id, stake, potential_win, claimed_at, created_at, profiles!stakes_user_id_fkey ( username, gold_frame_until, name_color_until, cosmetics ) )
         `)
+        .eq("group_id", currentGroup?.id)
         .order("created_at", { ascending: false });
 
     if (error) {
@@ -1413,7 +2615,7 @@ async function claimBet(betId, won, card) {
     if (won) {
 
         // 1. Confettis. Le solde affiche encore l'ancien montant.
-        animateNumber(document.getElementById("balance"), oldBalance, oldBalance, 0);
+        animateNumber(document.getElementById("balance"), oldBalance, oldBalance, 0, formatBalance);
 
         const newBalance = Number(currentProfile.balance);
 
@@ -1469,7 +2671,109 @@ async function claimBet(betId, won, card) {
 }
 
 
-async function displayBets() {
+/*
+    Empreinte de ce qui est affiché : ne change que si un pari apparaît,
+    change de statut ou reçoit une mise. Sert au rafraîchissement en direct.
+*/
+
+let betsSignature = null;
+
+let betsRefreshPending = false;
+
+let renderedBetIds = new Set();
+
+function computeBetsSignature(bets) {
+
+    return bets
+        .map(bet => [
+            bet.id,
+            bet.status,
+            (bet.bet_choices || []).length,
+            (bet.stakes || []).length,
+            (bet.stakes || []).reduce((sum, s) => sum + Number(s.stake), 0),
+            (bet.stakes || []).filter(s => s.claimed_at).length
+        ].join(":"))
+        .join("|");
+
+}
+
+
+/*
+    Arrivée d'une carte en direct : elle se dévoile de gauche à droite
+    pendant qu'un reflet la traverse, et les autres cartes descendent
+    en douceur pour lui faire de la place.
+    Le dévoilement dépasse un peu de la carte (marges négatives) pour ne
+    pas couper la pastille « AUJOURD'HUI » ni la lueur autour de la carte.
+*/
+
+const LIVE_SPEED = 2;
+
+function animateLiveCards(container, previousTops) {
+
+    const T = ms => ms * LIVE_SPEED;
+
+    const EASE = "cubic-bezier(.2,.8,.2,1)";
+
+    const M = 40;
+
+
+    // Les cartes déjà présentes glissent vers leur nouvelle place.
+    container.querySelectorAll(".bet-card[data-bet-id]").forEach(card => {
+
+        const before = previousTops.get(card.dataset.betId);
+
+        if (before === undefined) {
+
+            return;
+
+        }
+
+        const shift = before - card.getBoundingClientRect().top;
+
+        if (Math.abs(shift) < 2) {
+
+            return;
+
+        }
+
+        card.animate(
+            [{ transform: `translateY(${shift}px)` }, { transform: "none" }],
+            { duration: T(380), easing: EASE }
+        );
+
+    });
+
+
+    // Les nouvelles cartes se dévoilent.
+    container.querySelectorAll(".bet-card-live-in").forEach(card => {
+
+        card.animate(
+            [
+                { opacity: 0, clipPath: `inset(-${M}px calc(100% + ${M}px) -${M}px -${M}px)` },
+                { opacity: 1, clipPath: `inset(-${M}px -${M}px -${M}px -${M}px)` }
+            ],
+            { duration: T(700), delay: T(120), easing: EASE, fill: "backwards" }
+        );
+
+        const shine = document.createElement("div");
+
+        shine.className = "bet-live-shine";
+
+        shine.innerHTML = "<i></i>";
+
+        card.appendChild(shine);
+
+        shine.firstElementChild.animate(
+            [{ left: "-45%" }, { left: "115%" }],
+            { duration: T(900), delay: T(370), easing: "ease-in-out", fill: "both" }
+        ).finished.finally(() => shine.remove());
+
+    });
+
+}
+
+
+async function displayBets({ quiet = false } = {}) {
 
     const container =
         document.getElementById("bets-container");
@@ -1482,13 +2786,53 @@ async function displayBets() {
     }
 
 
-    container.innerHTML =
-        "<p>Chargement des paris...</p>";
+    if (!quiet) {
+
+        container.innerHTML =
+            "<p>Chargement des paris...</p>";
+
+    }
 
 
     try {
 
         const bets = await getBets();
+
+
+        // Panneau des parieurs ouvert : on ne remplace pas la carte soulevée.
+        if (quiet && isStakesPanelOpen()) {
+
+            betsRefreshPending = true;
+
+            return;
+
+        }
+
+
+        // Rafraîchissement en direct : rien de nouveau, on ne touche à rien.
+        const signature = computeBetsSignature(bets);
+
+        if (quiet && signature === betsSignature) {
+
+            return;
+
+        }
+
+        betsSignature = signature;
+
+
+        // Rafraîchissement en direct : on retient où étaient les cartes.
+        const previousTops = new Map();
+
+        if (quiet) {
+
+            container
+                .querySelectorAll(".bet-card[data-bet-id]")
+                .forEach(card => {
+                    previousTops.set(card.dataset.betId, card.getBoundingClientRect().top);
+                });
+
+        }
 
 
         container.innerHTML = "";
@@ -1532,6 +2876,12 @@ async function displayBets() {
         }
 
 
+        // Cartes qui viennent d'arriver (rafraîchissement en direct seulement).
+        const previousIds = renderedBetIds;
+
+        renderedBetIds = new Set(openBets.map(bet => bet.id));
+
+
         openBets.forEach(
             bet => {
 
@@ -1541,7 +2891,8 @@ async function displayBets() {
                 card.className =
                     "bet-card" +
                     (isBlockedTarget(bet) ? " bet-card-locked" : "") +
-                    (isCreatedToday(bet.created_at) ? " bet-card-new" : "");
+                    (isCreatedToday(bet.created_at) ? " bet-card-new" : "") +
+                    (quiet && !previousIds.has(bet.id) ? " bet-card-live-in" : "");
 
 
                 /*
@@ -1662,6 +3013,13 @@ async function displayBets() {
         updateCountdowns();
 
 
+        if (quiet) {
+
+            animateLiveCards(container, previousTops);
+
+        }
+
+
         /*
             Ajout des événements sur la carte
             (ouvre le détail des parieurs en focus,
@@ -1698,7 +3056,7 @@ async function displayBets() {
                             );
 
 
-                        openStakesModal(bet);
+                        openStakesModal(bet, card);
 
                     }
                 );
@@ -1731,6 +3089,8 @@ function openBetModal(
     bet,
     choice
 ) {
+
+    closeStakesPanel(true);
 
     currentBet = bet;
 
@@ -1944,6 +3304,32 @@ async function placeBet() {
     }
 
 
+    if (!Number.isInteger(stake)) {
+
+        errorElement.textContent =
+            "La mise doit être un montant rond (sans centimes).";
+
+        return;
+
+    }
+
+
+    // Limite : 3 mises par pari et par joueur (aussi vérifiée côté base).
+    const myStakesCount =
+        (currentBet?.stakes || []).filter(
+            s => s.user_id === currentUser?.id
+        ).length;
+
+    if (myStakesCount >= 3) {
+
+        errorElement.textContent =
+            "Tu as déjà placé 3 mises sur ce pari (maximum).";
+
+        return;
+
+    }
+
+
     try {
 
         /*
@@ -2011,7 +3397,8 @@ async function placeBet() {
             On recharge les paris et l'historique.
         */
 
-        await displayBets();
+        // Rafraîchissement discret : pas de « Chargement » qui fait clignoter la liste.
+        await displayBets({ quiet: true });
 
         await displayLeaderboard();
 
@@ -2077,11 +3464,12 @@ async function displayMyBets() {
                 stake,
                 potential_win,
                 created_at,
-                bets (
+                bets!inner (
                     id,
                     question,
                     status,
-                    winner_choice_id
+                    winner_choice_id,
+                    group_id
                 ),
                 bet_choices (
                     id,
@@ -2092,6 +3480,10 @@ async function displayMyBets() {
             .eq(
                 "user_id",
                 currentUser.id
+            )
+            .eq(
+                "bets.group_id",
+                currentGroup?.id
             )
             .order(
                 "created_at",
@@ -2363,6 +3755,10 @@ async function displayMyCreatedBets() {
             .eq(
                 "author_id",
                 currentUser.id
+            )
+            .eq(
+                "group_id",
+                currentGroup?.id
             )
             .order(
                 "created_at",
@@ -2746,115 +4142,382 @@ function renderResolveStepTwo(bet, stakes, winner) {
    MODAL DÉTAIL DES PARIEURS
 ========================================================= */
 
-function openStakesModal(bet) {
+/*
+    Détail des parieurs : la carte se déplie sur place.
+    Une copie exacte de la carte (même taille, mêmes marges, même contenu)
+    prend sa place, puis s'allonge vers le bas pour révéler la liste des
+    parieurs. Rien dans la carte ne bouge ni ne change de taille.
+    Les cotes de la carte restent cliquables.
+*/
 
-    document.getElementById(
-        "stakes-bet-summary"
-    ).innerHTML =
-        renderBetSummaryHtml(
-            bet,
-            { interactive: false }
-        ) + `
+const PANEL_SPEED = 1;
 
-            <div class="bet-footer">
+const PANEL_EASE = "cubic-bezier(.2,.8,.2,1)";
 
-                ${bet.target_user_id
-                    ? `<span class="bet-target-footer">🎯 ${bet.target_blocked ? "Bloqué pour" : "Concerne"} ${styledName(bet.target, "un parieur")}</span>`
-                    : ""
-                }
+let stakesPanel = null;
 
-                <div class="bet-total-footer">
-                    <span>Solde misé</span>
-                    <strong>${formatMoney((bet.stakes || []).reduce((sum, s) => sum + Number(s.stake), 0))}</strong>
-                </div>
+function isStakesPanelOpen() {
 
-            </div>
+    return stakesPanel !== null;
 
-        `;
+}
 
 
-    document
-        .querySelector(".stakes-modal-content")
-        .classList.toggle(
-            "bet-card-locked",
-            isBlockedTarget(bet)
-        );
+/*
+    La copie de la carte garde sa vraie boîte (bordure, coins arrondis, ombre) :
+    c'est sa hauteur qui s'allonge, et la liste des parieurs se dévoile au
+    même rythme. Le bas de la carte reste donc toujours propre, au départ
+    comme à l'arrivée.
+*/
+
+function stakesMoreClosed(popHeight, cardHeight) {
+
+    return `inset(0 0 ${Math.max(0, popHeight - cardHeight)}px 0)`;
+
+}
+
+/*
+    Regroupe les mises d'un même joueur sur un même choix en une seule
+    ligne, dans l'ordre où elles ont été placées.
+*/
+
+function groupStakesByPlayer(stakes) {
+
+    const sorted = [...stakes].sort(
+        (x, y) => new Date(x.created_at || 0) - new Date(y.created_at || 0)
+    );
+
+    const groups = new Map();
+
+    sorted.forEach(stake => {
+
+        const key = stake.user_id + "|" + stake.choice_id;
+
+        if (!groups.has(key)) {
+
+            groups.set(key, {
+                profiles: stake.profiles,
+                choiceId: stake.choice_id,
+                stakes: []
+            });
+
+        }
+
+        groups.get(key).stakes.push(stake);
+
+    });
+
+    return [...groups.values()];
+
+}
 
 
-    const container =
-        document.getElementById(
-            "stakes-list"
-        );
+async function openStakesModal(bet, card) {
+
+    if (stakesPanel || !card) {
+        return;
+    }
+
+    const T = ms => ms * PANEL_SPEED;
+
+    const pop = document.getElementById("stakes-panel");
+
+    const backdrop = document.getElementById("stakes-panel-backdrop");
+
+    // Position réelle de la carte : sans son éventuelle inclinaison (suivi de la souris).
+    const tiltedTransform = card.style.transform;
+
+    card.style.transition = "none";
+
+    card.style.transform = "";
+
+    const cardRect = card.getBoundingClientRect();
 
 
-    container.innerHTML = "";
+    // Copie de la carte : mêmes classes, même contenu (sans reflet en cours).
+    // Sans les classes d'animation d'entrée, qui feraient clignoter la copie
+    // (elle repartirait de « invisible »).
+    pop.className = "stakes-pop " + card.className
+        .replace("bet-card-live-in", "")
+        .replace("cascade-in", "")
+        .replace("tilting", "")
+        .trim();
+
+    pop.innerHTML = card.innerHTML;
+
+    pop.querySelectorAll(".bet-live-shine").forEach(element => element.remove());
 
 
-    const stakes =
-        bet.stakes || [];
+    // Liste des parieurs sous le contenu de la carte.
+    const stakes = bet.stakes || [];
 
+    const more = document.createElement("div");
 
-    if (stakes.length === 0) {
+    more.className = "stakes-pop-more";
 
-        container.innerHTML = `
-            <div class="empty-state">
-                Aucune mise pour le moment.
-            </div>
-        `;
+    more.innerHTML = `
+        <h3 class="stakes-pop-title">Détail des parieurs</h3>
 
-    } else {
+        <div class="stakes-pop-list">
+            ${stakes.length === 0
+                ? `<div class="empty-state">Aucune mise pour le moment.</div>`
+                : groupStakesByPlayer(stakes).map(group => {
 
-        stakes.forEach(
-            stake => {
+                    const choice = bet.bet_choices.find(item => item.id === group.choiceId);
 
-                const choice =
-                    bet.bet_choices.find(
-                        item =>
-                            item.id === stake.choice_id
-                    );
+                    // Mises du même joueur sur le même choix : 800+50+50 €
+                    const amounts = group.stakes
+                        .map(stake => Number(stake.stake).toLocaleString("fr-FR"))
+                        .join("+");
 
-                const choiceLabel =
-                    choice?.label ||
-                    "Choix supprimé";
+                    const totalWin = group.stakes
+                        .reduce((sum, stake) => sum + Number(stake.potential_win), 0);
 
-                const odds =
-                    Number(choice?.odds || 0);
+                    return `
+                        <div class="stake-row">
+                            <div class="stake-row-header">
+                                <strong>${styledName(group.profiles)}</strong>
+                                <span class="stake-choice-badge">${escapeHtml(choice?.label || "Choix supprimé")}</span>
+                            </div>
+                            <div class="stake-row-details">
+                                <span>💰 ${amounts} €</span>
+                                <span>🎲 ${Number(choice?.odds || 0).toFixed(2)}</span>
+                                <span>🏆 ${formatMoney(totalWin)}</span>
+                            </div>
+                        </div>
+                    `;
 
-
-                const row =
-                    document.createElement("div");
-
-                row.className =
-                    "stake-row";
-
-                row.innerHTML = `
-                    <div class="stake-row-header">
-                        <strong>${styledName(stake.profiles)}</strong>
-                        <span class="stake-choice-badge">
-                            ${escapeHtml(choiceLabel)}
-                        </span>
-                    </div>
-
-                    <div class="stake-row-details">
-                        <span>💰 ${formatMoney(stake.stake)}</span>
-                        <span>🎲 ${odds.toFixed(2)}</span>
-                        <span>🏆 ${formatMoney(stake.potential_win)}</span>
-                    </div>
-                `;
-
-                container.appendChild(row);
-
+                }).join("")
             }
-        );
+        </div>
+
+        <div class="stakes-pop-close-row">
+            <button type="button" class="stakes-pop-close">Réduire ▲</button>
+        </div>
+    `;
+
+    pop.appendChild(more);
+
+
+    // Même place et même largeur que la carte.
+    pop.style.left = cardRect.left + "px";
+
+    pop.style.width = cardRect.width + "px";
+
+    pop.style.top = "0px";
+
+    pop.classList.remove("hidden");
+
+    pop.style.visibility = "hidden";
+
+    // Même couleur de bordure que la carte à cet instant (survol, urgence...).
+    pop.style.borderColor = getComputedStyle(card).borderColor;
+
+
+    // Si la liste est trop longue pour l'écran, elle défile à l'intérieur.
+    const list = pop.querySelector(".stakes-pop-list");
+
+    const room = window.innerHeight - 40;
+
+    const overflow = pop.getBoundingClientRect().height - room;
+
+    if (overflow > 0) {
+
+        list.style.maxHeight = Math.max(120, list.getBoundingClientRect().height - overflow) + "px";
+
+        list.style.overflowY = "auto";
 
     }
 
+    const popHeight = pop.getBoundingClientRect().height;
+
+    const top = Math.max(20, Math.min(cardRect.top, window.innerHeight - popHeight - 20));
+
+    pop.style.top = top + "px";
+
+    pop.style.visibility = "";
+
+
+    // Les animations en boucle (compte à rebours urgent) continuent là où
+    // elles en étaient sur la carte, sans repartir de zéro.
+    card.getAnimations().forEach(source => {
+
+        if (!source.animationName) {
+            return;
+        }
+
+        const twin = pop.getAnimations().find(
+            other => other.animationName === source.animationName
+        );
+
+        if (twin) {
+
+            twin.currentTime = source.currentTime;
+
+        }
+
+    });
+
+
+    // Clic sur une cote : ouvre la fenêtre de mise (comme sur la carte).
+    pop.querySelectorAll(".bet-choice-button[data-choice-id]").forEach(button => {
+
+        button.addEventListener("click", () => {
+
+            const choice = bet.bet_choices.find(item => item.id === button.dataset.choiceId);
+
+            if (choice) {
+
+                // La carte se replie en douceur sous la fenêtre de mise qui s'ouvre
+                // (au lieu de disparaître d'un coup).
+                closeStakesPanel();
+
+                openBetModal(bet, choice);
+
+            }
+
+        });
+
+    });
+
+    pop.querySelector(".stakes-pop-close").addEventListener("click", closeStakesPanel);
+
+    // Un clic ailleurs sur la copie de la carte ne fait rien (le détail est déjà ouvert).
+
+
+    stakesPanel = { card, bet, busy: true, top, popHeight, cardHeight: cardRect.height };
+
+    card.style.visibility = "hidden";
+
+    backdrop.classList.remove("hidden");
+
+    backdrop.animate(
+        [{ opacity: 0 }, { opacity: 1 }],
+        { duration: T(300), fill: "backwards" }
+    );
+
+    more.animate(
+        [
+            { clipPath: stakesMoreClosed(popHeight, cardRect.height) },
+            { clipPath: "inset(0 0 0 0)" }
+        ],
+        { duration: T(520), easing: PANEL_EASE }
+    );
+
+    // La carte était peut-être légèrement inclinée (suivi de la souris) :
+    // la copie démarre avec la même inclinaison puis se remet à plat.
+    const tilt = tiltedTransform || "";
+
+    await pop.animate(
+        [
+            { transform: `translateY(${cardRect.top - top}px) ${tilt}`.trim(), height: cardRect.height + "px" },
+            { transform: "none", height: popHeight + "px" }
+        ],
+        { duration: T(520), easing: PANEL_EASE }
+    ).finished.catch(() => {});
+
+    if (stakesPanel) {
+
+        stakesPanel.busy = false;
+
+    }
+
+}
+
+/*
+    Fermeture : la fenêtre se replie dans la carte, qui réapparaît.
+    En mode « instant » (clic sur une cote, autre fenêtre) pas d'animation.
+*/
+
+async function closeStakesPanel(instant = false) {
+
+    if (!stakesPanel || stakesPanel.closing) {
+        return;
+    }
+
+    const { card, top, popHeight } = stakesPanel;
+
+    stakesPanel.closing = true;
+
+    const pop = document.getElementById("stakes-panel");
+
+    const backdrop = document.getElementById("stakes-panel-backdrop");
+
+    const T = ms => ms * PANEL_SPEED;
+
+
+    if (instant !== true) {
+
+        const cardRect = card.getBoundingClientRect();
+
+        backdrop.animate(
+            [{ opacity: 1 }, { opacity: 0 }],
+            { duration: T(360), fill: "forwards" }
+        );
+
+        const more = pop.querySelector(".stakes-pop-more");
+
+        more.animate(
+            [
+                { clipPath: "inset(0 0 0 0)" },
+                { clipPath: stakesMoreClosed(popHeight, cardRect.height) }
+            ],
+            { duration: T(440), easing: PANEL_EASE, fill: "forwards" }
+        );
+
+        await pop.animate(
+            [
+                { transform: "none", height: popHeight + "px" },
+                { transform: `translateY(${cardRect.top - top}px)`, height: cardRect.height + "px" }
+            ],
+            { duration: T(440), easing: PANEL_EASE, fill: "forwards" }
+        ).finished.catch(() => {});
+
+    }
+
+    card.style.visibility = "";
+
+    card.style.transition = "";
+
+    pop.getAnimations().forEach(animation => animation.cancel());
+
+    backdrop.getAnimations().forEach(animation => animation.cancel());
+
+    pop.className = "stakes-panel hidden";
+
+    pop.style.cssText = "";
+
+    pop.innerHTML = "";
+
+    backdrop.classList.add("hidden");
+
+    stakesPanel = null;
+
+
+    // Un rafraîchissement en direct a pu être mis en attente pendant l'ouverture.
+    if (betsRefreshPending) {
+
+        betsRefreshPending = false;
+
+        displayBets({ quiet: true });
+
+    }
+
+}
+
+function setupStakesPanel() {
 
     document
-        .getElementById(
-            "stakes-modal"
-        )
-        .classList.remove("hidden");
+        .getElementById("stakes-panel-backdrop")
+        .addEventListener("click", closeStakesPanel);
+
+    document.addEventListener("keydown", event => {
+
+        if (event.key === "Escape") {
+            closeStakesPanel();
+        }
+
+    });
 
 }
 
@@ -3115,7 +4778,10 @@ async function createBet() {
                     targetUserId || null,
 
                 target_blocked:
-                    targetBlocked
+                    targetBlocked,
+
+                group_id:
+                    currentGroup.id
 
             })
             .select()
@@ -3419,10 +5085,10 @@ async function loadTargetUsers() {
         data,
         error
     } = await supabaseClient
-        .from("profiles")
-        .select("id, username")
-        .eq("is_admin", false)
-        .order("username");
+        .from("group_members")
+        .select("profiles!inner ( id, username, is_admin )")
+        .eq("group_id", currentGroup?.id)
+        .eq("profiles.is_admin", false);
 
 
     if (error) {
@@ -3434,7 +5100,10 @@ async function loadTargetUsers() {
     }
 
 
-    (data || []).forEach(
+    (data || [])
+        .map(member => member.profiles)
+        .sort((x, y) => x.username.localeCompare(y.username))
+        .forEach(
         profile => {
 
             const option =
@@ -3739,7 +5408,7 @@ async function displayMissions() {
         const {
             data,
             error
-        } = await supabaseClient.rpc("mission_progress");
+        } = await supabaseClient.rpc("mission_progress", { p_group: currentGroup.id });
 
 
         if (error) {
@@ -3794,7 +5463,7 @@ async function displayMissions() {
                         class="primary-button mission-claim"
                         data-mission="${mission.id}"
                     >
-                        Récupérer ${total} pts
+                        Récupérer ${total} 🪙
                     </button>
                 `;
 
@@ -3814,7 +5483,7 @@ async function displayMissions() {
 
                     <div class="mission-head">
                         <h3>${escapeHtml(mission.title)}</h3>
-                        <span class="mission-points">+${mission.points} pts</span>
+                        <span class="mission-points">+${mission.points} 🪙</span>
                     </div>
 
                     <p class="mission-description">${escapeHtml(mission.description)}</p>
@@ -3885,6 +5554,11 @@ async function claimMission(missionId, button) {
 
     button.disabled = true;
 
+    // Départ des pièces : le bouton « Récupérer » (avant que la liste soit redessinée).
+    const origin = button.getBoundingClientRect();
+
+    const pointsBefore = Number(currentProfile?.points || 0);
+
 
     try {
 
@@ -3894,6 +5568,7 @@ async function claimMission(missionId, button) {
         } = await supabaseClient.rpc(
             "claim_mission",
             {
+                p_group: currentGroup.id,
                 p_mission: missionId
             }
         );
@@ -3911,6 +5586,12 @@ async function claimMission(missionId, button) {
         await displayMissions();
 
         displayShop();
+
+        if (typeof flyCoins === "function") {
+
+            flyCoins(origin, Number(data), pointsBefore);
+
+        }
 
     } catch (error) {
 
@@ -4005,7 +5686,7 @@ function displayShop() {
 
         const status = active
             ? `<span class="mission-state done">✓ Possédé</span>`
-            : `<span class="mission-state">${canBuy ? "Disponible" : "Il te manque " + (reward.price - points) + " pts"}</span>`;
+            : `<span class="mission-state">${canBuy ? "Disponible" : "Il te manque " + (reward.price - points) + " 🪙"}</span>`;
 
 
         /*
@@ -4033,7 +5714,7 @@ function displayShop() {
 
                 <div class="mission-head">
                     <h3>${escapeHtml(reward.title)}</h3>
-                    <span class="mission-points">${reward.price} pts</span>
+                    <span class="mission-points">${reward.price} 🪙</span>
                 </div>
 
                 <p class="mission-description">${escapeHtml(reward.description)}</p>
@@ -4261,9 +5942,9 @@ function openShopPreview(itemId, option) {
 
         stage.innerHTML = `
             <div class="shop-preview-board">
-                ${leaderboardRowHtml({ username: "Emma" }, { rank: 2, medal: "🥈", balance: formatMoney(1840), effects: {}, extraClass: " shop-preview-dim" })}
-                ${leaderboardRowHtml(me, { rank: 3, medal: "🥉", balance: formatMoney(1520), effects })}
-                ${leaderboardRowHtml({ username: "Lucas" }, { rank: 4, medal: "", balance: formatMoney(1310), effects: {}, extraClass: " shop-preview-dim" })}
+                ${leaderboardRowHtml({ username: "Emma" }, { rank: 2, medal: "🥈", balance: formatBalance(1840), effects: {}, extraClass: " shop-preview-dim" })}
+                ${leaderboardRowHtml(me, { rank: 3, medal: "🥉", balance: formatBalance(1520), effects })}
+                ${leaderboardRowHtml({ username: "Lucas" }, { rank: 4, medal: "", balance: formatBalance(1310), effects: {}, extraClass: " shop-preview-dim" })}
             </div>
             <p class="shop-preview-bet-line">
                 Sur une carte de pari : 🏆 Créé par
@@ -4319,7 +6000,7 @@ function openShopPreview(itemId, option) {
 function setupModalBackdrops() {
 
     document
-        .querySelectorAll(".modal:not(#announcement-modal)")
+        .querySelectorAll(".modal:not(#announcement-modal):not(#removed-modal)")
         .forEach(modal => {
 
             modal.addEventListener("mousedown", event => {
@@ -4420,6 +6101,7 @@ async function toggleEquip(itemId, turnOn, button) {
         await supabaseClient.rpc(
             "toggle_cosmetic",
             {
+                p_group: currentGroup.id,
                 p_item: itemId,
                 p_on: turnOn
             }
@@ -4474,7 +6156,7 @@ function cosmeticCardHtml(item) {
 
     const status = active
         ? `<span class="mission-state done">✓ Possédé</span>`
-        : `<span class="mission-state">${canBuy ? "Disponible" : "Il te manque " + (item.price - points) + " pts"}</span>`;
+        : `<span class="mission-state">${canBuy ? "Disponible" : "Il te manque " + (item.price - points) + " 🪙"}</span>`;
 
 
     /*
@@ -4531,7 +6213,7 @@ function cosmeticCardHtml(item) {
 
             <div class="mission-head">
                 <h3>${escapeHtml(item.title)}</h3>
-                <span class="mission-points">${item.price} pts</span>
+                <span class="mission-points">${item.price} 🪙</span>
             </div>
 
             <p class="mission-description">${escapeHtml(item.description)}</p>
@@ -4577,6 +6259,7 @@ async function buyCosmetic(id, button) {
             await supabaseClient.rpc(
                 "buy_cosmetic",
                 {
+                    p_group: currentGroup.id,
                     p_item: id,
                     p_option: option
                 }
@@ -4631,6 +6314,7 @@ async function buyReward(rewardId, button) {
         } = await supabaseClient.rpc(
             "buy_reward",
             {
+                p_group: currentGroup.id,
                 p_reward: rewardId
             }
         );
@@ -4740,8 +6424,9 @@ function showPage(pageId) {
 
         parrotElement.classList.toggle("parrot-hidden", hideParrot);
 
+        // Retour en attente sans rebond (changer d'onglet ne doit pas le faire sauter).
         if (!hideParrot && (wasHidden || pageId === "bets-page")) {
-            Parrot.wait();
+            Parrot.wait(true);
         }
 
     }
@@ -5270,7 +6955,39 @@ async function initAppPage() {
 
         await loadCurrentProfile();
 
+        setupWelcome();
+
+        setupGroupSwitcher();
+
+        setupGroupModal();
+
+        setupGroupLeave();
+
+        setupStakesPanel();
+
+        setupParrotFit();
+
+        await checkGroupRemovals();
+
+
+        // Aucun groupe : page de bienvenue uniquement.
+        if (!currentGroup) {
+
+            showWelcome(false);
+
+            document.body.classList.remove("app-loading");
+
+            return;
+
+        }
+
+
+        // Groupe connu : on peut afficher l'application.
+        document.body.classList.remove("app-loading");
+
         await displayBets();
+
+        setupBetsRealtime();
 
         await displayLeaderboard();
 
@@ -5311,6 +7028,8 @@ async function initAppPage() {
     } catch (error) {
 
         console.error(error);
+
+        document.body.classList.remove("app-loading");
 
     }
 
@@ -5473,9 +7192,42 @@ async function initAppPage() {
 
     if (stakeInput) {
 
+        // Mise en euros entiers : ni virgule, ni point, ni signe,
+        // et pas de zéro au début (01, 001...).
+        stakeInput.addEventListener(
+            "keydown",
+            event => {
+
+                if ([",", ".", "e", "E", "+", "-"].includes(event.key)) {
+
+                    event.preventDefault();
+
+                }
+
+                if (event.key === "0" && stakeInput.value === "") {
+
+                    event.preventDefault();
+
+                }
+
+            }
+        );
+
         stakeInput.addEventListener(
             "input",
-            updatePotentialWin
+            () => {
+
+                const cleaned = stakeInput.value.split(/[.,]/)[0].replace(/[^0-9]/g, "").replace(/^0+/, "");
+
+                if (stakeInput.value !== cleaned) {
+
+                    stakeInput.value = cleaned;
+
+                }
+
+                updatePotentialWin();
+
+            }
         );
 
     }

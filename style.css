@@ -3151,7 +3151,7 @@ input {
 
 .parrot {
     position: fixed;
-    right: 100px;
+    right: clamp(8px, 7vw, 100px);
     bottom: -50px;
     width: min(450px, 42vw);
     aspect-ratio: 512 / 650;
@@ -3350,7 +3350,18 @@ html {
     left: 50%;
     bottom: 0;
     transform: translateX(-50%);
-    font-size: 20px;
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    font-size: 15px;
+    font-weight: 900;
+    line-height: 1;
+    color: #0b3b22;
+    background: radial-gradient(circle at 35% 30%, #b8f5d4 0%, #4fd08f 50%, #2fa36f 100%);
+    border: 2px solid #1f7a52;
+    box-shadow: 0 0 10px rgba(99, 214, 159, 0.55), 0 2px 5px rgba(0, 0, 0, 0.4);
     transition: bottom 0.3s;
 }
 
@@ -3429,4 +3440,737 @@ html {
     box-shadow: none;
     cursor: not-allowed;
     transform: none;
+}
+
+
+
+/* =========================================================
+   GROUPES PRIVÉS
+========================================================= */
+
+/* ----- Sélecteur de groupe (barre du haut) ----- */
+
+.group-switcher {
+    position: relative;
+}
+
+.group-switcher-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 220px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid #343846;
+    background: #101219;
+    color: #e6e8ee;
+    font-family: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+
+.group-switcher-button:hover {
+    border-color: #6c63ff;
+}
+
+.group-switcher-button span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.group-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    z-index: 150;
+    min-width: 260px;
+    padding: 6px;
+    background: #181b24;
+    border: 1px solid #343846;
+    border-radius: 14px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.group-menu-item {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: #e6e8ee;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.group-menu-item:hover {
+    background: rgba(108, 99, 255, 0.12);
+}
+
+.group-menu-item.active {
+    background: rgba(108, 99, 255, 0.2);
+    font-weight: 700;
+}
+
+.group-menu-item small {
+    color: #858a98;
+    white-space: nowrap;
+}
+
+.group-menu-separator {
+    height: 1px;
+    margin: 6px 4px;
+    background: #2c3040;
+}
+
+
+/* ----- Page de bienvenue ----- */
+
+/* Tant qu'on ne sait pas si le joueur a un groupe, rien n'est affiché
+   (évite de voir l'application une seconde avant la page de bienvenue). */
+body.app-loading .navbar,
+body.app-loading .main-container {
+    visibility: hidden;
+}
+
+/* Le perroquet force « visible » sur ses poses : on masque donc l'ensemble
+   par l'opacité, qu'aucun élément enfant ne peut annuler. */
+body.app-loading #parrot {
+    opacity: 0;
+    pointer-events: none;
+}
+
+
+body.no-group .navbar,
+body.no-group .main-container,
+body.no-group #parrot {
+    display: none !important;
+}
+
+.welcome-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 30px 16px;
+    background: radial-gradient(circle at 50% 0%, #1d1a3a 0%, #0f1117 60%);
+}
+
+.welcome-card {
+    width: 100%;
+    max-width: 440px;
+    text-align: center;
+    background: linear-gradient(180deg, #1c202c 0%, #14161e 100%);
+    border: 1px solid #2c3040;
+    border-radius: 22px;
+    padding: 28px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+}
+
+.welcome-card h2 {
+    font-size: 24px;
+    margin: 8px 0 6px;
+}
+
+.welcome-intro {
+    color: #858a98;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.welcome-parrot {
+    position: relative;
+    width: 150px;
+    height: 150px;
+    margin: 14px auto 0;
+}
+
+.welcome-parrot img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.welcome-parrot-head {
+    transform-origin: 50% 80%;
+    animation: welcome-bob 2.4s ease-in-out infinite;
+}
+
+@keyframes welcome-bob {
+    50% {
+        transform: rotate(-6deg) translateY(-2px);
+    }
+}
+
+.welcome-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 22px;
+}
+
+.welcome-big-button {
+    width: 100%;
+    padding: 14px 18px;
+    border-radius: 14px;
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.welcome-ghost-button {
+    border: 1px solid #343846;
+    background: transparent;
+    color: #c9ccd6;
+    font-family: inherit;
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+
+.welcome-ghost-button:hover {
+    border-color: #6c63ff;
+}
+
+.welcome-green-button {
+    width: 100%;
+    margin-top: 14px;
+    padding: 14px 18px;
+    border: none;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #2fa36f, #63d69f);
+    color: #0b1f15;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 10px 26px rgba(99, 214, 159, 0.3);
+}
+
+.welcome-panel {
+    margin-top: 20px;
+}
+
+.welcome-panel input[type="text"] {
+    width: 100%;
+    padding: 13px;
+    border-radius: 12px;
+    border: 1px solid #343846;
+    background: #101219;
+    color: white;
+    outline: none;
+    font-family: inherit;
+}
+
+.welcome-panel input[type="text"]:focus {
+    border-color: #6c63ff;
+}
+
+.welcome-panel .welcome-big-button {
+    margin-top: 12px;
+}
+
+.welcome-code {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.welcome-code input {
+    width: 46px;
+    height: 56px;
+    text-align: center;
+    font-family: inherit;
+    font-size: 24px;
+    font-weight: 900;
+    text-transform: uppercase;
+    border-radius: 12px;
+    border: 2px solid #343846;
+    background: #101219;
+    color: white;
+    outline: none;
+    transition: border-color 0.15s, transform 0.15s;
+}
+
+.welcome-code input:focus {
+    border-color: #6c63ff;
+    transform: translateY(-2px);
+}
+
+.welcome-code.success input {
+    border-color: #63d69f;
+    color: #63d69f;
+}
+
+.welcome-code.error {
+    animation: welcome-shake 0.35s;
+}
+
+.welcome-code.error input {
+    border-color: #ff6b6b;
+}
+
+@keyframes welcome-shake {
+    20%, 60% {
+        transform: translateX(-8px);
+    }
+    40%, 80% {
+        transform: translateX(8px);
+    }
+}
+
+.welcome-message {
+    min-height: 22px;
+    margin-top: 10px;
+    font-size: 14px;
+}
+
+.welcome-message:empty {
+    min-height: 0;
+    margin-top: 0;
+}
+
+.welcome-message.error,
+.welcome-message.success {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    text-align: left;
+    animation: welcome-message-in 0.3s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+.welcome-message.success {
+    border: 1px solid rgba(99, 214, 159, 0.45);
+    background: rgba(99, 214, 159, 0.1);
+}
+
+.welcome-message.error {
+    border: 1px solid rgba(255, 107, 107, 0.45);
+    background: rgba(255, 107, 107, 0.1);
+}
+
+.welcome-message-icon {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    font-size: 20px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.welcome-message-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.welcome-message-text b {
+    font-size: 16px;
+    color: #e6e8ee;
+    overflow-wrap: anywhere;
+}
+
+.welcome-message.success .welcome-message-text b {
+    color: #63d69f;
+}
+
+.welcome-message.error .welcome-message-text b {
+    color: #ff8a8a;
+}
+
+.welcome-message-text small {
+    font-size: 12px;
+    color: #aaaeba;
+    line-height: 1.4;
+}
+
+@keyframes welcome-message-in {
+    from {
+        opacity: 0;
+        transform: translateY(-6px) scale(0.96);
+    }
+}
+
+.welcome-created {
+    margin-top: 16px;
+}
+
+.welcome-new-code {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.welcome-new-code b,
+.group-code {
+    font-size: 26px;
+    letter-spacing: 6px;
+    color: #a59fff;
+    background: #101219;
+    border: 1px dashed #6c63ff;
+    border-radius: 12px;
+    padding: 6px 14px;
+}
+
+.welcome-copy {
+    border: 1px solid #343846;
+    background: #23262f;
+    color: #c9ccd6;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.welcome-copy:hover {
+    border-color: #6c63ff;
+}
+
+.welcome-link {
+    margin-top: 12px;
+    border: none;
+    background: none;
+    color: #858a98;
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.welcome-link:hover {
+    color: #e6e8ee;
+}
+
+.welcome-footer {
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+    margin-top: 18px;
+    padding-top: 12px;
+    border-top: 1px solid #2c3040;
+}
+
+
+/* ----- Fenêtre « Gérer le groupe » ----- */
+
+.group-modal-content {
+    max-width: 520px;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
+.group-inline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.group-inline input {
+    flex: 1;
+    min-width: 160px;
+}
+
+.group-member-note {
+    margin-top: 12px;
+}
+
+.group-members-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin: 22px 0 8px;
+    font-weight: 800;
+}
+
+.group-members-header small {
+    color: #858a98;
+    font-weight: 500;
+}
+
+.group-member-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    margin-top: 8px;
+    border: 1px solid #2c3040;
+    border-radius: 12px;
+    background: #101219;
+}
+
+.group-member-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.group-member-main small {
+    color: #858a98;
+}
+
+.group-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(108, 99, 255, 0.18);
+    color: #a59fff;
+}
+
+.group-member-balance {
+    color: #63d69f;
+    font-weight: 800;
+}
+
+.group-member-actions {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.group-member-actions button {
+    border: 1px solid #343846;
+    background: transparent;
+    color: #c9ccd6;
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.group-member-actions button:hover {
+    border-color: #6c63ff;
+}
+
+.group-member-actions button.power-off {
+    border-color: rgba(108, 99, 255, 0.6);
+    color: #a59fff;
+}
+
+.group-member-actions button.power-on {
+    border-color: #f5c451;
+    background: rgba(245, 196, 81, 0.12);
+    color: #f5c451;
+}
+
+.group-member-actions button.danger {
+    color: #ff8a8a;
+}
+
+.group-member-actions button.danger:hover {
+    border-color: #ff6b6b;
+}
+
+
+/* ----- Pop-up « retiré du groupe » ----- */
+
+.removed-modal-content {
+    max-width: 380px;
+    text-align: center;
+}
+
+.removed-icon {
+    font-size: 44px;
+}
+
+.removed-modal-content p {
+    margin-top: 10px;
+    line-height: 1.5;
+}
+
+.removed-hint {
+    color: #858a98;
+    font-size: 13px;
+}
+
+.removed-ok {
+    width: 100%;
+    margin-top: 20px;
+}
+
+
+/* ----- Quitter le groupe ----- */
+
+.group-leave-section {
+    margin-top: 22px;
+    padding-top: 16px;
+    border-top: 1px solid #2c3040;
+}
+
+.group-leave-button {
+    border: 1px solid #5a3036;
+    background: transparent;
+    color: #ff8a8a;
+    border-radius: 10px;
+    padding: 9px 14px;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.group-leave-button:hover {
+    border-color: #ff6b6b;
+    background: rgba(255, 107, 107, 0.08);
+}
+
+.group-leave-panel p {
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 12px;
+}
+
+.group-leave-owner {
+    margin-bottom: 12px;
+}
+
+.group-leave-owner select {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #343846;
+    background: #101219;
+    color: white;
+    font-family: inherit;
+}
+
+.group-leave-confirm {
+    border: none;
+    background: #d94a52;
+    color: white;
+    border-radius: 10px;
+    padding: 9px 16px;
+    font-family: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+
+/* ----- Carte de pari qui arrive en direct ----- */
+
+.bet-card-live-in {
+    position: relative;
+}
+
+.bet-live-shine {
+    position: absolute;
+    inset: 0;
+    border-radius: 18px;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.bet-live-shine i {
+    position: absolute;
+    top: -20%;
+    bottom: -20%;
+    width: 40%;
+    background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+    transform: skewX(-18deg);
+}
+
+
+/* ----- Détail des parieurs : la carte se déplie sur place ----- */
+
+.stakes-panel-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 96;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.stakes-panel.hidden {
+    display: none;
+}
+
+/* La copie de la carte garde son style (classe bet-card) ; on la place
+   simplement par-dessus la page, à l'endroit de la carte. */
+#stakes-panel.stakes-pop {
+    position: fixed;
+    z-index: 97;
+    cursor: default;
+    margin: 0;
+    max-width: none;
+}
+
+.stakes-pop-more {
+    margin-top: 18px;
+    padding-top: 4px;
+    border-top: 1px solid #2c3040;
+}
+
+.stakes-pop-title {
+    margin: 14px 0 10px;
+    font-size: 15px;
+}
+
+.stakes-pop-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.stakes-pop-close-row {
+    display: flex;
+    justify-content: center;
+    margin-top: 16px;
+}
+
+.stakes-pop-close {
+    background: none;
+    border: 1px solid #343846;
+    color: #aaaeba;
+    border-radius: 10px;
+    padding: 8px 16px;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.stakes-pop-close:hover {
+    border-color: #6c63ff;
+    color: white;
+}
+
+
+/* Plus de place sous la colonne de droite : le perroquet se cache. */
+.parrot.parrot-squeezed {
+    opacity: 0;
+}
+
+
+/* ----- Pièces jaunes (mission récupérée) ----- */
+
+.mission-coin {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 3000;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    pointer-events: none;
+    background: radial-gradient(circle at 35% 30%, #fff3a8 0%, #f7cf4a 45%, #e0a21c 100%);
+    border: 2px solid #b97d0c;
+    box-shadow:
+        inset 0 0 0 3px #f9d66b,
+        inset 0 0 0 4px rgba(185, 125, 12, 0.55),
+        0 2px 6px rgba(0, 0, 0, 0.45);
+    will-change: transform, opacity;
 }

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BetLab – Contenu de la carte cohérent (propositions)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 400px; }
+button, select { font: inherit; }
+h1 { font-size: 26px; margin-bottom: 6px; }
+.sub { color: #858a98; margin-bottom: 14px; max-width: 780px; font-size: 14px; line-height: 1.5; }
+.bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; position: sticky; top: 0; background: #0f1117; padding: 10px 0; z-index: 10; }
+.tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; }
+.tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.pick { margin-left: auto; background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; font-weight: 900; padding: 10px 16px; border-radius: 12px; cursor: pointer; }
+.desc { color: #aaaeba; font-size: 14px; max-width: 760px; margin-bottom: 14px; min-height: 42px; }
+.slow { color: #858a98; font-size: 13px; display: flex; gap: 6px; align-items: center; }
+.slow select { background: #1c202c; color: #e6e8ee; border: 1px solid #2c3040; border-radius: 8px; padding: 6px 8px; }
+
+.page { display: flex; gap: 30px; max-width: 1100px; }
+.bets-list { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 40px; }
+.sidebar { width: 280px; flex-shrink: 0; height: 360px; background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; border-radius: 18px; padding: 18px; color: #858a98; font-size: 13px; }
+@media (max-width: 860px) { .sidebar { display: none; } }
+
+/* Carte et son contenu (mêmes tailles que le site) */
+.bet-card, .panel-card { background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; border-radius: 18px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+.bet-card { width: 100%; max-width: 480px; cursor: pointer; transition: border-color .15s; }
+.bet-card:hover { border-color: #6c63ff; }
+.head { color: #858a98; font-size: 12px; }
+.q { font-size: 17px; font-weight: 800; margin: 8px 0 14px; display: flex; gap: 8px; }
+.q span { margin-left: auto; color: #858a98; font-size: 12px; font-weight: 500; white-space: nowrap; }
+.choices { display: flex; gap: 10px; }
+.choice { flex: 1; }
+.choice-btn { display: flex; justify-content: space-between; background: #101219; border: 1px solid #343846; border-radius: 12px; padding: 10px 12px; }
+.choice-btn b { color: #a59fff; }
+.track { height: 5px; background: #23262f; border-radius: 99px; margin-top: 8px; overflow: hidden; }
+.fill { height: 100%; background: #6c63ff; }
+.pct { font-size: 11px; color: #737887; margin-top: 3px; }
+.foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; font-size: 13px; color: #858a98; }
+.foot strong { color: white; }
+
+/* Pop-up : même fond et même bordure que la carte */
+.backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 99; display: none; }
+.backdrop.open { display: block; }
+.pop { position: fixed; z-index: 100; display: none; max-height: calc(100vh - 40px); overflow-y: auto; }
+.pop.open { display: block; }
+.pop.wide { padding: 30px; border-radius: 18px; }
+.sep { border-top: 1px solid #2c3040; margin-top: 18px; padding-top: 4px; }
+.pop h4 { font-size: 15px; margin: 14px 0 2px; }
+.stake-row { background: #101219; border: 1px solid #2c3040; border-radius: 12px; padding: 12px 14px; margin-top: 10px; }
+.stake-row div:first-child { display: flex; justify-content: space-between; }
+.stake-row .badge { background: rgba(108,99,255,.18); color: #a59fff; border-radius: 999px; padding: 2px 10px; font-size: 12px; }
+.stake-row div:last-child { display: flex; gap: 16px; color: #aaaeba; font-size: 13px; margin-top: 6px; }
+.close-row { display: flex; justify-content: center; margin-top: 16px; }
+.close-btn { background: none; border: 1px solid #343846; color: #aaaeba; border-radius: 10px; padding: 8px 16px; cursor: pointer; }
+.close-btn:hover { border-color: #6c63ff; color: white; }
+.x { position: absolute; top: 10px; right: 14px; background: none; border: none; color: #858a98; font-size: 24px; cursor: pointer; }
+.lifted { position: relative; z-index: 101; }
+
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #2fa36f; color: #0b1f15; font-weight: 800; padding: 10px 18px; border-radius: 12px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 150; }
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<h1>Cohérence du contenu quand on entre dans une carte</h1>
+<p class="sub">
+    Ce qui clochait : la carte fait 480 px de large et la fenêtre 600 px avec d'autres marges, donc la question et les cotes
+    n'étaient pas au même endroit ni de la même taille dans les deux. Voici trois façons de garder les éléments cohérents.
+    Clique sur une carte, ferme avec Échap, « Réduire » ou un clic à côté.
+</p>
+
+<div class="bar">
+    <button class="tab active" data-v="1">1 · Même carte, dépliée sur place</button>
+    <button class="tab" data-v="2">2 · Chaque élément voyage</button>
+    <button class="tab" data-v="3">3 · Panneau sous la carte</button>
+    <label class="slow">Vitesse
+        <select id="speed">
+            <option value="1">Normale</option>
+            <option value="2" selected>Ralenti ×2</option>
+            <option value="3">Ralenti ×3</option>
+        </select>
+    </label>
+    <button class="pick" id="choose">Je choisis celle-ci</button>
+</div>
+<p class="desc" id="desc"></p>
+
+<div class="page">
+    <div class="bets-list" id="list"></div>
+    <aside class="sidebar">🏆 Classement (décor)</aside>
+</div>
+
+<div class="backdrop" id="backdrop"></div>
+<div class="pop" id="pop"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const BETS = [
+    { author: "Yann", q: "Lina part avant 16h15 précisément aujourd'hui", d: "auj. 18:00", c: [["Oui", "2.43", 18], ["Non", "1.60", 82]], total: "759 €",
+      s: [["Balac", "Non", "309 €", "1.60", "494 €"], ["Florian", "Non", "100 €", "1.60", "160 €"], ["Lina", "Oui", "100 €", "2.43", "243 €"], ["Yann", "Non", "157 €", "1.60", "251 €"], ["victor", "Non", "50 €", "1.60", "80 €"]] },
+    { author: "Balac", q: "Coupure de Wi-Fi aujourd'hui ?", d: "auj. 16:00", c: [["Oui", "5.00", 30], ["Non", "1.20", 70]], total: "420 €",
+      s: [["jjj", "Oui", "120 €", "5.00", "600 €"], ["Florian", "Non", "300 €", "1.20", "360 €"]] },
+    { author: "jjj", q: "Au moins 4 personnes s'appellent Florian", d: "dem. 10:00", c: [["Oui", "2.00", 95], ["Non", "1.80", 5]], total: "10 500 €",
+      s: [["Yann", "Oui", "10 000 €", "2.00", "20 000 €"], ["Balac", "Non", "500 €", "1.80", "900 €"]] }
+];
+
+const summaryHtml = b => `
+    <div class="head" data-k="head">🏆 Créé par ${b.author}</div>
+    <div class="q" data-k="q">🎲 ${b.q}<span>${b.d}</span></div>
+    <div class="choices" data-k="choices">${b.c.map(([l, o, p]) => `
+        <div class="choice">
+            <div class="choice-btn"><span>${l}</span><b>${o}</b></div>
+            <div class="track"><div class="fill" style="width:${p}%"></div></div>
+            <div class="pct">${p}%</div>
+        </div>`).join("")}</div>
+    <div class="foot" data-k="foot">Solde misé <strong>${b.total}</strong></div>`;
+
+const rowsHtml = b => b.s.map(([u, ch, st, o, w]) => `
+    <div class="stake-row">
+        <div><strong>${u}</strong><span class="badge">${ch}</span></div>
+        <div><span>💰 ${st}</span><span>🎲 ${o}</span><span>🏆 ${w}</span></div>
+    </div>`).join("");
+
+const list = document.getElementById("list");
+const pop = document.getElementById("pop");
+const backdrop = document.getElementById("backdrop");
+const EASE = "cubic-bezier(.2,.8,.2,1)";
+const T = ms => ms * Number(document.getElementById("speed").value);
+let mode = "1", open = null, busy = false;
+
+BETS.forEach((b, i) => {
+    const card = document.createElement("div");
+    card.className = "bet-card";
+    card.dataset.i = i;
+    card.innerHTML = summaryHtml(b);
+    card.onclick = () => openFor(card, b);
+    list.appendChild(card);
+});
+
+const fadeBackdrop = (on, ms) => {
+    backdrop.classList.add("open");
+    return backdrop.animate(on ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 1 }, { opacity: 0 }], { duration: T(ms), fill: "forwards" }).finished;
+};
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+/* ========== 1 · Même carte, dépliée sur place ========== */
+// La fenêtre a EXACTEMENT la taille, les marges et le contenu de la carte.
+// Elle commence à la place de la carte (rien ne bouge), puis se déplie vers le bas.
+const V1 = {
+    prepare(card, b) {
+        pop.className = "pop panel-card open";
+        pop.innerHTML = summaryHtml(b) + `<div class="sep"><h4>Détail des parieurs</h4>${rowsHtml(b)}<div class="close-row"><button class="close-btn" id="x">Réduire ▲</button></div></div>`;
+        const c = card.getBoundingClientRect();
+        pop.style.width = c.width + "px";
+        pop.style.left = c.left + "px";
+        const h = pop.getBoundingClientRect().height;
+        const top = Math.max(20, Math.min(c.top, innerHeight - h - 20));
+        pop.style.top = top + "px";
+        return { c, top };
+    },
+    geo(card) {
+        const c = card.getBoundingClientRect();
+        const m = pop.getBoundingClientRect();
+        return { dy: c.top - m.top, clip: `inset(0 0 ${Math.max(0, m.height - c.height)}px 0 round 18px)` };
+    },
+    async open(card, b) {
+        this.prepare(card, b);
+        const g = this.geo(card);
+        card.style.visibility = "hidden";
+        fadeBackdrop(true, 300);
+        await pop.animate([{ transform: `translateY(${g.dy}px)`, clipPath: g.clip }, { transform: "none", clipPath: "inset(0 0 0 0 round 18px)" }],
+            { duration: T(520), easing: EASE }).finished;
+    },
+    async close(card) {
+        const g = this.geo(card);
+        fadeBackdrop(false, 360);
+        await pop.animate([{ transform: "none", clipPath: "inset(0 0 0 0 round 18px)" }, { transform: `translateY(${g.dy}px)`, clipPath: g.clip }],
+            { duration: T(440), easing: EASE, fill: "forwards" }).finished;
+        card.style.visibility = "";
+    }
+};
+
+/* ========== 2 · Chaque élément voyage ========== */
+// Le fond de la fenêtre pousse depuis la carte, et chaque élément (auteur, question,
+// cotes, total) glisse de sa place dans la carte jusqu'à sa place dans la fenêtre.
+const V2 = {
+    els() { return [...pop.querySelectorAll("[data-k]")]; },
+    deltas(card) {
+        const out = [];
+        for (const el of this.els()) {
+            const from = card.querySelector(`[data-k="${el.dataset.k}"]`).getBoundingClientRect();
+            const to = el.getBoundingClientRect();
+            out.push({ el, dx: from.left - to.left, dy: from.top - to.top });
+        }
+        return out;
+    },
+    clip(card) {
+        const c = card.getBoundingClientRect(), m = pop.getBoundingClientRect();
+        return `inset(${c.top - m.top}px ${m.right - c.right}px ${m.bottom - c.bottom}px ${c.left - m.left}px round 18px)`;
+    },
+    async open(card, b) {
+        pop.className = "pop panel-card wide open";
+        pop.innerHTML = `<button class="x" id="x">×</button>` + summaryHtml(b) + `<div class="sep" data-list><h4>Détail des parieurs</h4>${rowsHtml(b)}</div>`;
+        pop.style.width = Math.min(600, innerWidth - 40) + "px";
+        const h = pop.getBoundingClientRect().height;
+        pop.style.left = (innerWidth - pop.getBoundingClientRect().width) / 2 + "px";
+        pop.style.top = Math.max(20, (innerHeight - h) / 2) + "px";
+        const clip = this.clip(card);
+        const d = this.deltas(card);
+        card.style.visibility = "hidden";
+        fadeBackdrop(true, 300);
+        d.forEach(({ el, dx, dy }) => el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], { duration: T(520), easing: EASE }));
+        pop.querySelectorAll(".stake-row, h4, .x").forEach((el, i) =>
+            el.animate([{ opacity: 0, transform: "translateY(12px)" }, { opacity: 1, transform: "none" }], { duration: T(320), delay: T(260 + i * 60), easing: EASE, fill: "backwards" }));
+        await pop.animate([{ clipPath: clip }, { clipPath: "inset(0 round 18px)" }], { duration: T(520), easing: EASE }).finished;
+    },
+    async close(card) {
+        const clip = this.clip(card);
+        const d = this.deltas(card);
+        fadeBackdrop(false, 360);
+        pop.querySelectorAll(".stake-row, h4, .x").forEach(el => el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: T(160), fill: "forwards" }));
+        d.forEach(({ el, dx, dy }) => el.animate([{ transform: "none" }, { transform: `translate(${dx}px, ${dy}px)` }], { duration: T(440), easing: EASE, fill: "forwards" }));
+        await pop.animate([{ clipPath: "inset(0 round 18px)" }, { clipPath: clip }], { duration: T(440), easing: EASE, fill: "forwards" }).finished;
+        card.style.visibility = "";
+    }
+};
+
+/* ========== 3 · Panneau sous la carte ========== */
+// Rien n'est répété : la carte reste en place (légèrement soulevée), seul le détail
+// des parieurs s'ouvre juste en dessous, à la même largeur.
+const V3 = {
+    async open(card, b) {
+        let c = card.getBoundingClientRect();
+        pop.className = "pop panel-card open";
+        pop.innerHTML = `<h4 style="margin-top:0">Détail des parieurs</h4>${rowsHtml(b)}<div class="close-row"><button class="close-btn" id="x">Réduire ▲</button></div>`;
+        pop.style.width = c.width + "px";
+        const ph = Math.min(pop.getBoundingClientRect().height, 360);
+        if (c.bottom + 14 + ph > innerHeight - 20) {
+            scrollBy({ top: c.bottom + 14 + ph - innerHeight + 20, behavior: "smooth" });
+            await wait(450);
+            c = card.getBoundingClientRect();
+        }
+        pop.style.left = c.left + "px";
+        pop.style.top = c.bottom + 14 + "px";
+        pop.style.maxHeight = Math.max(160, innerHeight - c.bottom - 34) + "px";
+        card.classList.add("lifted");
+        fadeBackdrop(true, 300);
+        card.animate([{ transform: "none" }, { transform: "translateY(-4px)", boxShadow: "0 18px 44px rgba(108,99,255,.35)", borderColor: "#6c63ff" }], { duration: T(300), easing: EASE, fill: "forwards" });
+        await pop.animate([{ opacity: 0, clipPath: "inset(0 0 100% 0 round 18px)", transform: "translateY(-10px)" }, { opacity: 1, clipPath: "inset(0 0 0 0 round 18px)", transform: "none" }],
+            { duration: T(450), easing: EASE }).finished;
+    },
+    async close(card) {
+        fadeBackdrop(false, 320);
+        card.getAnimations().forEach(a => a.cancel());
+        card.animate([{ transform: "translateY(-4px)", borderColor: "#6c63ff" }, { transform: "none" }], { duration: T(300), easing: EASE });
+        await pop.animate([{ opacity: 1, clipPath: "inset(0 0 0 0 round 18px)" }, { opacity: 0, clipPath: "inset(0 0 100% 0 round 18px)" }],
+            { duration: T(320), easing: EASE, fill: "forwards" }).finished;
+        card.classList.remove("lifted");
+    }
+};
+
+const MODES = {
+    1: { impl: V1, desc: "La fenêtre a exactement la taille, les marges et le contenu de la carte : elle commence juste à sa place, rien ne bouge ni ne change de taille. Puis elle se déplie vers le bas pour révéler le détail des parieurs. Le contenu de la carte ne change donc jamais, c'est la solution la plus cohérente." },
+    2: { impl: V2, desc: "La fenêtre garde sa taille habituelle (600 px) et son fond pousse depuis la carte. Chaque élément (auteur, question, cotes, total) glisse individuellement de sa place dans la carte à sa place dans la fenêtre, sans changer de taille, et le détail des parieurs apparaît en cascade." },
+    3: { impl: V3, desc: "Plus de fenêtre qui reprend le contenu de la carte : la carte reste où elle est (légèrement soulevée) et seul le détail des parieurs s'ouvre juste en dessous, à la même largeur. Aucun élément n'est répété, donc rien ne peut être incohérent." }
+};
+
+async function openFor(card, b) {
+    if (busy || open) return;
+    busy = true;
+    open = { card, b };
+    await MODES[mode].impl.open(card, b);
+    document.getElementById("x").onclick = closeIt;
+    busy = false;
+}
+
+async function closeIt() {
+    if (busy || !open) return;
+    busy = true;
+    const { card } = open;
+    await MODES[mode].impl.close(card);
+    pop.getAnimations({ subtree: true }).forEach(a => a.cancel());
+    pop.className = "pop";
+    pop.innerHTML = "";
+    pop.style.cssText = "";
+    backdrop.getAnimations().forEach(a => a.cancel());
+    backdrop.classList.remove("open");
+    card.style.visibility = "";
+    open = null;
+    busy = false;
+}
+
+backdrop.onclick = closeIt;
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeIt(); });
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+    if (open) return;
+    mode = t.dataset.v;
+    document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === t));
+    document.getElementById("desc").textContent = MODES[mode].desc;
+});
+document.getElementById("desc").textContent = MODES[mode].desc;
+
+document.getElementById("choose").onclick = () => {
+    const name = document.querySelector(`.tab[data-v="${mode}"]`).textContent;
+    const text = "Cohérence de la carte choisie : " + name;
+    navigator.clipboard && navigator.clipboard.writeText(text).catch(() => {});
+    const t = document.getElementById("toast");
+    t.textContent = "Copié : « " + text + " » → colle-le à Claude";
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 2500);
+};
+</script>
+</body>
+</html>
