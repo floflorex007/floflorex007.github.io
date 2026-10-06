@@ -1597,6 +1597,9 @@ function updateParrotSize(total) {
 
     applyParrotWidth(first ? 0 : seconds);
 
+    // Fin de l'animation du perroquet (il grandit), pour lancer la suite après elle.
+    window.parrotAnimEnd = first ? 0 : performance.now() + seconds * 1000;
+
 
     // Changement de pile une fois les billets arrivés.
     clearTimeout(parrotLevelTimer);
@@ -2351,7 +2354,10 @@ function isBlockedTarget(bet) {
 function renderBetSummaryHtml(
     bet,
     {
-        interactive = true
+        interactive = true,
+        validating = false,
+        headerExtra = "",
+        beforeChoices = ""
     } = {}
 ) {
 
@@ -2428,6 +2434,8 @@ function renderBetSummaryHtml(
                 Créé par ${styledName(bet.profiles)}
             </span>
 
+            ${headerExtra}
+
         </div>
 
 
@@ -2447,6 +2455,8 @@ function renderBetSummaryHtml(
 
 
 
+
+        ${beforeChoices}
 
         <div class="bet-choices">
 
@@ -2477,9 +2487,9 @@ function renderBetSummaryHtml(
                             }
 
                             <${tag}
-                                class="bet-choice-button${isClosed || isTargetBlocked ? " bet-choice-closed" : ""}${myChoiceIds.includes(choice.id) ? " bet-choice-picked" : ""}${interactive ? "" : " bet-choice-readonly"}"
+                                class="bet-choice-button${!validating && (isClosed || isTargetBlocked) ? " bet-choice-closed" : ""}${myChoiceIds.includes(choice.id) ? " bet-choice-picked" : ""}${interactive ? "" : " bet-choice-readonly"}${validating ? " bet-choice-validate" : ""}${validating && cardValidation?.pick === choice.id ? " validate-selected" : ""}"
                                 ${interactive
-                                    ? `data-bet-id="${bet.id}" data-choice-id="${choice.id}" ${isClosed || isTargetBlocked ? "disabled" : ""}`
+                                    ? `data-bet-id="${bet.id}" data-choice-id="${choice.id}" ${!validating && (isClosed || isTargetBlocked) ? "disabled" : ""}`
                                     : ""
                                 }
                             >
@@ -2671,6 +2681,228 @@ async function claimBet(betId, won, card) {
 }
 
 
+/* =========================================================
+   VALIDER UN PARI DIRECTEMENT SUR LA CARTE
+   Le créateur voit un petit bouton « ✓ Valider » sur sa carte.
+   Il met la carte en mode validation : on clique la cote gagnante,
+   le bilan (gagnants / perdants) s'affiche, puis on valide.
+========================================================= */
+
+// Carte en cours de validation : { betId, pick (id du choix gagnant ou null) }
+let cardValidation = null;
+
+// Changement de mode en cours, pour faire fondre la couleur de la carte :
+// { betId, to: true (entrée) | false (sortie) }
+let validationFade = null;
+
+// Éléments du mode validation déjà affichés (évite de rejouer leur apparition
+// quand la carte est redessinée après le choix d'une cote).
+let validationRevealed = { betId: null, hint: false, bilan: false };
+
+/*
+    Le bouton se déplie seulement quand la souris est à proximité
+    (et pas dès qu'elle survole la carte).
+*/
+
+const VALIDATE_FAB_REACH = 22;
+
+let validatePointer = null;
+
+/*
+    Marque « near » les boutons dont la souris est proche. Appelée aussi juste
+    après chaque rafraîchissement de la liste : le bouton redessiné garde ainsi
+    son état déplié (ou replié) sans animation parasite.
+*/
+
+function updateValidateFabs() {
+
+    document.querySelectorAll(".validate-fab").forEach(fab => {
+
+        if (!validatePointer) {
+
+            fab.classList.remove("near");
+
+            return;
+
+        }
+
+        // Zone mesurée autour du centre du bouton, indépendante de sa largeur du
+        // moment : étroite pour le déplier, large pour le garder déplié. Sans ça le
+        // bouton se replie puis se redéplie quand la souris est sur sa partie dépliée.
+        const rect = fab.getBoundingClientRect();
+
+        const centerX = rect.left + rect.width / 2;
+
+        const centerY = rect.top + rect.height / 2;
+
+        const halfWidth = fab.classList.contains("near") ? 75 : 15;
+
+        const dx = Math.max(Math.abs(validatePointer.x - centerX) - halfWidth, 0);
+
+        const dy = Math.max(Math.abs(validatePointer.y - centerY) - 15, 0);
+
+        fab.classList.toggle("near", Math.hypot(dx, dy) <= VALIDATE_FAB_REACH);
+
+    });
+
+}
+
+function setupValidateFabProximity() {
+
+    let waiting = false;
+
+    document.addEventListener("mousemove", event => {
+
+        validatePointer = { x: event.clientX, y: event.clientY };
+
+        if (!waiting) {
+
+            waiting = true;
+
+            requestAnimationFrame(() => {
+
+                waiting = false;
+
+                updateValidateFabs();
+
+            });
+
+        }
+
+    });
+
+    document.addEventListener("mouseleave", () => {
+
+        validatePointer = null;
+
+        updateValidateFabs();
+
+    });
+
+}
+
+
+function isMyOpenBet(bet) {
+
+    return Boolean(
+        currentUser &&
+        bet.author_id === currentUser.id &&
+        bet.status === "open"
+    );
+
+}
+
+/*
+    Bilan si ce choix gagne : une ligne par joueur et par choix,
+    gagnants avec leur gain, perdants avec leur mise perdue.
+*/
+
+function validationBilanHtml(bet, winnerChoiceId) {
+
+    const groups = groupStakesByPlayer(bet.stakes || []);
+
+    const winners = groups.filter(group => group.choiceId === winnerChoiceId);
+
+    const losers = groups.filter(group => group.choiceId !== winnerChoiceId);
+
+    const sum = (group, field) =>
+        group.stakes.reduce((total, stake) => total + Number(stake[field]), 0);
+
+    const winnerLines = winners.map(group => `
+        <div class="validate-line">
+            <span>${styledName(group.profiles)}</span>
+            <span class="validate-win">+${formatMoney(sum(group, "potential_win"))}</span>
+        </div>
+    `).join("");
+
+    const loserLines = losers.map(group => `
+        <div class="validate-line">
+            <span>${styledName(group.profiles)}</span>
+            <span class="validate-lose">−${formatMoney(sum(group, "stake"))}</span>
+        </div>
+    `).join("");
+
+    return `
+        <div class="validate-bilan">
+
+            <div class="validate-cols">
+
+                <div class="validate-col validate-col-win">
+                    <h4>🏆 Gagnants (${winners.length})</h4>
+                    ${winnerLines || `<small>Personne</small>`}
+                </div>
+
+                <div class="validate-col validate-col-lose">
+                    <h4>✗ Perdants (${losers.length})</h4>
+                    ${loserLines || `<small>Personne</small>`}
+                </div>
+
+            </div>
+
+            <p class="validate-error"></p>
+
+            <button type="button" class="validate-confirm" data-validate-confirm="${bet.id}">
+                ✓ Valider le pari
+            </button>
+
+        </div>
+    `;
+
+}
+
+async function confirmCardValidation(betId, button) {
+
+    if (!cardValidation || cardValidation.betId !== betId || !cardValidation.pick) {
+
+        return;
+
+    }
+
+    const errorElement = button.parentElement.querySelector(".validate-error");
+
+    errorElement.textContent = "";
+
+    button.disabled = true;
+
+    const { error } = await supabaseClient.rpc(
+        "resolve_bet",
+        {
+            p_bet_id: betId,
+            p_winner_choice_id: cardValidation.pick
+        }
+    );
+
+    if (error) {
+
+        console.error(error);
+
+        errorElement.textContent = error.message || "Impossible de valider le pari.";
+
+        button.disabled = false;
+
+        return;
+
+    }
+
+    cardValidation = null;
+
+    await loadCurrentProfile();
+
+    await displayBets({ quiet: true });
+
+    await displayLeaderboard();
+
+    await displayMyBets();
+
+    await displayMyCreatedBets();
+
+    await refreshMissions();
+
+    await checkNewResults();
+
+}
+
+
 /*
     Empreinte de ce qui est affiché : ne change que si un pari apparaît,
     change de statut ou reçoit une mise. Sert au rafraîchissement en direct.
@@ -2773,7 +3005,7 @@ function animateLiveCards(container, previousTops) {
 }
 
 
-async function displayBets({ quiet = false } = {}) {
+async function displayBets({ quiet = false, force = false } = {}) {
 
     const container =
         document.getElementById("bets-container");
@@ -2812,7 +3044,7 @@ async function displayBets({ quiet = false } = {}) {
         // Rafraîchissement en direct : rien de nouveau, on ne touche à rien.
         const signature = computeBetsSignature(bets);
 
-        if (quiet && signature === betsSignature) {
+        if (quiet && !force && signature === betsSignature) {
 
             return;
 
@@ -2824,12 +3056,39 @@ async function displayBets({ quiet = false } = {}) {
         // Rafraîchissement en direct : on retient où étaient les cartes.
         const previousTops = new Map();
 
+        // Inclinaison « la carte suit la souris » : on la retient pour la remettre
+        // sur la carte redessinée (sinon elle se remet à plat d'un coup).
+        const previousTilts = new Map();
+
+        // Boutons « Valider » dépliés (souris proche) : ils le restent après le redessin.
+        const nearBets = new Set();
+
         if (quiet) {
+
+            container.querySelectorAll(".validate-fab.near").forEach(fab => {
+
+                const id = fab.closest(".bet-card")?.dataset.betId;
+
+                if (id) {
+
+                    nearBets.add(id);
+
+                }
+
+            });
 
             container
                 .querySelectorAll(".bet-card[data-bet-id]")
                 .forEach(card => {
+
                     previousTops.set(card.dataset.betId, card.getBoundingClientRect().top);
+
+                    if (card.classList.contains("tilting") && card.style.transform) {
+
+                        previousTilts.set(card.dataset.betId, card.style.transform);
+
+                    }
+
                 });
 
         }
@@ -2876,6 +3135,16 @@ async function displayBets({ quiet = false } = {}) {
         }
 
 
+        if (cardValidation && !openBets.some(bet => bet.id === cardValidation.betId && isMyOpenBet(bet))) {
+
+            cardValidation = null;
+
+        }
+
+
+        const fadingCards = [];
+
+
         // Cartes qui viennent d'arriver (rafraîchissement en direct seulement).
         const previousIds = renderedBetIds;
 
@@ -2914,6 +3183,14 @@ async function displayBets({ quiet = false } = {}) {
                 card.dataset.betId =
                     bet.id;
 
+                if (previousTilts.has(bet.id)) {
+
+                    card.classList.add("tilting");
+
+                    card.style.transform = previousTilts.get(bet.id);
+
+                }
+
                 if (bet.deadline_at) {
 
                     card.dataset.deadline =
@@ -2929,11 +3206,73 @@ async function displayBets({ quiet = false } = {}) {
                     );
 
 
+                // Mode validation (créateur du pari seulement).
+                const mine = isMyOpenBet(bet);
+
+                const validating = mine && cardValidation?.betId === bet.id;
+
+                // Passage en mode validation (ou sortie) : la carte est redessinée,
+                // on la fait donc partir de l'ancienne couleur puis fondre vers la nouvelle.
+                const fade = validationFade && validationFade.betId === bet.id
+                    ? validationFade
+                    : null;
+
+                if (fade) {
+
+                    fadingCards.push({ card, to: fade.to });
+
+                }
+
+                const showGreen = fade ? !fade.to : validating;
+
+                if (showGreen) {
+
+                    card.classList.add("validating");
+
+                }
+
+                if (validating && cardValidation.pick) {
+
+                    card.classList.add("validating-chosen");
+
+                }
+
+                // Nouveaux éléments du mode validation : ils apparaissent en douceur
+                // la première fois seulement.
+                if (validating && validationRevealed.betId !== bet.id) {
+
+                    validationRevealed = { betId: bet.id, hint: false, bilan: false };
+
+                }
+
+                const animateHint = validating && !validationRevealed.hint;
+
+                const animateBilan = validating && Boolean(cardValidation.pick) && !validationRevealed.bilan;
+
+                if (validating) {
+
+                    validationRevealed.hint = true;
+
+                    if (cardValidation.pick) {
+
+                        validationRevealed.bilan = true;
+
+                    }
+
+                }
+
                 card.innerHTML =
+                    (mine
+                        ? `<button type="button" class="validate-fab${validating ? " open" : ""}${animateHint ? " validate-enter" : ""}" data-validate-toggle="${bet.id}">${validating ? "✕<span>Annuler</span>" : "✓<span>Valider</span>"}</button>`
+                        : "") +
                     (isCreatedToday(bet.created_at)
                         ? `<span class="bet-new-badge">AUJOURD'HUI</span>`
                         : "") +
-                    renderBetSummaryHtml(bet) + `
+                    renderBetSummaryHtml(bet, validating ? {
+                        validating: true,
+                        headerExtra: `<span class="validate-tag${animateHint ? " validate-enter" : ""}">Mode validation</span>`,
+                        beforeChoices: `<div class="validate-reveal${animateHint ? "" : " show"}"><div class="validate-reveal-inner"><div class="validate-hint">👆 Clique la cote qui a gagné</div></div></div>`
+                    } : {}) + `
 
                     <div class="bet-footer">
 
@@ -2949,7 +3288,9 @@ async function displayBets({ quiet = false } = {}) {
 
                     </div>
 
-                `;
+                ` + (validating && cardValidation.pick
+                    ? `<div class="validate-reveal${animateBilan ? "" : " show"}"><div class="validate-reveal-inner">${validationBilanHtml(bet, cardValidation.pick)}</div></div>`
+                    : "");
 
 
                 container.appendChild(card);
@@ -2991,6 +3332,18 @@ async function displayBets({ quiet = false } = {}) {
                             );
 
 
+                        // Mode validation : la cote cliquée est le gagnant.
+                        if (cardValidation && cardValidation.betId === betId) {
+
+                            cardValidation.pick = choiceId;
+
+                            displayBets({ quiet: true, force: true });
+
+                            return;
+
+                        }
+
+
                         /*
                             Petit délai pour laisser
                             l'onde du clic s'afficher.
@@ -3011,6 +3364,154 @@ async function displayBets({ quiet = false } = {}) {
 
 
         updateCountdowns();
+
+        // Le bouton « Valider » redessiné retrouve tout de suite son état :
+        // d'abord celui d'avant le redessin, puis la position réelle de la souris.
+        container.querySelectorAll(".bet-card[data-bet-id]").forEach(card => {
+
+            if (nearBets.has(card.dataset.betId)) {
+
+                card.querySelector(".validate-fab")?.classList.add("near");
+
+            }
+
+        });
+
+        updateValidateFabs();
+
+
+        const reveals = container.querySelectorAll(".validate-reveal:not(.show)");
+
+        if (reveals.length > 0) {
+
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+
+                reveals.forEach(element => element.classList.add("show"));
+
+            }));
+
+        }
+
+
+        // La couleur fond sur deux images : on laisse d'abord s'afficher l'état de départ.
+        if (fadingCards.length > 0) {
+
+            const pending = [...fadingCards];
+
+            validationFade = null;
+
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+
+                pending.forEach(item => item.card.classList.toggle("validating", item.to));
+
+            }));
+
+        }
+
+
+        container.querySelectorAll("[data-validate-toggle]").forEach(button => {
+
+            button.addEventListener("click", event => {
+
+                event.stopPropagation();
+
+                const betId = button.dataset.validateToggle;
+
+                const entering = !(cardValidation && cardValidation.betId === betId);
+
+                validationRevealed = { betId: null, hint: false, bilan: false };
+
+                // Annulation : on joue la sortie sur la carte actuelle (couleur, message,
+                // bilan et étiquette s'effacent en douceur), puis on la redessine.
+                if (!entering) {
+
+                    const card = button.closest(".bet-card");
+
+                    cardValidation = null;
+
+                    validationFade = null;
+
+                    if (card) {
+
+                        card.classList.remove("validating", "validating-chosen");
+
+                        card.querySelectorAll(".validate-reveal").forEach(
+                            element => element.classList.remove("show")
+                        );
+
+                        card.querySelector(".validate-tag")?.classList.add("validate-leave");
+
+                        button.classList.remove("open");
+
+                        button.innerHTML = "✓<span>Valider</span>";
+
+                        // Une fois tout refermé, on retire simplement les éléments du mode
+                        // validation : la carte a déjà son aspect normal, inutile de redessiner
+                        // toute la liste (c'est ce qui faisait saccader les cartes du dessous).
+                        setTimeout(() => {
+
+                            if (!card.isConnected) {
+
+                                return;
+
+                            }
+
+                            card.querySelectorAll(".validate-reveal, .validate-tag").forEach(
+                                element => element.remove()
+                            );
+
+                            const deadline = card.dataset.deadline;
+
+                            const closed = (deadline && new Date(deadline) < new Date()) ||
+                                card.classList.contains("bet-card-locked");
+
+                            card.querySelectorAll(".bet-choice-validate").forEach(choiceButton => {
+
+                                choiceButton.classList.remove("bet-choice-validate", "validate-selected");
+
+                                if (closed) {
+
+                                    choiceButton.classList.add("bet-choice-closed");
+
+                                    choiceButton.disabled = true;
+
+                                }
+
+                            });
+
+                            button.classList.remove("validate-enter");
+
+                        }, 520);
+
+                        return;
+
+                    }
+
+                }
+
+                cardValidation = entering
+                    ? { betId, pick: null }
+                    : null;
+
+                validationFade = { betId, to: entering };
+
+                displayBets({ quiet: true, force: true });
+
+            });
+
+        });
+
+        container.querySelectorAll("[data-validate-confirm]").forEach(button => {
+
+            button.addEventListener("click", event => {
+
+                event.stopPropagation();
+
+                confirmCardValidation(button.dataset.validateConfirm, button);
+
+            });
+
+        });
 
 
         if (quiet) {
@@ -3036,9 +3537,16 @@ async function displayBets({ quiet = false } = {}) {
 
                         if (
                             event.target.closest(
-                                ".bet-choice-button"
+                                ".bet-choice-button, .validate-fab, .validate-bilan"
                             )
                         ) {
+
+                            return;
+
+                        }
+
+                        // Pendant la validation, un clic sur la carte n'ouvre pas le détail.
+                        if (card.classList.contains("validating")) {
 
                             return;
 
@@ -3427,7 +3935,7 @@ async function placeBet() {
    7. MES PARIS
 ========================================================= */
 
-// Filtre actif de l'onglet « Mes paris » : all, open, win ou lose.
+// Filtre actif de l'onglet « Historique » : all, open, win ou lose.
 let myBetsFilter = "all";
 
 
@@ -3500,10 +4008,35 @@ async function displayMyBets() {
         }
 
 
+        // Paris que j'ai créés (filtre « Mes créations »).
+        const { data: createdData, error: createdError } = await supabaseClient
+            .from("bets")
+            .select(`
+                id,
+                question,
+                status,
+                created_at,
+                winner_choice_id,
+                bet_choices!bet_choices_bet_id_fkey ( id, label, odds ),
+                stakes ( stake )
+            `)
+            .eq("author_id", currentUser.id)
+            .eq("group_id", currentGroup?.id)
+            .order("created_at", { ascending: false });
+
+        if (createdError) {
+
+            throw createdError;
+
+        }
+
+        const created = createdData || [];
+
+
         container.innerHTML = "";
 
 
-        if (!data || data.length === 0) {
+        if ((!data || data.length === 0) && created.length === 0) {
 
             container.innerHTML = `
                 <div class="empty-state">
@@ -3521,7 +4054,7 @@ async function displayMyBets() {
         */
 
         const stakes =
-            data.map(stake => ({
+            (data || []).map(stake => ({
                 ...stake,
                 result:
                     stake.bets.status !== "resolved" ? "open"
@@ -3530,7 +4063,9 @@ async function displayMyBets() {
             }));
 
         const countOf = result =>
-            stakes.filter(s => result === "all" || s.result === result).length;
+            result === "creation"
+                ? created.length
+                : stakes.filter(s => result === "all" || s.result === result).length;
 
         const totalStaked =
             stakes.reduce((sum, s) => sum + Number(s.stake), 0);
@@ -3573,7 +4108,8 @@ async function displayMyBets() {
                     ["all", "Tous"],
                     ["open", "En cours"],
                     ["win", "Gagnés"],
-                    ["lose", "Perdus"]
+                    ["lose", "Perdus"],
+                    ["creation", "Mes créations"]
                 ].map(([key, label]) => `
                     <button
                         class="my-bets-filter${myBetsFilter === key ? " active" : ""}"
@@ -3655,6 +4191,51 @@ async function displayMyBets() {
         );
 
 
+        created.forEach(bet => {
+
+            const choices = bet.bet_choices || [];
+
+            const done = bet.status === "resolved";
+
+            const winner = choices.find(choice => choice.id === bet.winner_choice_id);
+
+            const totalOnBet = (bet.stakes || []).reduce(
+                (sum, s) => sum + Number(s.stake),
+                0
+            );
+
+            const item = document.createElement("div");
+
+            item.className =
+                "my-bet-item my-bet-row my-bet-row--creation" +
+                (done ? "" : " my-bet-row--open");
+
+            item.dataset.result = "creation";
+
+            item.innerHTML = `
+
+                <span class="my-bet-dot">${done ? "✓" : "⏳"}</span>
+
+                <div class="my-bet-text">
+
+                    <h3>${escapeHtml(bet.question)}</h3>
+
+                    <p>
+                        ${choices.map(choice => escapeHtml(choice.label) + " " + Number(choice.odds).toFixed(2)).join(" · ")}
+                        ${done && winner ? " · 🏆 " + escapeHtml(winner.label) : (done ? "" : " · en cours")}
+                    </p>
+
+                </div>
+
+                <span class="my-bet-amount">${formatMoney(totalOnBet)} misés</span>
+
+            `;
+
+            rows.appendChild(item);
+
+        });
+
+
         /*
             Filtres (le choix est gardé entre deux rechargements de la liste).
         */
@@ -3669,7 +4250,10 @@ async function displayMyBets() {
                 .querySelectorAll(".my-bet-row")
                 .forEach(row => row.classList.toggle(
                     "hidden",
-                    myBetsFilter !== "all" && row.dataset.result !== myBetsFilter
+                    // « Tous » montre les mises ; les créations n'apparaissent qu'avec leur filtre.
+                    myBetsFilter === "all"
+                        ? row.dataset.result === "creation"
+                        : row.dataset.result !== myBetsFilter
                 ));
 
         };
@@ -4247,6 +4831,11 @@ async function openStakesModal(bet, card) {
 
     pop.querySelectorAll(".bet-live-shine").forEach(element => element.remove());
 
+    // Le bouton de validation reste dans la copie dépliée (voir plus bas) ;
+    // le reste du mode validation n'en fait pas partie.
+    pop.querySelectorAll(".validate-bilan, .validate-hint, .validate-tag")
+        .forEach(element => element.remove());
+
 
     // Liste des parieurs sous le contenu de la carte.
     const stakes = bet.stakes || [];
@@ -4382,6 +4971,23 @@ async function openStakesModal(bet, card) {
 
     pop.querySelector(".stakes-pop-close").addEventListener("click", closeStakesPanel);
 
+    // Pastille « Valider » : la carte se replie et passe en mode validation.
+    pop.querySelector(".validate-fab")?.addEventListener("click", event => {
+
+        event.stopPropagation();
+
+        cardValidation = { betId: bet.id, pick: null };
+
+        validationRevealed = { betId: null, hint: false, bilan: false };
+
+        validationFade = { betId: bet.id, to: true };
+
+        betsRefreshPending = true;
+
+        closeStakesPanel();
+
+    });
+
     // Un clic ailleurs sur la copie de la carte ne fait rien (le détail est déjà ouvert).
 
 
@@ -4499,7 +5105,7 @@ async function closeStakesPanel(instant = false) {
 
         betsRefreshPending = false;
 
-        displayBets({ quiet: true });
+        displayBets({ quiet: true, force: true });
 
     }
 
@@ -4612,6 +5218,47 @@ async function resolveBet(
 /* =========================================================
    10. CRÉER UN PARI
 ========================================================= */
+
+/*
+    Le formulaire de création est une fenêtre (bouton « + Créer un pari »
+    de la page des paris). Ce que tu as tapé est gardé si tu la fermes.
+*/
+
+function openCreateModal() {
+
+    document.getElementById("create-modal").classList.remove("hidden");
+
+    setTimeout(() => document.getElementById("bet-question")?.focus(), 120);
+
+}
+
+function closeCreateModal() {
+
+    document.getElementById("create-modal").classList.add("hidden");
+
+}
+
+function setupCreateModal() {
+
+    const modal = document.getElementById("create-modal");
+
+    if (!modal) {
+        return;
+    }
+
+    document
+        .getElementById("close-create-modal")
+        .addEventListener("click", closeCreateModal);
+
+    document.addEventListener("keydown", event => {
+
+        if (event.key === "Escape" && !modal.classList.contains("hidden")) {
+            closeCreateModal();
+        }
+
+    });
+
+}
 
 async function createBet() {
 
@@ -4863,13 +5510,13 @@ async function createBet() {
 
 
         /*
-            Retour vers les paris.
+            On ferme la fenêtre : le nouveau pari arrive dans la liste.
         */
 
-        showPage("bets-page");
+        closeCreateModal();
 
 
-        await displayBets();
+        await displayBets({ quiet: true });
 
         await displayMyCreatedBets();
 
@@ -6366,7 +7013,7 @@ async function refreshMissions() {
    11. NAVIGATION
 ========================================================= */
 
-function showPage(pageId) {
+function showPage(pageId, skipCascade = false) {
 
     document
         .querySelectorAll(".app-page")
@@ -6389,7 +7036,11 @@ function showPage(pageId) {
             "hidden"
         );
 
-        cascadeIn(page);
+        if (!skipCascade) {
+
+            cascadeIn(page);
+
+        }
 
 
         /*
@@ -6965,6 +7616,10 @@ async function initAppPage() {
 
         setupStakesPanel();
 
+        setupValidateFabProximity();
+
+        setupCreateModal();
+
         setupParrotFit();
 
         await checkGroupRemovals();
@@ -6982,14 +7637,21 @@ async function initAppPage() {
         }
 
 
-        // Groupe connu : on peut afficher l'application.
-        document.body.classList.remove("app-loading");
-
+        // Groupe connu : on prépare les paris et le classement avant d'afficher
+        // la page, pour que les cartes arrivent d'un coup, une seule fois.
         await displayBets();
 
-        setupBetsRealtime();
-
         await displayLeaderboard();
+
+        document.body.classList.remove("app-loading");
+
+        if (typeof cascadeIn === "function") {
+
+            cascadeIn(document.getElementById("bets-page"));
+
+        }
+
+        setupBetsRealtime();
 
         await displayAdminMessage();
 
@@ -7044,19 +7706,36 @@ async function initAppPage() {
 
             button.addEventListener(
                 "click",
-                () => {
+                async () => {
 
+                    const isRefreshPage =
+                        button.dataset.page === "missions-page" ||
+                        button.dataset.page === "shop-page";
+
+                    // Missions et boutique : les cartes sont redessinées à l'ouverture.
+                    // On attend donc ce redessin avant de les faire arriver, pour que
+                    // l'animation d'apparition se joue sur les cartes définitives.
                     showPage(
-                        button.dataset.page
+                        button.dataset.page,
+                        isRefreshPage
                     );
 
 
-                    if (
-                        button.dataset.page === "missions-page" ||
-                        button.dataset.page === "shop-page"
-                    ) {
+                    if (isRefreshPage) {
 
-                        refreshMissions();
+                        const page = document.getElementById(button.dataset.page);
+
+                        page.classList.add("page-refreshing");
+
+                        await displayMissions();
+
+                        displayShop();
+
+                        page.classList.remove("page-refreshing");
+
+                        cascadeIn(page);
+
+                        refreshProgression();
 
                     }
 
@@ -7081,13 +7760,7 @@ async function initAppPage() {
 
         createHeaderButton.addEventListener(
             "click",
-            () => {
-
-                showPage(
-                    "create-page"
-                );
-
-            }
+            openCreateModal
         );
 
     }

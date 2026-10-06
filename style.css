@@ -1406,7 +1406,7 @@ input {
 }
 
 
-/* Paris perdus / gagnés dans « Mes paris » */
+/* Paris perdus / gagnés dans « Historique » */
 .my-bet-item.my-bet-lost {
     filter: grayscale(1);
     opacity: 0.6;
@@ -4173,4 +4173,433 @@ body.no-group #parrot {
         inset 0 0 0 4px rgba(185, 125, 12, 0.55),
         0 2px 6px rgba(0, 0, 0, 0.45);
     will-change: transform, opacity;
+}
+
+
+/* ----- Création d'un pari : fenêtre ----- */
+
+.create-modal-content {
+    max-width: 640px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.create-modal-intro {
+    color: #858a98;
+    font-size: 14px;
+    margin: 4px 0 16px;
+}
+
+/* Le formulaire garde exactement sa carte et ses sections d'origine. */
+.create-modal-content {
+    padding: 22px;
+}
+
+.create-modal-content .create-card {
+    max-width: none;
+    margin: 0;
+}
+
+
+/* ----- Valider un pari directement sur la carte ----- */
+
+.validate-fab {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    height: 30px;
+    max-width: 30px;
+    padding: 0 8px;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #2fa36f, #63d69f);
+    color: #0b1f15;
+    font-family: inherit;
+    font-weight: 900;
+    white-space: nowrap;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(99, 214, 159, 0.4);
+    transition: max-width 0.25s ease, padding 0.25s ease;
+}
+
+.validate-fab span {
+    margin-left: 6px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.validate-fab.near,
+.validate-fab.open {
+    max-width: 150px;
+    padding: 0 12px 0 8px;
+}
+
+.validate-fab.near span,
+.validate-fab.open span {
+    opacity: 1;
+}
+
+.validate-fab.open {
+    background: #23262f;
+    color: #e6e8ee;
+    border: 1px solid #343846;
+    box-shadow: none;
+}
+
+/* La carte passe en vert pendant la validation */
+/* Contour et halo verts en permanence pendant la validation : le survol, la carte
+   « du jour » (halo violet) ou la dernière heure (contour rouge) ne les changent pas. */
+.bet-card.validating,
+.bet-card.validating:hover,
+.bet-card.bet-card-new.validating,
+.bet-card.bet-card-new.validating:hover,
+.bet-card.bet-card-urgent.validating,
+.bet-card.bet-card-urgent.validating:hover,
+.bet-card.bet-card-new.bet-card-urgent.validating {
+    border-color: #63d69f;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+/* La pulsation rouge de la dernière heure est coupée pendant la validation. */
+.bet-card.bet-card-urgent.validating {
+    animation: none;
+}
+
+.validate-tag {
+    margin-left: auto;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: #0b1f15;
+    background: #63d69f;
+    padding: 3px 10px;
+    border-radius: 999px;
+}
+
+.validate-hint {
+    margin-bottom: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #63d69f;
+}
+
+.bet-card.validating .bet-choice-validate {
+    border-color: #63d69f;
+    background: rgba(99, 214, 159, 0.08);
+    cursor: pointer;
+    animation: validate-pulse 1.4s infinite;
+}
+
+.bet-card.validating .bet-choice-validate:hover {
+    background: rgba(99, 214, 159, 0.24);
+    transform: translateY(-2px);
+}
+
+.bet-card.validating .bet-choice-validate strong {
+    color: #63d69f;
+}
+
+.bet-card.validating-chosen .bet-choice-validate {
+    animation: none;
+    opacity: 0.5;
+}
+
+.bet-card.validating-chosen .bet-choice-validate.validate-selected {
+    opacity: 1;
+    background: rgba(99, 214, 159, 0.28);
+    box-shadow: 0 0 0 2px #63d69f;
+}
+
+@keyframes validate-pulse {
+    50% {
+        box-shadow: 0 0 0 5px rgba(99, 214, 159, 0);
+    }
+}
+
+.validate-bilan {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px dashed rgba(99, 214, 159, 0.5);
+}
+
+@keyframes validate-rise {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+}
+
+.validate-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.validate-col {
+    border-radius: 12px;
+    padding: 10px 12px;
+}
+
+.validate-col-win {
+    background: rgba(99, 214, 159, 0.1);
+    border: 1px solid rgba(99, 214, 159, 0.35);
+}
+
+.validate-col-lose {
+    background: rgba(255, 107, 107, 0.08);
+    border: 1px solid rgba(255, 107, 107, 0.3);
+}
+
+.validate-col h4 {
+    margin-bottom: 4px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.validate-col-win h4 {
+    color: #63d69f;
+}
+
+.validate-col-lose h4 {
+    color: #ff8a8a;
+}
+
+.validate-line {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 5px 0;
+    font-size: 14px;
+}
+
+.validate-win {
+    color: #63d69f;
+    font-weight: 800;
+}
+
+.validate-lose {
+    color: #ff8a8a;
+    font-weight: 800;
+}
+
+.validate-col small {
+    color: #858a98;
+}
+
+.validate-error {
+    min-height: 0;
+    margin-top: 8px;
+    color: #ff6b6b;
+    font-size: 13px;
+}
+
+.validate-confirm {
+    width: 100%;
+    margin-top: 12px;
+    padding: 13px;
+    border: none;
+    border-radius: 10px;
+    background: #63d69f;
+    color: #0b1f15;
+    font-family: inherit;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 8px 20px rgba(99, 214, 159, 0.3);
+}
+
+.validate-confirm:disabled {
+    background: #2c3040;
+    color: #737887;
+    box-shadow: none;
+    cursor: not-allowed;
+}
+
+/* Le bouton de validation se place par rapport à la carte. */
+.bet-card {
+    position: relative;
+}
+
+/* Voile vert de la carte en validation : il apparaît et disparaît en fondu. */
+.bet-card {
+    isolation: isolate;
+    /* Pas de transition sur l'ombre (très coûteuse à redessiner) : le halo vert
+       est un calque à part dont seule l'opacité change. */
+    transition: transform 0.15s ease-out, border-color 0.45s ease;
+}
+
+.bet-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: linear-gradient(180deg, rgba(99, 214, 159, 0.14) 0%, rgba(99, 214, 159, 0.04) 100%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.45s ease;
+}
+
+.bet-card.validating::before {
+    opacity: 1;
+}
+
+/* Halo vert : calque séparé, animé uniquement par son opacité (fluide). */
+.bet-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: 0 0 0 1px rgba(99, 214, 159, 0.25), 0 0 34px rgba(99, 214, 159, 0.22);
+    opacity: 0;
+    pointer-events: none;
+    will-change: opacity;
+    transition: opacity 0.45s ease;
+}
+
+.bet-card.validating::after {
+    opacity: 1;
+}
+
+.bet-card::before {
+    will-change: opacity;
+}
+
+/* Apparition fluide du message d'aide et du bilan : la hauteur s'ouvre
+   (les cartes du dessous suivent) pendant que le contenu apparaît. */
+.validate-reveal {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.validate-reveal.show {
+    grid-template-rows: 1fr;
+}
+
+.validate-reveal-inner {
+    min-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(-6px);
+    transition: opacity 0.35s ease, transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.validate-reveal.show .validate-reveal-inner {
+    opacity: 1;
+    transform: none;
+    transition-delay: 0.08s;
+}
+
+/* Étiquette « Mode validation » et bouton « Annuler » */
+.validate-tag.validate-enter {
+    animation: validate-pop-in 0.4s cubic-bezier(0.2, 1.4, 0.4, 1) 0.1s backwards;
+}
+
+.validate-fab.validate-enter {
+    animation: validate-fab-in 0.35s ease-out backwards;
+}
+
+@keyframes validate-fab-in {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) scale(0.85);
+    }
+}
+
+@keyframes validate-pop-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px) scale(0.85);
+    }
+}
+
+/* Sortie du mode validation : l'étiquette s'efface en douceur. */
+.validate-tag {
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.validate-tag.validate-leave {
+    opacity: 0;
+    transform: scale(0.85);
+}
+
+
+/* ----- Halo violet sur la carte d'expérience quand on gagne de l'XP ----- */
+
+.level-sidebar.xp-halo {
+    animation: xp-halo 2.8s ease-in-out;
+}
+
+@keyframes xp-halo {
+    0% {
+        border-color: #2c3040;
+        box-shadow: 0 0 0 0 rgba(108, 99, 255, 0), 0 0 0 0 rgba(108, 99, 255, 0);
+    }
+    35% {
+        border-color: #7b72f2;
+        box-shadow: 0 0 70px 16px rgba(108, 99, 255, 0.32), 0 0 130px 36px rgba(108, 99, 255, 0.16);
+    }
+    55% {
+        border-color: #6f66e6;
+        box-shadow: 0 0 64px 14px rgba(108, 99, 255, 0.26), 0 0 120px 32px rgba(108, 99, 255, 0.13);
+    }
+    100% {
+        border-color: #2c3040;
+        box-shadow: 0 0 0 0 rgba(108, 99, 255, 0), 0 0 0 0 rgba(108, 99, 255, 0);
+    }
+}
+
+
+/* ----- Bouton « Débloquer le niveau » ----- */
+
+.level-up-button {
+    width: 100%;
+    margin-top: 12px;
+    padding: 12px 14px;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #5b4fe0, #8c82ff);
+    color: white;
+    font-family: inherit;
+    font-weight: 900;
+    font-size: 14px;
+    cursor: pointer;
+    box-shadow: 0 8px 22px rgba(108, 99, 255, 0.45);
+    animation: level-up-button-in 0.5s cubic-bezier(0.2, 1.3, 0.4, 1), level-up-button-pulse 2.2s ease-in-out 0.5s infinite;
+}
+
+.level-up-button:hover {
+    filter: brightness(1.1);
+}
+
+@keyframes level-up-button-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.92);
+    }
+}
+
+@keyframes level-up-button-pulse {
+    50% {
+        box-shadow: 0 8px 30px rgba(108, 99, 255, 0.8), 0 0 0 5px rgba(108, 99, 255, 0.15);
+    }
+}
+
+/* Missions et boutique : les anciennes cartes restent cachées pendant le rechargement. */
+.page-refreshing .mission-card,
+.page-refreshing .missions-title,
+.page-refreshing .page-header {
+    opacity: 0;
+}
+
+/* Le coffre garde sa lueur en continu une fois arrivé. */
+.chest-card.cascade-in {
+    animation: cascade-in 0.45s ease-out backwards, chest-glow 2s ease-in-out infinite;
 }

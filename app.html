@@ -67,23 +67,7 @@
                 class="nav-button"
                 data-page="my-bets-page"
             >
-                Mes paris
-            </button>
-
-
-            <button
-                class="nav-button"
-                data-page="my-created-bets-page"
-            >
-                Mes créations
-            </button>
-
-
-            <button
-                class="nav-button"
-                data-page="create-page"
-            >
-                Créer un pari
+                Historique
             </button>
 
 
@@ -465,6 +449,14 @@
                             <div id="level-sidebar-fill"></div>
                         </div>
 
+                        <button
+                            type="button"
+                            id="level-up-button"
+                            class="level-up-button hidden"
+                        >
+                            ⭐ Débloquer le niveau 2
+                        </button>
+
 
                         <p class="level-sidebar-title">
                             Comment gagner de l'XP ?
@@ -472,9 +464,9 @@
 
                         <ul class="level-sidebar-list">
 
-                            <li>
+                            <li title="10 € = 1 XP, 100 € = 10 XP, 1 000 € et plus = 20 XP par mise">
                                 <span>🎲 Placer une mise</span>
-                                <strong>+10 XP</strong>
+                                <strong>+1 à +20 XP</strong>
                             </li>
 
                             <li>
@@ -526,7 +518,7 @@
                 <div>
 
                     <h1>
-                        Mes paris
+                        Historique
                     </h1>
 
                     <p>
@@ -540,41 +532,6 @@
 
             <div
                 id="my-bets-container"
-                class="my-bets-list"
-            ></div>
-
-        </section>
-
-
-
-        <!-- =====================================
-             PAGE : MES CRÉATIONS
-        ====================================== -->
-
-        <section
-            id="my-created-bets-page"
-            class="app-page hidden"
-        >
-
-            <div class="page-header">
-
-                <div>
-
-                    <h1>
-                        Mes créations
-                    </h1>
-
-                    <p>
-                        Gérez les paris que vous avez créés.
-                    </p>
-
-                </div>
-
-            </div>
-
-
-            <div
-                id="my-created-bets-container"
                 class="my-bets-list"
             ></div>
 
@@ -793,26 +750,29 @@
              PAGE : CRÉER UN PARI
         ====================================== -->
 
-        <section
-            id="create-page"
-            class="app-page hidden"
+        <div
+            id="create-modal"
+            class="modal hidden"
         >
 
-            <div class="page-header">
+            <div class="modal-content create-modal-content">
 
-                <div>
+                <button
+                    type="button"
+                    id="close-create-modal"
+                    class="close-modal"
+                >
+                    ×
+                </button>
 
-                    <h1>
-                        Créer un pari
-                    </h1>
 
-                    <p>
-                        Propose ton propre sujet à la communauté.
-                    </p>
+                <h2>
+                    Créer un pari
+                </h2>
 
-                </div>
-
-            </div>
+                <p class="create-modal-intro">
+                    Propose ton propre sujet à la communauté.
+                </p>
 
 
             <div class="create-card create-card--sections">
@@ -1034,7 +994,9 @@
 
             </div>
 
-        </section>
+            </div>
+
+        </div>
 
 
 

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BetLab – Place de l'étiquette « Aujourd'hui » (propositions)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; }
+button { font: inherit; cursor: pointer; }
+h1 { font-size: 26px; margin-bottom: 6px; }
+.sub { color: #858a98; margin-bottom: 16px; max-width: 820px; font-size: 14px; line-height: 1.5; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; position: sticky; top: 0; background: #0f1117; padding: 10px 0; z-index: 30; align-items: center; }
+.tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; }
+.tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.pick { margin-left: auto; background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; font-weight: 900; padding: 10px 16px; border-radius: 12px; }
+.desc { color: #aaaeba; font-size: 14px; max-width: 760px; margin-bottom: 26px; min-height: 42px; }
+
+.grid { display: grid; grid-template-columns: repeat(2, minmax(300px, 480px)); gap: 46px 34px; align-items: start; }
+@media (max-width: 1100px) { .grid { grid-template-columns: minmax(300px, 480px); } }
+.caption { color: #737887; font-size: 12px; margin-bottom: 16px; }
+
+/* Carte (tailles du site) */
+.card { position: relative; background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; border-radius: 18px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+.card.today { border-color: #6c63ff; box-shadow: 0 0 30px rgba(108, 99, 255, 0.3); }
+.head { display: flex; align-items: center; gap: 8px; color: #858a98; font-size: 13px; margin-bottom: 14px; min-height: 22px; }
+.q { font-size: 17px; font-weight: 800; margin-bottom: 18px; display: flex; gap: 8px; }
+.q span { margin-left: auto; color: #858a98; font-size: 12px; font-weight: 500; white-space: nowrap; }
+.choices { display: flex; gap: 10px; }
+.choice { flex: 1; }
+.choice-btn { width: 100%; display: flex; justify-content: space-between; background: #101219; border: 1px solid #343846; border-radius: 12px; padding: 10px 12px; color: inherit; }
+.choice-btn b { color: #a59fff; }
+.track { height: 5px; background: #23262f; border-radius: 99px; margin-top: 8px; overflow: hidden; }
+.fill { height: 100%; background: #6c63ff; }
+.pct { font-size: 11px; color: #737887; margin-top: 3px; }
+.foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; font-size: 13px; color: #858a98; }
+.foot strong { color: white; }
+
+/* Pastille verte « Valider » : à droite, au-dessus de la carte */
+.fab { position: absolute; top: -14px; right: 18px; z-index: 3; display: flex; align-items: center; height: 30px; max-width: 30px; padding: 0 8px; border: none; border-radius: 999px; background: linear-gradient(135deg, #2fa36f, #63d69f); color: #0b1f15; font-weight: 900; white-space: nowrap; overflow: hidden; box-shadow: 0 6px 18px rgba(99,214,159,.4); transition: max-width .25s ease, padding .25s ease; }
+.fab span { margin-left: 6px; opacity: 0; transition: opacity .2s; }
+.fab:hover { max-width: 150px; padding: 0 12px 0 8px; }
+.fab:hover span { opacity: 1; }
+
+/* Étiquette « Aujourd'hui » (style actuel du site) */
+.tag { position: absolute; background: #6c63ff; color: #fff; font-size: 9px; font-weight: 800; letter-spacing: .5px; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+
+/* Variante 1 : en haut à gauche */
+.v1 .tag { top: -9px; left: 16px; }
+/* Variante 2 : au centre du bord haut */
+.v2 .tag { top: -9px; left: 50%; transform: translateX(-50%); }
+/* Variante 3 : dans l'en-tête, à droite de « Créé par » */
+.v3 .tag { position: static; margin-left: auto; font-size: 10px; padding: 3px 9px; }
+/* Variante 4 : ruban dans le coin supérieur gauche */
+.v4 .ribbon-box { position: absolute; top: 0; left: 0; width: 84px; height: 84px; overflow: hidden; border-radius: 18px 0 0 0; pointer-events: none; }
+.v4 .tag { top: 14px; left: -32px; width: 120px; text-align: center; border-radius: 0; transform: rotate(-45deg); padding: 3px 0; box-shadow: 0 2px 6px rgba(0,0,0,.35); }
+/* Variante 5 : sur le bord bas, à gauche */
+.v5 .tag { top: auto; bottom: -9px; left: 16px; }
+
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #2fa36f; color: #0b1f15; font-weight: 800; padding: 10px 18px; border-radius: 12px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 50; }
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<h1>Où placer l'étiquette « Aujourd'hui » ?</h1>
+<p class="sub">
+    La pastille verte « ✓ Valider » passe à droite (survole-la pour la déplier). L'étiquette « Aujourd'hui » occupait déjà ce coin :
+    voici cinq façons de la placer. Pour chaque version, les quatre cas : une carte sans rien, une avec l'étiquette seule,
+    une avec la pastille seule, et une avec les deux.
+</p>
+
+<div class="tabs" id="tabs">
+    <button class="tab active" data-v="1">1 · En haut à gauche</button>
+    <button class="tab" data-v="2">2 · Au centre en haut</button>
+    <button class="tab" data-v="3">3 · Dans l'en-tête</button>
+    <button class="tab" data-v="4">4 · Ruban dans le coin</button>
+    <button class="tab" data-v="5">5 · Bord bas, à gauche</button>
+    <button class="pick" id="choose">Je choisis celle-ci</button>
+</div>
+<p class="desc" id="desc"></p>
+
+<div class="grid" id="grid"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const DESCS = {
+    1: "L'étiquette passe sur le bord haut, à gauche, face à la pastille verte à droite. Symétrique et très proche de l'existant.",
+    2: "L'étiquette est au centre du bord haut, entre le coin gauche libre et la pastille à droite. Bien visible, mais un peu au milieu du contenu.",
+    3: "L'étiquette quitte le bord de la carte et se range dans l'en-tête, à droite de « Créé par ». Rien ne dépasse, aucun risque de chevauchement avec la pastille.",
+    4: "Un petit ruban en diagonale dans le coin supérieur gauche, à l'intérieur de la carte. Style « nouveau » classique, et le coin droit reste entièrement pour la pastille.",
+    5: "L'étiquette descend sur le bord bas de la carte, à gauche. Le haut est entièrement libre pour la pastille, mais l'étiquette se remarque moins."
+};
+
+const CASES = [
+    { title: "1 · Sans étiquette ni pastille", today: false, fab: false, author: "Yann", q: "Coupure de Wi-Fi aujourd'hui ?" },
+    { title: "2 · Étiquette « Aujourd'hui » seule", today: true, fab: false, author: "Balac", q: "Lina part avant 16h15 précisément ?" },
+    { title: "3 · Pastille verte seule", today: false, fab: true, author: "Florian (toi)", q: "Au moins 4 personnes s'appellent Florian" },
+    { title: "4 · Étiquette et pastille ensemble", today: true, fab: true, author: "Florian (toi)", q: "Le café est vide avant 10h ?" }
+];
+
+function card(c, v) {
+    const tag = c.today ? (v === "4" ? `<div class="ribbon-box"><span class="tag">AUJOURD'HUI</span></div>` : (v === "3" ? "" : `<span class="tag">AUJOURD'HUI</span>`)) : "";
+    const tagHead = c.today && v === "3" ? `<span class="tag">AUJOURD'HUI</span>` : "";
+    return `
+        <div>
+            <div class="caption">${c.title}</div>
+            <div class="card ${c.today ? "today" : ""}">
+                ${tag}
+                ${c.fab ? `<button class="fab">✓<span>Valider</span></button>` : ""}
+                <div class="head"><span>🏆 Créé par ${c.author}</span>${tagHead}</div>
+                <div class="q">🎲 ${c.q}<span>auj. 18:00</span></div>
+                <div class="choices">
+                    <div class="choice"><button class="choice-btn"><span>Oui</span><b>2.43</b></button><div class="track"><div class="fill" style="width:18%"></div></div><div class="pct">18%</div></div>
+                    <div class="choice"><button class="choice-btn"><span>Non</span><b>1.60</b></button><div class="track"><div class="fill" style="width:82%"></div></div><div class="pct">82%</div></div>
+                </div>
+                <div class="foot">Solde misé <strong>759 €</strong></div>
+            </div>
+        </div>`;
+}
+
+let current = "1";
+function select(v) {
+    current = v;
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.v === v));
+    document.getElementById("desc").textContent = DESCS[v];
+    const grid = document.getElementById("grid");
+    grid.className = "grid v" + v;
+    grid.innerHTML = CASES.map(c => card(c, v)).join("");
+}
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => select(t.dataset.v));
+document.getElementById("choose").onclick = () => {
+    const name = document.querySelector(`.tab[data-v="${current}"]`).textContent;
+    const text = "Place de l'étiquette Aujourd'hui choisie : " + name;
+    navigator.clipboard && navigator.clipboard.writeText(text).catch(() => {});
+    const t = document.getElementById("toast");
+    t.textContent = "Copié : « " + text + " » → colle-le à Claude";
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 2500);
+};
+
+select("1");
+</script>
+</body>
+</html>

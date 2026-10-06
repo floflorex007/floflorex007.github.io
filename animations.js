@@ -735,6 +735,28 @@ function levelFromXp(xp) {
 }
 
 
+let lastXpTotal = null;
+
+function pulseXpCard() {
+
+    const card = document.querySelector(".level-sidebar");
+
+    if (!card || card.getClientRects().length === 0) {
+
+        return;
+
+    }
+
+    card.classList.remove("xp-halo");
+
+    void card.offsetWidth;
+
+    card.classList.add("xp-halo");
+
+    card.addEventListener("animationend", () => card.classList.remove("xp-halo"), { once: true });
+
+}
+
 async function refreshProgression() {
 
     const {
@@ -751,34 +773,166 @@ async function refreshProgression() {
     const info =
         levelFromXp(Number(data) || 0);
 
-    /*
-        Panneau « Ton niveau » à droite de la page principale.
-    */
+    // XP gagnée : la barre monte en même temps que le halo violet, une fois
+    // l'animation du perroquet terminée (billets, croissance, pose).
+    const xpNow = Number(data) || 0;
+
+    const gained = lastXpTotal !== null && xpNow > lastXpTotal;
+
+    lastXpTotal = xpNow;
+
+    let delay = 0;
+
+    if (gained) {
+
+        const parrotEnd = Math.max(
+            window.billsAnimationEnd || 0,
+            window.parrotAnimEnd || 0,
+            window.leaderboardHoldUntil || 0
+        );
+
+        delay = Math.max(0, parrotEnd - performance.now()) + 150;
+
+        progressionHoldUntil = performance.now() + delay;
+
+    } else {
+
+        // Un gain est en attente : une mise à jour qui arrive entre-temps attend aussi.
+        delay = Math.max(0, progressionHoldUntil - performance.now());
+
+    }
+
+    const run = () => {
+
+        if (gained) {
+
+            pulseXpCard();
+
+        }
+
+        applyProgression(info);
+
+    };
+
+    if (delay > 0) {
+
+        setTimeout(run, delay);
+
+    } else {
+
+        run();
+
+    }
+
+}
+
+
+let progressionHoldUntil = 0;
+
+/*
+    Panneau « Ton niveau » à droite de la page principale.
+    Le niveau supérieur n'est pas débloqué tout seul : quand l'XP suffit, la barre
+    est pleine et un bouton violet propose de le débloquer (voir claimNextLevel).
+*/
+
+let lastProgressInfo = null;
+
+function xpNeededForLevel(level) {
+
+    return 100 + 50 * (level - 1);
+
+}
+
+function applyProgression(info) {
+
+    lastProgressInfo = info;
+
+    // Niveau déjà débloqué par le joueur (au premier passage : son niveau actuel).
+    let claimed = readStorage("claimed-level");
+
+    if (!claimed || claimed > info.level) {
+
+        claimed = info.level;
+
+        writeStorage("claimed-level", claimed);
+
+    }
+
+    const pending = info.level > claimed;
+
+    const shown = pending
+        ? { level: claimed, current: xpNeededForLevel(claimed), needed: xpNeededForLevel(claimed) }
+        : info;
+
 
     const sidebarLabel =
         document.getElementById("level-sidebar-label");
 
     if (sidebarLabel) {
 
-        sidebarLabel.textContent = "Niveau " + info.level;
+        sidebarLabel.textContent = "Niveau " + shown.level;
 
         document.getElementById("level-sidebar-xp").textContent =
-            info.current + " / " + info.needed + " XP";
+            shown.current + " / " + shown.needed + " XP";
 
         document.getElementById("level-sidebar-fill").style.width =
-            Math.round(info.current / info.needed * 100) + "%";
+            Math.round(shown.current / shown.needed * 100) + "%";
 
     }
 
 
-    const previousLevel =
-        readStorage("level");
+    const button = document.getElementById("level-up-button");
 
-    writeStorage("level", info.level);
+    if (button) {
 
-    if (previousLevel && info.level > previousLevel) {
-        showLevelUp(info.level);
+        if (pending) {
+
+            button.textContent = "⭐ Débloquer le niveau " + (claimed + 1);
+
+            button.classList.remove("hidden");
+
+        } else {
+
+            button.classList.add("hidden");
+
+        }
+
     }
+
+}
+
+function claimNextLevel() {
+
+    const claimed = readStorage("claimed-level");
+
+    if (!lastProgressInfo || !claimed || lastProgressInfo.level <= claimed) {
+
+        return;
+
+    }
+
+    writeStorage("claimed-level", claimed + 1);
+
+    // L'animation du niveau se joue maintenant, puis la barre repart du début.
+    showLevelUp(claimed + 1);
+
+    const fill = document.getElementById("level-sidebar-fill");
+
+    if (fill) {
+
+        fill.style.transition = "none";
+
+        fill.style.width = "0%";
+
+        void fill.offsetWidth;
+
+        fill.style.transition = "";
+
+    }
+
+    applyProgression(lastProgressInfo);
+
+    pulseXpCard();
 
 }
 
@@ -958,19 +1112,28 @@ function cascadeIn(root) {
         return;
     }
 
+    const play = (element, index) => {
+
+        element.classList.remove("cascade-in");
+
+        void element.offsetWidth;
+
+        element.style.animationDelay = Math.min(index, 12) * 0.06 + "s";
+
+        element.classList.add("cascade-in");
+
+    };
+
+    // Titres et cartes, dans l'ordre de la page.
     root
-        .querySelectorAll(".bet-card, .my-bet-item, .mission-card")
-        .forEach((card, index) => {
+        .querySelectorAll(".page-header, .missions-title, .bet-card, .my-bet-item, .mission-card")
+        .forEach(play);
 
-            card.classList.remove("cascade-in");
-
-            void card.offsetWidth;
-
-            card.style.animationDelay = Math.min(index, 12) * 0.06 + "s";
-
-            card.classList.add("cascade-in");
-
-        });
+    // Colonnes latérales (top parieurs, message, XP, coffre) : elles arrivent
+    // tout de suite après le titre, l'une après l'autre.
+    root
+        .querySelectorAll(".leaderboard-sidebar, .admin-message-sidebar, .chest-card")
+        .forEach((element, index) => play(element, index + 1));
 
 }
 
@@ -1197,11 +1360,17 @@ async function initAnimations() {
 
     setupPointerEffects();
 
+    document
+        .getElementById("level-up-button")
+        ?.addEventListener("click", claimNextLevel);
+
     setInterval(updateCountdowns, 1000);
 
     updateCountdowns();
 
-    cascadeIn(document.getElementById("bets-page"));
+    // (L'arrivée des cartes en cascade est lancée par initAppPage, au moment
+    // où la page s'affiche : la relancer ici faisait disparaître puis
+    // réapparaître les cartes.)
 
 
     const chest =

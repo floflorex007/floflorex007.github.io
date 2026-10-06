@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BetLab – Valider sur la carte, bilan avant validation (propositions)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; }
+button { font: inherit; cursor: pointer; color: inherit; }
+h1 { font-size: 26px; margin-bottom: 6px; }
+.sub { color: #858a98; margin-bottom: 16px; max-width: 800px; font-size: 14px; line-height: 1.5; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; position: sticky; top: 0; background: #0f1117; padding: 10px 0; z-index: 30; align-items: center; }
+.tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; }
+.tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.pick { margin-left: auto; background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; font-weight: 900; padding: 10px 16px; border-radius: 12px; }
+.reset { background: #1c202c; border: 1px solid #2c3040; color: #c9ccd6; padding: 10px 14px; border-radius: 12px; }
+.desc { color: #aaaeba; font-size: 14px; max-width: 760px; margin-bottom: 20px; min-height: 42px; }
+
+/* Couleurs par variante */
+.list { --acc: #63d69f; --acc-rgb: 99,214,159; --acc-ink: #0b1f15; --acc2: #f5c451; --acc2-rgb: 245,196,81; display: flex; flex-direction: column; gap: 44px; max-width: 480px; }
+.list[data-v="2"] { --acc: #f5c451; --acc-rgb: 245,196,81; --acc-ink: #3a2a00; --acc2: #63d69f; --acc2-rgb: 99,214,159; }
+.list[data-v="3"] { --acc: #f5c451; --acc-rgb: 245,196,81; --acc-ink: #3a2a00; --acc2: #63d69f; --acc2-rgb: 99,214,159; }
+.note { color: #737887; font-size: 12px; margin: -30px 0 -26px 4px; }
+
+/* Carte (tailles du site) */
+.card { position: relative; background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; border-radius: 18px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,.35); transition: background .35s, border-color .35s, box-shadow .35s; }
+.card.mode { background: linear-gradient(180deg, rgba(var(--acc-rgb), .14) 0%, rgba(var(--acc-rgb), .04) 100%), #14161e; border-color: var(--acc); box-shadow: 0 10px 30px rgba(0,0,0,.35), 0 0 0 1px rgba(var(--acc-rgb), .25), 0 0 34px rgba(var(--acc-rgb), .18); }
+.head { display: flex; align-items: center; gap: 8px; color: #858a98; font-size: 13px; margin-bottom: 14px; min-height: 24px; }
+.mode-tag { margin-left: auto; font-size: 11px; font-weight: 900; letter-spacing: .6px; text-transform: uppercase; color: var(--acc-ink); background: var(--acc); padding: 3px 10px; border-radius: 999px; animation: rise .25s ease-out; }
+.q { font-size: 17px; font-weight: 800; margin-bottom: 18px; display: flex; gap: 8px; }
+.q span { margin-left: auto; color: #858a98; font-size: 12px; font-weight: 500; white-space: nowrap; }
+.choices { display: flex; gap: 10px; }
+.choice { flex: 1; }
+.choice-btn { width: 100%; display: flex; justify-content: space-between; align-items: center; background: #101219; border: 1px solid #343846; border-radius: 12px; padding: 10px 12px; transition: border-color .15s, box-shadow .15s, background .15s, transform .15s; }
+.choice-btn b { color: #a59fff; }
+.choice-btn:disabled { cursor: default; }
+.track { height: 5px; background: #23262f; border-radius: 99px; margin-top: 8px; overflow: hidden; }
+.fill { height: 100%; background: #6c63ff; }
+.pct { font-size: 11px; color: #737887; margin-top: 3px; }
+.foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; font-size: 13px; color: #858a98; }
+.foot strong { color: white; }
+
+/* Bouton flottant (version D) */
+.fab { position: absolute; top: -14px; right: 18px; display: flex; align-items: center; height: 30px; padding: 0 8px; background: linear-gradient(135deg, #2fa36f, #63d69f); color: #0b1f15; border: none; border-radius: 999px; font-weight: 900; box-shadow: 0 6px 18px rgba(99,214,159,.4); overflow: hidden; max-width: 30px; transition: max-width .25s ease, padding .25s ease; white-space: nowrap; z-index: 3; }
+.fab span { margin-left: 6px; opacity: 0; transition: opacity .2s; }
+.card:hover .fab, .fab.open { max-width: 150px; padding: 0 12px 0 8px; }
+.card:hover .fab span, .fab.open span { opacity: 1; }
+.list[data-v="2"] .fab, .list[data-v="3"] .fab { background: linear-gradient(135deg, #e0a21c, #f5c451); box-shadow: 0 6px 18px rgba(245,196,81,.4); color: #3a2a00; }
+.fab.open { background: #23262f !important; color: #e6e8ee !important; box-shadow: none !important; border: 1px solid #343846; }
+
+/* Mode « clique le gagnant » : les cotes réagissent */
+.mode .choice-btn { border-color: var(--acc); background: rgba(var(--acc-rgb), .08); cursor: pointer; animation: pulse 1.4s infinite; }
+.mode .choice-btn:hover { background: rgba(var(--acc-rgb), .24); transform: translateY(-2px); }
+.mode .choice-btn b { color: var(--acc); }
+.mode.chosen .choice-btn { animation: none; opacity: .5; }
+.mode.chosen .choice.sel .choice-btn { opacity: 1; background: rgba(var(--acc-rgb), .28); box-shadow: 0 0 0 2px var(--acc); }
+@keyframes pulse { 50% { box-shadow: 0 0 0 5px rgba(var(--acc-rgb), 0); } }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+.hint { font-size: 13px; font-weight: 700; color: var(--acc); margin-bottom: 8px; animation: rise .25s ease-out; }
+
+/* Boutons */
+.btn { border: none; border-radius: 10px; padding: 9px 16px; font-weight: 800; }
+.btn.go { background: var(--acc); color: var(--acc-ink); box-shadow: 0 8px 20px rgba(var(--acc-rgb), .3); }
+.btn.go:disabled { background: #2c3040; color: #737887; box-shadow: none; cursor: not-allowed; }
+.btn.no { background: transparent; border: 1px solid #343846; color: #aaaeba; }
+
+/* Lignes du bilan */
+.line { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; padding: 6px 0; }
+.line .amt.win { color: #63d69f; font-weight: 800; }
+.line .amt.lose { color: #ff8a8a; font-weight: 800; }
+.line small { color: #858a98; }
+
+/* V1 : bilan sous la carte, deux colonnes */
+.v1-bilan { margin-top: 16px; padding-top: 14px; border-top: 1px dashed rgba(var(--acc-rgb), .5); animation: rise .3s ease-out; }
+.v1-title { font-size: 14px; margin-bottom: 10px; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.col { border-radius: 12px; padding: 10px 12px; }
+.col.w { background: rgba(99,214,159,.1); border: 1px solid rgba(99,214,159,.35); }
+.col.l { background: rgba(255,107,107,.08); border: 1px solid rgba(255,107,107,.3); }
+.col h4 { font-size: 12px; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+.col.w h4 { color: #63d69f; } .col.l h4 { color: #ff8a8a; }
+.col .total { border-top: 1px solid rgba(255,255,255,.1); margin-top: 6px; padding-top: 6px; font-weight: 800; display: flex; justify-content: space-between; font-size: 14px; }
+.v1-actions { display: flex; margin-top: 14px; }
+.v1-actions .btn { width: 100%; padding: 13px; }
+
+/* V2 : bilan qui remplace le contenu de la carte */
+.v2 { animation: rise .3s ease-out; }
+.v2-hero { text-align: center; padding: 6px 0 14px; }
+.v2-hero .crown { font-size: 34px; }
+.v2-hero h3 { font-size: 20px; margin-top: 4px; }
+.v2-hero p { color: #aaaeba; font-size: 13px; margin-top: 4px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 12px; }
+.chip { display: inline-flex; gap: 6px; align-items: center; padding: 6px 11px; border-radius: 999px; font-size: 13px; font-weight: 700; }
+.chip.w { background: rgba(99,214,159,.14); color: #63d69f; border: 1px solid rgba(99,214,159,.4); }
+.chip.l { background: rgba(255,107,107,.1); color: #ff8a8a; border: 1px solid rgba(255,107,107,.35); }
+.v2-sub { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: #858a98; margin-top: 8px; }
+.v2-actions { display: flex; gap: 10px; margin-top: 10px; }
+.v2-actions .btn { flex: 1; padding: 13px; }
+
+/* V3 : ticket + validation en maintenant appuyé */
+.ticket { position: relative; margin: 16px -8px 0; background: linear-gradient(135deg, #fff4c9, #ffe28a); color: #3a2a00; border-radius: 14px; padding: 16px 18px; box-shadow: 0 14px 30px rgba(245,196,81,.2); animation: rise .3s ease-out; transform: rotate(-.6deg); }
+.ticket::before, .ticket::after { content: ""; position: absolute; top: 52px; width: 22px; height: 22px; border-radius: 50%; background: #161823; }
+.ticket::before { left: -11px; } .ticket::after { right: -11px; }
+.ticket .t-top { display: flex; justify-content: space-between; font-size: 11px; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase; opacity: .7; }
+.ticket .t-name { font-size: 18px; font-weight: 900; margin: 4px 0 14px; }
+.ticket .perf { border-top: 2px dashed rgba(58,42,0,.35); margin: 0 -18px 10px; }
+.ticket .line { padding: 3px 0; font-size: 13px; }
+.ticket .line .amt.win { color: #1a6b45; } .ticket .line .amt.lose { color: #b3261e; }
+.ticket .line small { color: rgba(58,42,0,.65); }
+.ticket .t-sum { border-top: 2px solid rgba(58,42,0,.3); margin-top: 8px; padding-top: 8px; display: flex; justify-content: space-between; font-weight: 900; }
+.hold { position: relative; width: 100%; margin-top: 14px; border: none; border-radius: 12px; padding: 15px; font-weight: 900; font-size: 15px; background: #3a2a00; color: #ffe28a; overflow: hidden; user-select: none; }
+.hold .bar { position: absolute; inset: 0; width: 0; background: linear-gradient(90deg, #2fa36f, #63d69f); transition: width 0s; }
+.hold.holding .bar { width: 100%; transition: width 1.2s linear; }
+.hold span { position: relative; }
+.t-cancel { display: block; margin: 8px auto 0; background: none; border: none; color: #6b5a24; font-size: 13px; text-decoration: underline; }
+
+/* V4 : résumé compact + détail repliable + interrupteur de confirmation */
+.v4 { margin-top: 16px; border: 1px solid rgba(var(--acc-rgb), .45); border-radius: 14px; overflow: hidden; animation: rise .3s ease-out; }
+.v4-sum { display: grid; grid-template-columns: 1fr 1fr; }
+.v4-sum div { padding: 12px 14px; }
+.v4-sum .a { background: rgba(99,214,159,.12); } .v4-sum .b { background: rgba(255,107,107,.1); }
+.v4-sum small { display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: #aaaeba; }
+.v4-sum strong { font-size: 20px; } .v4-sum .a strong { color: #63d69f; } .v4-sum .b strong { color: #ff8a8a; }
+.v4-more { width: 100%; background: #101219; border: none; border-top: 1px solid #2c3040; padding: 8px; font-size: 12px; color: #aaaeba; }
+.v4-detail { background: #101219; padding: 4px 14px 10px; max-height: 0; overflow: hidden; transition: max-height .3s ease, padding .3s ease; padding-top: 0; padding-bottom: 0; }
+.v4-detail.open { max-height: 320px; padding-top: 4px; padding-bottom: 10px; }
+.switch { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: #101219; border-top: 1px solid #2c3040; font-size: 14px; cursor: pointer; }
+.switch i { position: relative; width: 40px; height: 22px; background: #343846; border-radius: 99px; transition: background .2s; flex-shrink: 0; }
+.switch i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; background: white; border-radius: 50%; transition: transform .2s; }
+.switch.on i { background: var(--acc); }
+.switch.on i::after { transform: translateX(18px); }
+.v4-actions { display: flex; gap: 10px; padding: 12px 14px; background: #101219; }
+.v4-actions .btn.go { flex: 1; }
+
+/* Validé */
+.winner .choice-btn { border-color: #63d69f !important; background: rgba(99,214,159,.14) !important; opacity: 1 !important; animation: none !important; }
+.loser .choice-btn { opacity: .4 !important; animation: none !important; }
+.done-badge { margin-left: auto; display: inline-flex; gap: 6px; align-items: center; background: rgba(99,214,159,.15); color: #63d69f; font-weight: 800; font-size: 12px; padding: 4px 10px; border-radius: 999px; animation: rise .25s ease-out; }
+.done-note { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: rgba(99,214,159,.08); border: 1px solid rgba(99,214,159,.3); font-size: 13px; color: #aaaeba; animation: rise .3s ease-out; }
+
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #2fa36f; color: #0b1f15; font-weight: 800; padding: 10px 18px; border-radius: 12px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 50; }
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<h1>Valider un pari sur la carte, avec le bilan</h1>
+<p class="sub">
+    Le bouton flottant « ✓ Valider » (en haut de la carte, au survol) met la carte en <b>mode validation</b> : elle change de couleur
+    et on clique <b>directement sur la cote gagnante</b>. Avant de valider, un <b>bilan</b> montre qui gagne combien et qui perd sa mise.
+    Les quatre versions varient les couleurs (vert / jaune) et la façon de présenter le bilan et la confirmation.
+    Seul le créateur voit le bouton : la deuxième carte (créée par Yann) n'en a pas.
+</p>
+
+<div class="tabs" id="tabs">
+    <button class="tab active" data-v="1">1 · Vert · bilan en deux colonnes</button>
+    <button class="tab" data-v="2">2 · Jaune · bilan en pastilles</button>
+    <button class="tab" data-v="3">3 · Jaune · ticket à maintenir</button>
+    <button class="tab" data-v="4">4 · Vert · résumé + interrupteur</button>
+    <button class="reset" id="reset">↺ Recommencer</button>
+    <button class="pick" id="choose">Je choisis celle-ci</button>
+</div>
+<p class="desc" id="desc"></p>
+
+<div class="list" id="list" data-v="1"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const BET = {
+    author: "Florian", q: "Lina part avant 16h15 précisément aujourd'hui", d: "auj. 18:00",
+    choices: [["Oui", 2.43, 18], ["Non", 1.60, 82]],
+    stakes: [["Balac", 1, 309], ["Florian", 1, 100], ["Lina", 0, 100], ["Yann", 1, 157], ["victor", 1, 50]]
+};
+const OTHER = { author: "Yann", q: "Coupure de Wi-Fi aujourd'hui ?", d: "auj. 16:00", choices: [["Oui", 5.00, 30], ["Non", 1.20, 70]], total: "420 €" };
+
+const eur = n => Math.round(n).toLocaleString("fr-FR") + " €";
+const odds = n => n.toFixed(2);
+
+function bilan(pick) {
+    const o = BET.choices[pick][1];
+    const winners = BET.stakes.filter(s => s[1] === pick).map(s => ({ name: s[0], stake: s[2], win: s[2] * o }));
+    const losers = BET.stakes.filter(s => s[1] !== pick).map(s => ({ name: s[0], stake: s[2] }));
+    return {
+        winners, losers,
+        paid: winners.reduce((t, w) => t + w.win, 0),
+        lost: losers.reduce((t, l) => t + l.stake, 0)
+    };
+}
+
+let current = "1";
+let st = { step: "idle", pick: null, detail: false, confirmed: false };
+
+const VARIANTS = {
+    1: "Carte verte. Au clic sur une cote, le bilan s'ouvre sous la carte en deux colonnes (gagnants en vert, perdants en rouge, avec le total de chaque côté), puis deux boutons : « Modifier » ou « Valider ». Classique et très lisible.",
+    2: "Carte jaune dorée. Au clic sur une cote, le contenu de la carte laisse place à une grande annonce « Oui gagne ! » avec les gagnants et les perdants en pastilles colorées, et deux gros boutons côte à côte. Plus visuel, moins de texte.",
+    3: "Carte jaune. Le bilan s'affiche comme un ticket de caisse (une ligne par joueur et un total). Pour valider il faut maintenir le bouton appuyé 1 seconde : impossible de valider par erreur. Plus ludique et très sûr.",
+    4: "Carte verte. Un résumé compact (gains versés / mises perdues) avec le détail qu'on peut déplier. On active un interrupteur « Je confirme » pour débloquer le bouton Valider. Le plus discret, pensé pour ne pas allonger la carte."
+};
+
+function playersLines(b) {
+    const w = b.winners.map(x => `<div class="line"><span>${x.name} <small>(mise ${eur(x.stake)})</small></span><span class="amt win">+${eur(x.win)}</span></div>`).join("");
+    const l = b.losers.map(x => `<div class="line"><span>${x.name}</span><span class="amt lose">−${eur(x.stake)}</span></div>`).join("");
+    return { w, l };
+}
+
+function bilanHtml(pick) {
+    const b = bilan(pick);
+    const name = BET.choices[pick][0];
+    const { w, l } = playersLines(b);
+
+    if (current === "1") return `
+        <div class="v1-bilan">
+            <div class="cols">
+                <div class="col w"><h4>🏆 Gagnants (${b.winners.length})</h4>${w || "<small>Personne</small>"}</div>
+                <div class="col l"><h4>✗ Perdants (${b.losers.length})</h4>${l || "<small>Personne</small>"}</div>
+            </div>
+            <div class="v1-actions"><button class="btn go" data-act="confirm">✓ Valider le pari</button></div>
+        </div>`;
+
+    if (current === "2") return `
+        <div class="v2">
+            <div class="v2-hero"><div class="crown">🏆</div><h3>« ${name} » gagne !</h3><p>${b.winners.length} gagnant${b.winners.length > 1 ? "s" : ""} · ${eur(b.paid)} versés · ${eur(b.lost)} perdus</p></div>
+            <div class="v2-sub">Gagnants</div>
+            <div class="chips">${b.winners.map(x => `<span class="chip w">${x.name} +${eur(x.win)}</span>`).join("") || "<small>Personne</small>"}</div>
+            <div class="v2-sub">Perdants</div>
+            <div class="chips">${b.losers.map(x => `<span class="chip l">${x.name} −${eur(x.stake)}</span>`).join("") || "<small>Personne</small>"}</div>
+            <div class="v2-actions"><button class="btn no" data-act="back">Modifier</button><button class="btn go" data-act="confirm">✓ Valider</button></div>
+        </div>`;
+
+    if (current === "3") return `
+        <div class="ticket">
+            <div class="t-top"><span>Bilan du pari</span><span>${name} gagne</span></div>
+            <div class="t-name">${BET.q.length > 34 ? BET.q.slice(0, 34) + "…" : BET.q}</div>
+            <div class="perf"></div>
+            ${b.winners.map(x => `<div class="line"><span>🏆 ${x.name}</span><span class="amt win">+${eur(x.win)}</span></div>`).join("")}
+            ${b.losers.map(x => `<div class="line"><span>✗ ${x.name}</span><span class="amt lose">−${eur(x.stake)}</span></div>`).join("")}
+            <div class="t-sum"><span>Versés / perdus</span><span>${eur(b.paid)} / ${eur(b.lost)}</span></div>
+            <button class="hold" data-hold><div class="bar"></div><span>Maintiens pour valider</span></button>
+            <button class="t-cancel" data-act="back">Changer de réponse</button>
+        </div>`;
+
+    return `
+        <div class="v4">
+            <div class="v4-sum"><div class="a"><small>Gains versés</small><strong>${eur(b.paid)}</strong><br><small>${b.winners.length} gagnant${b.winners.length > 1 ? "s" : ""}</small></div><div class="b"><small>Mises perdues</small><strong>${eur(b.lost)}</strong><br><small>${b.losers.length} perdant${b.losers.length > 1 ? "s" : ""}</small></div></div>
+            <button class="v4-more" data-act="detail">${st.detail ? "Masquer le détail ▲" : "Voir le détail ▼"}</button>
+            <div class="v4-detail ${st.detail ? "open" : ""}">${w}${l}</div>
+            <div class="switch ${st.confirmed ? "on" : ""}" data-act="switch"><i></i><span>Je confirme que « <b>${name}</b> » a gagné</span></div>
+            <div class="v4-actions"><button class="btn no" data-act="back">← Changer</button><button class="btn go" data-act="confirm" ${st.confirmed ? "" : "disabled"}>✓ Valider</button></div>
+        </div>`;
+}
+
+function render() {
+    const list = document.getElementById("list");
+    list.dataset.v = current;
+    const done = st.step === "done";
+    const modeOn = st.step === "mode" || st.step === "bilan";
+    const chosen = st.step === "bilan";
+
+    const choiceHtml = BET.choices.map(([l, o, p], i) => {
+        const cls = done ? (i === st.pick ? "winner" : "loser") : (chosen && i === st.pick ? "sel" : "");
+        return `<div class="choice ${cls}">
+            <button class="choice-btn" ${modeOn ? `data-act="pick" data-i="${i}"` : "disabled"}><span>${l}${done && i === st.pick ? " 🏆" : ""}</span><b>${odds(o)}</b></button>
+            <div class="track"><div class="fill" style="width:${p}%"></div></div><div class="pct">${p}%</div>
+        </div>`;
+    }).join("");
+
+    let body = `<div class="choices">${choiceHtml}</div>`;
+    let after = "";
+    if (modeOn && !chosen) after = "";
+    const hint = st.step === "mode" ? `<div class="hint">👆 Clique la cote qui a gagné</div>` : "";
+
+    // Variantes 2 et 3 : le bilan remplace le contenu de la carte (V2) ou s'ajoute (V3)
+    let inner;
+    if (chosen && current === "2") {
+        inner = bilanHtml(st.pick);
+    } else {
+        inner = `${hint}${body}<div class="foot">Solde misé <strong>759 €</strong></div>${chosen ? bilanHtml(st.pick) : ""}`;
+    }
+
+    const bilanDone = done ? (() => { const b = bilan(st.pick); return `<div class="done-note">✅ Pari validé : <b>${BET.choices[st.pick][0]}</b> gagne. ${b.winners.length} gagnant(s) peuvent récupérer ${eur(b.paid)}.</div>`; })() : "";
+
+    const fab = st.step === "idle" ? `<button class="fab" data-act="start">✓<span>Valider</span></button>`
+        : modeOn ? `<button class="fab open" data-act="cancel">✕<span>Annuler</span></button>` : "";
+
+    list.innerHTML = `
+        <div class="card ${modeOn ? "mode" : ""} ${chosen ? "chosen" : ""}">
+            ${fab}
+            <div class="head"><span>🏆 Créé par ${BET.author} (toi)</span>${modeOn ? `<span class="mode-tag">Mode validation</span>` : ""}${done ? `<span class="done-badge">✓ Validé</span>` : ""}</div>
+            <div class="q">🎲 ${BET.q}<span>${BET.d}</span></div>
+            ${inner}${bilanDone}
+        </div>
+        <div class="card">
+            <div class="head"><span>🏆 Créé par ${OTHER.author}</span></div>
+            <div class="q">🎲 ${OTHER.q}<span>${OTHER.d}</span></div>
+            <div class="choices">${OTHER.choices.map(([l, o, p]) => `<div class="choice"><button class="choice-btn" disabled><span>${l}</span><b>${odds(o)}</b></button><div class="track"><div class="fill" style="width:${p}%"></div></div><div class="pct">${p}%</div></div>`).join("")}</div>
+            <div class="foot">Solde misé <strong>${OTHER.total}</strong></div>
+        </div>
+        <div class="note">↑ Créé par quelqu'un d'autre : aucun bouton de validation.</div>`;
+    bindHold();
+}
+
+function toast(text) {
+    const t = document.getElementById("toast");
+    t.textContent = text; t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+function finish() {
+    st.step = "done";
+    toast("Pari validé : « " + BET.choices[st.pick][0] + " » gagne 🏆");
+    render();
+}
+
+document.getElementById("list").addEventListener("click", e => {
+    const t = e.target.closest("[data-act]");
+    if (!t) return;
+    const a = t.dataset.act;
+    if (a === "start") st = { step: "mode", pick: null, detail: false, confirmed: false };
+    else if (a === "cancel") st = { step: "idle", pick: null, detail: false, confirmed: false };
+    else if (a === "pick") st = { step: "bilan", pick: Number(t.dataset.i), detail: false, confirmed: false };
+    else if (a === "back") st = { step: "mode", pick: null, detail: false, confirmed: false };
+    else if (a === "detail") st.detail = !st.detail;
+    else if (a === "switch") st.confirmed = !st.confirmed;
+    else if (a === "confirm") { finish(); return; }
+    render();
+});
+
+function bindHold() {
+    const btn = document.querySelector("[data-hold]");
+    if (!btn) return;
+    let timer = null;
+    const start = e => { e.preventDefault(); btn.classList.add("holding"); timer = setTimeout(finish, 1200); };
+    const stop = () => { clearTimeout(timer); btn.classList.remove("holding"); };
+    btn.addEventListener("mousedown", start);
+    btn.addEventListener("touchstart", start, { passive: false });
+    ["mouseup", "mouseleave", "touchend", "touchcancel"].forEach(ev => btn.addEventListener(ev, stop));
+}
+
+function reset() { st = { step: "idle", pick: null, detail: false, confirmed: false }; render(); }
+
+function select(v) {
+    current = v;
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.v === v));
+    document.getElementById("desc").textContent = VARIANTS[v];
+    reset();
+}
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => select(t.dataset.v));
+document.getElementById("reset").onclick = reset;
+document.getElementById("choose").onclick = () => {
+    const name = document.querySelector(`.tab[data-v="${current}"]`).textContent;
+    const text = "Validation sur la carte (bilan) choisie : " + name;
+    navigator.clipboard && navigator.clipboard.writeText(text).catch(() => {});
+    toast("Copié : « " + text + " » → colle-le à Claude");
+};
+
+select("1");
+</script>
+</body>
+</html>

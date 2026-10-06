@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BetLab – Valider un pari depuis la carte (propositions)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; }
+button { font: inherit; cursor: pointer; }
+h1 { font-size: 26px; margin-bottom: 6px; }
+.sub { color: #858a98; margin-bottom: 16px; max-width: 780px; font-size: 14px; line-height: 1.5; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; position: sticky; top: 0; background: #0f1117; padding: 10px 0; z-index: 10; align-items: center; }
+.tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; }
+.tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.pick { margin-left: auto; background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; font-weight: 900; padding: 10px 16px; border-radius: 12px; }
+.reset { background: #1c202c; border: 1px solid #2c3040; color: #c9ccd6; padding: 10px 14px; border-radius: 12px; }
+.desc { color: #aaaeba; font-size: 14px; max-width: 720px; margin-bottom: 18px; min-height: 42px; }
+
+.list { display: flex; flex-direction: column; gap: 40px; max-width: 480px; }
+.note { color: #737887; font-size: 12px; margin: -26px 0 -26px 4px; }
+
+/* Carte (mêmes tailles que le site) */
+.card { position: relative; background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; border-radius: 18px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+.head { display: flex; align-items: center; gap: 8px; color: #858a98; font-size: 13px; margin-bottom: 14px; min-height: 26px; }
+.q { font-size: 17px; font-weight: 800; margin-bottom: 18px; display: flex; gap: 8px; }
+.q span { margin-left: auto; color: #858a98; font-size: 12px; font-weight: 500; white-space: nowrap; }
+.choices { display: flex; gap: 10px; }
+.choice { flex: 1; }
+.choice-btn { width: 100%; display: flex; justify-content: space-between; background: #101219; border: 1px solid #343846; border-radius: 12px; padding: 10px 12px; color: inherit; transition: border-color .15s, box-shadow .15s, background .15s; }
+.choice-btn b { color: #a59fff; }
+.track { height: 5px; background: #23262f; border-radius: 99px; margin-top: 8px; overflow: hidden; }
+.fill { height: 100%; background: #6c63ff; }
+.pct { font-size: 11px; color: #737887; margin-top: 3px; }
+.foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; font-size: 13px; color: #858a98; }
+.foot strong { color: white; }
+
+.btn { border: none; border-radius: 10px; padding: 8px 14px; font-weight: 800; }
+.btn.go { background: linear-gradient(135deg, #2fa36f, #63d69f); color: #0b1f15; }
+.btn.no { background: transparent; border: 1px solid #343846; color: #aaaeba; }
+.confirm { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: rgba(99,214,159,.08); border: 1px solid rgba(99,214,159,.35); font-size: 14px; animation: rise .25s ease-out; }
+.confirm div { display: flex; gap: 8px; }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+
+.done-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(99,214,159,.15); color: #63d69f; font-weight: 800; font-size: 12px; padding: 4px 10px; border-radius: 999px; }
+.winner .choice-btn { border-color: #63d69f; background: rgba(99,214,159,.12); }
+.loser .choice-btn { opacity: .45; }
+
+/* A : pastille en haut à droite */
+.pill { margin-left: auto; background: rgba(108,99,255,.16); border: 1px solid rgba(108,99,255,.55); color: #c9c5ff; font-weight: 800; font-size: 12px; padding: 5px 12px; border-radius: 999px; transition: background .15s; }
+.pill:hover { background: #6c63ff; color: white; }
+.pickrow { display: flex; gap: 10px; margin-top: 4px; animation: rise .25s ease-out; }
+.pickrow .win-btn { flex: 1; background: #101219; border: 1px solid #f5c451; color: #f5c451; border-radius: 12px; padding: 12px; font-weight: 800; transition: background .15s; }
+.pickrow .win-btn:hover { background: rgba(245,196,81,.15); }
+.pickhead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 13px; color: #f5c451; font-weight: 700; }
+
+/* B : bandeau en pied de carte */
+.strip { margin: 18px -20px -20px; padding: 12px 20px; border-top: 1px solid #2c3040; background: rgba(108,99,255,.08); border-radius: 0 0 18px 18px; display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; color: #aaaeba; }
+.strip button.cta { background: #6c63ff; color: white; border: none; border-radius: 10px; padding: 8px 14px; font-weight: 800; }
+.strip .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.strip .chip { background: #101219; border: 1px solid #f5c451; color: #f5c451; border-radius: 999px; padding: 6px 12px; font-weight: 800; font-size: 13px; }
+.strip .chip:hover { background: rgba(245,196,81,.15); }
+
+/* C : mode sélection directement sur les cotes */
+.mode-label { font-size: 13px; font-weight: 700; color: #f5c451; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; animation: rise .25s ease-out; }
+.picking .choice-btn { border-color: #f5c451; box-shadow: 0 0 0 0 rgba(245,196,81,.5); animation: pulse 1.3s infinite; background: rgba(245,196,81,.06); }
+.picking .choice-btn:hover { background: rgba(245,196,81,.2); }
+@keyframes pulse { 50% { box-shadow: 0 0 0 5px rgba(245,196,81,0); } }
+.crown { background: none; border: 1px solid #343846; color: #aaaeba; border-radius: 8px; padding: 3px 9px; font-size: 12px; font-weight: 700; margin-left: auto; }
+.crown:hover { border-color: #6c63ff; color: white; }
+
+/* D : bouton rond flottant sur le coin */
+.fab { position: absolute; top: -14px; right: 18px; display: flex; align-items: center; gap: 0; height: 30px; padding: 0 8px; background: linear-gradient(135deg, #2fa36f, #63d69f); color: #0b1f15; border: none; border-radius: 999px; font-weight: 900; box-shadow: 0 6px 18px rgba(99,214,159,.4); overflow: hidden; max-width: 30px; transition: max-width .25s ease, padding .25s ease; white-space: nowrap; }
+.fab span { margin-left: 6px; opacity: 0; transition: opacity .2s; }
+.card:hover .fab, .fab.open { max-width: 140px; padding: 0 12px 0 8px; }
+.card:hover .fab span, .fab.open span { opacity: 1; }
+.menu { position: absolute; top: 22px; right: 14px; z-index: 5; background: #181b24; border: 1px solid #343846; border-radius: 14px; padding: 8px; min-width: 220px; box-shadow: 0 16px 40px rgba(0,0,0,.5); animation: rise .2s ease-out; }
+.menu h5 { font-size: 12px; color: #858a98; margin: 4px 8px 8px; font-weight: 600; }
+.menu button.opt { width: 100%; display: flex; justify-content: space-between; background: transparent; border: none; color: #e6e8ee; padding: 9px 10px; border-radius: 8px; }
+.menu button.opt:hover { background: rgba(245,196,81,.15); }
+
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #2fa36f; color: #0b1f15; font-weight: 800; padding: 10px 18px; border-radius: 12px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 50; }
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<h1>Valider un pari directement sur la carte</h1>
+<p class="sub">
+    Deux cartes de démonstration : la première a été créée par <b>toi</b> (Florian) et montre le bouton de validation ;
+    la deuxième a été créée par Yann et n'a rien de plus, car <b>seul le créateur</b> voit le bouton.
+    Chaque version garde une étape de confirmation avant de valider, comme la fenêtre actuelle en deux étapes.
+</p>
+
+<div class="tabs" id="tabs">
+    <button class="tab active" data-v="A">A · Pastille « Valider »</button>
+    <button class="tab" data-v="B">B · Bandeau en bas de carte</button>
+    <button class="tab" data-v="C">C · Choisir sur les cotes</button>
+    <button class="tab" data-v="D">D · Bouton flottant</button>
+    <button class="reset" id="reset">↺ Recommencer</button>
+    <button class="pick" id="choose">Je choisis celle-ci</button>
+</div>
+<p class="desc" id="desc"></p>
+
+<div class="list" id="list"></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const BETS = [
+    { author: "Florian", mine: true, q: "Lina part avant 16h15 précisément aujourd'hui", d: "auj. 18:00", c: [["Oui", "2.43", 18], ["Non", "1.60", 82]], total: "759 €" },
+    { author: "Yann", mine: false, q: "Coupure de Wi-Fi aujourd'hui ?", d: "auj. 16:00", c: [["Oui", "5.00", 30], ["Non", "1.20", 70]], total: "420 €" }
+];
+
+// état de chaque carte : { step: "idle" | "choosing" | "confirm" | "done", pick: index }
+let states = [];
+let current = "A";
+
+const VARIANTS = {
+    A: { desc: "Une petite pastille « ✓ Valider » discrète en haut à droite de la carte, à la hauteur de « Créé par ». Au clic, la zone des cotes laisse place à « Qui a gagné ? » avec un bouton doré par choix, puis une ligne de confirmation." },
+    B: { desc: "Un bandeau fin au pied de la carte (« Ton pari · Valider ») qui se transforme en choix de gagnant. Très lisible, séparé du contenu, et on comprend tout de suite que c'est une action de créateur." },
+    C: { desc: "Un petit bouton « 👑 Valider » à côté de « Créé par ». Au clic, la carte passe en mode validation : les cotes elles-mêmes se mettent à pulser en doré et on clique directement sur le choix gagnant. Aucun élément ajouté, rapide." },
+    D: { desc: "Un petit rond vert « ✓ » posé sur le bord haut de la carte, qui se déplie en « Valider » au survol. Au clic, un petit menu propose les choix, puis on confirme. Presque invisible tant qu'on n'en a pas besoin." }
+};
+
+const choiceBlock = (b, st, mode) => b.c.map(([l, o, p], i) => {
+    const cls = st.step === "done" ? (i === st.pick ? "winner" : "loser") : "";
+    const clickable = mode === "pick" ? `data-act="pick" data-i="${i}"` : "disabled";
+    return `<div class="choice ${cls}">
+        <button class="choice-btn" ${clickable}><span>${l}${st.step === "done" && i === st.pick ? " 🏆" : ""}</span><b>${o}</b></button>
+        <div class="track"><div class="fill" style="width:${p}%"></div></div>
+        <div class="pct">${p}%</div>
+    </div>`;
+}).join("");
+
+const confirmBar = (b, st) => `
+    <div class="confirm">
+        <span>Valider « <b>${b.c[st.pick][0]}</b> » comme gagnant ?</span>
+        <div><button class="btn no" data-act="cancel">Annuler</button><button class="btn go" data-act="confirm">Valider</button></div>
+    </div>`;
+
+function render() {
+    const list = document.getElementById("list");
+    list.innerHTML = "";
+    BETS.forEach((b, idx) => {
+        const st = states[idx];
+        const own = b.mine;
+        const card = document.createElement("div");
+        card.className = "card" + (own && current === "C" && st.step === "choosing" ? " picking" : "");
+        card.dataset.idx = idx;
+
+        const done = st.step === "done";
+        const badge = done ? `<span class="done-badge" style="margin-left:auto">✓ Validé</span>` : "";
+        let headRight = badge;
+        let choices = choiceBlock(b, st, "none");
+        let extra = "";
+        let fab = "";
+
+        if (own && !done) {
+            if (current === "A") {
+                headRight = st.step === "idle" ? `<button class="pill" data-act="start">✓ Valider</button>` : "";
+                if (st.step !== "idle") {
+                    choices = `<div class="pickhead"><span>Qui a gagné ?</span><button class="btn no" data-act="cancel" style="padding:3px 10px;font-size:12px">Annuler</button></div>
+                        <div class="pickrow">${b.c.map(([l], i) => `<button class="win-btn" data-act="pick" data-i="${i}">🏆 ${l}</button>`).join("")}</div>`;
+                }
+                if (st.step === "confirm") extra = confirmBar(b, st);
+            }
+            if (current === "B") {
+                if (st.step === "idle") extra = `<div class="strip"><span>👑 C'est ton pari</span><button class="cta" data-act="start">Valider le pari →</button></div>`;
+                else if (st.step === "choosing") extra = `<div class="strip"><div class="chips">${b.c.map(([l], i) => `<button class="chip" data-act="pick" data-i="${i}">🏆 ${l}</button>`).join("")}</div><button class="btn no" data-act="cancel">Annuler</button></div>`;
+                else extra = confirmBar(b, st);
+            }
+            if (current === "C") {
+                if (st.step === "idle") headRight = `<button class="crown" data-act="start">👑 Valider</button>`;
+                if (st.step === "choosing") {
+                    headRight = "";
+                    choices = `<div class="mode-label"><span>👑 Clique le choix gagnant</span><button class="btn no" data-act="cancel" style="padding:3px 10px;font-size:12px">Annuler</button></div><div class="choices">${choiceBlock(b, st, "pick")}</div>`;
+                }
+                if (st.step === "confirm") extra = confirmBar(b, st);
+            }
+            if (current === "D") {
+                if (st.step === "idle") fab = `<button class="fab" data-act="start">✓<span>Valider</span></button>`;
+                if (st.step === "choosing") fab = `<button class="fab open" data-act="cancel">✕<span>Fermer</span></button>
+                    <div class="menu"><h5>Qui a gagné ?</h5>${b.c.map(([l, o], i) => `<button class="opt" data-act="pick" data-i="${i}"><span>🏆 ${l}</span><b style="color:#a59fff">${o}</b></button>`).join("")}</div>`;
+                if (st.step === "confirm") extra = confirmBar(b, st);
+            }
+        }
+
+        const choicesWrapped = choices.includes('class="choices"') || choices.includes("pickrow") || choices.includes("mode-label") ? choices : `<div class="choices">${choices}</div>`;
+
+        card.innerHTML = `
+            ${fab}
+            <div class="head"><span>🏆 Créé par ${b.author}${own ? " (toi)" : ""}</span>${headRight}</div>
+            <div class="q">🎲 ${b.q}<span>${b.d}</span></div>
+            ${choicesWrapped}
+            <div class="foot">Solde misé <strong>${b.total}</strong></div>
+            ${extra}`;
+        list.appendChild(card);
+        if (!own) {
+            const n = document.createElement("div");
+            n.className = "note";
+            n.textContent = "↑ Créé par quelqu'un d'autre : aucun bouton de validation.";
+            list.appendChild(n);
+        }
+    });
+}
+
+document.getElementById("list").addEventListener("click", e => {
+    const t = e.target.closest("[data-act]");
+    if (!t) return;
+    const card = t.closest(".card");
+    const idx = Number(card.dataset.idx);
+    const st = states[idx];
+    const act = t.dataset.act;
+    if (act === "start") st.step = "choosing";
+    if (act === "cancel") { st.step = "idle"; st.pick = null; }
+    if (act === "pick") { st.step = "confirm"; st.pick = Number(t.dataset.i); }
+    if (act === "confirm") { st.step = "done"; showToast("Pari validé : « " + BETS[idx].c[st.pick][0] + " » gagne 🏆"); }
+    render();
+});
+
+function showToast(text) {
+    const t = document.getElementById("toast");
+    t.textContent = text;
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+function resetStates() {
+    states = BETS.map(() => ({ step: "idle", pick: null }));
+    render();
+}
+
+function select(key) {
+    current = key;
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.v === key));
+    document.getElementById("desc").textContent = VARIANTS[key].desc;
+    resetStates();
+}
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => select(t.dataset.v));
+document.getElementById("reset").onclick = resetStates;
+document.getElementById("choose").onclick = () => {
+    const name = document.querySelector(`.tab[data-v="${current}"]`).textContent;
+    const text = "Validation sur la carte choisie : " + name;
+    navigator.clipboard && navigator.clipboard.writeText(text).catch(() => {});
+    showToast("Copié : « " + text + " » → colle-le à Claude");
+};
+
+select("A");
+</script>
+</body>
+</html>
