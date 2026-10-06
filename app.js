@@ -1407,10 +1407,7 @@ function setupGroupModal() {
 
 async function refreshInPlay() {
 
-    const element =
-        document.getElementById("in-play");
-
-    if (!element || !currentUser || !currentGroup) {
+    if (!currentUser || !currentGroup) {
         return;
     }
 
@@ -1430,12 +1427,6 @@ async function refreshInPlay() {
     const total =
         (data || []).reduce((sum, s) => sum + Number(s.stake), 0);
 
-    element.textContent =
-        "En jeu : " + formatMoney(total);
-
-    element.classList.toggle("hidden", total <= 0);
-
-
     updateParrotSize(total);
 
 }
@@ -1450,6 +1441,175 @@ async function refreshInPlay() {
 
 const PARROT_GROW_SECONDS = 2.5;
 
+
+/*
+    Cadre « En jeu » : posé dans la pose d'attente du perroquet (repère 512 × 650),
+    il grandit, change de pile et respire avec lui. Positions réglées pour chaque pile
+    (ancrage sur les pattes, puis décalage propre à l'état).
+*/
+
+const ENJEU_POSITIONS = {
+    1: { x: 246, y: 426 },
+    2: { x: 223.5, y: 537 },
+    3: { x: 236, y: 509 },
+    4: { x: 252, y: 469 }
+};
+
+let enjeuPlate = null;
+
+let enjeuShown = 0;
+
+let enjeuCount = null;
+
+function ensureEnjeuPlate() {
+
+    if (enjeuPlate && enjeuPlate.isConnected) {
+
+        return enjeuPlate;
+
+    }
+
+    const pose = document.querySelector('#parrot [data-pose="waiting"]');
+
+    if (!pose) {
+
+        return null;
+
+    }
+
+    enjeuPlate = document.createElement("div");
+
+    enjeuPlate.className = "enjeu-cadre vide";
+
+    enjeuPlate.setAttribute("title", "Argent misé sur des paris pas encore récupérés");
+
+    enjeuPlate.innerHTML = `
+        <div class="enjeu-fl">
+            <div class="enjeu-frame">
+                <div class="enjeu-inner">
+                    <span class="enjeu-label">En jeu</span>
+                    <span class="enjeu-amount">0 €</span>
+                </div>
+            </div>
+        </div>
+    `;
+
+    pose.appendChild(enjeuPlate);
+
+    return enjeuPlate;
+
+}
+
+/*
+    Position du cadre selon la pile (au moment où le perroquet change de pile).
+*/
+
+function placeEnjeuPlate(total, instant) {
+
+    const plate = ensureEnjeuPlate();
+
+    if (!plate) {
+
+        return;
+
+    }
+
+    const position = ENJEU_POSITIONS[parrotLevelFor(total)];
+
+    // Au premier affichage, le cadre se pose sans glisser.
+    if (instant) {
+
+        plate.style.transition = "none";
+
+    }
+
+    plate.style.left = position.x + "px";
+
+    plate.style.top = position.y + "px";
+
+    if (instant) {
+
+        void plate.offsetWidth;
+
+        plate.style.transition = "";
+
+    }
+
+}
+
+/*
+    Montant du cadre : il se met à compter dès que les premiers billets touchent
+    le perroquet, et finit en même temps que le dernier billet.
+    Masqué quand il n'y a rien en jeu.
+*/
+
+let enjeuTimer = null;
+
+function countEnjeuAmount(total, startDelay, duration, instant) {
+
+    const plate = ensureEnjeuPlate();
+
+    if (!plate) {
+
+        return;
+
+    }
+
+    const amount = plate.querySelector(".enjeu-amount");
+
+    const from = enjeuShown;
+
+    enjeuShown = total;
+
+    clearTimeout(enjeuTimer);
+
+    cancelAnimationFrame(enjeuCount);
+
+    if (instant || from === total) {
+
+        amount.textContent = formatMoney(total);
+
+        plate.classList.toggle("vide", total <= 0);
+
+        return;
+
+    }
+
+    enjeuTimer = setTimeout(() => {
+
+        // De 0 à quelque chose : le cadre apparaît quand le premier billet arrive.
+        if (total > 0) {
+
+            plate.classList.remove("vide");
+
+        }
+
+        const start = performance.now();
+
+        const step = now => {
+
+            const t = Math.min(1, (now - start) / duration);
+
+            amount.textContent = formatMoney(from + (total - from) * t);
+
+            if (t < 1) {
+
+                enjeuCount = requestAnimationFrame(step);
+
+            } else if (total <= 0) {
+
+                plate.classList.add("vide");
+
+            }
+
+        };
+
+        enjeuCount = requestAnimationFrame(step);
+
+    }, startDelay);
+
+}
+
 let parrotLastTotal = 0;
 
 let parrotFirstSizing = true;
@@ -1463,7 +1623,7 @@ let parrotSettleUntil = 0;
     droite). S'il n'y a vraiment pas la place, il se cache.
 */
 
-const PARROT_BOTTOM_OFFSET = 50;   // le perroquet dépasse de 50 px sous l'écran (bottom: -50px)
+const PARROT_BOTTOM_OFFSET = 42;   // le perroquet dépasse de 42 px sous l'écran (bottom: -42px)
 
 const PARROT_GAP = 12;             // marge sous la colonne de droite
 
@@ -1601,11 +1761,34 @@ function updateParrotSize(total) {
     window.parrotAnimEnd = first ? 0 : performance.now() + seconds * 1000;
 
 
+    // Le montant du cadre compte dès que les premiers billets touchent le perroquet,
+    // et termine avec le dernier.
+    const arrival = window.billsFirstArrival || 0;
+
+    const startAt = Math.max(arrival, performance.now());
+
+    countEnjeuAmount(
+        total,
+        first ? 0 : Math.max(0, arrival - performance.now()),
+        Math.max(600, (window.billsAnimationEnd || 0) - startAt),
+        first
+    );
+
+    window.billsFirstArrival = 0;
+
+
     // Changement de pile une fois les billets arrivés.
     clearTimeout(parrotLevelTimer);
 
     parrotLevelTimer = setTimeout(
-        () => Parrot.level(parrotLevelFor(total), first),
+        () => {
+
+            Parrot.level(parrotLevelFor(total), first);
+
+            // Le cadre « En jeu » change de place en même temps que le perroquet change de pile.
+            placeEnjeuPlate(total, first);
+
+        },
         billsLeft * 1000
     );
 
@@ -2351,6 +2534,46 @@ function isBlockedTarget(bet) {
 
 
 
+/*
+    Échéance d'un pari :
+    - les mises ferment 1 h avant la date d'échéance (la carte se grise) ;
+    - la carte devient rouge 2 h avant (c'est la dernière heure pour miser).
+*/
+
+const BET_CLOSE_MS = 3600 * 1000;
+
+const BET_URGENT_MS = 7200 * 1000;
+
+// Étiquette en haut de la carte : « Trop tard » (mises closes), « Last Chance » (dernières heures) ou « Aujourd'hui ».
+function betBadgeLabel(bet) {
+
+    if (isBetClosed(bet)) {
+
+        return "TROP TARD";
+
+    }
+
+    if (bet.deadline_at && new Date(bet.deadline_at) - Date.now() <= BET_URGENT_MS) {
+
+        return "LAST CHANCE";
+
+    }
+
+    return isCreatedToday(bet.created_at) ? "AUJOURD'HUI" : "";
+
+}
+
+
+function isBetClosed(bet) {
+
+    return Boolean(
+        bet.deadline_at &&
+        new Date(bet.deadline_at) - Date.now() <= BET_CLOSE_MS
+    );
+
+}
+
+
 function renderBetSummaryHtml(
     bet,
     {
@@ -2386,8 +2609,7 @@ function renderBetSummaryHtml(
 
 
     const isClosed =
-        bet.deadline_at &&
-        new Date(bet.deadline_at) < new Date();
+        isBetClosed(bet);
 
 
     const deadlineLabel =
@@ -2562,6 +2784,8 @@ function renderClaimCard(bet) {
     card.className =
         "bet-card claim-card " + (won ? "claim-card--win" : "claim-card--lose");
 
+    card.dataset.betId = bet.id;
+
     card.innerHTML = `
 
         <div class="claim-card-top">
@@ -2670,7 +2894,8 @@ async function claimBet(betId, won, card) {
     // Laisse l'animation se jouer avant de recharger les listes.
     setTimeout(async () => {
 
-        await displayBets();
+        // Mise à jour discrète : la carte récupérée a déjà disparu, les autres remontent en douceur.
+        await displayBets({ quiet: true });
 
         await displayMyBets();
 
@@ -2914,6 +3139,8 @@ let betsRefreshPending = false;
 
 let renderedBetIds = new Set();
 
+let renderedClaimIds = new Set();
+
 function computeBetsSignature(bets) {
 
     return bets
@@ -2971,6 +3198,23 @@ function animateLiveCards(container, previousTops) {
         card.animate(
             [{ transform: `translateY(${shift}px)` }, { transform: "none" }],
             { duration: T(380), easing: EASE }
+        );
+
+    });
+
+
+    // Carte « pari gagné / perdu » qui arrive : elle descend en fondu, en grossissant à peine.
+    container.querySelectorAll(".claim-card-enter").forEach(card => {
+
+        card.classList.remove("claim-card-enter");
+
+        card.animate(
+            [
+                { opacity: 0, transform: "translateY(-22px) scale(0.95)" },
+                { opacity: 1, transform: "translateY(3px) scale(1.01)", offset: 0.65 },
+                { opacity: 1, transform: "none" }
+            ],
+            { duration: T(300), delay: T(80), easing: "cubic-bezier(.2,.8,.2,1)", fill: "backwards" }
         );
 
     });
@@ -3094,6 +3338,59 @@ async function displayBets({ quiet = false, force = false } = {}) {
         }
 
 
+        // Cartes de pari ouvertes qui disparaissent (pari validé) : une copie reste en place
+        // et s'efface en douceur, pendant que les autres cartes remontent.
+        if (quiet) {
+
+            const stillOpen = new Set(
+                bets.filter(bet => bet.status === "open").map(bet => bet.id)
+            );
+
+            container
+                .querySelectorAll(".bet-card:not(.claim-card)[data-bet-id]")
+                .forEach(card => {
+
+                    if (stillOpen.has(card.dataset.betId)) {
+
+                        return;
+
+                    }
+
+                    const rect = card.getBoundingClientRect();
+
+                    const ghost = card.cloneNode(true);
+
+                    ghost.classList.remove("bet-card-live-in", "cascade-in");
+
+                    ghost.removeAttribute("data-bet-id");
+
+                    Object.assign(ghost.style, {
+                        position: "fixed",
+                        left: rect.left + "px",
+                        top: rect.top + "px",
+                        width: rect.width + "px",
+                        height: rect.height + "px",
+                        margin: "0",
+                        zIndex: "5",
+                        pointerEvents: "none",
+                        transform: ""
+                    });
+
+                    document.body.appendChild(ghost);
+
+                    ghost.animate(
+                        [
+                            { opacity: 1, transform: "none" },
+                            { opacity: 0, transform: "translateY(-10px) scale(0.95)" }
+                        ],
+                        { duration: 550, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" }
+                    ).finished.then(() => ghost.remove()).catch(() => ghost.remove());
+
+                });
+
+        }
+
+
         container.innerHTML = "";
 
 
@@ -3117,8 +3414,23 @@ async function displayBets({ quiet = false, force = false } = {}) {
                     )
             );
 
+        const previousClaimIds = renderedClaimIds;
+
+        renderedClaimIds = new Set(claimableBets.map(bet => bet.id));
+
         claimableBets.forEach(bet => {
-            container.appendChild(renderClaimCard(bet));
+
+            const claimCard = renderClaimCard(bet);
+
+            // Nouvelle carte à récupérer (pari qui vient d'être validé) : elle arrive en douceur.
+            if (quiet && !previousClaimIds.has(bet.id)) {
+
+                claimCard.classList.add("claim-card-enter");
+
+            }
+
+            container.appendChild(claimCard);
+
         });
 
 
@@ -3159,7 +3471,7 @@ async function displayBets({ quiet = false, force = false } = {}) {
 
                 card.className =
                     "bet-card" +
-                    (isBlockedTarget(bet) ? " bet-card-locked" : "") +
+                    (isBlockedTarget(bet) || isBetClosed(bet) ? " bet-card-locked" : "") +
                     (isCreatedToday(bet.created_at) ? " bet-card-new" : "") +
                     (quiet && !previousIds.has(bet.id) ? " bet-card-live-in" : "");
 
@@ -3265,8 +3577,8 @@ async function displayBets({ quiet = false, force = false } = {}) {
                     (mine
                         ? `<button type="button" class="validate-fab${validating ? " open" : ""}${animateHint ? " validate-enter" : ""}" data-validate-toggle="${bet.id}">${validating ? "✕<span>Annuler</span>" : "✓<span>Valider</span>"}</button>`
                         : "") +
-                    (isCreatedToday(bet.created_at)
-                        ? `<span class="bet-new-badge">AUJOURD'HUI</span>`
+                    (betBadgeLabel(bet)
+                        ? `<span class="bet-new-badge">${betBadgeLabel(bet)}</span>`
                         : "") +
                     renderBetSummaryHtml(bet, validating ? {
                         validating: true,
@@ -3462,7 +3774,7 @@ async function displayBets({ quiet = false, force = false } = {}) {
 
                             const deadline = card.dataset.deadline;
 
-                            const closed = (deadline && new Date(deadline) < new Date()) ||
+                            const closed = (deadline && new Date(deadline) - Date.now() <= BET_CLOSE_MS) ||
                                 card.classList.contains("bet-card-locked");
 
                             card.querySelectorAll(".bet-choice-validate").forEach(choiceButton => {
@@ -3796,6 +4108,16 @@ async function placeBet() {
 
         errorElement.textContent =
             "Tu es concerné(e) par ce pari, tu ne peux pas parier.";
+
+        return;
+
+    }
+
+
+    if (currentBet && isBetClosed(currentBet)) {
+
+        errorElement.textContent =
+            "Les mises sont closes (dernière heure avant l'échéance).";
 
         return;
 
@@ -5861,7 +6183,7 @@ const REWARDS = [
         id: "couleur",
         title: "Pseudo en couleur",
         description: "Ton pseudo s'affiche en arc-en-ciel animé, pour toujours.",
-        price: 100,
+        price: 300,
         field: "name_color_until"
     }
 ];
@@ -5885,7 +6207,7 @@ const COSMETICS = [
         title: "Titre à côté du pseudo",
         description: "Un petit titre affiché à côté de ton pseudo.",
         price: 20,
-        options: ["Le Prophète", "Chanceux", "Outsider", "Requin", "Débutant"]
+        options: ["Chanceux", "Outsider", "Requin", "Débutant"]
     },
     {
         id: "neon",
@@ -5954,7 +6276,7 @@ const SHOP_CATEGORIES = [
     {
         icon: "🎨",
         title: "Couleurs et animations du pseudo",
-        items: ["couleur", "neon", "metal_rose", "metal_bronze", "metal_argent", "metal_or"]
+        items: ["neon", "metal_rose", "metal_bronze", "metal_argent", "metal_or", "couleur"]
     },
     {
         icon: "🖼️",
@@ -6226,19 +6548,53 @@ async function claimMission(missionId, button) {
         }
 
 
-        showMissionsMessage("+" + data + " points récupérés !");
+        // Le total est connu tout de suite : les pièces partent sans attendre le réseau,
+        // et le compteur ne saute pas à sa valeur finale avant leur arrivée.
+        if (currentProfile) {
+
+            currentProfile.points = pointsBefore + Number(data);
+
+        }
+
+        const card = button.closest(".mission-card");
+
+        // La carte passe doucement à l'état « Récupérée » (au lieu d'être redessinée d'un coup).
+        if (card) {
+
+            card.classList.remove("ready");
+
+            await button.animate(
+                [{ opacity: 1 }, { opacity: 0 }],
+                { duration: 220, easing: "ease-out", fill: "forwards" }
+            ).finished.catch(() => {});
+
+            const done = document.createElement("span");
+
+            done.className = "mission-state done";
+
+            done.textContent = "Récupérée";
+
+            button.replaceWith(done);
+
+            done.animate(
+                [{ opacity: 0, transform: "translateY(4px)" }, { opacity: 1, transform: "none" }],
+                { duration: 380, easing: "cubic-bezier(.2,.8,.2,1)" }
+            );
+
+        }
+
+        // Les pièces volent jusqu'au compteur ; la liste n'est mise à jour qu'après leur arrivée.
+        if (typeof flyCoins === "function") {
+
+            await flyCoins(origin, Number(data), pointsBefore);
+
+        }
 
         await loadCurrentProfile();
 
         await displayMissions();
 
         displayShop();
-
-        if (typeof flyCoins === "function") {
-
-            flyCoins(origin, Number(data), pointsBefore);
-
-        }
 
     } catch (error) {
 
@@ -6395,6 +6751,16 @@ function displayShop() {
         rewardCards[id] ||
         cosmeticCardHtml(COSMETICS.find(c => c.id === id));
 
+    // Inclinaison « la carte suit la souris » : on la retient pour la remettre sur la carte
+    // redessinée (sinon elle se redresse d'un coup quand on équipe ou achète).
+    const savedTilts = new Map();
+
+    container.querySelectorAll("[data-shop-item].tilting").forEach(card => {
+
+        savedTilts.set(card.dataset.shopItem, card.style.transform);
+
+    });
+
     container.innerHTML = SHOP_CATEGORIES.map(category => `
 
         <section class="shop-category">
@@ -6410,6 +6776,20 @@ function displayShop() {
         </section>
 
     `).join("");
+
+    savedTilts.forEach((transform, itemId) => {
+
+        const card = container.querySelector(`[data-shop-item="${itemId}"]`);
+
+        if (card && transform) {
+
+            card.classList.add("tilting");
+
+            card.style.transform = transform;
+
+        }
+
+    });
 
 
     container
@@ -6774,9 +7154,11 @@ async function toggleEquip(itemId, turnOn, button) {
 
     displayShop();
 
+    settleShopCard(itemId);
+
     await displayLeaderboard();
 
-    await displayBets();
+    await displayBets({ quiet: true });
 
 }
 
@@ -6888,7 +7270,45 @@ function cosmeticCardHtml(item) {
 }
 
 
+/*
+    Après un achat : la carte concernée se pose en douceur avec une brève lueur.
+*/
+
+function settleShopCard(itemId) {
+
+    const card = document.querySelector(`#shop-container [data-shop-item="${itemId}"]`);
+
+    if (!card) {
+
+        return;
+
+    }
+
+    // Sans « transform » : la carte garde sa perspective pendant l'animation.
+    card.animate(
+        [
+            { opacity: 0.35 },
+            { opacity: 1 }
+        ],
+        { duration: 500, easing: "cubic-bezier(.2,.8,.2,1)" }
+    );
+
+    card.animate(
+        [
+            { boxShadow: "0 0 0 0 rgba(108, 99, 255, 0)" },
+            { boxShadow: "0 0 28px 4px rgba(108, 99, 255, 0.55)", offset: 0.35 },
+            { boxShadow: "0 0 0 0 rgba(108, 99, 255, 0)" }
+        ],
+        { duration: 1100, easing: "ease-out" }
+    );
+
+}
+
+
 async function buyCosmetic(id, button) {
+
+    // Arrivée des pièces : le bouton « Acheter » (avant que la carte ne change).
+    const buttonRect = button.getBoundingClientRect();
 
     button.disabled = true;
 
@@ -6898,6 +7318,8 @@ async function buyCosmetic(id, button) {
     const option = item.options
         ? shopSelections[id] || currentProfile.cosmetics?.[id]?.option || item.options[0]
         : null;
+
+    const pointsBefore = Number(currentProfile?.points || 0);
 
 
     try {
@@ -6916,21 +7338,31 @@ async function buyCosmetic(id, button) {
             throw error;
         }
 
-        showMissionsMessage(
-            data === "option"
-                ? item.title + " : nouvelle option équipée !"
-                : item.title + " acheté, il est à toi pour toujours !",
-            false,
-            "shop-message"
-        );
+        // Achat (pas un simple changement d'option) : les pièces quittent le compteur
+        // et filent vers le bouton, puis le reste se met à jour.
+        const spent = data === "option" ? 0 : item.price;
+
+        if (spent > 0 && typeof spendCoins === "function") {
+
+            if (currentProfile) {
+
+                currentProfile.points = pointsBefore - spent;
+
+            }
+
+            await spendCoins(buttonRect, spent, pointsBefore);
+
+        }
 
         await loadCurrentProfile();
 
         displayShop();
 
+        settleShopCard(id);
+
         await displayLeaderboard();
 
-        await displayBets();
+        await displayBets({ quiet: true });
 
     } catch (error) {
 
@@ -6951,7 +7383,11 @@ async function buyCosmetic(id, button) {
 
 async function buyReward(rewardId, button) {
 
+    const buttonRect = button.getBoundingClientRect();
+
     button.disabled = true;
+
+    const pointsBefore = Number(currentProfile?.points || 0);
 
 
     try {
@@ -6972,11 +7408,25 @@ async function buyReward(rewardId, button) {
         }
 
 
-        showMissionsMessage("Avantage acheté, il est à toi pour toujours !", false, "shop-message");
+        const spent = REWARDS.find(reward => reward.id === rewardId)?.price || 0;
+
+        if (spent > 0 && typeof spendCoins === "function") {
+
+            if (currentProfile) {
+
+                currentProfile.points = pointsBefore - spent;
+
+            }
+
+            await spendCoins(buttonRect, spent, pointsBefore);
+
+        }
 
         await loadCurrentProfile();
 
         displayShop();
+
+        settleShopCard(rewardId);
 
         await displayLeaderboard();
 
@@ -7642,6 +8092,13 @@ async function initAppPage() {
         await displayBets();
 
         await displayLeaderboard();
+
+        // La barre du haut doit être définitive avant l'affichage : série de connexions,
+        // coffre et pastille de l'onglet Missions arrivaient après et faisaient bouger la barre.
+        await Promise.all([
+            typeof dailyCheckin === "function" ? dailyCheckin() : null,
+            displayMissions()
+        ]);
 
         document.body.classList.remove("app-loading");
 

@@ -10,7 +10,11 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>BetLab — Application</title>
+    <title>BETLAB</title>
+
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+
+    <link rel="apple-touch-icon" href="assets/favicon.png">
 
     <link rel="stylesheet" href="style.css">
 
@@ -117,12 +121,6 @@
                 <strong id="balance">
                     1 000,00 €
                 </strong>
-
-                <small
-                    id="in-play"
-                    class="in-play hidden"
-                    title="Argent misé sur des paris pas encore récupérés"
-                ></small>
 
             </div>
 
@@ -816,44 +814,62 @@
                                 Choix et cotes
                             </label>
 
-                            <div class="create-choice-row">
+                            <div class="duel">
 
-                                <input
-                                    type="text"
-                                    id="choice-one"
-                                    placeholder="Choix 1 : Oui"
-                                    required
-                                >
+                                <div class="duel-side">
 
-                                <input
-                                    type="number"
-                                    id="odds-one"
-                                    min="1.01"
-                                    step="0.01"
-                                    placeholder="Cote 1.80"
-                                    required
-                                >
+                                    <input
+                                        type="text"
+                                        id="choice-one"
+                                        class="duel-name"
+                                        placeholder="Choix 1 : Oui"
+                                        required
+                                    >
 
-                            </div>
+                                    <input
+                                        type="number"
+                                        id="odds-one"
+                                        class="duel-value"
+                                        min="1.01"
+                                        step="any"
+                                        placeholder="1.80"
+                                        required
+                                    >
 
-                            <div class="create-choice-row">
+                                </div>
 
-                                <input
-                                    type="text"
-                                    id="choice-two"
-                                    placeholder="Choix 2 : Non"
-                                    required
-                                >
 
-                                <input
-                                    type="number"
-                                    id="odds-two"
-                                    min="1.01"
-                                    step="0.01"
-                                    placeholder="Auto"
-                                    readonly
-                                    required
-                                >
+                                <div class="duel-vs">VS</div>
+
+
+                                <div class="duel-side">
+
+                                    <input
+                                        type="text"
+                                        id="choice-two"
+                                        class="duel-name"
+                                        placeholder="Choix 2 : Non"
+                                        required
+                                    >
+
+                                    <div class="duel-value-row">
+
+                                        <input
+                                            type="number"
+                                            id="odds-two"
+                                            class="duel-value"
+                                            min="1.01"
+                                            step="0.01"
+                                            placeholder="auto"
+                                            readonly
+                                            required
+                                        >
+
+                                        <em class="duel-auto">auto</em>
+
+                                    </div>
+
+                                </div>
 
                             </div>
 

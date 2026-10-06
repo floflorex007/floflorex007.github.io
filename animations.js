@@ -242,6 +242,10 @@ function flyBills(mode, fromBalance = 0, toBalance = 0) {
     window.billsAnimationEnd =
         performance.now() + (mode === "win" ? 400 + (COUNT - 1) * 70 + 1500 : 150 + (COUNT - 1) * 120 + 1700);
 
+    // Premier billet qui touche le perroquet (le cadre « En jeu » commence à compter à ce moment-là).
+    window.billsFirstArrival =
+        performance.now() + (mode === "win" ? 400 : 150 + 1700);
+
 
     const makeBill = () => {
         const el = document.createElement("img");
@@ -342,8 +346,6 @@ function flyBills(mode, fromBalance = 0, toBalance = 0) {
 
     // Perdu (ou nouvelle mise, mode « stake ») : du solde vers
     // le perroquet, en feuilles mortes.
-    const inPlay =
-        document.getElementById("in-play");
 
     for (let i = 0; i < COUNT; i++) {
 
@@ -371,10 +373,6 @@ function flyBills(mode, fromBalance = 0, toBalance = 0) {
         }
 
         setTimeout(() => {
-
-            if (inPlay) {
-                bump(inPlay);
-            }
 
             const el = makeBill();
 
@@ -458,16 +456,15 @@ async function checkNewResults() {
 
 
     /*
-        Les gains ne sont plus versés automatiquement :
-        la pop-up annonce les résultats, et l'argent se récupère
-        en cliquant sur les cartes de la page principale.
+        Les gains ne sont plus versés automatiquement : l'argent se récupère
+        en cliquant sur les cartes de la page principale (plus de pop-up
+        « Il y a du mouvement »).
     */
 
-    showResultsPopup(fresh, totalWon);
-
-
+    // Mise à jour discrète : pas d'écran « Chargement » qui ferait clignoter la liste
+    // (ni qui couperait l'arrivée de la carte « pari gagné / perdu »).
     if (typeof displayBets === "function") {
-        displayBets();
+        displayBets({ quiet: true });
     }
 
     if (typeof displayMyBets === "function") {
@@ -477,70 +474,6 @@ async function checkNewResults() {
     refreshProgression();
 
 }
-
-
-function showResultsPopup(results, totalWon) {
-
-    const overlay =
-        document.createElement("div");
-
-    overlay.className = "results-overlay";
-
-    const lines =
-        results.map((s, index) => {
-
-            const won =
-                s.bets.winner_choice_id === s.choice_id;
-
-            return `
-                <div
-                    class="results-line ${won ? "won" : "lost"}"
-                    style="animation-delay: ${0.4 + index * 0.35}s"
-                >
-                    <span>${won ? "✅" : "❌"} ${escapeHtml(s.bets.question)}</span>
-                    <strong>${won ? "+" + formatMoney(s.potential_win) : "-" + formatMoney(s.stake)}</strong>
-                </div>
-            `;
-
-        }).join("");
-
-    overlay.innerHTML = `
-        <div class="results-popup">
-
-            <h2>${totalWon > 0 ? "🎉 Il y a du mouvement !" : "Il y a du mouvement !"}</h2>
-
-            <div class="results-lines">${lines}</div>
-
-            <div
-                class="results-total"
-                style="animation-delay: ${0.4 + results.length * 0.35}s"
-            >
-                À récupérer
-                <strong>${formatMoney(totalWon)}</strong>
-            </div>
-
-            <button class="primary-button results-close">Aller récupérer</button>
-
-        </div>
-    `;
-
-    document.body.appendChild(overlay);
-
-    overlay
-        .querySelector(".results-close")
-        .addEventListener("click", () => {
-
-            overlay.remove();
-
-            // Les cartes à récupérer sont en haut de la page principale.
-            if (typeof showPage === "function") {
-                showPage("bets-page");
-            }
-
-        });
-
-}
-
 
 
 /* =========================================================
@@ -620,6 +553,9 @@ async function openChest() {
     const icon =
         chest.querySelector(".chest-icon");
 
+    const textElement =
+        chest.querySelector(".chest-text span");
+
 
     const {
         data,
@@ -627,9 +563,19 @@ async function openChest() {
     } = await supabaseClient.rpc("open_daily_chest", { p_group: currentGroup.id });
 
 
+    // Le coffre tremble et brille, puis s'ouvre.
     setTimeout(async () => {
 
         chest.classList.remove("opening");
+
+        // La lueur d'ouverture retombe en douceur au lieu de s'éteindre d'un coup.
+        chest.animate(
+            [
+                { boxShadow: "0 0 46px rgba(245, 196, 81, 0.65)", transform: "scale(1.025)" },
+                { boxShadow: "0 0 0 rgba(245, 196, 81, 0)", transform: "scale(1)" }
+            ],
+            { duration: 800, easing: "ease-out" }
+        );
 
         if (error) {
             console.error(error);
@@ -638,11 +584,28 @@ async function openChest() {
             return;
         }
 
+        // Ouverture : l'icône « éclot » et le texte se fond vers le gain.
         icon.textContent = "📦";
 
-        chest.querySelector(".chest-text span").textContent =
+        icon.classList.remove("chest-pop");
+
+        void icon.offsetWidth;
+
+        icon.classList.add("chest-pop");
+
+        textElement.textContent =
             "+" + data + " points gagnés !";
 
+        textElement.animate(
+            [
+                { opacity: 0, transform: "translateY(5px)" },
+                { opacity: 1, transform: "none" }
+            ],
+            { duration: 500, easing: "cubic-bezier(.2,.8,.2,1)" }
+        );
+
+
+        const iconRect = icon.getBoundingClientRect();
 
         const loot =
             document.createElement("div");
@@ -651,28 +614,22 @@ async function openChest() {
 
         loot.textContent = "+" + data + " 🪙";
 
-        const rect = icon.getBoundingClientRect();
-
-        loot.style.left = rect.left + rect.width / 2 + "px";
-        loot.style.top = rect.bottom + "px";
+        loot.style.left = iconRect.left + iconRect.width / 2 + "px";
+        loot.style.top = iconRect.bottom + "px";
 
         document.body.appendChild(loot);
 
         setTimeout(() => loot.remove(), 1800);
 
 
+        // Les pièces partent du coffre vers le compteur de points (en haut à droite) ;
+        // le compteur monte à chaque pièce qui arrive.
         const before =
             currentProfile?.points || 0;
 
         await loadCurrentProfile();
 
-        animateNumber(
-            document.getElementById("points-balance"),
-            before,
-            currentProfile.points || 0,
-            900,
-            value => Math.round(value) + " 🪙"
-        );
+        flyCoins(iconRect, Number(data), before);
 
         if (typeof displayShop === "function") {
             displayShop();
@@ -680,29 +637,52 @@ async function openChest() {
 
 
         /*
-            Le coffre disparaît une fois ouvert
+            Le coffre se referme doucement une fois ouvert
             (il revient demain).
         */
 
-        setTimeout(() => {
-            chest.classList.add("chest-leaving");
-            setTimeout(() => {
+        setTimeout(async () => {
 
-                // L'admin peut rouvrir le coffre à l'infini.
-                if (currentProfile?.is_admin) {
-                    icon.textContent = "🎁";
-                    chest.querySelector(".chest-text span").textContent = "Clique pour l'ouvrir !";
-                    chest.classList.remove("chest-leaving");
-                    chest.disabled = false;
-                    return;
-                }
+            // L'admin peut rouvrir le coffre à l'infini.
+            if (currentProfile?.is_admin) {
 
-                chest.classList.add("hidden");
+                await chest.animate(
+                    [{ opacity: 1 }, { opacity: 0.4 }, { opacity: 1 }],
+                    { duration: 600, easing: "ease-in-out" }
+                ).finished;
 
-            }, 500);
-        }, 2000);
+                icon.textContent = "🎁";
 
-    }, 800);
+                textElement.textContent = "Clique pour l'ouvrir !";
+
+                chest.disabled = false;
+
+                return;
+
+            }
+
+            // Repli en hauteur : les cartes du dessous remontent sans à-coup.
+            const height = chest.offsetHeight;
+
+            chest.style.overflow = "hidden";
+
+            await chest.animate(
+                [
+                    { height: height + "px", opacity: 1, transform: "scale(1)", paddingTop: "16px", paddingBottom: "16px", marginTop: "0px" },
+                    { height: "0px", opacity: 0, transform: "scale(0.94)", paddingTop: "0px", paddingBottom: "0px", marginTop: "-16px" }
+                ],
+                { duration: 650, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" }
+            ).finished.catch(() => {});
+
+            chest.classList.add("hidden");
+
+            chest.getAnimations().forEach(animation => animation.cancel());
+
+            chest.style.overflow = "";
+
+        }, 2600);
+
+    }, 1000);
 
 }
 
@@ -1070,6 +1050,35 @@ function animateLeaderboard(profiles) {
    8. COMPTE À REBOURS (dernière heure)
 ========================================================= */
 
+let closedRefreshPending = false;
+
+function setCardBadge(card, text) {
+
+    let badge = card.querySelector(".bet-new-badge");
+
+    if (!text) {
+
+        if (badge) badge.remove();
+
+        return;
+
+    }
+
+    if (!badge) {
+
+        badge = document.createElement("span");
+
+        badge.className = "bet-new-badge";
+
+        card.prepend(badge);
+
+    }
+
+    if (badge.textContent !== text) badge.textContent = text;
+
+}
+
+
 function updateCountdowns() {
 
     document
@@ -1082,16 +1091,57 @@ function updateCountdowns() {
             const label =
                 card.querySelector(".bet-deadline");
 
-            if (remaining <= 0 || remaining > 3600 * 1000) {
+            // Moins d'une heure avant l'échéance : les mises sont closes, la carte se grise.
+            if (remaining <= BET_CLOSE_MS) {
+
                 card.classList.remove("bet-card-urgent");
+
+                setCardBadge(card, "TROP TARD");
+
+                if (
+                    !card.classList.contains("bet-card-locked") &&
+                    !card.classList.contains("validating") &&
+                    !closedRefreshPending
+                ) {
+
+                    closedRefreshPending = true;
+
+                    setTimeout(() => {
+
+                        closedRefreshPending = false;
+
+                        if (typeof displayBets === "function") {
+
+                            displayBets({ quiet: true, force: true });
+
+                        }
+
+                    }, 300);
+
+                }
+
                 return;
+
+            }
+
+            // Entre 2 h et 1 h avant l'échéance : carte rouge, avec le temps qu'il reste pour miser.
+            if (remaining > BET_URGENT_MS) {
+
+                card.classList.remove("bet-card-urgent");
+
+                return;
+
             }
 
             card.classList.add("bet-card-urgent");
 
-            const minutes = Math.floor(remaining / 60000);
+            setCardBadge(card, "LAST CHANCE");
 
-            const seconds = Math.floor(remaining / 1000) % 60;
+            const untilClose = remaining - BET_CLOSE_MS;
+
+            const minutes = Math.floor(untilClose / 60000);
+
+            const seconds = Math.floor(untilClose / 1000) % 60;
 
             label.textContent =
                 "⏳ " + String(minutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0");
@@ -1148,6 +1198,14 @@ function setupPointerEffects() {
 
 
     document.addEventListener("mousemove", event => {
+
+        // Une fenêtre est ouverte (aperçu de la boutique, mise...) : la carte sur laquelle
+        // on a cliqué garde sa perspective au lieu de se remettre droite.
+        if (document.querySelector(".modal:not(.hidden)")) {
+
+            return;
+
+        }
 
         let card =
             event.target.closest(".bet-card, .mission-card");
@@ -1769,6 +1827,8 @@ function flyCoins(fromRect, points, pointsBefore) {
 
     let shown = pointsBefore;
 
+    let lastBump = 0;
+
     // Le compteur repart de l'ancien total et monte à chaque pièce.
     if (!isAdmin) {
 
@@ -1830,9 +1890,9 @@ function flyCoins(fromRect, points, pointsBefore) {
                 { transform: `${at(arrival)} scale(0.4)`, opacity: 0 }
             ],
             {
-                duration: 900 + Math.random() * 150,
-                delay: i * 70,
-                easing: "ease-in-out",
+                duration: 1000 + Math.random() * 60,
+                delay: i * 85,
+                easing: "cubic-bezier(.45, 0, .2, 1)",
                 fill: "both"
             }
         );
@@ -1853,7 +1913,14 @@ function flyCoins(fromRect, points, pointsBefore) {
 
             shown = next;
 
-            bump(target);
+            // Une petite pulsation du compteur de temps en temps, pas à chaque pièce.
+            if (performance.now() - lastBump > 280) {
+
+                lastBump = performance.now();
+
+                bump(target);
+
+            }
 
         }).catch(() => coin.remove()));
 
@@ -1862,6 +1929,149 @@ function flyCoins(fromRect, points, pointsBefore) {
     return Promise.all(done).then(() => {
 
         // Valeur définitive, telle que la base la connaît.
+        updateBalance();
+
+    });
+
+}
+
+
+
+/* =========================================================
+   PIÈCES DÉPENSÉES (boutique)
+   Des pièces quittent le compteur de points et filent vers
+   le bouton « Acheter » ; le compteur descend à chaque départ.
+========================================================= */
+
+function spendCoins(toRect, price, pointsBefore) {
+
+    const source = document.getElementById("points-balance");
+
+    if (!source || !toRect || !(price > 0)) {
+
+        return Promise.resolve();
+
+    }
+
+    const isAdmin = !!currentProfile?.is_admin;
+
+    const fromRect = source.getBoundingClientRect();
+
+    const start = {
+        x: fromRect.left + fromRect.width / 2,
+        y: fromRect.top + fromRect.height / 2
+    };
+
+    const end = {
+        x: toRect.left + toRect.width / 2,
+        y: toRect.top + toRect.height / 2
+    };
+
+    const count = Math.max(6, Math.min(14, Math.round(price / 12)));
+
+    const format = value => Math.round(value) + " 🪙";
+
+    const margin = 14;
+
+    const keep = point => ({
+        x: Math.min(Math.max(point.x, margin), window.innerWidth - margin),
+        y: Math.min(Math.max(point.y, margin), window.innerHeight - margin)
+    });
+
+    const at = point => `translate(${point.x - 11}px, ${point.y - 11}px)`;
+
+    const dx = end.x - start.x;
+
+    const dy = end.y - start.y;
+
+    const length = Math.hypot(dx, dy) || 1;
+
+    const normal = { x: -dy / length, y: dx / length };
+
+    let shown = pointsBefore;
+
+    let lastBump = 0;
+
+    if (!isAdmin) {
+
+        source.textContent = format(pointsBefore);
+
+    }
+
+    const done = [];
+
+    for (let i = 0; i < count; i++) {
+
+        const coin = document.createElement("span");
+
+        coin.className = "mission-coin";
+
+        document.body.appendChild(coin);
+
+        const delay = i * 80;
+
+        const from = keep({
+            x: start.x + (Math.random() - 0.5) * 18,
+            y: start.y + (Math.random() - 0.5) * 10
+        });
+
+        const bend = (Math.random() < 0.5 ? -1 : 1) * (30 + Math.random() * 40);
+
+        const middle = keep({
+            x: from.x + (end.x - from.x) * 0.5 + normal.x * bend,
+            y: from.y + (end.y - from.y) * 0.5 + normal.y * bend
+        });
+
+        const arrival = keep({
+            x: end.x + (Math.random() - 0.5) * 24,
+            y: end.y + (Math.random() - 0.5) * 8
+        });
+
+        // La pièce quitte le compteur : celui-ci descend d'une part du prix.
+        setTimeout(() => {
+
+            const next = Math.round(pointsBefore - price * (i + 1) / count);
+
+            if (!isAdmin) {
+
+                animateNumber(source, shown, next, 200, format);
+
+            }
+
+            shown = next;
+
+            if (performance.now() - lastBump > 280) {
+
+                lastBump = performance.now();
+
+                bump(source);
+
+            }
+
+        }, delay);
+
+        const animation = coin.animate(
+            [
+                { transform: `${at(from)} scale(1)`, opacity: 0 },
+                { transform: `${at(from)} scale(1)`, opacity: 1, offset: 0.1 },
+                { transform: `${at(middle)} scale(1.05)`, opacity: 1, offset: 0.55 },
+                { transform: `${at(arrival)} scale(0.85)`, opacity: 1, offset: 0.92 },
+                { transform: `${at(arrival)} scale(0.3)`, opacity: 0 }
+            ],
+            {
+                duration: 950 + Math.random() * 60,
+                delay,
+                easing: "cubic-bezier(.45, 0, .2, 1)",
+                fill: "both"
+            }
+        );
+
+        done.push(animation.finished.then(() => coin.remove()).catch(() => coin.remove()));
+
+    }
+
+    return Promise.all(done).then(() => {
+
         updateBalance();
 
     });

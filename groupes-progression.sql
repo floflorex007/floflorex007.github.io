@@ -141,7 +141,7 @@ begin
     from (values
         ('emoji',        15,  array['🔥', '⚡', '🍀', '🦊', '💎', '🎯']),
         ('neon',         80,  array['rose', 'bleu', 'vert', 'jaune']),
-        ('titre',        20,  array['Le Prophète', 'Chanceux', 'Outsider', 'Requin', 'Débutant']),
+        ('titre',        20,  array['Chanceux', 'Outsider', 'Requin', 'Débutant']),
         ('metal_rose',   100, null::text[]),
         ('metal_bronze', 150, null::text[]),
         ('metal_argent', 200, null::text[]),
@@ -227,7 +227,7 @@ begin
 
     v_price := case p_reward
         when 'cadre' then 250
-        when 'couleur' then 100
+        when 'couleur' then 300
     end;
 
     if v_price is null then

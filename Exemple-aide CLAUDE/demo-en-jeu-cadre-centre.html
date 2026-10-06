@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Cadre « En jeu » au centre du perroquet (aperçu)</title>
+<link rel="stylesheet" href="style.css">
+<style>
+* { box-sizing: border-box; }
+body { display: block; background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 80px; }
+button, input { font: inherit; color: inherit; }
+h1 { font-size: 26px; margin-bottom: 6px; }
+h2 { font-size: 16px; margin: 26px 0 12px; }
+.sub { color: #858a98; margin-bottom: 16px; max-width: 860px; font-size: 14px; line-height: 1.5; }
+
+@property --ang { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+
+.demo {
+    --speed: 1; --bw: 2px; --cs: 1.16; --rot: 0deg; --float-amp: 3; --float-speed: 1;
+    --move-ms: 500ms; --move-ease: cubic-bezier(.45, 0, .25, 1);
+    --m1: #fff3b0; --m2: #f5c451; --m3: #b8860b; --glow: rgba(245, 196, 81, 0.55);
+}
+.demo.silver { --m1: #ffffff; --m2: #c9ced8; --m3: #7b8190; --glow: rgba(210, 218, 235, 0.5); }
+
+/* ---------- Le cadre ---------- */
+.cadre { position: absolute; z-index: 20; transform: translate(-50%, -50%) rotate(var(--rot)) scale(var(--cs)); transform-origin: 50% 50%; white-space: nowrap; --r: 10px; transition: left var(--move-ms) var(--move-ease), top var(--move-ms) var(--move-ease); }
+.cadre.vide { display: none; }
+.cadre .fl { animation: float calc(3s / var(--float-speed)) ease-in-out infinite; }
+@keyframes float { 0%, 100% { translate: 0 calc(var(--float-amp) * 1px); } 50% { translate: 0 calc(var(--float-amp) * -1px); } }
+.cadre .fl.appear-pop { animation: appear-pop .55s cubic-bezier(.2, 1.5, .4, 1), float calc(3s / var(--float-speed)) ease-in-out infinite; }
+.cadre .fl.appear-fade { animation: appear-fade .7s ease-out, float calc(3s / var(--float-speed)) ease-in-out infinite; }
+@keyframes appear-pop { from { opacity: 0; scale: .3; } }
+@keyframes appear-fade { from { opacity: 0; } }
+.cadre .frame { position: relative; border-radius: var(--r); padding: var(--bw); background: conic-gradient(from var(--ang), var(--m1), var(--m2), var(--m3), var(--m2), var(--m1), var(--m2), var(--m3), var(--m2), var(--m1)); }
+.cadre .inner { position: relative; overflow: hidden; border-radius: calc(var(--r) - var(--bw)); background: linear-gradient(180deg, #1a1d27 0%, #0f1117 100%); padding: 8px 22px; text-align: center; min-width: 120px; }
+.cadre .label { display: block; font-size: 10px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: var(--m2); opacity: .9; }
+.cadre .amount { display: block; font-size: 24px; font-weight: 900; background: linear-gradient(180deg, var(--m1), var(--m2) 55%, var(--m3)); -webkit-background-clip: text; background-clip: text; color: transparent; font-variant-numeric: tabular-nums; }
+.demo.nolabel .cadre .label { display: none; }
+.demo.a-spin .cadre .frame { animation: spin calc(4s / var(--speed)) linear infinite; }
+@keyframes spin { to { --ang: 360deg; } }
+.demo.a-shine .cadre .inner::after { content: ""; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 38%, rgba(255,255,255,.5) 50%, transparent 62%); background-size: 260% 100%; background-position: 140% 0; animation: shine calc(3.2s / var(--speed)) ease-in-out infinite; pointer-events: none; }
+@keyframes shine { 0% { background-position: 140% 0; } 55%, 100% { background-position: -60% 0; } }
+.demo.a-pulse .cadre { animation: pulse calc(2.4s / var(--speed)) ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { filter: drop-shadow(0 0 4px transparent); } 50% { filter: drop-shadow(0 0 16px var(--glow)); } }
+.demo:not(.a-pulse) .cadre { filter: drop-shadow(0 0 7px var(--glow)); }
+
+/* ---------- Galerie : un perroquet par état, le cadre sur son image ---------- */
+.gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(262px, 1fr)); gap: 16px; }
+.card { background: #181b24; border: 1px solid #2c3040; border-radius: 18px; padding: 14px; text-align: center; }
+.card h3 { font-size: 13px; margin-bottom: 2px; }
+.card p { font-size: 12px; color: #858a98; margin-top: 8px; }
+.mini { position: relative; margin: 8px auto 0; width: 240px; height: 305px; overflow: hidden; border-radius: 12px; background: radial-gradient(circle at 50% 100%, #1d1a3a 0%, #12141c 70%); }
+.mini-inner { position: absolute; left: 0; top: 0; width: 512px; height: 650px; transform: scale(calc(240 / 512)); transform-origin: 0 0; }
+.mirror { position: absolute; left: 0; top: 0; width: 512px; height: 650px; transform: scaleX(-1); transform-origin: 256px 0; }
+.mini img { position: absolute; pointer-events: none; }
+
+/* ---------- Partie vivante ---------- */
+.layout { display: grid; grid-template-columns: minmax(300px, 520px) 340px; gap: 24px; align-items: start; }
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+.stage { position: relative; height: 470px; border-radius: 20px; overflow: hidden; background: radial-gradient(circle at 50% 100%, #1d1a3a 0%, #12141c 65%); border: 1px solid #2c3040; }
+.stage .parrot { position: absolute; left: 50%; bottom: -4%; transform: translateX(-50%); width: var(--pw, 300px); transition: width 0.6s ease-in-out; }
+
+.panel { background: #181b24; border: 1px solid #2c3040; border-radius: 18px; padding: 18px; }
+.panel h3 { font-size: 14px; margin-bottom: 12px; }
+.panel h4 { font-size: 12px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: #a59fff; margin: 4px 0 12px; padding-top: 12px; border-top: 1px solid #2c3040; }
+.group { margin-bottom: 16px; }
+.group > span { display: block; font-size: 11px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: #858a98; margin-bottom: 8px; }
+.states { display: flex; flex-wrap: wrap; gap: 6px; }
+.states button { padding: 8px 10px; line-height: 1.35; text-align: center; border-radius: 10px; border: 1px solid #343846; background: #101219; color: #aaaeba; cursor: pointer; font-size: 12px; font-weight: 700; }
+.states button.on { border-color: #6c63ff; color: white; background: rgba(108, 99, 255, .18); }
+.seg { display: flex; gap: 6px; }
+.seg button { flex: 1; padding: 9px 6px; border-radius: 10px; border: 1px solid #343846; background: #101219; color: #aaaeba; cursor: pointer; font-weight: 700; font-size: 12px; }
+.seg button.on { border-color: #6c63ff; color: white; background: rgba(108, 99, 255, .18); }
+#metal button.on { border-color: #f5c451; background: rgba(245, 196, 81, .12); }
+#metal.silver button.on { border-color: #c9ced8; background: rgba(201, 206, 216, .12); }
+.check { display: flex; align-items: center; gap: 9px; padding: 5px 0; font-size: 14px; cursor: pointer; }
+.check input { accent-color: #6c63ff; width: 16px; height: 16px; }
+.slider { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #aaaeba; margin-bottom: 8px; }
+.slider label { width: 84px; flex-shrink: 0; }
+.slider input[type=range] { flex: 1; accent-color: #6c63ff; }
+.slider output { width: 58px; text-align: right; font-variant-numeric: tabular-nums; color: #e6e8ee; }
+.note { font-size: 12px; color: #737887; margin: -2px 0 10px; line-height: 1.4; }
+.copy { width: 100%; margin-top: 4px; padding: 12px; border: none; border-radius: 12px; font-weight: 900; background: linear-gradient(135deg, #2fa36f, #63d69f); color: #0b1f15; cursor: pointer; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #2fa36f; color: #0b1f15; font-weight: 800; padding: 10px 18px; border-radius: 12px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 50; max-width: 90vw; text-align: center; }
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<h1>Le cadre « En jeu » sur le perroquet — version finale</h1>
+<p class="sub">
+    Version finale avec tes réglages : le <b>cadre doré animé</b> et son décompte « En jeu », posés sur les pattes du perroquet, qui change d'image à chaque état (rien, petite pile, pile moyenne, énorme pile).
+    Le premier bloc montre les quatre états ; le second est le vrai perroquet.
+    Dans le panneau, règle <b>la position</b> (ancrage, décalage, inclinaison, par état) et <b>le comportement</b>
+    (déplacement entre états, flottement, apparition, compteur, respiration) : tout s'applique en direct.
+</p>
+
+<h2>Les quatre états du perroquet</h2>
+<div class="gallery demo a-spin a-shine a-pulse" id="gallery"></div>
+
+<h2>En direct, avec le vrai perroquet</h2>
+<div class="layout">
+
+    <div class="stage demo a-spin a-shine a-pulse" id="stage">
+        <div class="parrot" id="parrot"></div>
+    </div>
+
+    <div class="panel">
+        <h3>🎛️ Réglages</h3>
+
+        <div class="group">
+            <span>État du perroquet</span>
+            <div class="states" id="amount-states">
+                <button data-amount="0">1 · Rien en jeu<br>0 €</button>
+                <button data-amount="80">2 · Petite pile<br>80 €</button>
+                <button data-amount="500">3 · Pile moyenne<br>500 €</button>
+                <button class="on" data-amount="1250">4 · Énorme pile<br>1 250 €</button>
+                <button data-amount="12500">Beaucoup plus<br>12 500 €</button>
+            </div>
+            <div class="slider" style="margin-top:10px"><label>Montant</label><input type="range" id="amount-range" min="0" max="15000" step="10" value="1250"><output id="amount-range-o">1 250 €</output></div>
+        </div>
+
+        <h4>Position</h4>
+
+        <div class="group">
+            <span>Ancrage sur l'image</span>
+            <div class="seg" id="anchor">
+                <button data-anchor="center">Centre</button>
+                <button class="on" data-anchor="feet">Pattes (bas)</button>
+                <button data-anchor="head">Tête (haut)</button>
+            </div>
+        </div>
+
+        <div class="group">
+            <label class="check"><input type="checkbox" id="per-state"> Réglage différent pour chaque état</label>
+            <div class="states" id="state-pick" style="display:none; margin-bottom:8px">
+                <button class="on" data-level="1">Rien / 0 €</button>
+                <button data-level="2">Petite pile</button>
+                <button data-level="3">Moyenne</button>
+                <button data-level="4">Énorme</button>
+            </div>
+            <p class="note" id="per-state-note">Le décalage ci-dessous s'applique à tous les états.</p>
+            <div class="slider"><label>Décalage ↔</label><input type="range" id="dx" min="-250" max="250" step="2" value="0"><output id="dx-o">0</output></div>
+            <div class="slider"><label>Décalage ↕</label><input type="range" id="dy" min="-250" max="250" step="2" value="-28"><output id="dy-o">-28</output></div>
+            <div class="slider"><label>Inclinaison</label><input type="range" id="rot" min="-25" max="25" step="1" value="0"><output id="rot-o">0°</output></div>
+        </div>
+
+        <h4>Comportement</h4>
+
+        <div class="group">
+            <span>Déplacement quand l'état change</span>
+            <div class="seg" id="move-style">
+                <button data-style="glide">Glisse</button>
+                <button data-style="bounce">Rebond</button>
+                <button class="on" data-style="none">Instantané</button>
+            </div>
+            <div class="slider" style="margin-top:10px"><label>Durée</label><input type="range" id="move-ms" min="100" max="2000" step="50" value="1950"><output id="move-ms-o">1950 ms</output></div>
+        </div>
+
+        <div class="group">
+            <span>Apparition (quand on passe de 0 € à plus)</span>
+            <div class="seg" id="appear">
+                <button data-appear="pop">Pop</button>
+                <button class="on" data-appear="fade">Fondu</button>
+                <button data-appear="none">Aucune</button>
+            </div>
+        </div>
+
+        <div class="group">
+            <div class="slider"><label>Flottement</label><input type="range" id="float-amp" min="0" max="14" step="1" value="3"><output id="float-amp-o">3 px</output></div>
+            <label class="check"><input type="checkbox" id="count-up" checked> Le montant défile quand il change</label>
+            <label class="check"><input type="checkbox" id="follow" checked> Suit la respiration du perroquet</label>
+            <label class="check"><input type="checkbox" id="hide-zero"> Masqué quand il n'y a rien en jeu</label>
+        </div>
+
+        <h4>Apparence</h4>
+
+        <div class="group">
+            <span>Métal</span>
+            <div class="seg" id="metal">
+                <button class="on" data-m="gold">🥇 Doré</button>
+                <button data-m="silver">🥈 Argenté</button>
+            </div>
+        </div>
+
+        <div class="group">
+            <span>Animations du cadre</span>
+            <label class="check"><input type="checkbox" data-a="a-spin" checked> Contour qui tourne</label>
+            <label class="check"><input type="checkbox" data-a="a-shine" checked> Reflet qui balaie</label>
+            <label class="check"><input type="checkbox" data-a="a-pulse" checked> Pulsation lumineuse</label>
+        </div>
+
+        <div class="group">
+            <div class="slider"><label>Taille</label><input type="range" id="scale" min="0.5" max="1.8" step="0.02" value="1.16"><output id="scale-o">116%</output></div>
+            <div class="slider"><label>Épaisseur</label><input type="range" id="bw" min="2" max="9" step="1" value="2"><output id="bw-o">2px</output></div>
+            <div class="slider"><label>Vitesse</label><input type="range" id="speed" min="0.4" max="3" step="0.1" value="1"><output id="speed-o">1×</output></div>
+            <label class="check"><input type="checkbox" id="label-on" checked> Afficher « En jeu »</label>
+        </div>
+
+        <button class="copy" id="copy">📋 Copier mes réglages</button>
+    </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="parrot.js"></script>
+<script>
+const ASSETS = "assets/perroquet/";
+
+// Images de chaque pile, placées comme dans le perroquet du site (repère 512 × 650, avant retournement)
+const IMG = {
+    1: { name: "wait", left: 2, top: 119, w: 392, h: 441 },
+    2: { name: "l2", left: 98, top: 73, w: 317, h: 542 },
+    3: { name: "l3", left: 82, top: 92, w: 348, h: 523 },
+    4: { name: "l4", left: 56, top: 15, w: 400, h: 600 }
+};
+// Points d'ancrage par état, dans le repère du perroquet après retournement (il regarde vers la gauche)
+function anchorPoint(n, anchor) {
+    const i = IMG[n];
+    const cx = 512 - (i.left + i.w / 2);
+    if (anchor === "feet") return { x: cx, y: i.top + i.h - 62 };
+    if (anchor === "head") return { x: cx, y: i.top + 46 };
+    return { x: cx, y: i.top + i.h / 2 };
+}
+const levelOf = a => 1 + [1, 300, 800].filter(t => a >= t).length;
+const fmt = a => Math.round(a).toLocaleString("fr-FR") + " €";
+
+/* ---------- Réglages courants ---------- */
+const S = {
+    anchor: "feet",
+    perState: false,
+    editLevel: 1,
+    off: { 1: { dx: 0, dy: 0 }, 2: { dx: 0, dy: 0 }, 3: { dx: 0, dy: 0 }, 4: { dx: 0, dy: 0 } },
+    all: { dx: 0, dy: -28 },
+    rot: 0, moveStyle: "none", moveMs: 1950, appear: "fade", countUp: true, follow: true, hideZero: false,
+    cs: 1.16
+};
+const EASES = { glide: "cubic-bezier(.45,0,.25,1)", bounce: "cubic-bezier(.34,1.56,.64,1)", none: "linear" };
+
+const roots = [document.getElementById("gallery"), document.getElementById("stage")];
+const stage = document.getElementById("stage");
+const gallery = document.getElementById("gallery");
+let live = null;
+let amount = 1250;
+
+function offsetFor(n) { return S.perState ? S.off[n] : S.all; }
+
+function pointFor(n) {
+    const p = anchorPoint(n, S.anchor), o = offsetFor(n);
+    return { x: p.x + o.dx, y: p.y + o.dy };
+}
+
+/* ---------- Galerie ---------- */
+const STATES = [
+    { amount: 0, title: "Rien en jeu", note: "Le cadre est masqué." },
+    { amount: 80, title: "Petite pile", note: "1 à 299 €" },
+    { amount: 500, title: "Pile moyenne", note: "300 à 799 €" },
+    { amount: 1250, title: "Énorme pile", note: "800 € et plus" }
+];
+const frameHtml = a => `<div class="fl"><div class="frame"><div class="inner"><span class="label">En jeu</span><span class="amount">${fmt(a)}</span></div></div></div>`;
+const galleryFrames = [];
+STATES.forEach(s => {
+    const n = levelOf(s.amount), i = IMG[n];
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+        <h3>${s.title} · ${fmt(s.amount)}</h3>
+        <div class="mini"><div class="mini-inner">
+            <div class="mirror">
+                <img src="${ASSETS}${i.name}-body.png" style="left:${i.left}px;top:${i.top}px;width:${i.w}px;height:${i.h}px" alt="">
+                <img src="${ASSETS}${i.name}-head.png" style="left:${i.left}px;top:${i.top}px;width:${i.w}px;height:${i.h}px" alt="">
+            </div>
+            <div class="cadre">${frameHtml(s.amount)}</div>
+        </div></div>
+        <p>${s.note}</p>`;
+    gallery.appendChild(card);
+    galleryFrames.push({ el: card.querySelector(".cadre"), amount: s.amount, level: n });
+});
+
+function placeAll() {
+    galleryFrames.forEach(g => {
+        const p = pointFor(g.level);
+        g.el.style.left = p.x + "px";
+        g.el.style.top = p.y + "px";
+        g.el.classList.toggle("vide", S.hideZero && g.amount <= 0);
+    });
+    if (live) {
+        const p = pointFor(levelOf(amount));
+        live.style.left = p.x + "px";
+        live.style.top = p.y + "px";
+        live.classList.toggle("vide", S.hideZero && amount <= 0);
+    }
+    roots.forEach(r => r.style.setProperty("--rot", S.rot + "deg"));
+}
+
+/* ---------- Partie vivante ---------- */
+const STEPS = [[0, 350], [299, 375], [300, 375], [799, 410], [800, 410], [1500, 450]];
+function realWidth(a) {
+    if (a >= 1500) return 450;
+    for (let k = 1; k < STEPS.length; k++) {
+        const [a0, w0] = STEPS[k - 1], [a1, w1] = STEPS[k];
+        if (a <= a1) return w0 + (w1 - w0) * (a1 > a0 ? (a - a0) / (a1 - a0) : 1);
+    }
+    return 350;
+}
+
+let countFrame = null;
+function setAmountText(from, to) {
+    const el = live.querySelector(".amount");
+    cancelAnimationFrame(countFrame);
+    if (!S.countUp || from === to) { el.textContent = fmt(to); return; }
+    const start = performance.now(), dur = 700;
+    const step = now => {
+        const t = Math.min(1, (now - start) / dur), e = 1 - Math.pow(1 - t, 3);
+        el.textContent = fmt(from + (to - from) * e);
+        if (t < 1) countFrame = requestAnimationFrame(step);
+    };
+    countFrame = requestAnimationFrame(step);
+}
+
+function applyAmount(a, first) {
+    const previous = amount;
+    amount = Math.max(0, Math.round(a) || 0);
+    const n = levelOf(amount);
+    if (live) {
+        setAmountText(first ? amount : previous, amount);
+        // Apparition quand on passe de « rien » à « quelque chose »
+        if (previous <= 0 && amount > 0 && S.appear !== "none") {
+            const fl = live.querySelector(".fl");
+            fl.classList.remove("appear-pop", "appear-fade");
+            void fl.offsetWidth;
+            fl.classList.add(S.appear === "pop" ? "appear-pop" : "appear-fade");
+        }
+    }
+    if (typeof Parrot !== "undefined") Parrot.level(n, first);
+    stage.style.setProperty("--pw", (realWidth(amount) * 0.78) + "px");
+    document.querySelectorAll("#amount-states button").forEach(b => b.classList.toggle("on", Number(b.dataset.amount) === amount));
+    document.getElementById("amount-range").value = amount;
+    document.getElementById("amount-range-o").textContent = fmt(amount);
+    placeAll();
+}
+
+document.querySelectorAll("#amount-states button").forEach(b => b.onclick = () => applyAmount(Number(b.dataset.amount)));
+document.getElementById("amount-range").oninput = e => applyAmount(Number(e.target.value));
+
+/* ---------- Réglages : position ---------- */
+document.querySelectorAll("#anchor button").forEach(b => b.onclick = () => {
+    S.anchor = b.dataset.anchor;
+    document.querySelectorAll("#anchor button").forEach(x => x.classList.toggle("on", x === b));
+    placeAll();
+});
+
+const dxIn = document.getElementById("dx"), dyIn = document.getElementById("dy");
+function syncOffsetSliders() {
+    const o = offsetFor(S.editLevel);
+    dxIn.value = o.dx; dyIn.value = o.dy;
+    document.getElementById("dx-o").textContent = o.dx;
+    document.getElementById("dy-o").textContent = o.dy;
+}
+dxIn.oninput = () => { offsetFor(S.editLevel).dx = Number(dxIn.value); document.getElementById("dx-o").textContent = dxIn.value; placeAll(); };
+dyIn.oninput = () => { offsetFor(S.editLevel).dy = Number(dyIn.value); document.getElementById("dy-o").textContent = dyIn.value; placeAll(); };
+
+document.getElementById("per-state").onchange = e => {
+    S.perState = e.target.checked;
+    document.getElementById("state-pick").style.display = S.perState ? "flex" : "none";
+    document.getElementById("per-state-note").textContent = S.perState
+        ? "Choisis un état ci-dessus : le décalage ne s'applique qu'à lui."
+        : "Le décalage ci-dessous s'applique à tous les états.";
+    syncOffsetSliders();
+    placeAll();
+};
+document.querySelectorAll("#state-pick button").forEach(b => b.onclick = () => {
+    S.editLevel = Number(b.dataset.level);
+    document.querySelectorAll("#state-pick button").forEach(x => x.classList.toggle("on", x === b));
+    syncOffsetSliders();
+});
+
+function bind(id, fmtOut, apply) {
+    const input = document.getElementById(id), out = document.getElementById(id + "-o");
+    const run = () => { out.textContent = fmtOut(Number(input.value)); apply(Number(input.value)); };
+    input.oninput = run; run();
+}
+bind("rot", v => v + "°", v => { S.rot = v; placeAll(); });
+
+/* ---------- Réglages : comportement ---------- */
+function applyMove() {
+    const ms = S.moveStyle === "none" ? 0 : S.moveMs;
+    roots.forEach(r => {
+        r.style.setProperty("--move-ms", ms + "ms");
+        r.style.setProperty("--move-ease", EASES[S.moveStyle]);
+    });
+}
+document.querySelectorAll("#move-style button").forEach(b => b.onclick = () => {
+    S.moveStyle = b.dataset.style;
+    document.querySelectorAll("#move-style button").forEach(x => x.classList.toggle("on", x === b));
+    applyMove();
+});
+bind("move-ms", v => v + " ms", v => { S.moveMs = v; applyMove(); });
+document.querySelectorAll("#appear button").forEach(b => b.onclick = () => {
+    S.appear = b.dataset.appear;
+    document.querySelectorAll("#appear button").forEach(x => x.classList.toggle("on", x === b));
+});
+bind("float-amp", v => v + " px", v => roots.forEach(r => r.style.setProperty("--float-amp", v)));
+document.getElementById("count-up").onchange = e => { S.countUp = e.target.checked; };
+document.getElementById("hide-zero").onchange = e => { S.hideZero = e.target.checked; placeAll(); };
+
+// Suit la respiration : posé dans la pose d'attente (respire avec elle) ou à côté (suit seulement la taille et le déplacement)
+function reparent() {
+    if (!live) return;
+    const pose = document.querySelector('#parrot [data-pose="waiting"]');
+    const inner = document.querySelector("#parrot .parrot-inner");
+    (S.follow ? pose : inner).appendChild(live);
+}
+document.getElementById("follow").onchange = e => { S.follow = e.target.checked; reparent(); };
+
+/* ---------- Réglages : apparence ---------- */
+document.querySelectorAll("#metal button").forEach(b => b.onclick = () => {
+    document.querySelectorAll("#metal button").forEach(x => x.classList.toggle("on", x === b));
+    document.getElementById("metal").classList.toggle("silver", b.dataset.m === "silver");
+    roots.forEach(r => r.classList.toggle("silver", b.dataset.m === "silver"));
+});
+document.querySelectorAll("[data-a]").forEach(c => c.onchange = () => roots.forEach(r => r.classList.toggle(c.dataset.a, c.checked)));
+bind("scale", v => Math.round(v * 100) + "%", v => { S.cs = v; roots.forEach(r => r.style.setProperty("--cs", v)); });
+bind("bw", v => v + "px", v => roots.forEach(r => r.style.setProperty("--bw", v + "px")));
+bind("speed", v => v.toFixed(1) + "×", v => roots.forEach(r => r.style.setProperty("--speed", v)));
+document.getElementById("label-on").onchange = e => roots.forEach(r => r.classList.toggle("nolabel", !e.target.checked));
+
+document.getElementById("copy").onclick = () => {
+    const anchors = { center: "centre de l'image", feet: "pattes (bas de l'image)", head: "tête (haut de l'image)" };
+    const styles = { glide: "glisse", bounce: "rebond", none: "instantané" };
+    const anims = [...document.querySelectorAll("[data-a]")].filter(c => c.checked).map(c => c.parentElement.textContent.trim());
+    const offs = S.perState
+        ? "décalages par état (X,Y) : 0 € " + S.off[1].dx + "," + S.off[1].dy + " ; petite pile " + S.off[2].dx + "," + S.off[2].dy + " ; moyenne " + S.off[3].dx + "," + S.off[3].dy + " ; énorme " + S.off[4].dx + "," + S.off[4].dy
+        : "décalage X " + S.all.dx + " Y " + S.all.dy;
+    const text = "Cadre En jeu sur le perroquet : ancrage " + anchors[S.anchor] + " ; " + offs + " ; inclinaison " + S.rot + "°" +
+        " ; déplacement entre états : " + styles[S.moveStyle] + " " + S.moveMs + " ms" +
+        " ; apparition " + ({ pop: "pop", fade: "fondu", none: "aucune" })[S.appear] +
+        " ; flottement " + document.getElementById("float-amp").value + " px" +
+        " ; montant " + (S.countUp ? "qui défile" : "direct") +
+        " ; " + (S.follow ? "suit la respiration du perroquet" : "ne suit pas la respiration") +
+        " ; " + (S.hideZero ? "masqué à 0 €" : "visible même à 0 €") +
+        " ; métal " + (stage.classList.contains("silver") ? "argenté" : "doré") +
+        " ; animations : " + (anims.join(" + ") || "aucune") +
+        " ; taille " + Math.round(S.cs * 100) + "% ; cadre " + document.getElementById("bw").value + "px ; vitesse " + document.getElementById("speed").value + "×" +
+        " ; texte « En jeu » " + (document.getElementById("label-on").checked ? "affiché" : "masqué");
+    navigator.clipboard && navigator.clipboard.writeText(text).catch(() => {});
+    const t = document.getElementById("toast");
+    t.textContent = "Copié → colle-le à Claude : " + text;
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 5500);
+};
+
+// Le vrai perroquet se construit au chargement ; le cadre est posé dans sa pose d'attente.
+window.addEventListener("load", () => {
+    live = document.createElement("div");
+    live.className = "cadre";
+    live.innerHTML = frameHtml(1250);
+    reparent();
+    applyAmount(1250, true);
+});
+placeAll();
+</script>
+</body>
+</html>

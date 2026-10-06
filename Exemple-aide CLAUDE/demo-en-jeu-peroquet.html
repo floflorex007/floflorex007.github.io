@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Argent en jeu près du perroquet (propositions)</title>
+<link rel="stylesheet" href="style.css">
+<style>
+* { box-sizing: border-box; }
+body { display: block; background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 80px; }
+button, input { font: inherit; color: inherit; }
+h1 { font-size: 26px; margin-bottom: 6px; }
+.sub { color: #858a98; margin-bottom: 16px; max-width: 840px; font-size: 14px; line-height: 1.5; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; }
+.tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.desc { color: #aaaeba; font-size: 14px; max-width: 760px; margin-bottom: 18px; min-height: 42px; }
+.layout { display: grid; grid-template-columns: minmax(300px, 680px) 320px; gap: 24px; align-items: start; }
+@media (max-width: 1050px) { .layout { grid-template-columns: 1fr; } }
+
+@property --ang { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+
+/* Scène : un coin de la page. Le perroquet est le vrai (même code, mêmes images, même sens, mêmes piles). */
+.stage {
+    position: relative; height: 540px; max-width: 100%; border-radius: 20px; overflow: hidden;
+    background: radial-gradient(circle at 70% 100%, #1d1a3a 0%, #12141c 60%); border: 1px solid #2c3040;
+    --speed: 1; --bw: 2px; --pw: 300px;
+    --m1: #fff3b0; --m2: #f5c451; --m3: #b8860b; --glow: rgba(245, 196, 81, 0.55);
+}
+.stage.silver { --m1: #ffffff; --m2: #c9ced8; --m3: #7b8190; --glow: rgba(210, 218, 235, 0.5); }
+.stage .hint { position: absolute; left: 16px; top: 14px; font-size: 12px; color: #4d5160; }
+.stage .parrot { position: absolute; right: 6%; bottom: -8%; width: var(--pw); transition: width 0.6s ease-in-out; }
+
+/*
+   La plaque est posée DANS le repère du perroquet (512 × 650, mis à l'échelle avec lui),
+   dans sa pose d'attente : elle grandit avec lui, change de pile avec lui et respire avec lui.
+*/
+.enjeu {
+    position: absolute; z-index: 20; --r: 10px; --tx: -50%; --ty: -50%;
+    left: 256px; top: 560px;
+    transform: translate(var(--tx), var(--ty)) scale(var(--cs, 0.39));
+    transform-origin: 50% 50%;
+    transition: left 0.5s ease-in-out, top 0.5s ease-in-out;
+    white-space: nowrap;
+}
+.enjeu.vide { display: none; }
+.enjeu .frame { position: relative; border-radius: var(--r); padding: var(--bw); background: conic-gradient(from var(--ang), var(--m1), var(--m2), var(--m3), var(--m2), var(--m1), var(--m2), var(--m3), var(--m2), var(--m1)); }
+.enjeu .inner { position: relative; overflow: hidden; border-radius: calc(var(--r) - var(--bw)); background: linear-gradient(180deg, #1a1d27 0%, #0f1117 100%); padding: 8px 16px; text-align: center; min-width: 120px; }
+.enjeu .label { display: block; font-size: 10px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: var(--m2); opacity: .9; }
+.enjeu .amount { display: block; font-size: 24px; font-weight: 900; background: linear-gradient(180deg, var(--m1), var(--m2) 55%, var(--m3)); -webkit-background-clip: text; background-clip: text; color: transparent; font-variant-numeric: tabular-nums; }
+.enjeu.nolabel .label { display: none; }
+
+/* Animations (activables ensemble) */
+.stage.a-spin .enjeu .frame { animation: spin calc(4s / var(--speed)) linear infinite; }
+@keyframes spin { to { --ang: 360deg; } }
+.stage.a-shine .enjeu .inner::after { content: ""; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 38%, rgba(255,255,255,.5) 50%, transparent 62%); background-size: 260% 100%; background-position: 140% 0; animation: shine calc(3.2s / var(--speed)) ease-in-out infinite; pointer-events: none; }
+@keyframes shine { 0% { background-position: 140% 0; } 55%, 100% { background-position: -60% 0; } }
+.stage.a-pulse .enjeu { animation: pulse calc(2.4s / var(--speed)) ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { filter: drop-shadow(0 0 4px transparent); } 50% { filter: drop-shadow(0 0 16px var(--glow)); } }
+.stage:not(.a-pulse) .enjeu { filter: drop-shadow(0 0 7px var(--glow)); }
+.sparks { position: absolute; inset: -12px; pointer-events: none; display: none; }
+.stage.a-sparks .sparks { display: block; }
+.sparks i { position: absolute; width: 10px; height: 10px; background: radial-gradient(circle, #fff 0%, var(--m1) 35%, transparent 70%); border-radius: 50%; opacity: 0; animation: twinkle calc(2.2s / var(--speed)) ease-in-out infinite; }
+.sparks i:nth-child(1) { left: 6%; top: 4%; animation-delay: 0s; }
+.sparks i:nth-child(2) { right: 8%; top: 0; animation-delay: .5s; }
+.sparks i:nth-child(3) { right: 0; bottom: 20%; animation-delay: 1.1s; }
+.sparks i:nth-child(4) { left: 0; bottom: 10%; animation-delay: 1.6s; }
+.sparks i:nth-child(5) { left: 45%; bottom: -4px; animation-delay: .9s; }
+@keyframes twinkle { 0%, 100% { opacity: 0; transform: scale(.3); } 50% { opacity: 1; transform: scale(1.5); } }
+
+/* Présentations */
+.enjeu.v-a { --r: 14px; }
+.enjeu.v-b { --r: 22px; }
+.enjeu.v-b .tail { display: block; }
+.tail { display: none; position: absolute; left: 62%; bottom: -8px; width: 16px; height: 16px; transform: rotate(45deg); background: #0f1117; border-right: var(--bw) solid var(--m2); border-bottom: var(--bw) solid var(--m2); z-index: 1; }
+.enjeu.v-c { --r: 50%; }
+.enjeu.v-c .inner { width: 118px; height: 118px; min-width: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 0; }
+.enjeu.v-c .amount { font-size: 21px; }
+.enjeu.v-d .inner { padding: 8px 30px; }
+.enjeu .rivet { display: none; position: absolute; top: 50%; width: 9px; height: 9px; margin-top: -4.5px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, var(--m1), var(--m3)); z-index: 3; }
+.enjeu.v-d .rivet { display: block; }
+.enjeu .rivet.l { left: 10px; } .enjeu .rivet.r { right: 10px; }
+
+/* ---------- Panneau de réglages ---------- */
+.panel { background: #181b24; border: 1px solid #2c3040; border-radius: 18px; padding: 18px; position: sticky; top: 16px; }
+.panel h3 { font-size: 14px; margin-bottom: 12px; }
+.group { margin-bottom: 16px; }
+.group > span { display: block; font-size: 11px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: #858a98; margin-bottom: 8px; }
+.states { display: flex; flex-wrap: wrap; gap: 6px; }
+.states button { padding: 8px 10px; border-radius: 10px; border: 1px solid #343846; background: #101219; color: #aaaeba; cursor: pointer; font-size: 12px; font-weight: 700; }
+.states button.on { border-color: #6c63ff; color: white; background: rgba(108, 99, 255, .18); }
+.seg { display: flex; gap: 6px; }
+.seg button { flex: 1; padding: 9px; border-radius: 10px; border: 1px solid #343846; background: #101219; color: #aaaeba; cursor: pointer; font-weight: 700; }
+.seg button.on { border-color: #f5c451; color: white; background: rgba(245, 196, 81, .12); }
+.seg.silver button.on { border-color: #c9ced8; background: rgba(201, 206, 216, .12); }
+.check { display: flex; align-items: center; gap: 9px; padding: 5px 0; font-size: 14px; cursor: pointer; }
+.check input { accent-color: #6c63ff; width: 16px; height: 16px; }
+.slider { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #aaaeba; margin-bottom: 8px; }
+.slider label { width: 74px; flex-shrink: 0; }
+.slider input[type=range] { flex: 1; accent-color: #6c63ff; }
+.slider output { width: 46px; text-align: right; font-variant-numeric: tabular-nums; color: #e6e8ee; }
+.copy { width: 100%; margin-top: 4px; padding: 12px; border: none; border-radius: 12px; font-weight: 900; background: linear-gradient(135deg, #2fa36f, #63d69f); color: #0b1f15; cursor: pointer; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #2fa36f; color: #0b1f15; font-weight: 800; padding: 10px 18px; border-radius: 12px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 50; max-width: 90vw; text-align: center; }
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<h1>Argent en jeu, près du perroquet</h1>
+<p class="sub">
+    Le compteur « En jeu » se pose près du perroquet, dans un cadre doré ou argenté animé (version D · plaque vissée avec tes réglages).
+    Cette fois il est <b>posé dans le perroquet lui-même</b> : il grandit avec lui, change de pile de billets avec lui,
+    et bouge comme lui quand il respire. Le perroquet est le vrai, dans le bon sens.
+</p>
+
+<div class="tabs" id="tabs">
+    <button class="tab" data-v="a">A · Plaque</button>
+    <button class="tab" data-v="b">B · Bulle</button>
+    <button class="tab" data-v="c">C · Médaillon</button>
+    <button class="tab active" data-v="d">D · Plaque vissée</button>
+</div>
+<p class="desc" id="desc"></p>
+
+<div class="layout">
+
+    <div class="stage a-spin a-shine a-pulse" id="stage">
+        <span class="hint">Aperçu du coin bas droit de la page (le perroquet est le vrai)</span>
+
+        <div class="parrot" id="parrot"></div>
+    </div>
+
+    <div class="panel">
+        <h3>🎛️ Réglages en direct</h3>
+
+        <div class="group">
+            <span>État (argent en jeu)</span>
+            <div class="states" id="amount-states">
+                <button data-amount="0">0 € (rien)</button>
+                <button data-amount="80">80 €</button>
+                <button data-amount="500">500 €</button>
+                <button class="on" data-amount="1250">1 250 €</button>
+                <button data-amount="12500">12 500 €</button>
+            </div>
+        </div>
+
+        <div class="group">
+            <span>Taille d'écran simulée</span>
+            <div class="states" id="screen-states">
+                <button class="on" data-w="680">💻 Ordinateur</button>
+                <button data-w="480">📱 Tablette</button>
+                <button data-w="340">📱 Téléphone</button>
+            </div>
+        </div>
+
+        <div class="group">
+            <span>Métal</span>
+            <div class="seg" id="metal">
+                <button class="on" data-m="gold">🥇 Doré</button>
+                <button data-m="silver">🥈 Argenté</button>
+            </div>
+        </div>
+
+        <div class="group">
+            <span>Animations (cumulables)</span>
+            <label class="check"><input type="checkbox" data-a="a-spin" checked> Contour qui tourne</label>
+            <label class="check"><input type="checkbox" data-a="a-shine" checked> Reflet qui balaie</label>
+            <label class="check"><input type="checkbox" data-a="a-pulse" checked> Pulsation lumineuse</label>
+            <label class="check"><input type="checkbox" data-a="a-sparks"> Étincelles</label>
+        </div>
+
+        <div class="group">
+            <span>Taille et position</span>
+            <div class="slider"><label>Vitesse</label><input type="range" id="speed" min="0.4" max="3" step="0.1" value="1"><output id="speed-o">1×</output></div>
+            <div class="slider"><label>Taille</label><input type="range" id="scale" min="0.5" max="1.4" step="0.05" value="0.7"><output id="scale-o">70%</output></div>
+            <div class="slider"><label>Cadre</label><input type="range" id="bw" min="2" max="9" step="1" value="2"><output id="bw-o">2px</output></div>
+            <div class="slider"><label>Position ↔</label><input type="range" id="dx" min="-200" max="200" step="2" value="0"><output id="dx-o">0</output></div>
+            <div class="slider"><label>Position ↕</label><input type="range" id="dy" min="-200" max="200" step="2" value="0"><output id="dy-o">0</output></div>
+            <label class="check"><input type="checkbox" id="label-on" checked> Afficher « En jeu »</label>
+        </div>
+
+        <button class="copy" id="copy">📋 Copier mes réglages</button>
+    </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="parrot.js"></script>
+<script>
+const DESCS = {
+    a: "Une plaque posée à gauche du perroquet, au bas de son image, avec un cadre métallique qui tourne et un reflet qui la balaie.",
+    b: "Une bulle juste au-dessus de la tête, comme si le perroquet pensait à l'argent qui est en jeu. Elle suit la tête quand il change de pile.",
+    c: "Un médaillon rond à gauche du perroquet, à mi-hauteur, comme une pièce ou une médaille, avec le montant au centre.",
+    d: "Une plaque vissée (avec ses rivets), centrée sous le perroquet, au bas de son image. Elle suit sa taille, sa pile et sa respiration.",
+};
+
+// Repères du perroquet (repère 512 × 650, déjà dans le bon sens) : centre, bas de l'image et haut de la tête, par niveau
+const LEVELS = {
+    1: { cx: 314, bottom: 560, top: 119 },
+    2: { cx: 256, bottom: 615, top: 73 },
+    3: { cx: 256, bottom: 615, top: 92 },
+    4: { cx: 256, bottom: 615, top: 15 }
+};
+
+const stage = document.getElementById("stage");
+let enjeu = null;
+let variant = "d";
+let currentAmount = 1250;
+let stageWidth = 680;
+let userScale = 0.7;
+let dx = 0, dy = 0;
+
+// Mêmes paliers que le site : taille du perroquet et pile de billets selon l'argent en jeu
+const STEPS = [[0, 350], [299, 375], [300, 375], [799, 410], [800, 410], [1500, 450]];
+function realWidth(amount) {
+    if (amount >= 1500) return 450;
+    for (let i = 1; i < STEPS.length; i++) {
+        const [a0, w0] = STEPS[i - 1], [a1, w1] = STEPS[i];
+        if (amount <= a1) return w0 + (w1 - w0) * (a1 > a0 ? (amount - a0) / (a1 - a0) : 1);
+    }
+    return 350;
+}
+const levelOf = amount => 1 + [1, 300, 800].filter(t => amount >= t).length;
+
+// Position de la plaque dans le repère du perroquet, selon la présentation et la pile
+function place() {
+    if (!enjeu) return;
+    const L = LEVELS[levelOf(currentAmount)];
+    let x, y, tx = "-50%", ty = "-50%";
+    if (variant === "d") { x = L.cx; y = L.bottom - 62; }
+    else if (variant === "a") { x = L.cx - 190; y = L.bottom - 62; }
+    else if (variant === "b") { x = L.cx - 20; y = L.top - 16; ty = "-100%"; }
+    else { x = L.cx - 215; y = (L.top + L.bottom) / 2; }
+    enjeu.style.left = (x + dx) + "px";
+    enjeu.style.top = (y + dy) + "px";
+    enjeu.style.setProperty("--tx", tx);
+    enjeu.style.setProperty("--ty", ty);
+    // 70 % = la taille de référence, proportionnelle au repère du perroquet
+    enjeu.style.setProperty("--cs", (userScale * 288 / 512).toFixed(3));
+}
+
+function layout() {
+    const pw = Math.min(realWidth(currentAmount) * stageWidth / 1000, stageWidth * 0.46);
+    stage.style.setProperty("--pw", pw + "px");
+    stage.style.width = stageWidth + "px";
+    stage.style.height = Math.round(540 * Math.min(1, 0.55 + stageWidth / 680 * 0.45)) + "px";
+}
+
+function applyAmount(amount, first) {
+    currentAmount = Math.max(0, Math.round(amount) || 0);
+    if (enjeu) {
+        enjeu.querySelector(".amount").textContent = currentAmount.toLocaleString("fr-FR") + " €";
+        enjeu.classList.toggle("vide", currentAmount <= 0);
+    }
+    if (typeof Parrot !== "undefined") Parrot.level(levelOf(currentAmount), first);
+    document.querySelectorAll("#amount-states button").forEach(b => b.classList.toggle("on", Number(b.dataset.amount) === currentAmount));
+    layout();
+    place();
+}
+
+function setVariant(v) {
+    variant = v;
+    if (enjeu) {
+        enjeu.className = "enjeu v-" + v + (document.getElementById("label-on").checked ? "" : " nolabel") + (currentAmount <= 0 ? " vide" : "");
+    }
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.v === v));
+    document.getElementById("desc").textContent = DESCS[v];
+    place();
+}
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => setVariant(t.dataset.v));
+document.querySelectorAll("#amount-states button").forEach(b => b.onclick = () => applyAmount(Number(b.dataset.amount)));
+document.querySelectorAll("#screen-states button").forEach(b => b.onclick = () => {
+    stageWidth = Number(b.dataset.w);
+    document.querySelectorAll("#screen-states button").forEach(x => x.classList.toggle("on", x === b));
+    layout();
+});
+
+document.querySelectorAll("#metal button").forEach(b => b.onclick = () => {
+    document.querySelectorAll("#metal button").forEach(x => x.classList.toggle("on", x === b));
+    document.getElementById("metal").classList.toggle("silver", b.dataset.m === "silver");
+    stage.classList.toggle("silver", b.dataset.m === "silver");
+});
+document.querySelectorAll("[data-a]").forEach(c => c.onchange = () => stage.classList.toggle(c.dataset.a, c.checked));
+
+function bind(id, fmt, apply) {
+    const input = document.getElementById(id), out = document.getElementById(id + "-o");
+    const run = () => { out.textContent = fmt(Number(input.value)); apply(Number(input.value)); };
+    input.oninput = run; run();
+}
+bind("speed", v => v.toFixed(1) + "×", v => stage.style.setProperty("--speed", v));
+bind("scale", v => Math.round(v * 100) + "%", v => { userScale = v; place(); });
+bind("bw", v => v + "px", v => stage.style.setProperty("--bw", v + "px"));
+bind("dx", v => v, v => { dx = v; place(); });
+bind("dy", v => v, v => { dy = v; place(); });
+document.getElementById("label-on").onchange = e => enjeu && enjeu.classList.toggle("nolabel", !e.target.checked);
+
+document.getElementById("copy").onclick = () => {
+    const names = { a: "A · Plaque", b: "B · Bulle", c: "C · Médaillon", d: "D · Plaque vissée" };
+    const anims = [...document.querySelectorAll("[data-a]")].filter(c => c.checked).map(c => c.parentElement.textContent.trim());
+    const text = "En jeu près du perroquet : " + names[variant] +
+        " ; métal " + (stage.classList.contains("silver") ? "argenté" : "doré") +
+        " ; animations : " + (anims.join(" + ") || "aucune") +
+        " ; vitesse " + document.getElementById("speed").value + "× ; taille " + Math.round(userScale * 100) + "%" +
+        " ; cadre " + document.getElementById("bw").value + "px ; décalage par rapport au perroquet X " + dx + " Y " + dy +
+        " ; texte « En jeu » " + (document.getElementById("label-on").checked ? "affiché" : "masqué") +
+        " ; posée dans le perroquet (suit sa taille, sa pile et son animation) ; masquée quand il n'y a rien en jeu";
+    navigator.clipboard && navigator.clipboard.writeText(text).catch(() => {});
+    const t = document.getElementById("toast");
+    t.textContent = "Copié → colle-le à Claude : " + text;
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 4500);
+};
+
+// Le perroquet du site se construit au chargement ; la plaque est posée dans sa pose d'attente.
+window.addEventListener("load", () => {
+    const pose = document.querySelector('#parrot [data-pose="waiting"]');
+    enjeu = document.createElement("div");
+    enjeu.id = "enjeu";
+    enjeu.innerHTML = `
+        <div class="frame">
+            <div class="inner">
+                <span class="label">En jeu</span>
+                <span class="amount" id="amount">1 250 €</span>
+            </div>
+        </div>
+        <i class="rivet l"></i><i class="rivet r"></i>
+        <b class="tail"></b>
+        <div class="sparks"><i></i><i></i><i></i><i></i><i></i></div>`;
+    pose.appendChild(enjeu);
+    setVariant("d");
+    applyAmount(1250, true);
+});
+
+layout();
+document.getElementById("desc").textContent = DESCS.d;
+</script>
+</body>
+</html>

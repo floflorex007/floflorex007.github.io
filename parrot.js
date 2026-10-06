@@ -459,6 +459,18 @@ const Parrot = (() => {
                 levelEnter[i] = -10;
             }
 
+            // On écrit tout de suite dans la page : sans ça, une image de départ
+            // (niveau 1) restait affichée jusqu'à la prochaine image de la boucle.
+            if (R && R.levels) {
+
+                R.levels.forEach((el, i) => {
+                    el.style.opacity = levelOpacity[i];
+                    el.style.visibility = levelOpacity[i] < 0.01 ? "hidden" : "visible";
+                    el.style.transform = "scale(1)";
+                });
+
+            }
+
             return;
 
         }

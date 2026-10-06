@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>Aperçu – Choix et cotes</title>
+<link rel="stylesheet" href="style.css">
+<style>
+/* ----- Choix et cotes : même présentation que les choix des cartes ----- */
+.duel {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+/* Identique à .bet-choice-button : nom du choix au-dessus, cote en dessous, centrés. */
+.duel-side {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 20px 12px;
+    border-radius: 12px;
+    background: #222631;
+    border: 1px solid #303544;
+    text-align: center;
+    transition: border-color 0.2s;
+}
+
+.duel-side:hover,
+.duel-side:focus-within {
+    border-color: #6c63ff;
+}
+
+.create-card .duel-side input {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    font-family: inherit;
+    text-align: center;
+}
+
+/* Nom du choix : comme le texte au-dessus de la cote sur une carte (12 px, gris, semi-gras) */
+.create-card .duel-side input.duel-name {
+    font-size: 17px;
+    font-weight: 600;
+    color: #a7abb8;
+}
+
+/* Cote : comme le chiffre d'une carte (18 px, violet, gras) */
+.create-card .duel-side input.duel-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #6c63ff;
+    -moz-appearance: textfield;
+}
+
+.create-card .duel-side input.duel-value::-webkit-outer-spin-button,
+.create-card .duel-side input.duel-value::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.create-card .duel-side input::placeholder {
+    color: #565a69;
+    font-weight: 600;
+}
+
+.create-card .duel-side input:focus {
+    outline: none;
+}
+
+.create-card .duel-side input[readonly] {
+    cursor: default;
+}
+
+/* Petite pastille « auto » dans le coin de la case de droite */
+.duel-value-row {
+    position: relative;
+    width: 100%;
+}
+
+.duel-auto {
+    position: absolute;
+    top: 50%;
+    right: 2px;
+    transform: translateY(-50%);
+    font-style: normal;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 999px;
+    color: #a59fff;
+    background: rgba(108, 99, 255, 0.16);
+}
+
+/* Pastille « VS » posée à cheval sur les deux cases. */
+.duel-vs {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: 2;
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: #6c63ff;
+    border: 3px solid #181b24;
+    color: white;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+@media (max-width: 560px) {
+    .duel { grid-template-columns: 1fr; }
+}
+
+body { padding: 0; }
+.apercu-note { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 400; background: #6c63ff; color: white; padding: 8px 16px; border-radius: 999px; font-size: 13px; font-weight: 700; box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+</style>
+</head>
+<body>
+
+<div class="apercu-note">Aperçu : tape une cote dans le choix 1, la cote du choix 2 se calcule toute seule</div>
+
+        <div
+            id="create-modal"
+            class="modal"
+        >
+
+            <div class="modal-content create-modal-content">
+
+                <button
+                    type="button"
+                    id="close-create-modal"
+                    class="close-modal"
+                >
+                    ×
+                </button>
+
+
+                <h2>
+                    Créer un pari
+                </h2>
+
+                <p class="create-modal-intro">
+                    Propose ton propre sujet à la communauté.
+                </p>
+
+
+            <div class="create-card create-card--sections">
+
+                <form id="create-bet-form">
+
+
+                    <!-- Question -->
+
+                    <div class="create-section">
+
+                        <div class="create-section-icon">🎲</div>
+
+                        <div class="create-section-body">
+
+                            <label for="bet-question">
+                                Question
+                            </label>
+
+                            <input
+                                type="text"
+                                id="bet-question"
+                                placeholder="Ex : Est-ce que Thomas arrivera en retard demain ?"
+                                required
+                            >
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- Choix et cotes -->
+
+                    <div class="create-section">
+
+                        <div class="create-section-icon">⚖️</div>
+
+                        <div class="create-section-body">
+
+                            <label for="choice-one">
+                                Choix et cotes
+                            </label>
+
+                            <div class="duel">
+
+                                <div class="duel-side">
+
+                                    <input
+                                        type="text"
+                                        id="choice-one"
+                                        class="duel-name"
+                                        placeholder="Choix 1 : Oui"
+                                        required
+                                    >
+
+                                    <input
+                                        type="number"
+                                        id="odds-one"
+                                        class="duel-value"
+                                        min="1.01"
+                                        step="any"
+                                        placeholder="1.80"
+                                        required
+                                    >
+
+                                </div>
+
+
+                                <div class="duel-vs">VS</div>
+
+
+                                <div class="duel-side">
+
+                                    <input
+                                        type="text"
+                                        id="choice-two"
+                                        class="duel-name"
+                                        placeholder="Choix 2 : Non"
+                                        required
+                                    >
+
+                                    <div class="duel-value-row">
+
+                                        <input
+                                            type="number"
+                                            id="odds-two"
+                                            class="duel-value"
+                                            min="1.01"
+                                            step="0.01"
+                                            placeholder="auto"
+                                            readonly
+                                            required
+                                        >
+
+                                        <em class="duel-auto">auto</em>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                            <p class="create-hint">
+                                La cote du choix 2 se calcule toute seule.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- Échéance -->
+
+                    <div class="create-section">
+
+                        <div class="create-section-icon">⏳</div>
+
+                        <div class="create-section-body">
+
+                            <label>
+                                Échéance
+                            </label>
+
+                            <div
+                                id="deadline-days"
+                                class="deadline-days"
+                            ></div>
+
+                            <div class="deadline-time-row">
+
+                                <span
+                                    id="deadline-time"
+                                    class="deadline-time"
+                                >
+                                    20:00
+                                </span>
+
+                                <input
+                                    type="range"
+                                    id="deadline-range"
+                                    min="0"
+                                    max="95"
+                                    value="80"
+                                    aria-label="Heure de fin du pari"
+                                >
+
+                            </div>
+
+                            <div
+                                id="deadline-result"
+                                class="deadline-result empty"
+                            >
+                                Choisis le jour de fin du pari
+                            </div>
+
+                            <p
+                                id="deadline-error"
+                                class="create-error hidden"
+                            ></p>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- Parieur concerné -->
+
+                    <div class="create-section">
+
+                        <div class="create-section-icon">🎯</div>
+
+                        <div class="create-section-body">
+
+                            <label>
+                                Parieur concerné
+                            </label>
+
+                            <label class="switch-row">
+
+                                <input
+                                    type="checkbox"
+                                    id="bet-has-target"
+                                >
+
+                                <span class="switch-track"></span>
+
+                                Ce pari concerne un autre parieur
+
+                            </label>
+
+                            <div
+                                id="bet-target-options"
+                                class="hidden"
+                            >
+
+                                <select id="bet-target-user">
+
+                                    <option value="">
+                                        Choisis un parieur
+                                    </option>
+
+                                </select>
+
+                                <label class="switch-row">
+
+                                    <input
+                                        type="checkbox"
+                                        id="bet-target-blocked"
+                                        checked
+                                    >
+
+                                    <span class="switch-track"></span>
+
+                                    Bloquer cette personne : elle ne pourra pas parier
+
+                                </label>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="create-footer">
+
+                        <button
+                            type="submit"
+                            class="primary-button large-button"
+                        >
+                            Créer le pari
+                        </button>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+            </div>
+
+        </div>
+
+
+
+        
+
+<script>
+// Cote complémentaire (même formule que le site)
+function calculerCoteComplementaire(cote) {
+    return !cote || cote <= 1 ? 0 : Math.round(cote / (cote - 1) * 100) / 100;
+}
+
+// Sélecteur d'échéance : le code du site, tel quel
+const DEFAULT_DEADLINE_STEP = 80; // 80 × 15 min = 20h00
+
+function getSelectedDeadline() {
+
+    if (deadlineDayOffset === null) {
+        return null;
+    }
+
+    const minutes =
+        Number(document.getElementById("deadline-range").value) * 15;
+
+    const date = new Date();
+
+    date.setDate(date.getDate() + deadlineDayOffset);
+
+    date.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
+
+    return date;
+
+}
+
+
+function updateDeadlinePreview() {
+
+    const range =
+        document.getElementById("deadline-range");
+
+    const minutes = Number(range.value) * 15;
+
+    document.getElementById("deadline-time").textContent =
+        String(Math.floor(minutes / 60)).padStart(2, "0") + ":" +
+        String(minutes % 60).padStart(2, "0");
+
+
+    const result =
+        document.getElementById("deadline-result");
+
+    const deadline =
+        getSelectedDeadline();
+
+    if (!deadline) {
+        result.className = "deadline-result empty";
+        result.textContent = "Choisis le jour de fin du pari";
+        return;
+    }
+
+    const dayLabel =
+        deadlineDayOffset === 0 ? "Aujourd'hui"
+        : deadlineDayOffset === 1 ? "Demain"
+        : deadline.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+
+    const label =
+        dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1) +
+        " à " + document.getElementById("deadline-time").textContent.replace(":", "h");
+
+    if (deadline <= new Date()) {
+        result.className = "deadline-result empty";
+        result.textContent = "⚠️ " + label + " : c'est déjà passé";
+        return;
+    }
+
+    result.className = "deadline-result";
+    result.textContent = "✅ Se ferme : " + label;
+
+}
+
+
+function setupDeadlinePicker() {
+
+    const daysContainer =
+        document.getElementById("deadline-days");
+
+    if (!daysContainer) {
+        return;
+    }
+
+
+    for (let i = 0; i < 7; i++) {
+
+        const date = new Date();
+
+        date.setDate(date.getDate() + i);
+
+        const dayButton =
+            document.createElement("button");
+
+        dayButton.type = "button";
+
+        dayButton.className = "deadline-day";
+
+        dayButton.dataset.offset = i;
+
+        dayButton.innerHTML = `
+            <small>${i === 0 ? "auj." : i === 1 ? "dem." : date.toLocaleDateString("fr-FR", { weekday: "short" })}</small>
+            <b>${date.getDate()}</b>
+        `;
+
+        dayButton.addEventListener("click", () => {
+
+            deadlineDayOffset = i;
+
+            daysContainer
+                .querySelectorAll(".deadline-day")
+                .forEach(button => button.classList.toggle("active", button === dayButton));
+
+            document.getElementById("deadline-error").classList.add("hidden");
+
+            updateDeadlinePreview();
+
+        });
+
+        daysContainer.appendChild(dayButton);
+
+    }
+
+
+    document
+        .getElementById("deadline-range")
+        .addEventListener("input", updateDeadlinePreview);
+
+    resetDeadlinePicker();
+
+}
+
+
+function resetDeadlinePicker() {
+
+    deadlineDayOffset = null;
+
+    document
+        .querySelectorAll(".deadline-day")
+        .forEach(button => button.classList.remove("active"));
+
+    document.getElementById("deadline-range").value =
+        DEFAULT_DEADLINE_STEP;
+
+    updateDeadlinePreview();
+
+}
+
+
+
+
+
+setupDeadlinePicker();
+
+const one = document.getElementById("odds-one");
+const two = document.getElementById("odds-two");
+
+one.addEventListener("input", () => {
+    const c = calculerCoteComplementaire(Number(one.value));
+    two.value = c ? c.toFixed(2) : "";
+});
+
+// « Parieur concerné » : affiche les options quand on coche
+const hasTarget = document.getElementById("bet-has-target");
+hasTarget.addEventListener("change", () => {
+    document.getElementById("bet-target-options").classList.toggle("hidden", !hasTarget.checked);
+});
+
+// Les boutons n'ont aucun effet dans l'aperçu
+document.getElementById("create-bet-form").addEventListener("submit", e => e.preventDefault());
+</script>
+</body>
+</html>

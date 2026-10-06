@@ -1496,7 +1496,7 @@ input {
 }
 
 .chest-card.opening .chest-icon {
-    animation: chest-shake 0.8s;
+    animation: chest-shake 1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 .chest-card.chest-leaving {
@@ -1516,8 +1516,13 @@ input {
 }
 
 @keyframes chest-shake {
-    10%, 30%, 50%, 70% { transform: rotate(-12deg) scale(1.1); }
-    20%, 40%, 60%, 80% { transform: rotate(12deg) scale(1.1); }
+    0% { transform: rotate(0) scale(1); }
+    14% { transform: rotate(-10deg) scale(1.12); }
+    30% { transform: rotate(9deg) scale(1.16); }
+    46% { transform: rotate(-7deg) scale(1.2); }
+    62% { transform: rotate(5deg) scale(1.22); }
+    78% { transform: rotate(-3deg) scale(1.2); }
+    100% { transform: rotate(0) scale(1.24); }
 }
 
 .chest-loot {
@@ -2767,7 +2772,7 @@ input {
 }
 
 .shop-preview-content {
-    max-width: 460px;
+    max-width: 620px;
 }
 
 .shop-preview-stage {
@@ -3117,11 +3122,11 @@ input {
 }
 
 .claim-card--done-win {
-    animation: claim-win 1.2s ease-in forwards;
+    animation: claim-win 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 .claim-card--done-lose {
-    animation: claim-lose 0.7s ease-in forwards;
+    animation: claim-lose 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 @keyframes claim-win {
@@ -3135,14 +3140,6 @@ input {
     100% { transform: none; opacity: 0; filter: grayscale(1); }
 }
 
-/* Argent en jeu, sous le solde */
-.balance .in-play {
-    display: block;
-    margin-top: 1px;
-    font-size: 10px;
-    color: #f5c451;
-    white-space: nowrap;
-}
 
 
 /* =========================================================
@@ -3152,7 +3149,7 @@ input {
 .parrot {
     position: fixed;
     right: clamp(8px, 7vw, 100px);
-    bottom: -50px;
+    bottom: -42px;
     width: min(450px, 42vw);
     aspect-ratio: 512 / 650;
     transition: width 2.5s ease-in-out;
@@ -4602,4 +4599,386 @@ body.no-group #parrot {
 /* Le coffre garde sa lueur en continu une fois arrivé. */
 .chest-card.cascade-in {
     animation: cascade-in 0.45s ease-out backwards, chest-glow 2s ease-in-out infinite;
+}
+
+/* Ouverture du coffre : la lueur monte pendant que le coffre tremble. */
+.chest-card.opening,
+.chest-card.cascade-in.opening {
+    border-color: #f5c451;
+    animation: chest-open-glow 1s ease-in forwards;
+}
+
+@keyframes chest-open-glow {
+    0% { box-shadow: 0 0 0 rgba(245, 196, 81, 0); transform: scale(1); }
+    100% { box-shadow: 0 0 46px rgba(245, 196, 81, 0.65); transform: scale(1.025); }
+}
+
+/* L'icône éclot à l'ouverture. */
+.chest-icon.chest-pop {
+    animation: chest-pop 0.65s cubic-bezier(0.2, 1.5, 0.4, 1);
+}
+
+@keyframes chest-pop {
+    0% { transform: scale(0.4) rotate(-14deg); opacity: 0.4; }
+    55% { transform: scale(1.35) rotate(6deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0); }
+}
+
+
+/* ----- Choix et cotes : même présentation que les choix des cartes ----- */
+.duel {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+/* Identique à .bet-choice-button : nom du choix au-dessus, cote en dessous, centrés. */
+.duel-side {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 20px 12px;
+    border-radius: 12px;
+    background: #222631;
+    border: 1px solid #303544;
+    text-align: center;
+    transition: border-color 0.2s;
+}
+
+.duel-side:hover,
+.duel-side:focus-within {
+    border-color: #6c63ff;
+}
+
+.create-card .duel-side input {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    font-family: inherit;
+    text-align: center;
+}
+
+/* Nom du choix : comme le texte au-dessus de la cote sur une carte (12 px, gris, semi-gras) */
+.create-card .duel-side input.duel-name {
+    font-size: 17px;
+    font-weight: 600;
+    color: #a7abb8;
+}
+
+/* Cote : comme le chiffre d'une carte (18 px, violet, gras) */
+.create-card .duel-side input.duel-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #6c63ff;
+    -moz-appearance: textfield;
+}
+
+.create-card .duel-side input.duel-value::-webkit-outer-spin-button,
+.create-card .duel-side input.duel-value::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.create-card .duel-side input::placeholder {
+    color: #565a69;
+    font-weight: 600;
+}
+
+.create-card .duel-side input:focus {
+    outline: none;
+}
+
+.create-card .duel-side input[readonly] {
+    cursor: default;
+}
+
+/* Petite pastille « auto » dans le coin de la case de droite */
+.duel-value-row {
+    position: relative;
+    width: 100%;
+}
+
+.duel-auto {
+    position: absolute;
+    top: 50%;
+    right: 2px;
+    transform: translateY(-50%);
+    font-style: normal;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 999px;
+    color: #a59fff;
+    background: rgba(108, 99, 255, 0.16);
+}
+
+/* Pastille « VS » posée à cheval sur les deux cases. */
+.duel-vs {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: 2;
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: #6c63ff;
+    border: 3px solid #181b24;
+    color: white;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+@media (max-width: 560px) {
+    .duel { grid-template-columns: 1fr; }
+}
+
+/* ----- Cartes « pari gagné » / « pari perdu » à récupérer : elles pulsent ----- */
+.claim-card--win:not(.claiming):not(.claim-card--done-win) {
+    animation: claim-pulse-win 1.8s ease-in-out infinite;
+}
+
+.claim-card--lose:not(.claiming):not(.claim-card--done-lose) {
+    animation: claim-pulse-lose 1.8s ease-in-out infinite;
+}
+
+/* Au chargement de la page, l'arrivée en cascade passe d'abord, puis la pulsation. */
+.claim-card--win.cascade-in:not(.claiming):not(.claim-card--done-win) {
+    animation: cascade-in 0.45s ease-out backwards, claim-pulse-win 1.8s ease-in-out 0.45s infinite;
+}
+
+.claim-card--lose.cascade-in:not(.claiming):not(.claim-card--done-lose) {
+    animation: cascade-in 0.45s ease-out backwards, claim-pulse-lose 1.8s ease-in-out 0.45s infinite;
+}
+
+@keyframes claim-pulse-win {
+    0%, 100% {
+        border-color: #63d69f;
+        box-shadow: 0 0 18px rgba(99, 214, 159, 0.18);
+    }
+    50% {
+        border-color: #8ff0c0;
+        box-shadow: 0 0 42px 4px rgba(99, 214, 159, 0.5);
+    }
+}
+
+@keyframes claim-pulse-lose {
+    0%, 100% {
+        border-color: rgba(255, 107, 107, 0.4);
+        box-shadow: 0 0 10px rgba(255, 107, 107, 0.08);
+    }
+    50% {
+        border-color: rgba(255, 107, 107, 0.85);
+        box-shadow: 0 0 32px 2px rgba(255, 107, 107, 0.32);
+    }
+}
+
+
+/* =========================================================
+   CADRE « EN JEU » SUR LE PERROQUET
+   Cadre doré animé posé dans le repère du perroquet (512 × 650) :
+   il suit sa taille, sa pile de billets et sa respiration.
+========================================================= */
+
+@property --enjeu-ang {
+    syntax: "<angle>";
+    inherits: false;
+    initial-value: 0deg;
+}
+
+.enjeu-cadre {
+    --m1: #fff3b0;
+    --m2: #f5c451;
+    --m3: #b8860b;
+    --bw: 2px;
+    --r: 10px;
+    position: absolute;
+    z-index: 20;
+    left: 246px;
+    top: 426px;
+    transform: translate(-50%, -50%) scale(1.34);
+    transform-origin: 50% 50%;
+    white-space: nowrap;
+    pointer-events: none;
+    transition: left 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Halo doré : un calque dont seule l'opacité pulse (pas de filtre à redessiner,
+   ce qui faisait scintiller le perroquet en dessous). */
+.enjeu-cadre::before {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    border-radius: 14px;
+    box-shadow: 0 0 22px 6px rgba(245, 196, 81, 0.55);
+    opacity: 0.45;
+    animation: enjeu-pulse 2.4s ease-in-out infinite;
+    pointer-events: none;
+}
+
+/* Tant que la page se charge, le cadre reste caché avec le perroquet. */
+body.app-loading .enjeu-cadre {
+    visibility: hidden;
+}
+
+.enjeu-cadre.vide {
+    display: none;
+}
+
+.enjeu-fl {
+    animation: enjeu-float 3s ease-in-out infinite;
+}
+
+.enjeu-frame {
+    position: relative;
+    padding: var(--bw);
+    border-radius: var(--r);
+    background: conic-gradient(from var(--enjeu-ang), var(--m1), var(--m2), var(--m3), var(--m2), var(--m1), var(--m2), var(--m3), var(--m2), var(--m1));
+    animation: enjeu-spin 4s linear infinite;
+}
+
+.enjeu-inner {
+    position: relative;
+    overflow: hidden;
+    min-width: 120px;
+    padding: 8px 22px;
+    text-align: center;
+    border-radius: calc(var(--r) - var(--bw));
+    background: linear-gradient(180deg, #1a1d27 0%, #0f1117 100%);
+}
+
+.enjeu-inner::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.5) 50%, transparent 62%);
+    background-size: 260% 100%;
+    background-position: 140% 0;
+    animation: enjeu-shine 3.2s ease-in-out infinite;
+    pointer-events: none;
+}
+
+.enjeu-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--m2);
+    opacity: 0.9;
+}
+
+.enjeu-amount {
+    display: block;
+    font-size: 24px;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    background: linear-gradient(180deg, var(--m1), var(--m2) 55%, var(--m3));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+@keyframes enjeu-spin {
+    to { --enjeu-ang: 360deg; }
+}
+
+@keyframes enjeu-shine {
+    0% { background-position: 140% 0; }
+    55%, 100% { background-position: -60% 0; }
+}
+
+@keyframes enjeu-pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+}
+
+@keyframes enjeu-float {
+    0%, 100% { translate: 0 2px; }
+    50% { translate: 0 -2px; }
+}
+
+/* Carte de mission : le contour doré s'éteint en douceur quand on récupère. */
+.mission-card {
+    transition: transform 0.15s ease-out, border-color 0.6s ease, box-shadow 0.6s ease;
+}
+
+/* Classement : le pseudo (avec titre, emoji, effets) ne passe plus sous le solde. */
+.leaderboard-sidebar {
+    width: 320px;
+}
+
+.leaderboard-pseudo.has-effect {
+    overflow: clip;
+    overflow-clip-margin: 6px;
+    text-overflow: ellipsis;
+}
+
+.leaderboard-balance {
+    margin-left: 6px;
+}
+
+/* Aperçu de la boutique : la place suffit, les effets ne sont pas coupés. */
+.shop-preview-board .leaderboard-pseudo.has-effect {
+    overflow: visible;
+}
+
+
+/* Le créateur peut valider son pari même quand les mises sont closes : la carte n'est pas grisée. */
+.bet-card.validating.bet-card-locked {
+    filter: none;
+    opacity: 1;
+}
+
+.bet-card.bet-card-locked .bet-new-badge {
+    background: #4a4f5e;
+}
+
+/* Carte grisée du créateur : la pastille verte « Valider » garde ses couleurs. */
+.bet-card.bet-card-locked:has(.validate-fab) {
+    filter: none;
+    opacity: 1;
+}
+
+.bet-card.bet-card-locked:has(.validate-fab) > *:not(.validate-fab) {
+    filter: grayscale(0.6);
+    opacity: 0.75;
+}
+
+/* Mode validation sur une carte grisée : couleurs d'une carte normale. */
+.bet-card.validating.bet-card-locked:has(.validate-fab) > *:not(.validate-fab) {
+    filter: none;
+    opacity: 1;
+}
+
+.bet-card.validating.bet-card-locked .bet-choice-button {
+    opacity: 1;
+    filter: none;
+    cursor: pointer;
+}
+
+.bet-card.validating.bet-card-locked .bet-new-badge {
+    background: #ff3b3b;
+}
+
+.bet-card.validating.bet-card-locked,
+.bet-card.bet-card-new.validating.bet-card-locked,
+.bet-card.validating.bet-card-locked:hover,
+.bet-card.bet-card-new.validating.bet-card-locked:hover {
+    border-color: #63d69f;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.bet-card.validating.bet-card-locked {
+    background: linear-gradient(180deg, #1c202c 0%, #14161e 100%);
 }
