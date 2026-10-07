@@ -1622,6 +1622,120 @@ input {
 }
 
 
+/*
+    Paris courts (choix dans demo-halo-urgence.html) : bordure lumineuse qui tourne.
+    - Short (fermé 15 min avant) : orange-rouge, un tour en 2,8 s, fond teinté ;
+    - Hyper short (fermé 5 min avant) : rose-rouge, un tour en 1,2 s, fond teinté,
+      étiquette qui pulse et petit tremblement toutes les 3 s.
+    La bordure utilise ::after et le fond teinté ::before, les calques du halo vert
+    de validation : ils sont rendus à la validation (:not(.validating)).
+*/
+
+@property --urgent-angle {
+    syntax: "<angle>";
+    inherits: false;
+    initial-value: 0deg;
+}
+
+.bet-card.bet-card-short:not(.validating),
+.bet-card.bet-card-short:not(.validating):hover,
+.bet-card.bet-card-hyper:not(.validating),
+.bet-card.bet-card-hyper:not(.validating):hover {
+    border-color: transparent;
+    animation: none;
+}
+
+.bet-card.bet-card-short:not(.validating),
+.bet-card.bet-card-short:not(.validating):hover {
+    --urgent-color: #ff5a36;
+    box-shadow: 0 0 19px rgba(255, 90, 54, 0.26);
+}
+
+.bet-card.bet-card-hyper:not(.validating),
+.bet-card.bet-card-hyper:not(.validating):hover {
+    --urgent-color: #ff2d55;
+    box-shadow: 0 0 22px rgba(255, 45, 85, 0.3);
+    animation: urgent-shake 3s linear infinite;
+}
+
+.bet-card.bet-card-short.cascade-in:not(.validating) {
+    animation: cascade-in 0.45s ease-out backwards;
+}
+
+.bet-card.bet-card-hyper.cascade-in:not(.validating) {
+    animation: cascade-in 0.45s ease-out backwards, urgent-shake 3s 0.45s linear infinite;
+}
+
+.bet-card.bet-card-short:not(.validating)::after,
+.bet-card.bet-card-hyper:not(.validating)::after {
+    inset: -1px;
+    padding: 2px;
+    box-shadow: none;
+    opacity: 1;
+    background: conic-gradient(
+        from var(--urgent-angle),
+        var(--urgent-color),
+        transparent 25%,
+        transparent 45%,
+        var(--urgent-color) 60%,
+        transparent 80%,
+        var(--urgent-color)
+    );
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+    animation: urgent-spin 2.8s linear infinite;
+}
+
+.bet-card.bet-card-hyper:not(.validating)::after {
+    animation-duration: 1.2s;
+}
+
+.bet-card.bet-card-short:not(.validating)::before,
+.bet-card.bet-card-hyper:not(.validating)::before {
+    opacity: 1;
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--urgent-color) 16%, transparent) 0%,
+        transparent 100%
+    );
+}
+
+/* L'étiquette passe devant la bordure qui tourne (::after). */
+.bet-card.bet-card-short .bet-new-badge,
+.bet-card.bet-card-hyper .bet-new-badge {
+    z-index: 1;
+    background: var(--urgent-color, #ff3b3b);
+}
+
+.bet-card.bet-card-short .bet-deadline,
+.bet-card.bet-card-hyper .bet-deadline {
+    color: var(--urgent-color, #ff6b6b);
+}
+
+.bet-card.bet-card-hyper .bet-new-badge {
+    animation: urgent-badge 1.2s ease-in-out infinite;
+}
+
+@keyframes urgent-spin {
+    to { --urgent-angle: 360deg; }
+}
+
+@keyframes urgent-badge {
+    50% { scale: 1.18; box-shadow: 0 0 12px #ff2d55; }
+}
+
+/* translate / rotate séparés : l'inclinaison au survol (transform) reste intacte. */
+@keyframes urgent-shake {
+    0%, 86%, 100% { translate: 0 0; rotate: 0deg; }
+    88% { translate: -3px 0; rotate: -0.4deg; }
+    90% { translate: 3px 0; rotate: 0.4deg; }
+    92% { translate: -3px 0; rotate: -0.3deg; }
+    94% { translate: 2px 0; rotate: 0.2deg; }
+    96% { translate: -1px 0; rotate: 0deg; }
+}
+
+
 /* Cartes en cascade */
 .cascade-in {
     animation: cascade-in 0.45s ease-out backwards;
@@ -1643,43 +1757,74 @@ input {
 }
 
 
-/* Fil d'activité en direct */
+/* Fil d'activité en direct (la plus récente en bas, les autres au-dessus) */
 .activity-feed {
     position: fixed;
     left: 16px;
     bottom: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    max-width: min(340px, calc(100vw - 32px));
+    width: min(440px, calc(100vw - 32px));
+    height: 0;
     z-index: 2000;
     pointer-events: none;
 }
 
+.activity-slot {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    pointer-events: auto;
+    transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
 .activity-toast {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    overflow: hidden;
+    cursor: pointer;
     background: #1c202c;
     border: 1px solid #2c3040;
-    border-left: 3px solid #6c63ff;
+    border-left: 3px solid var(--toast-color, #6c63ff);
     border-radius: 10px;
     padding: 10px 12px;
     font-size: 13px;
     color: #aaaeba;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
-    animation: toast-in 0.4s ease-out;
-    transition: opacity 0.4s, transform 0.4s;
 }
 
 .activity-toast strong {
     color: white;
 }
 
-.activity-toast.leaving {
-    opacity: 0;
-    transform: translateX(-30px);
+.activity-toast-icon {
+    flex-shrink: 0;
+    font-size: 1.15em;
 }
 
-@keyframes toast-in {
-    from { opacity: 0; transform: translateX(-120%); }
+.activity-toast-text {
+    flex: 1;
+    min-width: 0;
+    line-height: 1.35;
+}
+
+.activity-toast-time {
+    display: block;
+    font-size: 0.8em;
+    color: #737887;
+    margin-top: 2px;
+}
+
+.activity-toast-bar {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 3px;
+    background: var(--toast-color, #6c63ff);
+    transform-origin: left;
+    opacity: 0.8;
 }
 
 
@@ -2473,6 +2618,10 @@ input {
     cursor: pointer;
     font: inherit;
     font-size: 13px;
+}
+
+.shop-filters {
+    margin-bottom: 18px;
 }
 
 .my-bets-filter span {

@@ -2708,16 +2708,56 @@ function isBlockedTarget(bet) {
 
 
 /*
-    Échéance d'un pari :
-    - les mises ferment 1 h avant la date d'échéance (la carte se grise) ;
-    - la carte devient rouge 2 h avant (c'est la dernière heure pour miser).
+    Échéance d'un pari : les mises ferment avant la date d'échéance
+    (la carte se grise), selon la durée totale du pari (création → échéance) :
+    - plus de 1 h 30 : 1 h avant ;
+    - de 30 min à 1 h 30 : 15 min avant (ex. publié à 8 h pour 9 h → fermé à 8 h 45) ;
+    - 30 min ou moins (pari express) : 5 min avant.
+    Carte rouge : 2 h avant l'échéance pour un pari classique (« Last Chance ») ;
+    dès la publication pour un pari Short ou Hyper short.
+    Même règle côté base : bet_close_interval() dans cloture-courte.sql.
 */
 
-const BET_CLOSE_MS = 3600 * 1000;
+function betCloseMs(createdAt, deadlineAt) {
 
-const BET_URGENT_MS = 7200 * 1000;
+    const duration =
+        createdAt && deadlineAt
+            ? new Date(deadlineAt) - new Date(createdAt)
+            : Infinity;
 
-// Étiquette en haut de la carte : « Trop tard » (mises closes), « Last Chance » (dernières heures) ou « Aujourd'hui ».
+    if (duration > 90 * 60000) return 60 * 60000;
+
+    if (duration > 30 * 60000) return 15 * 60000;
+
+    return 5 * 60000;
+
+}
+
+// Temps avant l'échéance à partir duquel la carte devient rouge.
+function betUrgentMs(closeMs) {
+
+    return closeMs < 60 * 60000 ? Infinity : 2 * closeMs;
+
+}
+
+
+/*
+    Apparence de la carte rouge selon le type de pari (voir demo-halo-urgence.html) :
+    Last Chance (fermé 1 h avant), Short (15 min avant) ou Hyper short (5 min avant).
+*/
+
+function betUrgencyStyle(closeMs) {
+
+    if (closeMs <= 5 * 60000) return { label: "HYPER SHORT", className: "bet-card-hyper" };
+
+    if (closeMs <= 15 * 60000) return { label: "SHORT", className: "bet-card-short" };
+
+    return { label: "LAST CHANCE", className: "" };
+
+}
+
+
+// Étiquette en haut de la carte : « Trop tard » (mises closes), « Last Chance » / « Short » / « Hyper short » (carte rouge) ou « New » (créé aujourd'hui).
 function betBadgeLabel(bet) {
 
     if (isBetClosed(bet)) {
@@ -2726,13 +2766,16 @@ function betBadgeLabel(bet) {
 
     }
 
-    if (bet.deadline_at && new Date(bet.deadline_at) - Date.now() <= BET_URGENT_MS) {
+    const closeMs =
+        betCloseMs(bet.created_at, bet.deadline_at);
 
-        return "LAST CHANCE";
+    if (bet.deadline_at && new Date(bet.deadline_at) - Date.now() <= betUrgentMs(closeMs)) {
+
+        return betUrgencyStyle(closeMs).label;
 
     }
 
-    return isCreatedToday(bet.created_at) ? "AUJOURD'HUI" : "";
+    return isCreatedToday(bet.created_at) ? "NEW" : "";
 
 }
 
@@ -2741,7 +2784,7 @@ function isBetClosed(bet) {
 
     return Boolean(
         bet.deadline_at &&
-        new Date(bet.deadline_at) - Date.now() <= BET_CLOSE_MS
+        new Date(bet.deadline_at) - Date.now() <= betCloseMs(bet.created_at, bet.deadline_at)
     );
 
 }
@@ -3347,7 +3390,7 @@ function computeBetsSignature(bets) {
     pendant qu'un reflet la traverse, et les autres cartes descendent
     en douceur pour lui faire de la place.
     Le dévoilement dépasse un peu de la carte (marges négatives) pour ne
-    pas couper la pastille « AUJOURD'HUI » ni la lueur autour de la carte.
+    pas couper la pastille « NEW » ni la lueur autour de la carte.
 */
 
 const LIVE_SPEED = 2;
@@ -3693,6 +3736,10 @@ async function displayBets({ quiet = false, force = false } = {}) {
                     card.dataset.deadline =
                         bet.deadline_at;
 
+                    // Sert à calculer la fermeture des mises (1 h, 15 min ou 5 min avant).
+                    card.dataset.created =
+                        bet.created_at;
+
                 }
 
 
@@ -3959,7 +4006,7 @@ async function displayBets({ quiet = false, force = false } = {}) {
 
                             const deadline = card.dataset.deadline;
 
-                            const closed = (deadline && new Date(deadline) - Date.now() <= BET_CLOSE_MS) ||
+                            const closed = (deadline && new Date(deadline) - Date.now() <= betCloseMs(card.dataset.created, deadline)) ||
                                 card.classList.contains("bet-card-locked");
 
                             card.querySelectorAll(".bet-choice-validate").forEach(choiceButton => {
@@ -4326,7 +4373,7 @@ async function placeBet() {
     if (currentBet && isBetClosed(currentBet)) {
 
         errorElement.textContent =
-            "Les mises sont closes (dernière heure avant l'échéance).";
+            "Les mises sont closes (échéance trop proche).";
 
         return;
 
@@ -6366,7 +6413,7 @@ const MISSIONS = [
     {
         id: "last_chance",
         title: "Last Chance",
-        description: "Miser pendant que la carte est rouge (dernière heure pour miser), et gagner le pari.",
+        description: "Miser pendant que la carte est rouge (juste avant la fermeture des mises), et gagner le pari.",
         points: 27,
         period: "Chaque semaine",
         group: "weekly"
@@ -6504,31 +6551,37 @@ const SHOP_CATEGORIES = [
     {
         icon: "✨",
         title: "Additionnels au pseudo",
+        kind: "cosmetic",
         items: ["emoji", "titre", "etincelles"]
     },
     {
         icon: "🎨",
         title: "Couleurs et animations du pseudo",
+        kind: "cosmetic",
         items: ["neon", "metal_rose", "metal_bronze", "metal_argent", "metal_or", "couleur"]
     },
     {
         icon: "🖼️",
         title: "Cadres",
+        kind: "cosmetic",
         items: ["cadre", "aura"]
     },
     {
         icon: "🃏",
         title: "Thèmes de cartes",
+        kind: "cosmetic",
         items: ["theme"]
     },
     {
         icon: "🦜",
         title: "Perroquet",
+        kind: "utile",
         items: ["clic_perroquet"]
     },
     {
         icon: "🔥",
         title: "Série",
+        kind: "utile",
         items: ["bouclier", "rattrapage"]
     }
 ];
@@ -6536,6 +6589,9 @@ const SHOP_CATEGORIES = [
 
 // Option choisie dans la boutique pour chaque cosmétique (avant achat).
 const shopSelections = {};
+
+// Filtre actif de la boutique : all, cosmetic ou utile.
+let shopFilter = "all";
 
 
 function cosmeticOptionLabel(option) {
@@ -7008,9 +7064,36 @@ function displayShop() {
 
     });
 
-    container.innerHTML = SHOP_CATEGORIES.map(category => `
+    const shopCountOf = kind =>
+        SHOP_CATEGORIES
+            .filter(category => kind === "all" || category.kind === kind)
+            .reduce((total, category) => total + category.items.length, 0);
 
-        <section class="shop-category">
+    container.innerHTML = `
+
+        <div class="my-bets-filters shop-filters">
+
+            ${[
+                ["all", "Tous"],
+                ["cosmetic", "Cosmétiques"],
+                ["utile", "Objets utiles"]
+            ].map(([key, label]) => `
+                <button
+                    class="my-bets-filter${shopFilter === key ? " active" : ""}"
+                    data-filter="${key}"
+                >
+                    ${label}<span>${shopCountOf(key)}</span>
+                </button>
+            `).join("")}
+
+        </div>
+
+    ` + SHOP_CATEGORIES.map(category => `
+
+        <section
+            class="shop-category${shopFilter !== "all" && shopFilter !== category.kind ? " hidden" : ""}"
+            data-kind="${category.kind}"
+        >
 
             <h2 class="missions-title">
                 ${category.icon} ${escapeHtml(category.title)}
@@ -7037,6 +7120,34 @@ function displayShop() {
         }
 
     });
+
+
+    /*
+        Filtres (le choix est gardé quand la boutique est redessinée).
+    */
+
+    container
+        .querySelectorAll(".shop-filters .my-bets-filter")
+        .forEach(button => {
+
+            button.addEventListener("click", () => {
+
+                shopFilter = button.dataset.filter;
+
+                container
+                    .querySelectorAll(".shop-filters .my-bets-filter")
+                    .forEach(other => other.classList.toggle("active", other === button));
+
+                container
+                    .querySelectorAll(".shop-category")
+                    .forEach(section => section.classList.toggle(
+                        "hidden",
+                        shopFilter !== "all" && section.dataset.kind !== shopFilter
+                    ));
+
+            });
+
+        });
 
 
     container

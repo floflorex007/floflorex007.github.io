@@ -622,7 +622,7 @@ async function openChest() {
 
         if (error) {
             console.error(error);
-            alertToast(error.message || "Impossible d'ouvrir le coffre.");
+            alertToast(escapeHtml(error.message || "Impossible d'ouvrir le coffre."));
             chest.classList.add("hidden");
             return;
         }
@@ -1969,10 +1969,14 @@ function updateCountdowns() {
             const label =
                 card.querySelector(".bet-deadline");
 
-            // Moins d'une heure avant l'échéance : les mises sont closes, la carte se grise.
-            if (remaining <= BET_CLOSE_MS) {
+            // 1 h, 15 min ou 5 min avant selon la durée du pari (voir betCloseMs).
+            const closeMs =
+                betCloseMs(card.dataset.created, card.dataset.deadline);
 
-                card.classList.remove("bet-card-urgent");
+            // Les mises sont closes, la carte se grise.
+            if (remaining <= closeMs) {
+
+                card.classList.remove("bet-card-urgent", "bet-card-short", "bet-card-hyper");
 
                 setCardBadge(card, "TROP TARD");
 
@@ -2002,20 +2006,28 @@ function updateCountdowns() {
 
             }
 
-            // Entre 2 h et 1 h avant l'échéance : carte rouge, avec le temps qu'il reste pour miser.
-            if (remaining > BET_URGENT_MS) {
+            // Carte rouge avec le temps qu'il reste pour miser (2 h avant pour un pari classique,
+            // tout le temps pour un pari Short ou Hyper short).
+            if (remaining > betUrgentMs(closeMs)) {
 
-                card.classList.remove("bet-card-urgent");
+                card.classList.remove("bet-card-urgent", "bet-card-short", "bet-card-hyper");
 
                 return;
 
             }
 
+            const urgency =
+                betUrgencyStyle(closeMs);
+
             card.classList.add("bet-card-urgent");
 
-            setCardBadge(card, "LAST CHANCE");
+            card.classList.toggle("bet-card-short", urgency.className === "bet-card-short");
 
-            const untilClose = remaining - BET_CLOSE_MS;
+            card.classList.toggle("bet-card-hyper", urgency.className === "bet-card-hyper");
+
+            setCardBadge(card, urgency.label);
+
+            const untilClose = remaining - closeMs;
 
             const minutes = Math.floor(untilClose / 60000);
 
@@ -2163,7 +2175,93 @@ function setupPointerEffects() {
    11. FIL D'ACTIVITÉ EN DIRECT
 ========================================================= */
 
-function alertToast(text, className = "") {
+/*
+    Réglages choisis dans demo-notifications.html :
+    présentation actuelle, entrée « Montée », sortie vers la gauche,
+    liste (la plus récente en bas), 9 s d'affichage, 4 visibles.
+*/
+
+const TOAST_TYPES = {
+    stake:  { icon: "💸", color: "#6c63ff" },
+    create: { icon: "🆕", color: "#3fa9f5" },
+    error:  { icon: "⚠️", color: "#ff6b81" }
+};
+
+const TOAST_LIFE = 9000;
+const TOAST_ANIM = 450;
+const TOAST_MAX = 4;
+const TOAST_GAP = 8;
+
+// Notifications affichées, de la plus récente à la plus ancienne.
+let activityToasts = [];
+
+
+// « à l'instant », « il y a 5 min », « il y a 2 h », « il y a 3 j ».
+function toastTimeLabel(at) {
+
+    const minutes = at ? Math.floor((Date.now() - new Date(at)) / 60000) : 0;
+
+    if (minutes < 1) return "à l'instant";
+    if (minutes < 60) return `il y a ${minutes} min`;
+    if (minutes < 24 * 60) return `il y a ${Math.floor(minutes / 60)} h`;
+
+    return `il y a ${Math.floor(minutes / (24 * 60))} j`;
+
+}
+
+
+// Place les notifications les unes au-dessus des autres (les autres glissent).
+function layoutToasts() {
+
+    let y = 0;
+
+    activityToasts
+        .filter(toast => !toast.leaving)
+        .forEach(toast => {
+
+            toast.slot.style.transform = `translateY(${-y}px)`;
+
+            y += toast.slot.offsetHeight + TOAST_GAP;
+
+        });
+
+}
+
+
+function removeToast(toast) {
+
+    if (toast.leaving) {
+        return;
+    }
+
+    toast.leaving = true;
+
+    clearTimeout(toast.timer);
+
+    toast.element.animate(
+        [{ transform: "none", opacity: 1 }, { transform: "translateX(-110%)", opacity: 0 }],
+        { duration: TOAST_ANIM * 0.8, easing: "ease-in", fill: "forwards" }
+    ).onfinish = () => {
+
+        toast.slot.remove();
+
+        activityToasts = activityToasts.filter(other => other !== toast);
+
+        layoutToasts();
+
+    };
+
+    layoutToasts();
+
+}
+
+
+/*
+    type : stake, create ou error (icône + couleur).
+    at : date de l'événement, pour « il y a… ».
+*/
+
+function alertToast(text, { type = "error", at = null } = {}) {
 
     let stack =
         document.getElementById("activity-feed");
@@ -2175,23 +2273,96 @@ function alertToast(text, className = "") {
         document.body.appendChild(stack);
     }
 
-    const toast =
+    const style = TOAST_TYPES[type] || TOAST_TYPES.error;
+
+    const slot =
         document.createElement("div");
 
-    toast.className = "activity-toast " + className;
+    slot.className = "activity-slot";
 
-    toast.innerHTML = text;
+    slot.innerHTML = `
+        <div class="activity-toast" style="--toast-color: ${style.color}">
+            <span class="activity-toast-icon">${style.icon}</span>
+            <span class="activity-toast-text">
+                ${text}
+                <span class="activity-toast-time">${toastTimeLabel(at)}</span>
+            </span>
+            <span class="activity-toast-bar"></span>
+        </div>
+    `;
 
-    stack.prepend(toast);
+    stack.appendChild(slot);
 
-    while (stack.children.length > 4) {
-        stack.lastElementChild.remove();
-    }
+    const toast = {
+        slot,
+        element: slot.firstElementChild,
+        leaving: false,
+        timer: null,
+        left: TOAST_LIFE,
+        start: 0
+    };
 
-    setTimeout(() => {
-        toast.classList.add("leaving");
-        setTimeout(() => toast.remove(), 400);
-    }, 6000);
+
+    // Entrée : monte depuis le bas en apparaissant.
+    toast.element.animate(
+        [{ transform: "translateY(40px)", opacity: 0 }, { transform: "none", opacity: 1 }],
+        { duration: TOAST_ANIM, easing: "cubic-bezier(.2, .8, .2, 1)", fill: "backwards" }
+    );
+
+    // Barre du temps restant.
+    toast.bar = slot.querySelector(".activity-toast-bar").animate(
+        [{ transform: "scaleX(1)" }, { transform: "scaleX(0)" }],
+        { duration: TOAST_LIFE, easing: "linear", fill: "forwards" }
+    );
+
+
+    // Pause au survol : le temps restant et la barre s'arrêtent.
+    toast.pause = () => {
+
+        if (toast.leaving || !toast.timer) return;
+
+        clearTimeout(toast.timer);
+        toast.timer = null;
+        toast.left -= performance.now() - toast.start;
+        toast.bar.pause();
+
+    };
+
+    toast.resume = () => {
+
+        if (toast.leaving || toast.timer) return;
+
+        toast.start = performance.now();
+        toast.timer = setTimeout(() => removeToast(toast), Math.max(toast.left, 300));
+        toast.bar.play();
+
+    };
+
+    slot.addEventListener("mouseenter", () => activityToasts.forEach(other => other.pause()));
+    slot.addEventListener("mouseleave", () => activityToasts.forEach(other => other.resume()));
+
+    // Un clic ferme la notification.
+    slot.addEventListener("click", () => removeToast(toast));
+
+
+    activityToasts.unshift(toast);
+
+    toast.resume();
+
+    activityToasts
+        .filter(other => !other.leaving)
+        .slice(TOAST_MAX)
+        .forEach(removeToast);
+
+
+    // La nouvelle se place tout de suite, les autres remontent en glissant.
+    slot.style.transition = "none";
+
+    layoutToasts();
+
+    void slot.offsetWidth;
+
+    slot.style.transition = "";
 
 }
 
@@ -2256,19 +2427,21 @@ async function pollActivity() {
     // Les actions de l'admin ne sont pas montrées aux joueurs.
     (stakesResult.data || []).filter(s => !s.profiles?.is_admin).forEach(s => events.push({
         at: s.created_at,
-        html: `💸 <strong>${styledName(s.profiles, "Quelqu'un")}</strong> a misé ${formatMoney(s.stake)} sur « ${escapeHtml(s.bets?.question || "un pari")} »`
+        type: "stake",
+        html: `<strong>${styledName(s.profiles, "Quelqu'un")}</strong> a misé ${formatMoney(s.stake)} sur « ${escapeHtml(s.bets?.question || "un pari")} »`
     }));
 
     (betsResult.data || []).filter(b => !b.profiles?.is_admin).forEach(b => events.push({
         at: b.created_at,
-        html: `🆕 <strong>${styledName(b.profiles, "Quelqu'un")}</strong> a créé « ${escapeHtml(b.question)} »`
+        type: "create",
+        html: `<strong>${styledName(b.profiles, "Quelqu'un")}</strong> a créé « ${escapeHtml(b.question)} »`
     }));
 
     events.sort((a, b) => new Date(a.at) - new Date(b.at));
 
 
     events.forEach((event, index) => {
-        setTimeout(() => alertToast(event.html), index * 700);
+        setTimeout(() => alertToast(event.html, { type: event.type, at: event.at }), index * 2000);
     });
 
 

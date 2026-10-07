@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Les chemins (style.css) partent de la racine du projet -->
+<base href="../">
+<title>BetLab – Halo des paris urgents (Last Chance / Short / Hyper short)</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 80px; overflow-x: hidden; }
+.demo-h1 { font-size: 26px; margin-bottom: 6px; }
+.demo-sub { color: #858a98; margin-bottom: 22px; max-width: 900px; }
+.demo-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 26px; }
+.demo-btn { border: 1px solid #2c3040; background: #1c202c; color: #e6e8ee; padding: 10px 16px; border-radius: 12px; cursor: pointer; font: inherit; }
+.demo-btn.pick { background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; font-weight: 900; }
+
+.demo-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 28px; align-items: start; }
+.demo-col h2 { font-size: 18px; margin-bottom: 2px; }
+.demo-col .rule { color: #858a98; font-size: 13px; margin-bottom: 22px; }
+.demo-stage { padding: 26px 18px; margin: 0 -18px 18px; }
+
+.demo-panel { background: #14161e; border: 1px solid #2c3040; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.demo-panel h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: #858a98; margin-bottom: 6px; }
+.demo-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.demo-pill { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 5px 11px; border-radius: 999px; cursor: pointer; font: inherit; font-size: 12.5px; }
+.demo-pill.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.demo-fxdesc { color: #aaaeba; font-size: 12px; margin-top: 6px; min-height: 30px; }
+.demo-slider { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; font-size: 12.5px; color: #aaaeba; margin-bottom: 8px; }
+.demo-slider b { color: white; font-variant-numeric: tabular-nums; }
+.demo-slider input { grid-column: 1 / -1; accent-color: #6c63ff; width: 100%; }
+.demo-check { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #aaaeba; margin-bottom: 5px; cursor: pointer; }
+.demo-check input { accent-color: #6c63ff; width: 15px; height: 15px; }
+.demo-row2 { display: flex; gap: 10px; align-items: center; font-size: 12.5px; color: #aaaeba; }
+.demo-row2 input[type=color] { width: 44px; height: 28px; border: none; background: none; cursor: pointer; }
+.demo-row2 input[type=text] { flex: 1; min-width: 0; background: #1c202c; color: #e6e8ee; border: 1px solid #2c3040; border-radius: 8px; padding: 5px 8px; font: inherit; }
+.demo-copied { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #2fa36f; color: #0b1f15; font-weight: 800; padding: 10px 18px; border-radius: 12px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 99; }
+.demo-copied.show { opacity: 1; }
+
+/* ---------- Effets de halo (variables réglées par la démo) ---------- */
+
+@property --fx-ang { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+
+.bet-card.fx,
+.bet-card.fx:hover {
+    position: relative;
+    --glow-lo: color-mix(in srgb, var(--hc) calc(var(--a) * 35%), transparent);
+    --glow-hi: color-mix(in srgb, var(--hc) calc(var(--a) * 100%), transparent);
+    --bg: linear-gradient(180deg, #1c202c 0%, #14161e 100%);
+    border: var(--bw) solid var(--hc);
+    background: var(--bg);
+    box-shadow: 0 0 calc(var(--sz) * .25) var(--glow-lo);
+}
+
+.bet-card.fx.tint,
+.bet-card.fx.tint:hover {
+    --bg: linear-gradient(180deg, color-mix(in srgb, var(--hc) 16%, #1c202c) 0%, #14161e 100%);
+}
+
+.fx .bet-new-badge { background: var(--hc); }
+.fx .bet-deadline { color: var(--hc); font-weight: 800; font-variant-numeric: tabular-nums; }
+.fx.badge-pulse .bet-new-badge { animation: fx-badge var(--sp) ease-in-out infinite; }
+
+@keyframes fx-badge { 50% { scale: 1.18; box-shadow: 0 0 12px var(--hc); } }
+
+/* 1. Pulsation douce (l'actuelle) */
+@keyframes fx-doux {
+    0%, 100% { box-shadow: 0 0 calc(var(--sz) * .25) var(--glow-lo); }
+    50% { box-shadow: 0 0 var(--sz) var(--glow-hi); }
+}
+
+/* 2. Battement de cœur */
+@keyframes fx-coeur {
+    0%, 60%, 100% { box-shadow: 0 0 calc(var(--sz) * .25) var(--glow-lo); scale: 1; }
+    12% { box-shadow: 0 0 var(--sz) var(--glow-hi); scale: 1.018; }
+    24% { box-shadow: 0 0 calc(var(--sz) * .4) var(--glow-lo); scale: 1; }
+    36% { box-shadow: 0 0 calc(var(--sz) * .8) var(--glow-hi); scale: 1.012; }
+}
+
+/* 3. Clignotement */
+@keyframes fx-flash {
+    0%, 42% { box-shadow: 0 0 var(--sz) var(--glow-hi); border-color: var(--hc); }
+    50%, 92% { box-shadow: 0 0 0 transparent; border-color: color-mix(in srgb, var(--hc) 35%, #2c3040); }
+    100% { box-shadow: 0 0 var(--sz) var(--glow-hi); border-color: var(--hc); }
+}
+
+/* 4. Onde : un anneau part du bord et s'éloigne */
+.fx-onde::after {
+    content: "";
+    position: absolute;
+    inset: calc(-1 * var(--bw));
+    border-radius: inherit;
+    pointer-events: none;
+    animation: fx-ring var(--sp) ease-out infinite;
+}
+@keyframes fx-ring {
+    0% { box-shadow: 0 0 0 0 var(--glow-hi); }
+    100% { box-shadow: 0 0 0 var(--sz) transparent; }
+}
+@keyframes fx-onde {
+    0%, 100% { box-shadow: 0 0 calc(var(--sz) * .3) var(--glow-lo); }
+}
+
+/* 5. Bordure tournante */
+.bet-card.fx.fx-tour,
+.bet-card.fx.fx-tour:hover {
+    border-color: transparent;
+    background:
+        var(--bg) padding-box,
+        conic-gradient(from var(--fx-ang), var(--hc), transparent 25%, transparent 45%, var(--hc) 60%, transparent 80%, var(--hc)) border-box;
+    box-shadow: 0 0 calc(var(--sz) * .6) var(--glow-lo);
+}
+@keyframes fx-tour { to { --fx-ang: 360deg; } }
+
+/* 6. Flamme : halo irrégulier qui vacille */
+@keyframes fx-flamme {
+    0%   { box-shadow: 0 0 calc(var(--sz) * .3) var(--glow-lo); }
+    8%   { box-shadow: 0 0 calc(var(--sz) * .9) var(--glow-hi); }
+    15%  { box-shadow: 0 0 calc(var(--sz) * .5) var(--glow-lo); }
+    22%  { box-shadow: 0 0 var(--sz) var(--glow-hi); }
+    40%  { box-shadow: 0 0 calc(var(--sz) * .35) var(--glow-lo); }
+    55%  { box-shadow: 0 0 calc(var(--sz) * .7) var(--glow-hi); }
+    63%  { box-shadow: 0 0 calc(var(--sz) * .45) var(--glow-lo); }
+    72%  { box-shadow: 0 0 calc(var(--sz) * .95) var(--glow-hi); }
+    100% { box-shadow: 0 0 calc(var(--sz) * .3) var(--glow-lo); }
+}
+
+/* 7. Alarme : double flash rapide puis pause */
+@keyframes fx-alarme {
+    0%, 40%, 100% { box-shadow: 0 0 calc(var(--sz) * .2) var(--glow-lo); }
+    5%, 20% { box-shadow: 0 0 var(--sz) var(--glow-hi), inset 0 0 calc(var(--sz) * .5) var(--glow-lo); }
+    12%, 28% { box-shadow: 0 0 calc(var(--sz) * .2) var(--glow-lo); }
+}
+
+/* Tremblement (option, se combine avec tous les effets) */
+@keyframes fx-shake {
+    0%, 86%, 100% { translate: 0 0; }
+    88% { translate: -3px 0; rotate: -.4deg; }
+    90% { translate: 3px 0; rotate: .4deg; }
+    92% { translate: -3px 0; rotate: -.3deg; }
+    94% { translate: 2px 0; rotate: .2deg; }
+    96% { translate: -1px 0; rotate: 0deg; }
+}
+</style>
+</head>
+<body>
+
+<h1 class="demo-h1">Halo des paris urgents</h1>
+<p class="demo-sub">Les trois types de paris avec leur halo, côte à côte. Pour chacun, choisis l'effet et règle couleur, vitesse, taille, intensité… L'idée : plus le pari est court, plus le halo doit être pressant. Quand ça te plaît, « Je choisis » copie les réglages des trois.</p>
+
+<div class="demo-actions">
+    <button class="demo-btn" id="reset">↺ Revenir aux propositions de départ</button>
+    <button class="demo-btn pick" id="choose">Je choisis</button>
+</div>
+
+<div class="demo-cols" id="cols"></div>
+
+<div class="demo-copied" id="copied">Choix copié !</div>
+
+<script>
+const EFFECTS = {
+    doux:   ["Pulsation douce", "Le halo grossit et rétrécit en douceur (l'actuel Last Chance).", "ease-in-out"],
+    coeur:  ["Battement de cœur", "Deux battements rapprochés puis une pause, la carte gonfle très légèrement.", "ease-out"],
+    flash:  ["Clignotement", "Allumé / éteint franchement, comme un voyant.", "linear"],
+    onde:   ["Onde", "Un anneau part du bord de la carte et s'éloigne, comme un sonar.", "linear"],
+    tour:   ["Bordure tournante", "Des traits lumineux font le tour de la carte en continu.", "linear"],
+    flamme: ["Flamme", "Halo irrégulier qui vacille, comme une flamme.", "linear"],
+    alarme: ["Alarme", "Double flash rapide (avec lueur intérieure) puis une pause.", "linear"]
+};
+
+const KINDS = [
+    {
+        id: "last", title: "Last Chance", rule: "Pari de plus de 1 h 30 · rouge 2 h avant · fermé 1 h avant",
+        question: "Lina part avant 16h15 précisément ?", countdown: 58 * 60 + 12,
+        def: { fx: "doux", color: "#ff3b3b", sp: 1, sz: 26, a: 0.6, bw: 1, tint: false, badgePulse: false, shake: false, shakeEvery: 4, badge: "LAST CHANCE" }
+    },
+    {
+        id: "short", title: "Short", rule: "Pari de 30 min à 1 h 30 · rouge 30 min avant · fermé 15 min avant",
+        question: "Coupure de Wi-Fi avant midi ?", countdown: 14 * 60 + 30,
+        def: { fx: "coeur", color: "#ff5a36", sp: 0.9, sz: 32, a: 0.75, bw: 2, tint: true, badgePulse: false, shake: false, shakeEvery: 4, badge: "SHORT" }
+    },
+    {
+        id: "hyper", title: "Hyper short", rule: "Pari de 30 min ou moins · rouge 10 min avant · fermé 5 min avant",
+        question: "Yann arrive avant 9h ?", countdown: 4 * 60 + 47,
+        def: { fx: "tour", color: "#ff2d55", sp: 1.2, sz: 36, a: 0.85, bw: 2, tint: true, badgePulse: true, shake: true, shakeEvery: 3, badge: "HYPER SHORT" }
+    }
+];
+
+const SLIDERS = [
+    ["sp", "Vitesse (durée d'un cycle)", 0.3, 3, 0.1, "s"],
+    ["sz", "Taille du halo", 4, 70, 1, "px"],
+    ["a", "Intensité", 0.1, 1, 0.05, ""],
+    ["bw", "Épaisseur de la bordure", 1, 4, 1, "px"],
+    ["shakeEvery", "Tremblement toutes les", 1, 8, 0.5, "s"]
+];
+
+const conf = {};
+const cols = document.getElementById("cols");
+
+function cardHtml(k) {
+    return `
+    <div class="demo-stage">
+    <div class="bet-card fx" id="card-${k.id}">
+        <span class="bet-new-badge" id="badge-${k.id}"></span>
+        <div class="bet-card-header"><span>🏆</span><span class="bet-author">Créé par Emma</span></div>
+        <div class="bet-question-row">
+            <span class="bet-question-icon">🎲</span>
+            <h3>${k.question}</h3>
+            <span class="bet-deadline" id="cd-${k.id}"></span>
+        </div>
+        <div class="bet-choices">
+            <div class="bet-choice-wrapper">
+                <button class="bet-choice-button"><span>Oui</span><strong>2.40</strong></button>
+                <div class="choice-bar-track"><div class="choice-bar-fill" style="width:62%"></div></div>
+                <div class="choice-pct">62%</div>
+            </div>
+            <div class="bet-choice-wrapper">
+                <button class="bet-choice-button"><span>Non</span><strong>1.65</strong></button>
+                <div class="choice-bar-track"><div class="choice-bar-fill" style="width:38%"></div></div>
+                <div class="choice-pct">38%</div>
+            </div>
+        </div>
+        <div class="bet-footer"><div class="bet-total-footer"><span>Solde misé</span><strong>450,00 €</strong></div></div>
+    </div>
+    </div>`;
+}
+
+function panelHtml(k) {
+    return `
+    <div class="demo-panel">
+        <div>
+            <h3>Effet</h3>
+            <div class="demo-pills" id="fx-${k.id}">
+                ${Object.entries(EFFECTS).map(([key, [label]]) => `<button class="demo-pill" data-fx="${key}">${label}</button>`).join("")}
+            </div>
+            <p class="demo-fxdesc" id="fxdesc-${k.id}"></p>
+        </div>
+        <div class="demo-row2">Couleur <input type="color" id="color-${k.id}"> Étiquette <input type="text" id="badgetxt-${k.id}" maxlength="18"></div>
+        <div>
+            ${SLIDERS.map(([key, label, min, max, step, unit]) => `
+                <label class="demo-slider">${label}<b id="v-${k.id}-${key}"></b>
+                    <input type="range" id="s-${k.id}-${key}" min="${min}" max="${max}" step="${step}">
+                </label>`).join("")}
+        </div>
+        <div>
+            <label class="demo-check"><input type="checkbox" id="tint-${k.id}"> Fond de la carte teinté</label>
+            <label class="demo-check"><input type="checkbox" id="badgePulse-${k.id}"> Étiquette qui pulse</label>
+            <label class="demo-check"><input type="checkbox" id="shake-${k.id}"> Tremblement de temps en temps</label>
+        </div>
+    </div>`;
+}
+
+cols.innerHTML = KINDS.map(k => `
+    <div class="demo-col">
+        <h2>${k.title}</h2>
+        <p class="rule">${k.rule}</p>
+        ${cardHtml(k)}
+        ${panelHtml(k)}
+    </div>`).join("");
+
+function apply(k) {
+    const c = conf[k.id];
+    const card = document.getElementById("card-" + k.id);
+    card.className = "bet-card fx fx-" + c.fx + (c.tint ? " tint" : "") + (c.badgePulse ? " badge-pulse" : "");
+    card.style.setProperty("--hc", c.color);
+    card.style.setProperty("--sp", c.sp + "s");
+    card.style.setProperty("--sz", c.sz + "px");
+    card.style.setProperty("--a", c.a);
+    card.style.setProperty("--bw", c.bw + "px");
+    card.style.animation =
+        `fx-${c.fx} ${c.sp}s ${EFFECTS[c.fx][2]} infinite` +
+        (c.shake ? `, fx-shake ${c.shakeEvery}s linear infinite` : "");
+    document.getElementById("badge-" + k.id).textContent = c.badge;
+
+    document.querySelectorAll(`#fx-${k.id} .demo-pill`).forEach(p => p.classList.toggle("active", p.dataset.fx === c.fx));
+    document.getElementById("fxdesc-" + k.id).textContent = EFFECTS[c.fx][1];
+    document.getElementById("color-" + k.id).value = c.color;
+    document.getElementById("badgetxt-" + k.id).value = c.badge;
+    SLIDERS.forEach(([key, , , , , unit]) => {
+        document.getElementById(`s-${k.id}-${key}`).value = c[key];
+        document.getElementById(`v-${k.id}-${key}`).textContent = c[key] + (unit ? " " + unit : "");
+    });
+    ["tint", "badgePulse", "shake"].forEach(key => document.getElementById(`${key}-${k.id}`).checked = c[key]);
+    document.getElementById(`s-${k.id}-shakeEvery`).closest("label").style.opacity = c.shake ? 1 : .4;
+}
+
+KINDS.forEach(k => {
+    conf[k.id] = { ...k.def };
+    document.getElementById("fx-" + k.id).addEventListener("click", e => {
+        const p = e.target.closest(".demo-pill"); if (!p) return;
+        conf[k.id].fx = p.dataset.fx; apply(k);
+    });
+    document.getElementById("color-" + k.id).addEventListener("input", e => { conf[k.id].color = e.target.value; apply(k); });
+    document.getElementById("badgetxt-" + k.id).addEventListener("input", e => { conf[k.id].badge = e.target.value.toUpperCase(); apply(k); });
+    SLIDERS.forEach(([key]) => document.getElementById(`s-${k.id}-${key}`).addEventListener("input", e => { conf[k.id][key] = +e.target.value; apply(k); }));
+    ["tint", "badgePulse", "shake"].forEach(key => document.getElementById(`${key}-${k.id}`).addEventListener("change", e => { conf[k.id][key] = e.target.checked; apply(k); }));
+    apply(k);
+});
+
+/* Compte à rebours qui tourne en boucle */
+const left = Object.fromEntries(KINDS.map(k => [k.id, k.countdown]));
+function tick() {
+    KINDS.forEach(k => {
+        left[k.id] = left[k.id] <= 0 ? k.countdown : left[k.id] - 1;
+        const m = Math.floor(left[k.id] / 60), s = left[k.id] % 60;
+        document.getElementById("cd-" + k.id).textContent = "⏳ " + String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+    });
+}
+tick(); setInterval(tick, 1000);
+
+document.getElementById("reset").onclick = () => KINDS.forEach(k => { conf[k.id] = { ...k.def }; apply(k); });
+
+document.getElementById("choose").onclick = () => {
+    const text = ["Halos choisis :", ...KINDS.map(k => {
+        const c = conf[k.id];
+        return `- ${k.title} : effet ${EFFECTS[c.fx][0]}, couleur ${c.color}, vitesse ${c.sp} s, taille ${c.sz} px, intensité ${c.a}, bordure ${c.bw} px, ` +
+            `fond teinté ${c.tint ? "oui" : "non"}, étiquette « ${c.badge} » ${c.badgePulse ? "qui pulse" : "fixe"}, ` +
+            `tremblement ${c.shake ? "toutes les " + c.shakeEvery + " s" : "non"}`;
+    })].join("\n");
+    const done = () => { const el = document.getElementById("copied"); el.classList.add("show"); setTimeout(() => el.classList.remove("show"), 1500); };
+    navigator.clipboard?.writeText(text).then(done, () => prompt("Copie ce texte :", text));
+};
+</script>
+</body>
+</html>
