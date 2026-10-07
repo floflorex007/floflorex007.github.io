@@ -4740,6 +4740,7 @@ body.no-group #parrot {
 
 /* Missions et boutique : les anciennes cartes restent cachées pendant le rechargement. */
 .page-refreshing .mission-card,
+.page-refreshing .shop-filters,
 .page-refreshing .missions-title,
 .page-refreshing .page-header {
     opacity: 0;

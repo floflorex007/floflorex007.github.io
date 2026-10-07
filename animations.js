@@ -2064,9 +2064,9 @@ function cascadeIn(root) {
 
     };
 
-    // Titres et cartes, dans l'ordre de la page.
+    // Titres, filtres de la boutique et cartes, dans l'ordre de la page.
     root
-        .querySelectorAll(".page-header, .missions-title, .bet-card, .my-bet-item, .mission-card")
+        .querySelectorAll(".page-header, .shop-filters, .missions-title, .bet-card, .my-bet-item, .mission-card")
         .forEach(play);
 
     // Colonnes latérales (top parieurs, message, XP, coffre) : elles arrivent
