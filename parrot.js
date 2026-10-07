@@ -416,6 +416,8 @@ const Parrot = (() => {
 
         build(root);
 
+        applySkin();
+
         new ResizeObserver(fit).observe(root);
         fit();
 
@@ -442,6 +444,71 @@ const Parrot = (() => {
 
 
     document.addEventListener("DOMContentLoaded", init);
+
+
+    /*
+        Skins (couleurs du perroquet) : les plumes recolorées sont des images
+        toutes prêtes dans assets/perroquet/skins/<skin>/ (mêmes noms de fichiers).
+    */
+
+    const SKIN_IMAGES = [
+        "wait-body", "wait-head", "l2-body", "l2-head", "l3-body", "l3-head",
+        "l4-body", "l4-head", "win-main", "lose-main"
+    ];
+
+    let skin = "classique";
+
+    function skinSrc(name, id) {
+        return id === "classique" ? ASSETS + name + ".png" : ASSETS + "skins/" + id + "/" + name + ".png";
+    }
+
+    function applySkin() {
+
+        if (!root) {
+            return;
+        }
+
+        const id = skin;
+
+        root.querySelectorAll("img").forEach(img => {
+
+            const name = img.dataset.skinName ||
+                (img.getAttribute("src") || "").split("/").pop().replace(".png", "");
+
+            if (!SKIN_IMAGES.includes(name)) {
+                return;
+            }
+
+            img.dataset.skinName = name;
+
+            const src = skinSrc(name, id);
+
+            if (img.getAttribute("src") === src) {
+                return;
+            }
+
+            // On charge la nouvelle image avant de l'afficher : pas de clignotement.
+            const next = new Image();
+
+            next.onload = () => {
+                if (skin === id) {
+                    img.src = src;
+                }
+            };
+
+            next.src = src;
+
+        });
+
+    }
+
+    function setSkin(id) {
+
+        skin = id || "classique";
+
+        applySkin();
+
+    }
 
 
     // Change le niveau d'attente (1 à 4).
@@ -521,6 +588,7 @@ const Parrot = (() => {
         hit,
         billsPoint,
         level: setLevel,
+        skin: setSkin,
         HOLD_SECONDS
     };
 

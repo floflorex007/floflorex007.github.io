@@ -148,7 +148,8 @@ begin
         ('metal_or',     250, null::text[]),
         ('aura',         300, null::text[]),
         ('etincelles',   100, null::text[]),
-        ('theme',        450, array['galaxie', 'carbone', 'sunset'])
+        ('theme',        450, array['galaxie', 'carbone', 'sunset']),
+        ('clic_perroquet', 30, null::text[])
     ) as catalogue(item, price, options)
     where item = p_item;
 

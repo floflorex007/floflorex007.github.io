@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BetLab – Niveau supérieur (maquette)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 80px; overflow-x: hidden; }
+button { font: inherit; cursor: pointer; color: inherit; }
+h1 { font-size: 26px; margin-bottom: 6px; }
+.sub { color: #858a98; margin-bottom: 18px; max-width: 900px; font-size: 14px; line-height: 1.5; }
+.tabs { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.tab { background: #1a1d27; border: 1px solid #2c3040; border-radius: 12px; padding: 10px 16px; font-weight: 800; }
+.tab.on { background: #6c63ff; border-color: #6c63ff; }
+.desc { color: #b9bdc9; font-size: 14px; margin-bottom: 18px; max-width: 900px; line-height: 1.5; min-height: 42px; }
+.layout { display: grid; grid-template-columns: minmax(0, 860px) 340px; gap: 24px; align-items: start; }
+@media (max-width: 1250px) { .layout { grid-template-columns: 1fr; } }
+
+/* Faux site derrière */
+.stage { position: relative; height: 560px; border-radius: 20px; overflow: hidden; border: 1px solid #2c3040; background: #0f1117; }
+.fake { position: absolute; inset: 0; padding: 70px 20px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.fake .top { position: absolute; left: 0; right: 0; top: 0; height: 52px; background: #14161e; border-bottom: 1px solid #2c3040; display: flex; align-items: center; padding: 0 18px; font-weight: 900; letter-spacing: 1px; }
+.fake .card { background: linear-gradient(180deg, #1c202c, #14161e); border: 1px solid #2c3040; border-radius: 16px; height: 140px; }
+.shake-wrap { position: absolute; inset: 0; }
+
+/* Calque de l'animation */
+.ov { position: absolute; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; pointer-events: none; opacity: 0; }
+.ov-bg { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(20, 16, 40, .82), rgba(4, 5, 10, .92)); backdrop-filter: blur(4px); }
+.flash { position: absolute; inset: 0; background: white; opacity: 0; z-index: 30; pointer-events: none; }
+canvas.fx { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 25; pointer-events: none; }
+
+/* ----- A : barre façon Call of Duty ----- */
+.a-wrap { position: relative; width: 78%; display: flex; flex-direction: column; align-items: center; gap: 14px; z-index: 5; }
+.a-title { font-weight: 900; letter-spacing: 6px; font-size: 14px; color: var(--c2); text-shadow: 0 0 12px var(--c1); }
+.a-row { display: flex; align-items: center; gap: 14px; width: 100%; }
+.a-badge { width: 54px; height: 54px; flex-shrink: 0; display: grid; place-items: center; font-weight: 900; font-size: 22px;
+    clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: linear-gradient(160deg, var(--c2), var(--c1)); color: #0b0a1a; }
+.a-badge.next { background: #2a2e3b; color: #737887; }
+.a-bar { position: relative; flex: 1; height: 22px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.15); transform: skewX(-18deg); overflow: hidden; }
+.a-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: linear-gradient(90deg, var(--c1), var(--c2)); box-shadow: 0 0 18px var(--c1); }
+.a-fill::after { content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 14px; background: white; filter: blur(4px); opacity: .9; }
+.a-ticks { position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 2px), rgba(0,0,0,.35) calc(10% - 2px) 10%); }
+.a-xp { font-size: 13px; color: #b9bdc9; font-variant-numeric: tabular-nums; letter-spacing: 1px; }
+
+.big { position: absolute; z-index: 6; display: flex; flex-direction: column; align-items: center; opacity: 0; }
+.big .lvl-label { font-weight: 900; letter-spacing: 8px; font-size: 16px; color: var(--c2); }
+.big .lvl-num { font-weight: 900; font-size: 120px; line-height: 1; color: white; text-shadow: 0 0 30px var(--c1), 0 0 60px var(--c1); }
+.big .lvl-sub { margin-top: 6px; font-weight: 800; color: #e6e8ee; letter-spacing: 3px; font-size: 13px; }
+.rays { position: absolute; z-index: 4; width: 700px; height: 700px; opacity: 0;
+    background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--c1) 35%, transparent) 0deg 6deg, transparent 6deg 18deg);
+    mask: radial-gradient(circle, black 0%, transparent 62%); -webkit-mask: radial-gradient(circle, black 0%, transparent 62%); }
+.reward { position: absolute; z-index: 6; bottom: 46px; display: flex; align-items: center; gap: 12px; background: rgba(20,22,30,.95); border: 1px solid var(--c1);
+    border-radius: 14px; padding: 10px 16px; opacity: 0; box-shadow: 0 0 24px color-mix(in srgb, var(--c1) 40%, transparent); }
+.reward img, .reward .ico { width: 40px; height: 40px; font-size: 30px; display: grid; place-items: center; }
+.reward strong { display: block; color: white; }
+.reward span { color: #9ea3b0; font-size: 12px; }
+
+/* ----- B : écusson ----- */
+.b-wrap { position: relative; width: 240px; height: 240px; z-index: 5; display: grid; place-items: center; }
+.b-wrap svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+.b-shield { width: 150px; height: 170px; display: grid; place-items: center; font-weight: 900; font-size: 64px; color: #0b0a1a;
+    clip-path: polygon(50% 0, 100% 18%, 100% 60%, 50% 100%, 0 60%, 0 18%); background: linear-gradient(160deg, var(--c2), var(--c1)); transform-style: preserve-3d; }
+
+/* ----- C : néon ----- */
+.c-wrap { position: relative; width: 70%; height: 4px; z-index: 5; }
+.c-track { position: absolute; inset: 0; background: rgba(255,255,255,.08); border-radius: 4px; }
+.c-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 4px; background: var(--c2); box-shadow: 0 0 10px var(--c1), 0 0 24px var(--c1), 0 0 48px var(--c1); }
+.c-half { position: absolute; left: 0; right: 0; height: 50%; z-index: 7; background: #05060b; }
+.c-half.top { top: 0; border-bottom: 2px solid var(--c2); box-shadow: 0 2px 30px var(--c1); }
+.c-half.bot { bottom: 0; border-top: 2px solid var(--c2); box-shadow: 0 -2px 30px var(--c1); }
+.glitch { position: relative; }
+.glitch::before, .glitch::after { content: attr(data-t); position: absolute; inset: 0; mix-blend-mode: screen; }
+.glitch::before { color: #ff2a6d; transform: translate(var(--gx, 3px), 0); }
+.glitch::after { color: #05d9e8; transform: translate(calc(-1 * var(--gx, 3px)), 0); }
+
+/* Panneau */
+.panel { background: #161922; border: 1px solid #2c3040; border-radius: 18px; padding: 16px; }
+.panel h3 { font-size: 15px; margin-bottom: 12px; }
+.row { margin-bottom: 11px; }
+.row label { display: flex; justify-content: space-between; font-size: 12px; color: #9ea3b0; margin-bottom: 4px; }
+.row label span { color: #e6e8ee; font-weight: 700; }
+.row input[type=range] { width: 100%; accent-color: #6c63ff; }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.btns button { background: #1f2330; border: 1px solid #343846; border-radius: 9px; padding: 6px 10px; font-size: 12px; font-weight: 700; }
+.btns button.on { background: #6c63ff; border-color: #6c63ff; }
+.play { width: 100%; background: linear-gradient(135deg, #5b4fe0, #8c82ff); border: none; border-radius: 12px; padding: 12px; font-weight: 900; margin-bottom: 14px; }
+.copy { width: 100%; margin-top: 6px; background: linear-gradient(135deg, #2fa36f, #63d69f); color: #0b1f15; border: none; border-radius: 10px; padding: 10px; font-weight: 900; }
+textarea { width: 100%; height: 120px; margin-top: 10px; background: #101219; color: #9ea3b0; border: 1px solid #343846; border-radius: 10px; padding: 8px; font: 11px ui-monospace, monospace; }
+</style>
+</head>
+<body>
+
+<h1>⭐ Niveau supérieur</h1>
+<p class="sub">
+    Maquette avant de coder : l'animation quand on clique « Débloquer le niveau ». 3 propositions, toutes réglables.
+    Clique « ▶ Rejouer » (ou la scène) pour la relancer, puis « Copier les paramètres » et colle-les moi.
+</p>
+
+<div class="tabs" id="tabs">
+    <button class="tab on" data-v="a">A · Barre façon Call of Duty</button>
+    <button class="tab" data-v="b">B · Écusson qui se recharge</button>
+    <button class="tab" data-v="c">C · Néon qui s'ouvre</button>
+</div>
+<p class="desc" id="desc"></p>
+
+<div class="layout">
+    <div class="stage" id="stage">
+        <div class="shake-wrap" id="shake">
+            <div class="fake"><div class="top">BETLAB</div><div class="card"></div><div class="card"></div><div class="card"></div><div class="card"></div></div>
+        </div>
+        <div class="ov" id="ov"><div class="ov-bg"></div><div id="ov-content" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"></div></div>
+        <canvas class="fx" id="fx"></canvas>
+        <div class="flash" id="flash"></div>
+    </div>
+
+    <div class="panel">
+        <button class="play" id="play">▶ Rejouer</button>
+        <h3>🎛️ Réglages en direct</h3>
+        <div class="row"><label>Couleurs</label></div>
+        <div class="btns" id="palettes"></div>
+        <div class="btns" id="reward-btns">
+            <button data-r="1" class="on">🦜 Avec récompense</button>
+            <button data-r="0">Sans récompense</button>
+        </div>
+        <div id="sliders"></div>
+        <button class="copy" id="copy">📋 Copier les paramètres</button>
+        <textarea id="out" readonly></textarea>
+    </div>
+</div>
+
+<script>
+const DESCS = {
+    a: "Façon Call of Duty : l'écran s'assombrit, une grande barre d'XP inclinée apparaît entre ton niveau et le suivant, elle se remplit en accélérant, puis explose en éclats avec un flash. Le nouveau niveau tombe au centre avec des rayons, et la récompense (s'il y en a une) arrive en dessous.",
+    b: "Un écusson à ton niveau, entouré d'un anneau d'XP qui se remplit. Quand il est plein, l'anneau éclate en étincelles, l'écusson pivote sur lui-même et révèle le nouveau niveau.",
+    c: "Une fine ligne néon se remplit au centre de l'écran, s'étire d'un bord à l'autre, puis l'écran s'ouvre en deux comme un rideau pour révéler le nouveau niveau, avec un léger effet glitch."
+};
+const PALETTES = {
+    violet: ["#7b61ff", "#d18bff", "#ffffff"],
+    or: ["#f5a623", "#ffe39a", "#fff7d6"],
+    bleu: ["#1e90ff", "#a8f0ff", "#ffffff"],
+    feu: ["#ff4d00", "#ffd34d", "#fff3c4"]
+};
+const PNAMES = { violet: "Violet BetLab", or: "Or", bleu: "Bleu", feu: "Feu" };
+const DEFAULTS = {
+    a: { palette: "violet", speed: 1, start: 55, fill: 1.4, particles: 140, shake: 10, flash: 0.7, rays: 1, hold: 2.2, reward: 1 },
+    b: { palette: "or", speed: 1, start: 40, fill: 1.6, particles: 110, shake: 6, flash: 0.5, rays: 1, hold: 2.2, reward: 1 },
+    c: { palette: "bleu", speed: 1, start: 50, fill: 1.2, particles: 60, shake: 4, flash: 0.35, rays: 0, hold: 2.2, reward: 1 }
+};
+const SLIDERS = [
+    ["speed", "Vitesse générale", 0.5, 2, 0.05, "×"],
+    ["start", "XP de départ dans la barre", 0, 95, 1, " %"],
+    ["fill", "Durée du remplissage", 0.4, 4, 0.1, " s"],
+    ["particles", "Éclats de l'explosion", 0, 400, 10, ""],
+    ["shake", "Tremblement de l'écran", 0, 30, 1, " px"],
+    ["flash", "Flash blanc", 0, 1, 0.05, ""],
+    ["rays", "Rayons derrière le niveau", 0, 1, 1, ""],
+    ["hold", "Temps d'affichage du niveau", 0.8, 5, 0.1, " s"]
+];
+
+let variant = "a";
+const settings = JSON.parse(JSON.stringify(DEFAULTS));
+const S = () => settings[variant];
+const LEVEL = 11;
+
+const stage = document.getElementById("stage");
+const ov = document.getElementById("ov");
+const content = document.getElementById("ov-content");
+const flash = document.getElementById("flash");
+const shakeEl = document.getElementById("shake");
+const fx = document.getElementById("fx");
+const ctx = fx.getContext("2d");
+
+// ---------- Particules ----------
+let parts = [];
+function burst(x, y, n, opts = {}) {
+    const p = PALETTES[S().palette];
+    for (let i = 0; i < n; i++) {
+        const a = opts.angle !== undefined ? opts.angle + (Math.random() - 0.5) * (opts.spread || 6.28) : Math.random() * 6.28;
+        const sp = (opts.speed || 520) * (0.3 + Math.random() * 0.9);
+        parts.push({
+            x: x + (opts.w ? (Math.random() - 0.5) * opts.w : 0), y: y + (opts.h ? (Math.random() - 0.5) * opts.h : 0),
+            vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - (opts.up || 0),
+            life: 0.6 + Math.random() * 0.9, age: 0, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 14,
+            shard: opts.shards && Math.random() < 0.6, w: 4 + Math.random() * 10, h: 2 + Math.random() * 4,
+            col: p[Math.floor(Math.random() * 3)]
+        });
+    }
+}
+let prev = performance.now();
+function loop(t) {
+    const dt = Math.min(0.05, (t - prev) / 1000) * S().speed; prev = t;
+    const W = fx.clientWidth, H = fx.clientHeight;
+    if (fx.width !== W * 2) { fx.width = W * 2; fx.height = H * 2; }
+    ctx.setTransform(2, 0, 0, 2, 0, 0); ctx.clearRect(0, 0, W, H);
+    ctx.globalCompositeOperation = "lighter";
+    parts = parts.filter(q => {
+        q.age += dt; if (q.age > q.life) return false;
+        q.vx *= Math.pow(0.18, dt); q.vy = q.vy * Math.pow(0.18, dt) + 260 * dt;
+        q.x += q.vx * dt; q.y += q.vy * dt; q.rot += q.vr * dt;
+        ctx.globalAlpha = 1 - q.age / q.life; ctx.fillStyle = q.col;
+        ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.rot);
+        if (q.shard) ctx.fillRect(-q.w / 2, -q.h / 2, q.w, q.h);
+        else { ctx.beginPath(); ctx.arc(0, 0, 1.5 + q.h * 0.4, 0, 6.28); ctx.fill(); }
+        ctx.restore();
+        return true;
+    });
+    ctx.globalAlpha = 1;
+    requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// ---------- Outils ----------
+const k = () => 1 / S().speed;            // facteur de durée
+const wait = ms => new Promise(r => setTimeout(r, ms * k()));
+const anim = (el, frames, ms, opts = {}) => el.animate(frames, { duration: ms * k(), fill: "forwards", easing: "cubic-bezier(.2,.8,.2,1)", ...opts });
+function applyColors() {
+    const p = PALETTES[S().palette];
+    stage.style.setProperty("--c1", p[0]); stage.style.setProperty("--c2", p[1]); stage.style.setProperty("--c3", p[2]);
+}
+function doShake(px) {
+    if (!px) return;
+    const f = []; for (let i = 0; i < 8; i++) f.push({ transform: `translate(${(Math.random() - .5) * px * 2}px, ${(Math.random() - .5) * px * 2}px)` });
+    f.push({ transform: "translate(0,0)" });
+    anim(shakeEl, f, 420, { easing: "linear" });
+    anim(content, f, 420, { easing: "linear" });
+}
+function doFlash(o) { if (o) anim(flash, [{ opacity: o }, { opacity: 0 }], 420, { easing: "ease-out" }); }
+function countUp(el, from, to, ms, suffix) {
+    const t0 = performance.now(), d = ms * k();
+    const step = () => { const p = Math.min(1, (performance.now() - t0) / d); el.textContent = Math.round(from + (to - from) * p * p) + suffix; if (p < 1 && running === runId) requestAnimationFrame(step); };
+    step();
+}
+function centerOf(el) { const r = el.getBoundingClientRect(), s = stage.getBoundingClientRect(); return { x: r.left - s.left + r.width / 2, y: r.top - s.top + r.height / 2, w: r.width, h: r.height }; }
+function bigHtml() {
+    return `<div class="rays" id="rays"></div>
+        <div class="big" id="big"><div class="lvl-label">NIVEAU</div><div class="lvl-num ${variant === "c" ? "glitch" : ""}" data-t="${LEVEL + 1}">${LEVEL + 1}</div><div class="lvl-sub">DÉBLOQUÉ !</div></div>
+        <div class="reward" id="reward"><div class="ico">🦜</div><div><strong>Skin Flamant débloqué</strong><span>Active-le dans la fenêtre XP</span></div></div>`;
+}
+async function revealLevel() {
+    const s = S();
+    const big = document.getElementById("big"), rays = document.getElementById("rays"), reward = document.getElementById("reward");
+    if (s.rays) {
+        anim(rays, [{ opacity: 0, transform: "scale(.4) rotate(0deg)" }, { opacity: 1, transform: "scale(1) rotate(25deg)" }], 700);
+        rays.animate([{ rotate: "0deg" }, { rotate: "360deg" }], { duration: 24000, iterations: Infinity });
+    }
+    anim(big, [{ opacity: 0, transform: "scale(2.6)", filter: "blur(8px)" }, { opacity: 1, transform: "scale(.92)", filter: "blur(0)", offset: .7 }, { opacity: 1, transform: "scale(1)" }], 520, { easing: "cubic-bezier(.3,1.4,.5,1)" });
+    await wait(180);
+    doShake(s.shake * 0.5);
+    if (s.reward) { await wait(500); anim(reward, [{ opacity: 0, transform: "translateY(24px) scale(.9)" }, { opacity: 1, transform: "none" }], 500, { easing: "cubic-bezier(.3,1.3,.5,1)" }); }
+}
+
+// ---------- Les 3 animations ----------
+let running = 0, runId = 0;
+async function play() {
+    const id = ++runId; running = id;
+    const s = S(); applyColors(); parts = [];
+    content.innerHTML = ""; ov.getAnimations().forEach(a => a.cancel());
+    anim(ov, [{ opacity: 0 }, { opacity: 1 }], 350);
+
+    if (variant === "a") {
+        content.innerHTML = `
+            <div class="a-wrap" id="bar-wrap">
+                <div class="a-title">NIVEAU SUPÉRIEUR</div>
+                <div class="a-row"><div class="a-badge">${LEVEL}</div><div class="a-bar" id="bar"><div class="a-fill" id="fill"></div><div class="a-ticks"></div></div><div class="a-badge next" id="next">${LEVEL + 1}</div></div>
+                <div class="a-xp" id="xp"></div>
+            </div>` + bigHtml();
+        const wrap = document.getElementById("bar-wrap"), fill = document.getElementById("fill"), xp = document.getElementById("xp");
+        fill.style.width = s.start + "%";
+        const need = 100 + 50 * (LEVEL - 1);
+        xp.textContent = Math.round(need * s.start / 100) + " / " + need + " XP";
+        anim(wrap, [{ opacity: 0, transform: "scale(.7)" }, { opacity: 1, transform: "scale(1)" }], 450, { easing: "cubic-bezier(.3,1.4,.5,1)" });
+        await wait(550); if (id !== runId) return;
+        anim(fill, [{ width: s.start + "%" }, { width: "100%" }], s.fill * 1000, { easing: "cubic-bezier(.6,0,.9,.6)" });
+        countUp({ set textContent(v) { xp.textContent = v; } }, Math.round(need * s.start / 100), need, s.fill * 1000, " / " + need + " XP");
+        // Étincelles en tête de barre pendant le remplissage
+        const t0 = performance.now();
+        const sparks = () => {
+            if (id !== runId || performance.now() - t0 > s.fill * 1000 * k()) return;
+            const b = document.getElementById("bar").getBoundingClientRect(), f = fill.getBoundingClientRect(), st = stage.getBoundingClientRect();
+            burst(f.right - st.left, b.top - st.top + b.height / 2, 2, { angle: -Math.PI / 2, spread: 2, speed: 220, up: 60 });
+            requestAnimationFrame(sparks);
+        };
+        sparks();
+        await wait(s.fill * 1000); if (id !== runId) return;
+        anim(document.getElementById("next"), [{ transform: "scale(1)" }, { transform: "scale(1.4)", background: "white" }], 120);
+        await wait(140);
+        const c = centerOf(document.getElementById("bar"));
+        doFlash(s.flash); doShake(s.shake);
+        burst(c.x, c.y, s.particles, { w: c.w, h: c.h, shards: true, speed: 620, up: 120 });
+        anim(wrap, [{ opacity: 1, transform: "scale(1)", filter: "blur(0)" }, { opacity: 0, transform: "scale(1.25)", filter: "blur(6px)" }], 260, { easing: "ease-out" });
+        await wait(120);
+        await revealLevel();
+    }
+
+    if (variant === "b") {
+        const R = 108, C = 2 * Math.PI * R;
+        content.innerHTML = `
+            <div class="b-wrap" id="bar-wrap">
+                <svg viewBox="0 0 240 240"><circle cx="120" cy="120" r="${R}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="10"/>
+                <circle id="ring" cx="120" cy="120" r="${R}" fill="none" stroke="url(#g)" stroke-width="10" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - s.start / 100)}" style="filter:drop-shadow(0 0 8px var(--c1))"/>
+                <defs><linearGradient id="g"><stop offset="0" stop-color="var(--c1)"/><stop offset="1" stop-color="var(--c2)"/></linearGradient></defs></svg>
+                <div class="b-shield" id="shield">${LEVEL}</div>
+            </div>` + bigHtml();
+        const wrap = document.getElementById("bar-wrap"), ring = document.getElementById("ring"), shield = document.getElementById("shield");
+        anim(wrap, [{ opacity: 0, transform: "scale(.6)" }, { opacity: 1, transform: "scale(1)" }], 500, { easing: "cubic-bezier(.3,1.4,.5,1)" });
+        await wait(550); if (id !== runId) return;
+        anim(ring, [{ strokeDashoffset: C * (1 - s.start / 100) }, { strokeDashoffset: 0 }], s.fill * 1000, { easing: "cubic-bezier(.6,0,.9,.6)" });
+        await wait(s.fill * 1000); if (id !== runId) return;
+        const c = centerOf(wrap);
+        doFlash(s.flash); doShake(s.shake);
+        for (let i = 0; i < 24; i++) { const a = i / 24 * 6.28; burst(c.x + Math.cos(a) * R, c.y + Math.sin(a) * R, Math.round(s.particles / 24), { angle: a, spread: 0.6, speed: 520 }); }
+        anim(ring, [{ opacity: 1, strokeWidth: 10 }, { opacity: 0, strokeWidth: 40 }], 400, { easing: "ease-out" });
+        anim(shield, [{ transform: "rotateY(0) scale(1)" }, { transform: "rotateY(180deg) scale(1.15)", offset: .5 }, { transform: "rotateY(360deg) scale(1)" }], 700, { easing: "cubic-bezier(.4,0,.2,1)" });
+        await wait(350); shield.textContent = LEVEL + 1;
+        await wait(450);
+        anim(wrap, [{ opacity: 1, transform: "scale(1)" }, { opacity: 0, transform: "scale(.6) translateY(-40px)" }], 350, { easing: "ease-in" });
+        await wait(150);
+        await revealLevel();
+    }
+
+    if (variant === "c") {
+        content.innerHTML = `
+            <div class="c-wrap" id="bar-wrap"><div class="c-track"></div><div class="c-fill" id="fill"></div></div>
+            <div class="c-half top" id="top" style="opacity:0"></div><div class="c-half bot" id="bot" style="opacity:0"></div>` + bigHtml();
+        const wrap = document.getElementById("bar-wrap"), fill = document.getElementById("fill");
+        fill.style.width = s.start + "%";
+        anim(wrap, [{ opacity: 0, transform: "scaleX(0)" }, { opacity: 1, transform: "scaleX(1)" }], 450);
+        await wait(500); if (id !== runId) return;
+        anim(fill, [{ width: s.start + "%" }, { width: "100%" }], s.fill * 1000, { easing: "cubic-bezier(.6,0,.9,.6)" });
+        await wait(s.fill * 1000); if (id !== runId) return;
+        // La ligne s'étire d'un bord à l'autre…
+        anim(wrap, [{ transform: "scaleX(1)" }, { transform: "scaleX(1.45)" }], 220, { easing: "ease-in" });
+        await wait(220);
+        const c = centerOf(wrap);
+        doFlash(s.flash); doShake(s.shake);
+        burst(c.x, c.y, s.particles, { w: c.w * 1.4, h: 4, speed: 420 });
+        // … puis l'écran s'ouvre en deux
+        const top = document.getElementById("top"), bot = document.getElementById("bot");
+        top.style.opacity = 1; bot.style.opacity = 1;
+        anim(wrap, [{ opacity: 0 }, { opacity: 0 }], 10);
+        anim(top, [{ transform: "translateY(0)", opacity: 1 }, { transform: "translateY(-100%)", opacity: 1, offset: .85 }, { transform: "translateY(-100%)", opacity: 0 }], 650, { easing: "cubic-bezier(.7,0,.2,1)" });
+        anim(bot, [{ transform: "translateY(0)", opacity: 1 }, { transform: "translateY(100%)", opacity: 1, offset: .85 }, { transform: "translateY(100%)", opacity: 0 }], 650, { easing: "cubic-bezier(.7,0,.2,1)" });
+        await wait(80);
+        const num = document.querySelector(".lvl-num");
+        const g = num.animate([{ "--gx": "8px" }, { "--gx": "-5px" }, { "--gx": "3px" }, { "--gx": "0px" }], { duration: 600 * k(), fill: "forwards" });
+        await revealLevel();
+    }
+
+    await wait(S().hold * 1000); if (id !== runId) return;
+    anim(ov, [{ opacity: 1 }, { opacity: 0 }], 450, { easing: "ease-in" });
+}
+
+// ---------- Panneau ----------
+function out() { document.getElementById("out").value = JSON.stringify({ proposition: variant.toUpperCase(), ...S() }, null, 2); }
+function buildPanel() {
+    document.getElementById("palettes").innerHTML = Object.keys(PALETTES).map(p => `<button data-p="${p}" class="${S().palette === p ? "on" : ""}">${PNAMES[p]}</button>`).join("");
+    document.querySelectorAll("#reward-btns button").forEach(b => b.classList.toggle("on", Number(b.dataset.r) === S().reward));
+    document.getElementById("sliders").innerHTML = SLIDERS.map(([key, label, min, max, step, unit]) => `
+        <div class="row"><label>${label} <span id="v-${key}">${key === "rays" ? (S()[key] ? "oui" : "non") : S()[key] + unit}</span></label>
+        <input type="range" min="${min}" max="${max}" step="${step}" value="${S()[key]}" data-k="${key}" data-u="${unit}"></div>`).join("");
+    document.querySelectorAll("#sliders input").forEach(inp => inp.addEventListener("input", () => {
+        S()[inp.dataset.k] = Number(inp.value);
+        document.getElementById("v-" + inp.dataset.k).textContent = inp.dataset.k === "rays" ? (Number(inp.value) ? "oui" : "non") : inp.value + inp.dataset.u;
+        out();
+    }));
+    out(); applyColors();
+}
+document.getElementById("palettes").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S().palette = b.dataset.p; buildPanel(); play(); });
+document.getElementById("reward-btns").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S().reward = Number(b.dataset.r); buildPanel(); });
+document.getElementById("tabs").addEventListener("click", e => {
+    const b = e.target.closest(".tab"); if (!b) return;
+    variant = b.dataset.v;
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t === b));
+    document.getElementById("desc").textContent = DESCS[variant];
+    buildPanel(); play();
+});
+document.getElementById("play").addEventListener("click", play);
+stage.addEventListener("click", play);
+document.getElementById("copy").addEventListener("click", async () => {
+    const text = document.getElementById("out").value;
+    try { await navigator.clipboard.writeText(text); } catch (e) { document.getElementById("out").select(); document.execCommand("copy"); }
+    const b = document.getElementById("copy"); b.textContent = "✓ Copié !"; setTimeout(() => b.textContent = "📋 Copier les paramètres", 1500);
+});
+
+document.getElementById("desc").textContent = DESCS.a;
+buildPanel();
+setTimeout(play, 400);
+</script>
+</body>
+</html>

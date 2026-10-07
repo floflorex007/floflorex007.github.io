@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Les chemins (parrot.js, images) partent de la racine du site -->
+<base href="../">
+<title>BetLab – Couleurs du perroquet (maquette)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 80px; }
+button { font: inherit; cursor: pointer; color: inherit; }
+h1 { font-size: 26px; margin-bottom: 6px; }
+h2 { font-size: 18px; margin: 34px 0 6px; }
+.sub { color: #858a98; margin-bottom: 20px; max-width: 900px; font-size: 14px; line-height: 1.5; }
+.warn { display: none; background: #2a1d1d; border: 1px solid #ff6b6b; color: #ffb3b3; border-radius: 12px; padding: 12px 14px; margin-bottom: 18px; max-width: 900px; font-size: 14px; }
+
+.layout { display: grid; grid-template-columns: 420px minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }
+
+/* Grand perroquet en direct (le vrai, animé) */
+.stage { position: relative; height: 560px; border-radius: 20px; overflow: hidden;
+    background: radial-gradient(circle at 60% 100%, #1d1a3a 0%, #12141c 60%); border: 1px solid #2c3040; }
+.stage .name { position: absolute; left: 16px; top: 14px; font-weight: 900; font-size: 18px; }
+.stage .parrot-box { position: absolute; left: 50%; bottom: -4%; transform: translateX(-50%); width: 330px; }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+.btns button { background: #1f2330; border: 1px solid #343846; border-radius: 9px; padding: 7px 11px; font-size: 13px; font-weight: 700; }
+.btns button.on { background: #6c63ff; border-color: #6c63ff; }
+
+/* Galerie */
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
+.card { background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; border-radius: 16px; padding: 12px 12px 8px; cursor: pointer; transition: border-color .2s, transform .2s; }
+.card:hover { border-color: #454a5c; transform: translateY(-2px); }
+.card.on { border-color: #6c63ff; box-shadow: 0 0 24px rgba(108, 99, 255, .3); }
+.card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.card-head strong { font-size: 15px; }
+.card-head span { color: #858a98; font-size: 12px; }
+.dots { margin-left: auto; display: flex; gap: 4px; }
+.dots i { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(255,255,255,.2); }
+.states { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; }
+.states canvas { width: 100%; height: auto; display: block; }
+.states-labels { display: grid; grid-template-columns: repeat(6, 1fr); font-size: 10px; color: #737887; text-align: center; margin-top: 2px; }
+
+/* Réglages du perso */
+.panel { background: #161922; border: 1px solid #2c3040; border-radius: 16px; padding: 14px; margin-top: 14px; display: none; }
+.panel.show { display: block; }
+.row { margin-bottom: 10px; }
+.row label { display: flex; justify-content: space-between; font-size: 12px; color: #9ea3b0; margin-bottom: 4px; }
+.row label span { color: #e6e8ee; font-weight: 700; }
+.row input { width: 100%; accent-color: #6c63ff; }
+
+/* Styles du vrai perroquet (copiés de style.css) */
+.parrot { position: relative; width: 100%; aspect-ratio: 512 / 650; pointer-events: none; }
+.parrot-inner { position: absolute; left: 0; top: 0; width: 512px; height: 650px; transform-origin: 0 0; }
+.parrot-pose, .parrot-mirror, .parrot-fx { position: absolute; left: 0; top: 0; width: 512px; height: 650px; }
+.parrot-pose { transform-origin: 256px 560px; will-change: transform, opacity; }
+.parrot-mirror { transform: scaleX(-1); transform-origin: 256px 0; }
+.parrot-head { position: absolute; transform-origin: 288px 181px; will-change: transform; }
+.parrot img { position: absolute; pointer-events: none; user-select: none; -webkit-user-drag: none; }
+.parrot-win-main { clip-path: polygon(0 0, 508px 0, 508px 250px, 420px 250px, 420px 335px, 405px 346px, 378px 359px, 348px 371px, 318px 380px, 312px 438px, 362px 460px, 362px 492px, 312px 494px, 312px 562px, 0 562px); }
+.parrot-level { position: absolute; left: 0; top: 0; width: 512px; height: 650px; transform-origin: 256px 615px; }
+</style>
+</head>
+<body>
+
+<h1>🦜 Couleurs du perroquet</h1>
+<p class="sub">
+    Maquette avant de coder. Le même perroquet (mêmes images, mêmes états), recoloré : seules ses plumes bleues et jaunes changent,
+    les billets, le bec et les yeux gardent leurs couleurs. Clique une variante pour la voir en grand et en mouvement,
+    puis teste les 4 piles, « gagné » et « perdu ». La variante « Perso » se règle avec des curseurs.
+</p>
+<div class="warn" id="warn">
+    ⚠️ Les images ne peuvent pas être recolorées quand la page est ouverte directement depuis le disque.
+    Ouvre-la par le petit serveur local : <b>http://localhost:8765/Exemple-aide%20CLAUDE/demo-couleurs-perroquet.html</b>
+</div>
+
+<div class="layout">
+
+    <div>
+        <div class="stage">
+            <span class="name" id="live-name">Classique</span>
+            <div class="parrot-box"><div class="parrot" id="parrot"></div></div>
+        </div>
+
+        <div class="btns" id="states">
+            <button data-s="1" class="on">Pile 1</button>
+            <button data-s="2">Pile 2</button>
+            <button data-s="3">Pile 3</button>
+            <button data-s="4">Pile 4</button>
+            <button data-s="win">🏆 Gagné</button>
+            <button data-s="lose">💸 Perdu</button>
+        </div>
+
+        <div class="panel" id="panel">
+            <div class="row"><label>Teinte des plumes bleues <span id="v-bh"></span></label><input type="range" min="0" max="359" id="bh"></div>
+            <div class="row"><label>Saturation des plumes bleues <span id="v-bs"></span></label><input type="range" min="0" max="160" id="bs"></div>
+            <div class="row"><label>Luminosité des plumes bleues <span id="v-bl"></span></label><input type="range" min="-40" max="40" id="bl"></div>
+            <div class="row"><label>Teinte des plumes jaunes <span id="v-yh"></span></label><input type="range" min="0" max="359" id="yh"></div>
+            <div class="row"><label>Saturation des plumes jaunes <span id="v-ys"></span></label><input type="range" min="0" max="160" id="ys"></div>
+            <div class="row"><label>Luminosité des plumes jaunes <span id="v-yl"></span></label><input type="range" min="-40" max="40" id="yl"></div>
+        </div>
+    </div>
+
+    <div>
+        <div class="gallery" id="gallery"></div>
+    </div>
+
+</div>
+
+<script src="parrot.js"></script>
+<script>
+const A = "assets/perroquet/";
+
+/*
+    Variante = nouvelle teinte (h, en degrés), saturation (s, multiplicateur)
+    et luminosité (l, ajout) pour les plumes bleues et pour les plumes jaunes.
+    null = la couleur d'origine est gardée.
+*/
+const VARIANTS = [
+    { id: "classique", name: "Classique", desc: "l'original", blue: null, yellow: null },
+    { id: "rouge", name: "Ara rouge", desc: "rouge et bleu", blue: null, yellow: { h: 2, s: 1.1, l: -0.05 } },
+    { id: "nuit", name: "Bleu nuit", desc: "tout en bleu profond", blue: { h: 232, s: 1.1, l: -0.12 }, yellow: { h: 222, s: 0.95, l: -0.08 } },
+    { id: "emeraude", name: "Émeraude", desc: "vert et or", blue: { h: 150, s: 1, l: -0.04 }, yellow: { h: 48, s: 1.1, l: 0 } },
+    { id: "rose", name: "Flamant", desc: "rose bonbon", blue: { h: 325, s: 0.9, l: 0.06 }, yellow: { h: 340, s: 0.8, l: 0.12 } },
+    { id: "violet", name: "Violet royal", desc: "violet et or", blue: { h: 275, s: 1, l: -0.04 }, yellow: { h: 45, s: 1.15, l: 0 } },
+    { id: "or", name: "Perroquet d'or", desc: "tout doré", blue: { h: 44, s: 1.2, l: 0.02 }, yellow: { h: 50, s: 1.2, l: 0.06 } },
+    { id: "arctique", name: "Arctique", desc: "blanc neige", blue: { h: 205, s: 0.14, l: 0.26 }, yellow: { h: 40, s: 0.12, l: 0.3 } },
+    { id: "noir", name: "Noir et or", desc: "plumes sombres", blue: { h: 220, s: 0.15, l: -0.3 }, yellow: { h: 45, s: 1.2, l: 0 } },
+    { id: "feu", name: "Feu", desc: "orange brûlant", blue: { h: 10, s: 1.1, l: -0.05 }, yellow: { h: 46, s: 1.2, l: 0.03 } },
+    { id: "perso", name: "Perso", desc: "à régler avec les curseurs", blue: { h: 300, s: 1, l: 0 }, yellow: { h: 190, s: 1, l: 0 } }
+];
+
+// Images à recolorer (les bulles, traits et billets gardent leurs couleurs).
+const RECOLOR = ["wait-body", "wait-head", "l2-body", "l2-head", "l3-body", "l3-head", "l4-body", "l4-head", "win-main", "lose-main"];
+const KEEP = ["win-lines", "win-bubble", "lose-lines", "lose-bubble"];
+
+// Repère 512 × 650 du perroquet (positions de parrot.js)
+const LEVEL_BOX = { 1: [2, 119, 392, 441], 2: [98, 73, 317, 542], 3: [82, 92, 348, 523], 4: [56, 15, 400, 600] };
+const LEVEL_NAMES = { 1: ["wait-body", "wait-head"], 2: ["l2-body", "l2-head"], 3: ["l3-body", "l3-head"], 4: ["l4-body", "l4-head"] };
+const WIN_CLIP = [[0,0],[508,0],[508,250],[420,250],[420,335],[405,346],[378,359],[348,371],[318,380],[312,438],[362,460],[362,492],[312,494],[312,562],[0,562]];
+
+const originals = {};
+const cache = {};
+let current = "classique";
+let tainted = false;
+
+function load(name) {
+    return new Promise(res => {
+        const img = new Image();
+        img.onload = () => res(img);
+        img.src = A + name + ".png";
+    });
+}
+
+// ----- Couleurs -----
+function rgb2hsl(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2;
+    if (max === min) return [0, 0, l];
+    const d = max - min, s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    let h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return [h * 60, s, l];
+}
+function hsl2rgb(h, s, l) {
+    h = ((h % 360) + 360) % 360 / 360;
+    if (s === 0) return [l * 255, l * 255, l * 255];
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q;
+    const f = t => { t = (t + 1) % 1; return t < 1/6 ? p + (q - p) * 6 * t : t < 1/2 ? q : t < 2/3 ? p + (q - p) * (2/3 - t) * 6 : p; };
+    return [f(h + 1/3) * 255, f(h) * 255, f(h - 1/3) * 255];
+}
+// Poids (0 à 1) d'une teinte dans une plage, avec des bords adoucis.
+function band(h, a, b, soft) {
+    if (h < a - soft || h > b + soft) return 0;
+    if (h < a) return (h - a + soft) / soft;
+    if (h > b) return (b + soft - h) / soft;
+    return 1;
+}
+
+function recolor(img, v) {
+    const c = document.createElement("canvas");
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const ctx = c.getContext("2d");
+    ctx.drawImage(img, 0, 0);
+    if (!v.blue && !v.yellow) return c;
+    let data;
+    try { data = ctx.getImageData(0, 0, c.width, c.height); } catch (e) { tainted = true; return c; }
+    const p = data.data;
+    const groups = [
+        { m: v.yellow, center: 35, a: 16, b: 50, soft: 6 },
+        { m: v.blue, center: 205, a: 172, b: 240, soft: 10 }
+    ].filter(g => g.m);
+    for (let i = 0; i < p.length; i += 4) {
+        if (p[i + 3] < 8) continue;
+        const [h, s, l] = rgb2hsl(p[i], p[i + 1], p[i + 2]);
+        if (s < 0.16) continue;
+        for (const g of groups) {
+            const w = band(h, g.a, g.b, g.soft) * Math.min(1, (s - 0.16) / 0.12);
+            if (!w) continue;
+            const nh = g.m.h + (h - g.center) * 0.6;
+            const ns = Math.max(0, Math.min(1, s * g.m.s));
+            const nl = Math.max(0, Math.min(1, l + g.m.l * (1 - Math.abs(2 * l - 1) * 0.5)));
+            const [r2, g2, b2] = hsl2rgb(nh, ns, nl);
+            p[i] = p[i] + (r2 - p[i]) * w;
+            p[i + 1] = p[i + 1] + (g2 - p[i + 1]) * w;
+            p[i + 2] = p[i + 2] + (b2 - p[i + 2]) * w;
+            break;
+        }
+    }
+    ctx.putImageData(data, 0, 0);
+    return c;
+}
+
+function variantImages(v) {
+    if (!cache[v.id]) {
+        cache[v.id] = {};
+        RECOLOR.forEach(n => cache[v.id][n] = recolor(originals[n], v));
+        KEEP.forEach(n => cache[v.id][n] = originals[n]);
+    }
+    return cache[v.id];
+}
+
+// ----- Vignettes : 4 piles, gagné, perdu -----
+function drawState(canvas, imgs, state) {
+    const ctx = canvas.getContext("2d");
+    const sc = canvas.width / 512;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (typeof state === "number") {
+        const [x, y, w, h] = LEVEL_BOX[state];
+        ctx.setTransform(-sc, 0, 0, sc, canvas.width, 0);
+        LEVEL_NAMES[state].forEach(n => ctx.drawImage(imgs[n], x, y, w, h));
+    } else if (state === "win") {
+        ctx.setTransform(sc, 0, 0, sc, 0, 0);
+        ctx.save();
+        ctx.translate(2, 71);
+        ctx.beginPath();
+        WIN_CLIP.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+        ctx.closePath(); ctx.clip();
+        ctx.drawImage(imgs["win-main"], 0, 0, 508, 562);
+        ctx.restore();
+        ctx.drawImage(imgs["win-lines"], 254, 59, 117, 189);
+        ctx.drawImage(imgs["win-bubble"], 321, 36, 171, 146);
+    } else {
+        ctx.setTransform(sc, 0, 0, sc, 0, 0);
+        ctx.drawImage(imgs["lose-main"], 25, 95, 442, 489);
+        ctx.drawImage(imgs["lose-lines"], 374, 245, 40, 47);
+        ctx.drawImage(imgs["lose-bubble"], 335, 36, 156, 157);
+    }
+}
+
+function swatch(v, which, base) {
+    if (!v[which]) return base;
+    const [r, g, b] = hsl2rgb(v[which].h, Math.min(1, 0.8 * v[which].s), Math.max(0, Math.min(1, 0.5 + v[which].l)));
+    return `rgb(${r|0},${g|0},${b|0})`;
+}
+
+function buildGallery() {
+    const box = document.getElementById("gallery");
+    box.innerHTML = "";
+    VARIANTS.forEach(v => {
+        const card = document.createElement("div");
+        card.className = "card" + (v.id === current ? " on" : "");
+        card.dataset.id = v.id;
+        card.innerHTML = `
+            <div class="card-head"><strong>${v.name}</strong><span>${v.desc}</span>
+                <span class="dots"><i style="background:${swatch(v, "blue", "#1f7fd1")}"></i><i style="background:${swatch(v, "yellow", "#f2a91c")}"></i></span></div>
+            <div class="states"></div>
+            <div class="states-labels"><span>Pile 1</span><span>Pile 2</span><span>Pile 3</span><span>Pile 4</span><span>Gagné</span><span>Perdu</span></div>`;
+        const states = card.querySelector(".states");
+        const imgs = variantImages(v);
+        [1, 2, 3, 4, "win", "lose"].forEach(s => {
+            const c = document.createElement("canvas");
+            c.width = 128; c.height = 163;
+            drawState(c, imgs, s);
+            states.appendChild(c);
+        });
+        card.addEventListener("click", () => select(v.id));
+        box.appendChild(card);
+    });
+}
+
+// ----- Grand perroquet : on remplace ses images par celles de la variante -----
+const urlCache = {};
+function applyLive(v) {
+    const imgs = variantImages(v);
+    document.querySelectorAll("#parrot img").forEach(img => {
+        const name = (img.dataset.orig || img.getAttribute("src")).split("/").pop().replace(".png", "");
+        if (!img.dataset.orig) img.dataset.orig = img.getAttribute("src");
+        if (!RECOLOR.includes(name)) return;
+        const key = v.id + ":" + name + (v.id === "perso" ? JSON.stringify(v) : "");
+        if (!urlCache[key]) {
+            try { urlCache[key] = imgs[name].toDataURL(); } catch (e) { urlCache[key] = img.dataset.orig; }
+        }
+        img.src = urlCache[key];
+    });
+    document.getElementById("live-name").textContent = v.name;
+}
+
+function select(id) {
+    current = id;
+    const v = VARIANTS.find(x => x.id === id);
+    document.querySelectorAll(".card").forEach(c => c.classList.toggle("on", c.dataset.id === id));
+    document.getElementById("panel").classList.toggle("show", id === "perso");
+    applyLive(v);
+}
+
+// ----- Réglages de la variante Perso -----
+const SL = { bh: ["blue", "h"], bs: ["blue", "s"], bl: ["blue", "l"], yh: ["yellow", "h"], ys: ["yellow", "s"], yl: ["yellow", "l"] };
+let persoTimer = null;
+function initPanel() {
+    const perso = VARIANTS.find(v => v.id === "perso");
+    Object.entries(SL).forEach(([id, [g, k]]) => {
+        const input = document.getElementById(id);
+        const show = () => document.getElementById("v-" + id).textContent = k === "h" ? input.value + "°" : k === "s" ? input.value + " %" : (input.value > 0 ? "+" : "") + input.value;
+        input.value = k === "h" ? perso[g].h : k === "s" ? perso[g].s * 100 : perso[g].l * 100;
+        show();
+        input.addEventListener("input", () => {
+            show();
+            perso[g][k] = k === "h" ? Number(input.value) : Number(input.value) / 100;
+            clearTimeout(persoTimer);
+            persoTimer = setTimeout(() => {
+                delete cache.perso;
+                buildGallery();
+                if (current === "perso") applyLive(perso);
+            }, 120);
+        });
+    });
+}
+
+document.getElementById("states").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    const s = b.dataset.s;
+    if (s === "win") Parrot.win();
+    else if (s === "lose") Parrot.lose();
+    else {
+        Parrot.wait(true);
+        Parrot.level(Number(s));
+        document.querySelectorAll("#states button").forEach(x => x.classList.toggle("on", x === b));
+    }
+});
+
+(async () => {
+    const names = [...RECOLOR, ...KEEP];
+    const list = await Promise.all(names.map(load));
+    names.forEach((n, i) => originals[n] = list[i]);
+    buildGallery();
+    if (tainted) document.getElementById("warn").style.display = "block";
+    initPanel();
+    // Le perroquet est construit par parrot.js au chargement de la page.
+    const wait = () => document.querySelector("#parrot img") ? select(current) : setTimeout(wait, 50);
+    wait();
+})();
+</script>
+</body>
+</html>

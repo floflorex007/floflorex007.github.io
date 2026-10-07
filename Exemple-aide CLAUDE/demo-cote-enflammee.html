@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BetLab – Cote enflammée (maquette)</title>
+<style>
+@property --a { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 80px; overflow-x: hidden; }
+button { font: inherit; cursor: pointer; color: inherit; }
+h1 { font-size: 26px; margin-bottom: 6px; }
+.sub { color: #858a98; margin-bottom: 18px; max-width: 900px; font-size: 14px; line-height: 1.5; }
+.tabs { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.tab { background: #1a1d27; border: 1px solid #2c3040; border-radius: 12px; padding: 10px 16px; font-weight: 800; }
+.tab.on { background: #6c63ff; border-color: #6c63ff; }
+.desc { color: #b9bdc9; font-size: 14px; margin-bottom: 18px; max-width: 900px; line-height: 1.5; min-height: 42px; }
+
+.layout { display: grid; grid-template-columns: minmax(0, 560px) 360px; gap: 28px; align-items: start; }
+@media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }
+.cards { display: flex; flex-direction: column; gap: 22px; }
+
+/* Carte de pari (comme le site) */
+.bet-card { position: relative; background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; border-radius: 18px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+.bet-head { color: #858a98; font-size: 13px; margin-bottom: 12px; }
+.bet-q { font-size: 17px; font-weight: 800; margin-bottom: 18px; }
+.bet-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.bet-choices.three { grid-template-columns: 1fr 1fr 1fr; }
+.bet-choice-wrapper { position: relative; }
+.bet-choice-button { position: relative; z-index: 2; width: 100%; background: #222631; border: 1px solid #303544; color: white; padding: 14px 10px; border-radius: 12px;
+    display: flex; flex-direction: column; align-items: center; gap: 4px; overflow: hidden; }
+.bet-choice-button:hover { border-color: #6c63ff; }
+.bet-choice-button span { font-size: 12px; color: #a7abb8; font-weight: 600; }
+.bet-choice-button strong { font-size: 18px; color: #6c63ff; }
+.choice-bar-track { height: 4px; background: #2a2e3b; border-radius: 3px; margin-top: 8px; overflow: hidden; }
+.choice-bar-fill { height: 100%; background: #6c63ff; }
+.odds-input { display: flex; align-items: center; gap: 8px; margin-top: 14px; font-size: 12px; color: #858a98; }
+.odds-input input { width: 80px; background: #101219; border: 1px solid #343846; color: white; border-radius: 8px; padding: 5px 8px; font: inherit; }
+
+/* La cote en feu : chiffre doré */
+.fire .bet-choice-button strong { color: var(--c2); text-shadow: 0 0 8px var(--c1); }
+.fire .bet-choice-button { border-color: var(--c1); }
+
+/* ---------- A · Contour de flammes qui tourne ---------- */
+.va.fire::before, .va.fire::after {
+    content: ""; position: absolute; inset: calc(-1 * var(--bw)); border-radius: calc(12px + var(--bw)); z-index: 1; pointer-events: none;
+    background: conic-gradient(from var(--a), var(--c1), var(--c2), var(--c3), var(--c2), var(--c1), var(--c3), var(--c1));
+    animation: spin var(--spin) linear infinite;
+}
+.va.fire::after { inset: calc(-1 * var(--bw) - 2px); filter: blur(var(--glow)); opacity: var(--glowop); animation: spin var(--spin) linear infinite, flicker var(--flick) ease-in-out infinite alternate; }
+@keyframes spin { to { --a: 360deg; } }
+@keyframes flicker { 0% { opacity: calc(var(--glowop) * .6); transform: scale(.99); } 50% { opacity: var(--glowop); } 100% { opacity: calc(var(--glowop) * .8); transform: scale(1.02, 1.05); } }
+
+/* ---------- B · Braises qui montent (canvas autour de la case) ---------- */
+.vb.fire .bet-choice-button { box-shadow: 0 0 var(--glow) var(--c1), inset 0 0 12px rgba(255, 120, 0, .25); animation: breathe var(--flick) ease-in-out infinite alternate; }
+@keyframes breathe { from { box-shadow: 0 0 calc(var(--glow) * .6) var(--c1), inset 0 0 8px rgba(255,120,0,.2); } to { box-shadow: 0 0 var(--glow) var(--c1), inset 0 0 14px rgba(255,120,0,.3); } }
+.embers { position: absolute; left: -40px; top: -90px; width: calc(100% + 80px); height: calc(100% + 110px); z-index: 3; pointer-events: none; }
+
+/* ---------- C · Vraies flammes (bruit SVG) ---------- */
+.vc.fire::before {
+    content: ""; position: absolute; inset: calc(-1 * var(--bw)); border-radius: 14px; z-index: 1; pointer-events: none;
+    background: linear-gradient(0deg, var(--c3), var(--c1) 45%, var(--c2));
+    filter: url(#fire-filter) blur(.4px);
+}
+.vc.fire::after {
+    content: ""; position: absolute; inset: -6px; border-radius: 16px; z-index: 0; pointer-events: none;
+    box-shadow: 0 0 var(--glow) var(--c1); opacity: var(--glowop); animation: flicker var(--flick) ease-in-out infinite alternate;
+}
+
+/* Panneau */
+.panel { background: #161922; border: 1px solid #2c3040; border-radius: 18px; padding: 16px; position: sticky; top: 16px; }
+.panel h3 { font-size: 15px; margin-bottom: 12px; }
+.row { margin-bottom: 11px; }
+.row label { display: flex; justify-content: space-between; font-size: 12px; color: #9ea3b0; margin-bottom: 4px; }
+.row label span { color: #e6e8ee; font-weight: 700; }
+.row input[type=range] { width: 100%; accent-color: #6c63ff; }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.btns button { background: #1f2330; border: 1px solid #343846; border-radius: 9px; padding: 6px 10px; font-size: 12px; font-weight: 700; }
+.btns button.on { background: #6c63ff; border-color: #6c63ff; }
+.copy { width: 100%; margin-top: 6px; background: linear-gradient(135deg, #2fa36f, #63d69f); color: #0b1f15; border: none; border-radius: 10px; padding: 10px; font-weight: 900; }
+textarea { width: 100%; height: 120px; margin-top: 10px; background: #101219; color: #9ea3b0; border: 1px solid #343846; border-radius: 10px; padding: 8px; font: 11px ui-monospace, monospace; resize: vertical; }
+.small { font-size: 11px; color: #737887; margin-top: 8px; line-height: 1.4; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+    <filter id="fire-filter" x="-30%" y="-80%" width="160%" height="200%">
+        <feTurbulence id="fire-noise" type="fractalNoise" baseFrequency="0.035 0.09" numOctaves="2" seed="3" result="noise" />
+        <feOffset id="fire-offset" in="noise" dx="0" dy="0" result="moving" />
+        <feDisplacementMap id="fire-disp" in="SourceGraphic" in2="moving" scale="14" xChannelSelector="R" yChannelSelector="G" result="flame" />
+        <feGaussianBlur in="flame" stdDeviation="1.2" result="soft" />
+        <feMerge><feMergeNode in="soft" /><feMergeNode in="flame" /></feMerge>
+    </filter>
+</svg>
+
+<h1>🔥 Cote enflammée</h1>
+<p class="sub">
+    Maquette avant de coder. Quand une cote vaut <b>10 ou plus</b>, la case du choix prend un halo enflammé.
+    Change les cotes sous les cartes pour tester le seuil, règle les curseurs, puis clique « Copier les paramètres » et colle-les moi.
+</p>
+
+<div class="tabs" id="tabs">
+    <button class="tab on" data-v="a">A · Contour de flammes</button>
+    <button class="tab" data-v="b">B · Braises qui montent</button>
+    <button class="tab" data-v="c">C · Vraies flammes</button>
+</div>
+<p class="desc" id="desc"></p>
+
+<div class="layout">
+    <div class="cards" id="cards"></div>
+
+    <div class="panel">
+        <h3>🎛️ Réglages en direct</h3>
+        <div class="row"><label>Couleurs</label></div>
+        <div class="btns" id="palettes"></div>
+        <div id="sliders"></div>
+        <button class="copy" id="copy">📋 Copier les paramètres</button>
+        <textarea id="out" readonly></textarea>
+        <p class="small">Les réglages sont gardés séparément pour chaque proposition. Le texte ci-dessus est ce qui est copié.</p>
+    </div>
+</div>
+
+<script>
+const DESCS = {
+    a: "Un contour de flammes (rouge, orange, jaune) tourne autour de la case, avec une lueur floue qui vacille derrière. Discret et élégant.",
+    b: "La case rougeoie comme une braise et des étincelles s'en échappent et montent au-dessus d'elle. Plus vivant, on le remarque tout de suite.",
+    c: "De vraies flammes ondulent sur le contour de la case (effet de feu déformé en continu), avec une lueur derrière. Le plus spectaculaire."
+};
+const PALETTES = {
+    feu: ["#ff4d00", "#ffd34d", "#c81e00"],
+    braise: ["#ff2a00", "#ff9a3c", "#7a0a00"],
+    or: ["#ffb300", "#fff1a8", "#c77700"],
+    bleu: ["#1e90ff", "#a8f0ff", "#2b2bd6"],
+    violet: ["#b14dff", "#ffb3ff", "#5a1fd1"]
+};
+const PALETTE_NAMES = { feu: "🔥 Feu", braise: "Braise", or: "Or", bleu: "Feu bleu", violet: "Feu violet" };
+
+const DEFAULTS = {
+    a: { palette: "feu", bw: 2, glow: 10, glowop: 0.8, spin: 2.5, flick: 0.35 },
+    b: { palette: "feu", glow: 16, flick: 0.6, rate: 30, height: 70, size: 3, wind: 0 },
+    c: { palette: "feu", bw: 4, glow: 14, glowop: 0.6, flick: 0.4, disp: 14, speed: 60, freq: 9 }
+};
+const SLIDERS = {
+    a: [["bw", "Épaisseur du contour", 1, 6, 0.5, " px"], ["glow", "Taille de la lueur", 0, 30, 1, " px"], ["glowop", "Force de la lueur", 0, 1, 0.05, ""], ["spin", "Durée d'un tour", 0.6, 8, 0.1, " s"], ["flick", "Vacillement", 0.1, 1.5, 0.05, " s"]],
+    b: [["glow", "Taille de la lueur", 0, 40, 1, " px"], ["flick", "Respiration", 0.2, 2, 0.05, " s"], ["rate", "Étincelles par seconde", 0, 120, 1, ""], ["height", "Hauteur des étincelles", 20, 140, 1, " px"], ["size", "Taille des étincelles", 1, 6, 0.5, " px"], ["wind", "Vent", -40, 40, 1, ""]],
+    c: [["bw", "Épaisseur des flammes", 2, 12, 0.5, " px"], ["glow", "Taille de la lueur", 0, 40, 1, " px"], ["glowop", "Force de la lueur", 0, 1, 0.05, ""], ["flick", "Vacillement", 0.1, 1.5, 0.05, " s"], ["disp", "Déformation", 0, 40, 1, ""], ["speed", "Vitesse des flammes", 5, 200, 5, ""], ["freq", "Finesse des flammes", 3, 25, 1, ""]]
+};
+
+const CARDS = [
+    { author: "Yann", q: "Lina part avant 16h15 précisément ?", choices: [["Oui", 12.5, 6], ["Non", 1.08, 94]] },
+    { author: "Balac", q: "Qui gagne le baby-foot ce midi ?", choices: [["Florian", 1.9, 48], ["Yann", 2.4, 40], ["Personne", 15, 12]] },
+    { author: "Florian", q: "Coupure de Wi-Fi aujourd'hui ?", choices: [["Oui", 9.99, 9], ["Non", 1.11, 91]] }
+];
+
+let variant = "a";
+const settings = JSON.parse(JSON.stringify(DEFAULTS));
+const S = () => settings[variant];
+
+function renderCards() {
+    const box = document.getElementById("cards");
+    box.innerHTML = CARDS.map((c, ci) => `
+        <div class="bet-card">
+            <div class="bet-head">🏆 Créé par ${c.author}</div>
+            <div class="bet-q">🎲 ${c.q}</div>
+            <div class="bet-choices ${c.choices.length === 3 ? "three" : ""}">
+                ${c.choices.map(([label, odds, pct], i) => `
+                    <div>
+                        <div class="bet-choice-wrapper v${variant}${odds >= 10 ? " fire" : ""}" data-c="${ci}" data-i="${i}">
+                            <button class="bet-choice-button"><span>${label}</span><strong>${odds.toFixed(2)}</strong></button>
+                            ${variant === "b" && odds >= 10 ? `<canvas class="embers"></canvas>` : ""}
+                        </div>
+                        <div class="choice-bar-track"><div class="choice-bar-fill" style="width:${pct}%"></div></div>
+                    </div>`).join("")}
+            </div>
+            <div class="odds-input">Cotes : ${c.choices.map(([label, odds], i) => `<input type="number" step="0.01" min="1" value="${odds}" data-c="${ci}" data-i="${i}" title="${label}">`).join("")}</div>
+        </div>`).join("");
+    box.querySelectorAll(".odds-input input").forEach(inp => inp.addEventListener("change", () => {
+        CARDS[inp.dataset.c].choices[inp.dataset.i][1] = Math.max(1, Number(inp.value) || 1);
+        renderCards();
+    }));
+    applyVars();
+    setupEmbers();
+}
+
+function applyVars() {
+    const s = S(), p = PALETTES[s.palette];
+    document.querySelectorAll(".bet-choice-wrapper").forEach(el => {
+        el.style.setProperty("--c1", p[0]); el.style.setProperty("--c2", p[1]); el.style.setProperty("--c3", p[2]);
+        el.style.setProperty("--bw", (s.bw || 2) + "px");
+        el.style.setProperty("--glow", s.glow + "px");
+        el.style.setProperty("--glowop", s.glowop ?? 0.8);
+        el.style.setProperty("--spin", (s.spin || 2) + "s");
+        el.style.setProperty("--flick", s.flick + "s");
+    });
+    if (variant === "c") {
+        document.getElementById("fire-disp").setAttribute("scale", s.disp);
+        document.getElementById("fire-noise").setAttribute("baseFrequency", `${(s.freq / 300).toFixed(4)} ${(s.freq / 100).toFixed(4)}`);
+    }
+    document.getElementById("out").value = JSON.stringify({ proposition: variant.toUpperCase(), ...s }, null, 2);
+}
+
+function buildPanel() {
+    document.getElementById("palettes").innerHTML = Object.keys(PALETTES).map(k =>
+        `<button data-p="${k}" class="${S().palette === k ? "on" : ""}">${PALETTE_NAMES[k]}</button>`).join("");
+    document.getElementById("sliders").innerHTML = SLIDERS[variant].map(([k, label, min, max, step, unit]) => `
+        <div class="row">
+            <label>${label} <span id="v-${k}">${S()[k]}${unit}</span></label>
+            <input type="range" min="${min}" max="${max}" step="${step}" value="${S()[k]}" data-k="${k}" data-u="${unit}">
+        </div>`).join("");
+    document.querySelectorAll("#sliders input").forEach(inp => inp.addEventListener("input", () => {
+        S()[inp.dataset.k] = Number(inp.value);
+        document.getElementById("v-" + inp.dataset.k).textContent = inp.value + inp.dataset.u;
+        applyVars();
+    }));
+}
+document.getElementById("palettes").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    S().palette = b.dataset.p;
+    buildPanel(); applyVars();
+});
+
+document.getElementById("tabs").addEventListener("click", e => {
+    const b = e.target.closest(".tab"); if (!b) return;
+    variant = b.dataset.v;
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t === b));
+    document.getElementById("desc").textContent = DESCS[variant];
+    buildPanel(); renderCards();
+});
+
+document.getElementById("copy").addEventListener("click", async () => {
+    const text = document.getElementById("out").value;
+    try { await navigator.clipboard.writeText(text); } catch (e) { document.getElementById("out").select(); document.execCommand("copy"); }
+    const b = document.getElementById("copy");
+    b.textContent = "✓ Copié !";
+    setTimeout(() => b.textContent = "📋 Copier les paramètres", 1500);
+});
+
+// ----- B : étincelles -----
+let embers = [];
+function setupEmbers() {
+    embers = [...document.querySelectorAll(".embers")].map(c => ({ c, ctx: c.getContext("2d"), parts: [], acc: 0 }));
+}
+
+// ----- Boucle (étincelles + flammes SVG qui montent) -----
+let prev = performance.now(), noiseY = 0;
+function loop(t) {
+    const dt = Math.min(0.05, (t - prev) / 1000); prev = t;
+    const s = S();
+    if (variant === "c") {
+        noiseY -= s.speed * dt;
+        document.getElementById("fire-offset").setAttribute("dy", (noiseY % 1000).toFixed(1));
+        document.getElementById("fire-noise").setAttribute("seed", 3);
+    }
+    if (variant === "b") {
+        const p = PALETTES[s.palette];
+        embers.forEach(e => {
+            const w = e.c.clientWidth, h = e.c.clientHeight;
+            if (e.c.width !== w * 2) { e.c.width = w * 2; e.c.height = h * 2; }
+            const ctx = e.ctx;
+            ctx.setTransform(2, 0, 0, 2, 0, 0);
+            ctx.clearRect(0, 0, w, h);
+            // La case occupe [40, w-40] × [90, h-20]
+            e.acc += s.rate * dt;
+            while (e.acc >= 1) {
+                e.acc--;
+                const top = Math.random() < 0.7;
+                e.parts.push({
+                    x: 40 + Math.random() * (w - 80),
+                    y: top ? 92 + Math.random() * 6 : 92 + Math.random() * (h - 112),
+                    vx: (Math.random() - 0.5) * 20, vy: -(s.height * (0.7 + Math.random() * 0.6)),
+                    age: 0, life: 0.7 + Math.random() * 0.6, r: s.size * (0.6 + Math.random() * 0.8), ph: Math.random() * 6.28
+                });
+            }
+            ctx.globalCompositeOperation = "lighter";
+            e.parts = e.parts.filter(q => {
+                q.age += dt;
+                if (q.age > q.life) return false;
+                q.x += (q.vx + s.wind + Math.sin(q.age * 8 + q.ph) * 12) * dt;
+                q.y += q.vy * dt / q.life;
+                const k = q.age / q.life;
+                const col = k < 0.3 ? p[1] : k < 0.7 ? p[0] : p[2];
+                ctx.globalAlpha = (1 - k) * 0.95;
+                ctx.fillStyle = col;
+                ctx.shadowColor = p[0]; ctx.shadowBlur = 8;
+                ctx.beginPath(); ctx.arc(q.x, q.y, q.r * (1 - k * 0.6), 0, 6.283); ctx.fill();
+                return true;
+            });
+            ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+        });
+    }
+    requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+document.getElementById("desc").textContent = DESCS.a;
+buildPanel();
+renderCards();
+</script>
+</body>
+</html>

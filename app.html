@@ -107,7 +107,8 @@
             <div
                 id="streak-widget"
                 class="streak-widget hidden"
-                title="Série de connexions : reviens chaque jour pour la faire grandir"
+                title="Ta série de connexions : clique pour en savoir plus"
+                tabindex="0"
             >
                 <span class="streak-flame">🔥</span>
                 <strong id="streak-count">0</strong>
@@ -424,11 +425,17 @@
                     </aside>
 
 
-                    <aside class="admin-message-sidebar level-sidebar">
+                    <aside
+                        id="level-sidebar"
+                        class="admin-message-sidebar level-sidebar"
+                        tabindex="0"
+                        title="Comment gagner de l'XP ?"
+                    >
 
                         <div class="leaderboard-header">
                             <span>⭐</span>
                             <span>Ton niveau</span>
+                            <span class="level-sidebar-info">ⓘ</span>
                         </div>
 
                         <div class="level-sidebar-current">
@@ -454,25 +461,6 @@
                         >
                             ⭐ Débloquer le niveau 2
                         </button>
-
-
-                        <p class="level-sidebar-title">
-                            Comment gagner de l'XP ?
-                        </p>
-
-                        <ul class="level-sidebar-list">
-
-                            <li title="10 € = 1 XP, 100 € = 10 XP, 1 000 € et plus = 20 XP par mise">
-                                <span>🎲 Placer une mise</span>
-                                <strong>+1 à +20 XP</strong>
-                            </li>
-
-                            <li>
-                                <span>🏆 Gagner un pari</span>
-                                <strong>+25 XP</strong>
-                            </li>
-
-                        </ul>
 
                     </aside>
 
@@ -1219,10 +1207,26 @@
                     >
 
                     <div class="bet-quick">
-                        <button type="button" data-stake="20">20 €</button>
                         <button type="button" data-stake="50">50 €</button>
                         <button type="button" data-stake="100">100 €</button>
+                        <button type="button" data-stake="200">200 €</button>
                     </div>
+
+                    <div class="bet-quick bet-quick-bank">
+                        <button type="button" data-stake="half">½ Bank</button>
+                        <button type="button" data-stake="all" class="bet-quick-allin">🔥 All in</button>
+                    </div>
+
+                    <p
+                        id="bet-allin-note"
+                        class="bet-allin-note hidden"
+                    >
+                        ⚠️ Faux all in : ton solde dépasse la mise maximum, on mise donc le maximum du pari (5 000 €).
+                    </p>
+
+                    <p class="bet-rules">
+                        Mise de <strong>10 €</strong> à <strong>5 000 €</strong> · montant rond · 3 mises max par pari
+                    </p>
 
                     <p
                         id="bet-tip"
@@ -1344,6 +1348,216 @@
                 id="shop-preview-options"
                 class="cosmetic-options"
             ></div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =========================================
+         MODAL : SÉRIE (clic sur la flamme)
+    ========================================== -->
+
+    <div
+        id="streak-modal"
+        class="modal hidden"
+    >
+
+        <div class="modal-content xp-modal-content streak-modal-content">
+
+            <button
+                id="close-streak-modal"
+                class="close-modal"
+            >
+                ×
+            </button>
+
+
+            <h2>
+                🔥 Ta série
+            </h2>
+
+
+            <div class="streak-stats">
+
+                <div>
+                    <span>Série actuelle</span>
+                    <strong id="streak-modal-current">0 jour</strong>
+                </div>
+
+                <div>
+                    <span>Meilleure série</span>
+                    <strong id="streak-modal-best">0 jour</strong>
+                </div>
+
+            </div>
+
+
+            <p class="level-sidebar-title">
+                Comment ça marche ?
+            </p>
+
+            <ul class="streak-rules">
+
+                <li>
+                    <span>📅</span>
+                    <p>Ouvre BetLab au moins une fois par jour : ta série gagne <strong>+1 🔥</strong>.</p>
+                </li>
+
+                <li>
+                    <span>🕛</span>
+                    <p>Le jour change à <strong>minuit</strong> (heure de Paris).</p>
+                </li>
+
+                <li>
+                    <span>💨</span>
+                    <p>Si tu passes une journée entière sans venir, ta série <strong>repart à 1</strong>.</p>
+                </li>
+
+                <li>
+                    <span>🌍</span>
+                    <p>Ta série est la même dans tous tes groupes.</p>
+                </li>
+
+            </ul>
+
+
+            <p class="level-sidebar-title">
+                Protéger ta série
+            </p>
+
+            <div
+                id="streak-protect"
+                class="streak-protect-list"
+            ></div>
+
+            <p
+                id="streak-message"
+                class="streak-message"
+            ></p>
+
+
+            <p class="level-sidebar-title xp-skins-title">
+                🦜 Récompense de série
+            </p>
+
+            <ul
+                id="streak-skins"
+                class="xp-skins"
+            ></ul>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =========================================
+         MODAL : XP (clic sur la carte « Ton niveau »)
+    ========================================== -->
+
+    <div
+        id="xp-modal"
+        class="modal hidden"
+    >
+
+        <div class="modal-content xp-modal-content">
+
+            <button
+                id="close-xp-modal"
+                class="close-modal"
+            >
+                ×
+            </button>
+
+
+            <h2>
+                ⭐ Ton niveau
+            </h2>
+
+
+            <div class="level-sidebar-current">
+
+                <strong id="xp-modal-label">
+                    Niveau 1
+                </strong>
+
+                <span id="xp-modal-xp">
+                    0 / 100 XP
+                </span>
+
+            </div>
+
+            <div class="level-bar level-bar-large">
+                <div id="xp-modal-fill"></div>
+            </div>
+
+
+            <p class="level-sidebar-title">
+                Comment gagner de l'XP ?
+            </p>
+
+
+            <div class="xp-rule">
+
+                <div class="xp-rule-head">
+                    <span class="xp-rule-icon">🎲</span>
+                    <div>
+                        <strong>Placer une mise</strong>
+                        <span>Plus la mise est grosse, plus elle rapporte</span>
+                    </div>
+                    <em>+1 à +20 XP</em>
+                </div>
+
+                <div class="xp-scale">
+                    <div><span>10 €</span><strong>1 XP</strong></div>
+                    <div><span>50 €</span><strong>5 XP</strong></div>
+                    <div><span>100 €</span><strong>10 XP</strong></div>
+                    <div><span>550 €</span><strong>15 XP</strong></div>
+                    <div><span>1 000 €+</span><strong>20 XP</strong></div>
+                </div>
+
+            </div>
+
+
+            <div class="xp-rule">
+
+                <div class="xp-rule-head">
+                    <span class="xp-rule-icon">🏆</span>
+                    <div>
+                        <strong>Gagner un pari</strong>
+                        <span>Pour chaque mise gagnante, en plus de l'XP de la mise</span>
+                    </div>
+                    <em>+25 XP</em>
+                </div>
+
+            </div>
+
+
+            <p class="xp-note">
+                Il faut 100 XP pour passer au niveau 2, puis 50 XP de plus à chaque niveau.
+            </p>
+
+
+            <div class="xp-global">
+                <span>🌍</span>
+                <p>
+                    <strong>L'XP te suit dans tous tes groupes.</strong>
+                    C'est la seule valeur conservée d'un groupe à l'autre : ton solde, tes points
+                    et tes achats de boutique restent propres à chaque groupe.
+                </p>
+            </div>
+
+
+            <p class="level-sidebar-title xp-skins-title">
+                🦜 Skins du perroquet
+            </p>
+
+            <ul
+                id="xp-skins"
+                class="xp-skins"
+            ></ul>
 
         </div>
 

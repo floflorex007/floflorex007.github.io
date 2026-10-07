@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Les chemins (parrot.js, images) partent de la racine du site -->
+<base href="../">
+<title>BetLab – Clic du perroquet (maquette)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 80px; }
+button { font: inherit; cursor: pointer; color: inherit; }
+h1 { font-size: 26px; margin-bottom: 6px; }
+.sub { color: #858a98; margin-bottom: 18px; max-width: 900px; font-size: 14px; line-height: 1.5; }
+
+.tabs { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+.tab { background: #1a1d27; border: 1px solid #2c3040; border-radius: 12px; padding: 10px 16px; font-weight: 800; }
+.tab.on { background: #6c63ff; border-color: #6c63ff; }
+.desc { color: #b9bdc9; font-size: 14px; margin-bottom: 18px; max-width: 900px; line-height: 1.5; min-height: 42px; }
+
+.layout { display: grid; grid-template-columns: minmax(0, 720px) 340px; gap: 24px; align-items: start; }
+@media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } }
+
+/* Scène : un coin de la page avec le solde en haut et le perroquet en bas à droite */
+.stage { position: relative; height: 580px; border-radius: 20px; overflow: hidden; user-select: none;
+    background: radial-gradient(circle at 70% 100%, #1d1a3a 0%, #12141c 60%); border: 1px solid #2c3040; }
+.topbar { position: absolute; left: 0; right: 0; top: 0; height: 58px; display: flex; align-items: center; gap: 12px; padding: 0 18px;
+    background: rgba(20, 22, 30, .9); border-bottom: 1px solid #2c3040; z-index: 30; }
+.logo { font-weight: 900; letter-spacing: 1px; }
+.balance { margin-left: auto; background: #1c202c; border: 1px solid #343846; border-radius: 999px; padding: 6px 14px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.balance.pop { animation: pop .25s ease-out; }
+@keyframes pop { 40% { transform: scale(1.12); border-color: #63d69f; color: #9ff0c8; } }
+
+.wrap { position: absolute; right: 4%; bottom: -6%; width: 300px; transform-origin: 60% 92%; cursor: pointer; z-index: 10; }
+.wrap.locked { cursor: default; }
+.wrap.tired { cursor: not-allowed; }
+/* Styles du vrai perroquet (copiés de style.css) */
+.parrot { position: relative; width: 100%; aspect-ratio: 512 / 650; pointer-events: none; }
+.parrot-inner { position: absolute; left: 0; top: 0; width: 512px; height: 650px; transform-origin: 0 0; }
+.parrot-pose, .parrot-mirror, .parrot-fx { position: absolute; left: 0; top: 0; width: 512px; height: 650px; }
+.parrot-pose { transform-origin: 256px 560px; will-change: transform, opacity; }
+.parrot-mirror { transform: scaleX(-1); transform-origin: 256px 0; }
+.parrot-head { position: absolute; transform-origin: 288px 181px; will-change: transform; }
+.parrot img { position: absolute; pointer-events: none; user-select: none; -webkit-user-drag: none; }
+.parrot-win-main { clip-path: polygon(0 0, 508px 0, 508px 250px, 420px 250px, 420px 335px, 405px 346px, 378px 359px, 348px 371px, 318px 380px, 312px 438px, 362px 460px, 362px 492px, 312px 494px, 312px 562px, 0 562px); }
+.parrot-level { position: absolute; left: 0; top: 0; width: 512px; height: 650px; transform-origin: 256px 615px; }
+
+.bill { position: absolute; left: 0; top: 0; width: var(--bw, 46px); pointer-events: none; z-index: 20; will-change: transform, opacity; }
+.plus { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 25; font-weight: 900; color: #9ff0c8; font-size: 16px;
+    text-shadow: 0 2px 6px rgba(0,0,0,.6); will-change: transform, opacity; }
+
+.daily { position: absolute; left: 16px; bottom: 16px; z-index: 30; width: 220px; background: rgba(20,22,30,.85); border: 1px solid #2c3040; border-radius: 14px; padding: 10px 12px; font-size: 12px; color: #9ea3b0; }
+.daily b { color: #e6e8ee; }
+.track { height: 6px; background: #23262f; border-radius: 99px; margin-top: 6px; overflow: hidden; }
+.fill { height: 100%; width: 0; background: linear-gradient(90deg, #2fa36f, #63d69f); transition: width .15s; }
+
+.combo { position: absolute; right: 24px; top: 74px; z-index: 30; font-weight: 900; font-size: 26px; color: #f5c451; opacity: 0;
+    text-shadow: 0 3px 12px rgba(245,196,81,.5); transition: opacity .3s; font-variant-numeric: tabular-nums; }
+.combo.show { opacity: 1; }
+
+.lockmsg { position: absolute; right: 22px; top: 76px; z-index: 30; max-width: 250px; background: #1c202c; border: 1px solid #343846; border-radius: 14px; padding: 10px 12px; font-size: 13px; line-height: 1.4; display: none; }
+.lockmsg.show { display: block; }
+
+.toast { position: absolute; left: 50%; top: 90px; transform: translate(-50%, -10px); z-index: 40; background: #1c202c; border: 1px solid #f5c451; color: #ffe39a;
+    border-radius: 14px; padding: 12px 16px; font-weight: 700; font-size: 14px; opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none; text-align: center; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* Panneau de réglages */
+.panel { background: #161922; border: 1px solid #2c3040; border-radius: 18px; padding: 16px; }
+.panel h3 { font-size: 15px; margin-bottom: 12px; }
+.row { margin-bottom: 11px; }
+.row label { display: flex; justify-content: space-between; font-size: 12px; color: #9ea3b0; margin-bottom: 4px; }
+.row label span { color: #e6e8ee; font-weight: 700; font-variant-numeric: tabular-nums; }
+.row input[type=range] { width: 100%; accent-color: #6c63ff; }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.btns button { background: #1f2330; border: 1px solid #343846; border-radius: 9px; padding: 6px 10px; font-size: 12px; font-weight: 700; }
+.btns button.on { background: #6c63ff; border-color: #6c63ff; }
+.sep { height: 1px; background: #2c3040; margin: 14px 0; }
+.small { font-size: 11px; color: #737887; line-height: 1.4; }
+</style>
+</head>
+<body>
+
+<h1>🦜 Clic du perroquet</h1>
+<p class="sub">
+    Maquette avant de coder. Clique vite sur le perroquet (ou active l'auto-clic) : il rebondit et lâche des billets.
+    Chaque clic rapporte 1 €, jusqu'à 500 € par jour, puis un message demande d'attendre demain.
+    Le bouton « Verrouillé » montre ce qu'on voit avant d'avoir acheté « Clic du perroquet » (30 points) dans la boutique.
+</p>
+
+<div class="tabs" id="tabs">
+    <button class="tab on" data-v="a">A · Pluie de billets</button>
+    <button class="tab" data-v="b">B · Billets vers le solde</button>
+    <button class="tab" data-v="c">C · Explosion et combo</button>
+</div>
+<p class="desc" id="desc"></p>
+
+<div class="layout">
+
+    <div class="stage" id="stage">
+        <div class="topbar">
+            <span class="logo">BETLAB</span>
+            <span class="balance" id="balance">1 000 €</span>
+        </div>
+
+        <div class="combo" id="combo"></div>
+        <div class="lockmsg" id="lockmsg">🔒 Le perroquet n'est pas encore cliquable. Achète <b>« Clic du perroquet »</b> dans la boutique (30 points).</div>
+        <div class="toast" id="toast">🦜 Le perroquet est épuisé !<br>Tu as gagné tes 500 € du jour, reviens demain.</div>
+
+        <div class="wrap" id="wrap"><div class="parrot" id="parrot"></div></div>
+
+        <div class="daily">
+            Gagné aujourd'hui : <b id="earned">0 €</b> / 500 €
+            <div class="track"><div class="fill" id="fill"></div></div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h3>🎛️ Réglages en direct</h3>
+
+        <div class="btns" id="levels">
+            <button data-l="1" class="on">État 1</button>
+            <button data-l="2">État 2</button>
+            <button data-l="3">État 3</button>
+            <button data-l="4">État 4</button>
+        </div>
+
+        <div class="btns">
+            <button id="auto">▶ Auto-clic</button>
+            <button id="lock">🔒 Verrouillé : non</button>
+            <button id="reset">↺ Remettre à 0 €</button>
+            <button id="near">Mettre à 490 €</button>
+        </div>
+
+        <div id="sliders"></div>
+
+        <div class="sep"></div>
+        <p class="small">
+            Les billets sont seulement visuels : un clic = 1 €, quel que soit le nombre de billets lâchés.
+            Les réglages sont gardés séparément pour chaque proposition.
+        </p>
+    </div>
+
+</div>
+
+<script src="parrot.js"></script>
+<script>
+const BILL = "assets/perroquet/win-bill2.png";
+
+const DESCS = {
+    a: "Le perroquet s'écrase un peu puis rebondit, et chaque clic fait sauter des billets au-dessus de lui qui retombent en tournoyant. En cliquant vite, l'air se remplit de billets.",
+    b: "Même rebond, mais les billets sautent puis filent vers le solde en haut à droite, qui grossit d'un coup à chaque arrivée. On voit clairement où va l'argent.",
+    c: "Les billets jaillissent dans toutes les directions puis redescendent lentement en se balançant comme des feuilles. Un « +1 € » s'envole et un compteur de combo s'affiche quand on clique vite."
+};
+
+// Réglages par proposition
+const DEFAULTS = {
+    a: { bounce: 10, stiff: 18, perClick: 2, size: 46, speed: 9, spread: 50, gravity: 40, spin: 10, life: 1.6, max: 250, cps: 12 },
+    b: { bounce: 9,  stiff: 18, perClick: 1, size: 40, speed: 7, spread: 40, gravity: 40, spin: 8,  life: 0.9, max: 200, cps: 12 },
+    c: { bounce: 12, stiff: 16, perClick: 3, size: 38, speed: 13, spread: 180, gravity: 18, spin: 14, life: 2.6, max: 350, cps: 12 }
+};
+const LABELS = [
+    ["bounce", "Force du rebond", 0, 30, 1, ""],
+    ["stiff", "Vivacité du rebond", 6, 40, 1, ""],
+    ["perClick", "Billets par clic", 1, 6, 1, ""],
+    ["size", "Taille des billets", 20, 90, 1, " px"],
+    ["speed", "Vitesse d'éjection", 3, 22, 0.5, ""],
+    ["spread", "Dispersion", 0, 180, 5, "°"],
+    ["gravity", "Gravité", 5, 80, 1, ""],
+    ["spin", "Rotation", 0, 30, 1, ""],
+    ["life", "Durée de vie", 0.4, 4, 0.1, " s"],
+    ["max", "Billets max en l'air", 20, 500, 10, ""],
+    ["cps", "Auto-clic (clics/s)", 2, 25, 1, ""]
+];
+
+let variant = "a";
+const settings = JSON.parse(JSON.stringify(DEFAULTS));
+const S = () => settings[variant];
+
+const stage = document.getElementById("stage");
+const wrap = document.getElementById("wrap");
+const balanceEl = document.getElementById("balance");
+const fmt = n => n.toLocaleString("fr-FR") + " €";
+
+let balance = 1000, earned = 0, locked = false, combo = 0, lastClick = 0;
+
+// ----- Réglages -----
+function buildSliders() {
+    const box = document.getElementById("sliders");
+    box.innerHTML = LABELS.map(([k, label, min, max, step, unit]) => `
+        <div class="row">
+            <label>${label} <span id="v-${k}">${S()[k]}${unit}</span></label>
+            <input type="range" min="${min}" max="${max}" step="${step}" value="${S()[k]}" data-k="${k}" data-u="${unit}">
+        </div>`).join("");
+    box.querySelectorAll("input").forEach(inp => inp.addEventListener("input", () => {
+        S()[inp.dataset.k] = Number(inp.value);
+        document.getElementById("v-" + inp.dataset.k).textContent = inp.value + inp.dataset.u;
+        if (inp.dataset.k === "cps" && autoTimer) startAuto();
+    }));
+}
+
+document.getElementById("tabs").addEventListener("click", e => {
+    const b = e.target.closest(".tab"); if (!b) return;
+    variant = b.dataset.v;
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t === b));
+    document.getElementById("desc").textContent = DESCS[variant];
+    buildSliders();
+    if (autoTimer) startAuto();
+});
+
+document.getElementById("levels").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    document.querySelectorAll("#levels button").forEach(x => x.classList.toggle("on", x === b));
+    if (typeof Parrot !== "undefined") Parrot.level(Number(b.dataset.l));
+    const widths = { 1: 280, 2: 300, 3: 320, 4: 345 };
+    wrap.style.width = widths[b.dataset.l] + "px";
+});
+
+// ----- Rebond (ressort : les clics rapides s'additionnent sans à-coups) -----
+const spring = { y: 0, vy: 0, sq: 0, vsq: 0 };
+function kick() {
+    const s = S();
+    spring.vy -= s.bounce * 26;
+    spring.vsq += s.bounce * 0.018;
+}
+
+// ----- Billets -----
+const bills = [];
+const pluses = [];
+
+function parrotPoint() {
+    const st = stage.getBoundingClientRect();
+    const p = Parrot.billsPoint();
+    return { x: p.x - st.left, y: p.y - st.top - 40 };
+}
+
+function spawnBill(from) {
+    const s = S();
+    if (bills.length >= s.max) {
+        const old = bills.shift(); old.el.remove();
+    }
+    const el = document.createElement("img");
+    el.src = BILL; el.alt = ""; el.className = "bill";
+    el.style.setProperty("--bw", s.size + "px");
+    stage.appendChild(el);
+    const ang = (-90 + (Math.random() - 0.5) * s.spread) * Math.PI / 180;
+    const sp = s.speed * (0.75 + Math.random() * 0.5) * 60;
+    bills.push({
+        el, x: from.x + (Math.random() - 0.5) * 30, y: from.y + (Math.random() - 0.5) * 20,
+        vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
+        rot: Math.random() * 360, vr: (Math.random() - 0.5) * s.spin * 60,
+        flip: Math.random() * 6.28, age: 0, life: s.life * (0.8 + Math.random() * 0.4),
+        mode: variant, sway: Math.random() * 6.28
+    });
+}
+
+function spawnPlus(from) {
+    const el = document.createElement("div");
+    el.className = "plus"; el.textContent = "+1 €";
+    stage.appendChild(el);
+    pluses.push({ el, x: from.x + (Math.random() - 0.5) * 50, y: from.y - 30, age: 0 });
+}
+
+function balanceTarget() {
+    const st = stage.getBoundingClientRect(), r = balanceEl.getBoundingClientRect();
+    return { x: r.left - st.left + r.width / 2, y: r.top - st.top + r.height / 2 };
+}
+
+function credit() {
+    balance += 1; earned += 1;
+    balanceEl.textContent = fmt(balance);
+    document.getElementById("earned").textContent = fmt(earned);
+    document.getElementById("fill").style.width = (earned / 5) + "%";
+    if (variant !== "b") { balanceEl.classList.remove("pop"); void balanceEl.offsetWidth; balanceEl.classList.add("pop"); }
+}
+
+// ----- Clic -----
+let toastTimer = null;
+function showToast() {
+    const t = document.getElementById("toast");
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+
+function click() {
+    if (locked) {
+        document.getElementById("lockmsg").classList.add("show");
+        return;
+    }
+    if (earned >= 500) {
+        // Petit « non » de la tête : rebond très léger, aucun billet
+        spring.vsq += 0.04;
+        showToast();
+        return;
+    }
+    kick();
+    const from = parrotPoint();
+    const s = S();
+    for (let i = 0; i < s.perClick; i++) spawnBill(from);
+    if (variant === "c") spawnPlus(from);
+    credit();
+
+    const now = performance.now();
+    combo = now - lastClick < 450 ? combo + 1 : 1;
+    lastClick = now;
+    if (variant === "c" && combo >= 5) {
+        const c = document.getElementById("combo");
+        c.textContent = "COMBO ×" + combo;
+        c.classList.add("show");
+    }
+    if (earned >= 500) {
+        wrap.classList.add("tired");
+        setTimeout(showToast, 300);
+    }
+}
+
+wrap.addEventListener("pointerdown", e => { e.preventDefault(); click(); });
+
+// ----- Boucle d'animation -----
+let prev = performance.now();
+function loop(t) {
+    const dt = Math.min(0.05, (t - prev) / 1000); prev = t;
+    const s = S();
+
+    // Ressort du rebond
+    const k = s.stiff * s.stiff, d = 2 * s.stiff * 0.45;
+    spring.vy += (-k * spring.y - d * spring.vy) * dt;
+    spring.y += spring.vy * dt;
+    spring.vsq += (-k * spring.sq - d * spring.vsq) * dt * 1.4;
+    spring.sq += spring.vsq * dt * 1.4;
+    const y = Math.max(-80, Math.min(30, spring.y));
+    const sq = Math.max(-0.25, Math.min(0.25, spring.sq));
+    wrap.style.transform = `translateY(${y.toFixed(2)}px) scale(${(1 + sq).toFixed(4)}, ${(1 - sq).toFixed(4)})`;
+
+    const target = balanceTarget();
+    for (let i = bills.length - 1; i >= 0; i--) {
+        const b = bills[i];
+        b.age += dt;
+        if (b.mode === "b") {
+            // Saute d'abord, puis file vers le solde
+            const jump = 0.22;
+            if (b.age < jump) {
+                b.vy += s.gravity * 30 * dt;
+                b.x += b.vx * dt; b.y += b.vy * dt;
+                b.sx = b.x; b.sy = b.y;
+            } else {
+                const p = Math.min(1, (b.age - jump) / b.life);
+                const e = p * p * (3 - 2 * p);
+                const cx = (b.sx + target.x) / 2, cy = Math.min(b.sy, target.y) - 80;
+                const u = 1 - e;
+                b.x = u * u * b.sx + 2 * u * e * cx + e * e * target.x;
+                b.y = u * u * b.sy + 2 * u * e * cy + e * e * target.y;
+                if (p >= 1) {
+                    b.el.remove(); bills.splice(i, 1);
+                    balanceEl.classList.remove("pop"); void balanceEl.offsetWidth; balanceEl.classList.add("pop");
+                    continue;
+                }
+            }
+            b.rot += b.vr * dt;
+            const sc = b.age < jump ? 1 : 1 - 0.5 * Math.min(1, (b.age - jump) / b.life);
+            b.el.style.transform = `translate(${b.x}px, ${b.y}px) translate(-50%, -50%) rotate(${b.rot}deg) scale(${sc})`;
+            continue;
+        }
+        if (b.mode === "c") {
+            // Freinage de l'air puis chute lente en se balançant
+            const drag = Math.pow(0.04, dt);
+            b.vx *= drag; b.vy = b.vy * drag + s.gravity * 12 * dt;
+            b.x += b.vx * dt + Math.sin(b.age * 4 + b.sway) * 40 * dt;
+            b.y += b.vy * dt;
+        } else {
+            b.vy += s.gravity * 30 * dt;
+            b.x += b.vx * dt; b.y += b.vy * dt;
+        }
+        b.rot += b.vr * dt;
+        b.flip += dt * 9;
+        const fade = Math.min(1, (b.life - b.age) / 0.3);
+        if (b.age >= b.life || b.y > stage.clientHeight + 60) { b.el.remove(); bills.splice(i, 1); continue; }
+        b.el.style.opacity = Math.max(0, fade);
+        b.el.style.transform = `translate(${b.x}px, ${b.y}px) translate(-50%, -50%) rotate(${b.rot}deg) scaleY(${(0.55 + 0.45 * Math.cos(b.flip)).toFixed(3)})`;
+    }
+
+    for (let i = pluses.length - 1; i >= 0; i--) {
+        const p = pluses[i];
+        p.age += dt;
+        if (p.age > 0.8) { p.el.remove(); pluses.splice(i, 1); continue; }
+        p.el.style.opacity = 1 - p.age / 0.8;
+        p.el.style.transform = `translate(${p.x}px, ${p.y - p.age * 90}px) translate(-50%, -50%) scale(${1 + p.age * 0.4})`;
+    }
+
+    if (performance.now() - lastClick > 700) document.getElementById("combo").classList.remove("show");
+
+    requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// ----- Boutons -----
+let autoTimer = null;
+function startAuto() {
+    clearInterval(autoTimer);
+    autoTimer = setInterval(click, 1000 / S().cps);
+    document.getElementById("auto").textContent = "⏸ Auto-clic";
+    document.getElementById("auto").classList.add("on");
+}
+document.getElementById("auto").addEventListener("click", () => {
+    if (autoTimer) {
+        clearInterval(autoTimer); autoTimer = null;
+        document.getElementById("auto").textContent = "▶ Auto-clic";
+        document.getElementById("auto").classList.remove("on");
+    } else startAuto();
+});
+document.getElementById("lock").addEventListener("click", e => {
+    locked = !locked;
+    e.target.textContent = "🔒 Verrouillé : " + (locked ? "oui" : "non");
+    e.target.classList.toggle("on", locked);
+    wrap.classList.toggle("locked", locked);
+    if (!locked) document.getElementById("lockmsg").classList.remove("show");
+});
+function setEarned(n) {
+    balance += n - earned; earned = n;
+    balanceEl.textContent = fmt(balance);
+    document.getElementById("earned").textContent = fmt(earned);
+    document.getElementById("fill").style.width = (earned / 5) + "%";
+    wrap.classList.toggle("tired", earned >= 500);
+}
+document.getElementById("reset").addEventListener("click", () => setEarned(0));
+document.getElementById("near").addEventListener("click", () => setEarned(490));
+
+document.getElementById("desc").textContent = DESCS.a;
+buildSliders();
+</script>
+</body>
+</html>

@@ -4982,3 +4982,806 @@ body.app-loading .enjeu-cadre {
 .bet-card.validating.bet-card-locked {
     background: linear-gradient(180deg, #1c202c 0%, #14161e 100%);
 }
+
+
+/* ----- Clic du perroquet (animations.js) ----- */
+
+.parrot {
+    transform-origin: 50% 95%;
+}
+
+.parrot.parrot-hit {
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+.parrot-click-bill {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: auto;
+    pointer-events: none;
+    z-index: 3000;
+    will-change: transform;
+}
+
+#balance.parrot-click-pop {
+    animation: parrot-click-pop 0.25s ease-out;
+}
+
+@keyframes parrot-click-pop {
+    40% {
+        transform: scale(1.12);
+        color: #9ff0c8;
+    }
+}
+
+#parrot-click-toast {
+    position: fixed;
+    z-index: 3001;
+    transform: translate(-50%, -10px);
+    background: #1c202c;
+    border: 1px solid #f5c451;
+    color: #ffe39a;
+    border-radius: 14px;
+    padding: 12px 16px;
+    font-weight: 700;
+    font-size: 14px;
+    line-height: 1.4;
+    text-align: center;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s, transform 0.3s;
+}
+
+#parrot-click-toast.show {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+
+
+/* ----- Carte « Ton niveau » cliquable et fenêtre XP ----- */
+
+.level-sidebar {
+    cursor: pointer;
+}
+
+.level-sidebar:hover {
+    border-color: #c86bff;
+}
+
+.level-sidebar .level-bar.level-bar-large {
+    margin-bottom: 0;
+}
+
+.level-sidebar .level-up-button {
+    margin-top: 14px;
+}
+
+.level-sidebar-info {
+    margin-left: auto;
+    color: #858a98;
+    font-size: 14px;
+}
+
+.level-sidebar:hover .level-sidebar-info {
+    color: #c86bff;
+}
+
+.xp-modal-content {
+    max-width: 420px;
+}
+
+.xp-modal-content h2 {
+    margin-bottom: 16px;
+}
+
+.xp-modal-content .level-bar.level-bar-large {
+    margin-bottom: 20px;
+}
+
+.xp-modal-list {
+    gap: 8px;
+    margin-bottom: 0;
+}
+
+.xp-modal-list li {
+    font-size: 14px;
+}
+
+.xp-modal-list .xp-modal-detail {
+    color: #737887;
+    font-size: 12px;
+    margin: -4px 0 4px;
+}
+
+
+/* ----- Skins du perroquet (fenêtre XP) ----- */
+
+.xp-modal-content {
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.xp-skins-title {
+    margin-top: 22px;
+}
+
+.xp-skins {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.xp-skin {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 10px;
+    border: 1px solid #2c3040;
+    border-radius: 12px;
+    background: #14161e;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.xp-skin.active {
+    border-color: #c86bff;
+    background: rgba(200, 107, 255, 0.08);
+}
+
+.xp-skin img {
+    width: 44px;
+    height: 50px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.xp-skin.locked img {
+    filter: saturate(0.6) brightness(0.6);
+    opacity: 0.7;
+}
+
+.xp-skin-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.xp-skin-text strong {
+    color: white;
+    font-size: 14px;
+}
+
+.xp-skin-text span {
+    color: #858a98;
+    font-size: 12px;
+}
+
+.xp-skin.locked .xp-skin-text strong {
+    color: #858a98;
+}
+
+.xp-skin-button {
+    margin-left: auto;
+    flex-shrink: 0;
+    border: 1px solid #c86bff;
+    background: transparent;
+    color: #e3b8ff;
+    border-radius: 10px;
+    padding: 7px 12px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.xp-skin-button:hover:not(:disabled) {
+    background: #c86bff;
+    color: #14161e;
+}
+
+.xp-skin-button.active {
+    background: #c86bff;
+    color: #14161e;
+}
+
+.xp-skin-button.active:hover:not(:disabled) {
+    background: transparent;
+    color: #e3b8ff;
+}
+
+.xp-skin-button:disabled {
+    cursor: default;
+}
+
+.xp-skin-button.locked {
+    border-color: #343846;
+    color: #737887;
+}
+
+
+/* ----- Cote enflammée (10 ou plus) : la case rougeoie comme une braise ----- */
+
+.bet-choice-button.odds-fire,
+.bet-choice-button.odds-fire:hover {
+    border-color: #ff4d00;
+    animation: odds-fire-breathe 0.2s ease-in-out infinite alternate;
+}
+
+.bet-choice-button.odds-fire strong {
+    color: #ffd34d;
+    text-shadow: 0 0 8px #ff4d00;
+}
+
+@keyframes odds-fire-breathe {
+    from {
+        box-shadow: 0 0 18.6px #ff4d00, inset 0 0 8px rgba(255, 120, 0, 0.2);
+    }
+    to {
+        box-shadow: 0 0 31px #ff4d00, inset 0 0 14px rgba(255, 120, 0, 0.3);
+    }
+}
+
+/* Étincelles (dessinées par animations.js) */
+.odds-embers {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 3;
+    pointer-events: none;
+}
+
+
+/* ----- Fenêtre XP : règles pour gagner de l'XP ----- */
+
+.xp-rule {
+    border: 1px solid #2c3040;
+    border-radius: 12px;
+    background: #14161e;
+    padding: 12px;
+    margin-bottom: 8px;
+}
+
+.xp-rule-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.xp-rule-icon {
+    font-size: 22px;
+    flex-shrink: 0;
+}
+
+.xp-rule-head div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.xp-rule-head strong {
+    color: white;
+    font-size: 14px;
+}
+
+.xp-rule-head div span {
+    color: #858a98;
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.xp-rule-head em {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-style: normal;
+    font-weight: 900;
+    font-size: 13px;
+    color: #c86bff;
+    background: rgba(200, 107, 255, 0.12);
+    border: 1px solid rgba(200, 107, 255, 0.35);
+    border-radius: 999px;
+    padding: 4px 10px;
+}
+
+.xp-scale {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+    margin-top: 12px;
+}
+
+.xp-scale div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 7px 2px;
+    border-radius: 9px;
+    background: #1c202c;
+}
+
+.xp-scale span {
+    color: #a7abb8;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.xp-scale strong {
+    color: #c86bff;
+    font-size: 13px;
+}
+
+.xp-note {
+    color: #858a98;
+    font-size: 12px;
+    margin: 4px 2px 12px;
+}
+
+.xp-global {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(99, 214, 159, 0.08);
+    border: 1px solid rgba(99, 214, 159, 0.35);
+}
+
+.xp-global > span {
+    font-size: 18px;
+    line-height: 1.2;
+}
+
+.xp-global p {
+    color: #b9bdc9;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.xp-global strong {
+    display: block;
+    color: #9ff0c8;
+    font-size: 13px;
+    margin-bottom: 2px;
+}
+
+
+/* ----- Skin Phénix : lueur rouge qui respire (plus transparente que la maquette) ----- */
+
+body.parrot-phenix #parrot {
+    animation: phenix-glow 1.4s ease-in-out infinite alternate;
+}
+
+@keyframes phenix-glow {
+    from {
+        filter: drop-shadow(0 0 33px rgba(255, 64, 26, 0.3));
+    }
+    to {
+        filter: drop-shadow(0 0 60px rgba(255, 64, 26, 0.5));
+    }
+}
+
+.phenix-embers {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 51;
+    pointer-events: none;
+}
+
+.xp-modal-content {
+    scrollbar-width: thin;
+    scrollbar-color: #3a3f50 transparent;
+}
+
+
+/* ----- Fenêtre de la série (clic sur la flamme) ----- */
+
+.streak-widget {
+    cursor: pointer;
+}
+
+.streak-widget:hover {
+    filter: brightness(1.15);
+}
+
+.streak-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+.streak-stats div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(255, 106, 0, 0.08);
+    border: 1px solid rgba(255, 106, 0, 0.35);
+}
+
+.streak-stats span {
+    color: #9ea3b0;
+    font-size: 12px;
+}
+
+.streak-stats strong {
+    color: #ffb36b;
+    font-size: 17px;
+}
+
+.streak-rules {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+.streak-rules li {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.streak-rules li > span {
+    width: 22px;
+    flex-shrink: 0;
+    text-align: center;
+}
+
+.streak-rules p {
+    color: #b9bdc9;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.streak-rules strong {
+    color: #ffb36b;
+}
+
+.streak-protect .xp-rule-head em {
+    color: #9ea3b0;
+    background: rgba(158, 163, 176, 0.1);
+    border-color: rgba(158, 163, 176, 0.3);
+}
+
+
+/* ----- Protections de la série ----- */
+
+.streak-protect-list {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 4px;
+}
+
+.streak-protect .xp-rule-head em {
+    color: #ffb36b;
+    background: rgba(255, 106, 0, 0.1);
+    border-color: rgba(255, 106, 0, 0.35);
+}
+
+.streak-protect.restorable {
+    border-color: rgba(255, 106, 0, 0.6);
+    background: rgba(255, 106, 0, 0.06);
+}
+
+.streak-action {
+    width: 100%;
+    margin-top: 10px;
+    padding: 9px 12px;
+    border-radius: 10px;
+    border: 1px solid #ff8a3c;
+    background: linear-gradient(135deg, #ff5a1f, #ff9a3c);
+    color: #1c0d04;
+    font-family: inherit;
+    font-weight: 900;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.streak-action:hover:not(:disabled) {
+    filter: brightness(1.1);
+}
+
+.streak-action:disabled {
+    background: transparent;
+    border-color: #343846;
+    color: #737887;
+    cursor: default;
+}
+
+.streak-message {
+    min-height: 18px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #9ff0c8;
+    margin-bottom: 4px;
+}
+
+.streak-message.error {
+    color: #ff8a8a;
+}
+
+.streak-widget.streak-restorable {
+    animation: streak-restorable 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes streak-restorable {
+    from {
+        filter: grayscale(0.7) brightness(0.8);
+    }
+    to {
+        filter: none;
+        box-shadow: 0 0 14px rgba(255, 106, 0, 0.6);
+    }
+}
+
+
+/* Mises rapides : moitié du solde et tout le solde */
+.bet-quick-bank {
+    margin-top: 6px;
+}
+
+.bet-quick button.bet-quick-allin {
+    border-color: rgba(255, 106, 0, 0.5);
+    color: #ffb36b;
+}
+
+.bet-quick button.bet-quick-allin:hover {
+    border-color: #ff6a00;
+    background: rgba(255, 106, 0, 0.12);
+}
+
+
+/* Rappel des limites de mise et « faux all in » */
+.bet-rules {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #858a98;
+    text-align: center;
+}
+
+.bet-rules strong {
+    color: #c9ccd6;
+}
+
+.bet-allin-note {
+    margin-top: 8px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(255, 106, 0, 0.1);
+    border: 1px solid rgba(255, 106, 0, 0.4);
+    color: #ffb36b;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+
+/* ----- Niveau débloqué, façon Call of Duty (animations.js : showLevelUp) ----- */
+
+.lu-overlay {
+    --c1: #7b61ff;
+    --c2: #d18bff;
+    position: fixed;
+    inset: 0;
+    z-index: 5000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.lu-bg {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, rgba(20, 16, 40, 0.82), rgba(4, 5, 10, 0.92));
+    backdrop-filter: blur(4px);
+}
+
+.lu-content {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.lu-fx {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.lu-flash {
+    position: absolute;
+    inset: 0;
+    background: white;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.lu-bar-wrap {
+    position: relative;
+    width: min(760px, 86vw);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    z-index: 5;
+}
+
+.lu-title {
+    font-weight: 900;
+    letter-spacing: 6px;
+    font-size: 14px;
+    color: var(--c2);
+    text-shadow: 0 0 12px var(--c1);
+}
+
+.lu-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+}
+
+.lu-badge {
+    width: 54px;
+    height: 54px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    font-weight: 900;
+    font-size: 22px;
+    clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+    background: linear-gradient(160deg, var(--c2), var(--c1));
+    color: #0b0a1a;
+}
+
+.lu-badge.next {
+    background: #2a2e3b;
+    color: #737887;
+}
+
+.lu-bar {
+    position: relative;
+    flex: 1;
+    height: 22px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    transform: skewX(-18deg);
+    overflow: hidden;
+}
+
+.lu-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 0;
+    background: linear-gradient(90deg, var(--c1), var(--c2));
+    box-shadow: 0 0 18px var(--c1);
+}
+
+.lu-fill::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 14px;
+    background: white;
+    filter: blur(4px);
+    opacity: 0.9;
+}
+
+.lu-ticks {
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 2px), rgba(0, 0, 0, 0.35) calc(10% - 2px) 10%);
+}
+
+.lu-xp {
+    font-size: 13px;
+    color: #b9bdc9;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 1px;
+}
+
+.lu-big {
+    position: absolute;
+    z-index: 6;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    opacity: 0;
+}
+
+.lu-big-label {
+    font-weight: 900;
+    letter-spacing: 8px;
+    font-size: 16px;
+    color: var(--c2);
+}
+
+.lu-big-num {
+    font-weight: 900;
+    font-size: 120px;
+    line-height: 1;
+    color: white;
+    text-shadow: 0 0 30px var(--c1), 0 0 60px var(--c1);
+}
+
+.lu-big-sub {
+    margin-top: 6px;
+    font-weight: 800;
+    color: #e6e8ee;
+    letter-spacing: 3px;
+    font-size: 13px;
+}
+
+.lu-rays {
+    position: absolute;
+    z-index: 4;
+    width: 760px;
+    height: 760px;
+    opacity: 0;
+    background: repeating-conic-gradient(from 0deg, rgba(123, 97, 255, 0.35) 0deg 6deg, transparent 6deg 18deg);
+    mask: radial-gradient(circle, black 0%, transparent 62%);
+    -webkit-mask: radial-gradient(circle, black 0%, transparent 62%);
+}
+
+.lu-reward {
+    position: absolute;
+    z-index: 6;
+    top: calc(50% + 130px);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(20, 22, 30, 0.95);
+    border: 1px solid var(--c1);
+    border-radius: 14px;
+    padding: 10px 16px;
+    opacity: 0;
+    box-shadow: 0 0 24px rgba(123, 97, 255, 0.4);
+}
+
+.lu-reward img {
+    width: 40px;
+    height: 46px;
+    object-fit: contain;
+}
+
+.lu-reward strong {
+    display: block;
+    color: white;
+}
+
+.lu-reward span {
+    color: #9ea3b0;
+    font-size: 12px;
+}
+
+/* Articles sans aperçu (clic du perroquet, bouclier de série) */
+.shop-card[data-shop-item="clic_perroquet"],
+.shop-card[data-shop-item="bouclier"],
+.shop-card[data-shop-item="rattrapage"] {
+    cursor: default;
+}
+
+.shop-card[data-shop-item="clic_perroquet"] .mission-description::after,
+.shop-card[data-shop-item="bouclier"] .mission-description::after,
+.shop-card[data-shop-item="rattrapage"] .mission-description::after {
+    content: none;
+}

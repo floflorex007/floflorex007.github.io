@@ -358,6 +358,12 @@ async function loadCurrentProfile() {
 
     updateBalance();
 
+    if (typeof refreshParrotClick === "function") {
+
+        refreshParrotClick();
+
+    }
+
     // On attend l'argent en jeu : la taille du perroquet est ainsi connue
     // avant que la page ne s'affiche.
     await refreshInPlay();
@@ -2699,6 +2705,13 @@ function renderBetSummaryHtml(
                             ? "button"
                             : "div";
 
+                    // Cote de 10 ou plus : la case rougeoie et lâche des étincelles (animations.js).
+                    const onFire =
+                        Number(choice.odds) >= 10 &&
+                        !validating &&
+                        !isClosed &&
+                        !isTargetBlocked;
+
                     return `
 
                         <div class="bet-choice-wrapper">
@@ -2709,7 +2722,7 @@ function renderBetSummaryHtml(
                             }
 
                             <${tag}
-                                class="bet-choice-button${!validating && (isClosed || isTargetBlocked) ? " bet-choice-closed" : ""}${myChoiceIds.includes(choice.id) ? " bet-choice-picked" : ""}${interactive ? "" : " bet-choice-readonly"}${validating ? " bet-choice-validate" : ""}${validating && cardValidation?.pick === choice.id ? " validate-selected" : ""}"
+                                class="bet-choice-button${onFire ? " odds-fire" : ""}${!validating && (isClosed || isTargetBlocked) ? " bet-choice-closed" : ""}${myChoiceIds.includes(choice.id) ? " bet-choice-picked" : ""}${interactive ? "" : " bet-choice-readonly"}${validating ? " bet-choice-validate" : ""}${validating && cardValidation?.pick === choice.id ? " validate-selected" : ""}"
                                 ${interactive
                                     ? `data-bet-id="${bet.id}" data-choice-id="${choice.id}" ${!validating && (isClosed || isTargetBlocked) ? "disabled" : ""}`
                                     : ""
@@ -2725,6 +2738,11 @@ function renderBetSummaryHtml(
                                 </strong>
 
                             </${tag}>
+
+                            ${onFire
+                                ? `<canvas class="odds-embers" aria-hidden="true"></canvas>`
+                                : ""
+                            }
 
                             ${isTargetBlocked
                                 ? ""
@@ -3789,6 +3807,23 @@ async function displayBets({ quiet = false, force = false } = {}) {
 
                                 }
 
+                                // La cote enflammée (10 ou plus), coupée pendant la validation, revient.
+                                const odds = Number(choiceButton.querySelector("strong")?.textContent);
+
+                                if (!closed && !choiceButton.disabled && odds >= 10 && !choiceButton.classList.contains("odds-fire")) {
+
+                                    choiceButton.classList.add("odds-fire");
+
+                                    const embers = document.createElement("canvas");
+
+                                    embers.className = "odds-embers";
+
+                                    embers.setAttribute("aria-hidden", "true");
+
+                                    choiceButton.after(embers);
+
+                                }
+
                             });
 
                             button.classList.remove("validate-enter");
@@ -3944,6 +3979,8 @@ function openBetModal(
         "stake-input"
     ).value = "";
 
+    document.getElementById("bet-allin-note")?.classList.add("hidden");
+
 
     const potentialWinElement =
         document.getElementById("potential-win");
@@ -4019,6 +4056,11 @@ function updatePotentialWin() {
 */
 
 const BET_GAUGE_FULL = 500;
+
+// Mise minimum et maximum par mise (aussi vérifiées côté base, voir mise-min-max.sql).
+const STAKE_MIN = 10;
+
+const STAKE_MAX = 5000;
 
 const BET_GAIN_GOALS = [50, 100, 200, 500, 1000];
 
@@ -4138,6 +4180,16 @@ async function placeBet() {
 
         errorElement.textContent =
             "La mise doit être un montant rond (sans centimes).";
+
+        return;
+
+    }
+
+
+    if (stake < STAKE_MIN || stake > STAKE_MAX) {
+
+        errorElement.textContent =
+            "La mise doit être comprise entre " + formatMoney(STAKE_MIN) + " et " + formatMoney(STAKE_MAX) + ".";
 
         return;
 
@@ -6145,6 +6197,14 @@ const MISSIONS = [
         group: "weekly"
     },
     {
+        id: "last_chance",
+        title: "Last Chance",
+        description: "Miser pendant que la carte est rouge (dernière heure pour miser), et gagner le pari.",
+        points: 27,
+        period: "Chaque semaine",
+        group: "weekly"
+    },
+    {
         id: "premier_gain",
         title: "Premier gain",
         description: "Gagner ton premier pari.",
@@ -6258,6 +6318,12 @@ const COSMETICS = [
         description: "Les paris que tu crées ont un fond spécial, visible par tous.",
         price: 450,
         options: ["galaxie", "carbone", "sunset"]
+    },
+    {
+        id: "clic_perroquet",
+        title: "Clic du perroquet",
+        description: "Clique sur le perroquet : il rebondit et te lâche 1 € à chaque clic, jusqu'à 500 € par jour.",
+        price: 30,
     }
 ];
 
@@ -6287,6 +6353,16 @@ const SHOP_CATEGORIES = [
         icon: "🃏",
         title: "Thèmes de cartes",
         items: ["theme"]
+    },
+    {
+        icon: "🦜",
+        title: "Perroquet",
+        items: ["clic_perroquet"]
+    },
+    {
+        icon: "🔥",
+        title: "Série",
+        items: ["bouclier", "rattrapage"]
     }
 ];
 
@@ -6748,8 +6824,12 @@ function displayShop() {
     */
 
     const cardOf = id =>
-        rewardCards[id] ||
-        cosmeticCardHtml(COSMETICS.find(c => c.id === id));
+        id === "bouclier"
+            ? shieldCardHtml(points)
+            : id === "rattrapage"
+            ? restoreCardHtml(points)
+            : rewardCards[id] ||
+            cosmeticCardHtml(COSMETICS.find(c => c.id === id));
 
     // Inclinaison « la carte suit la souris » : on la retient pour la remettre sur la carte
     // redessinée (sinon elle se redresse d'un coup quand on équipe ou achète).
@@ -6904,6 +6984,30 @@ function displayShop() {
 
         });
 
+
+    container
+        .querySelectorAll(".shield-buy")
+        .forEach(button => {
+
+            button.addEventListener(
+                "click",
+                () => buyStreakShield(button, "shop-message")
+            );
+
+        });
+
+
+    container
+        .querySelectorAll(".restore-buy")
+        .forEach(button => {
+
+            button.addEventListener(
+                "click",
+                () => restoreStreak(button, "shop-message")
+            );
+
+        });
+
 }
 
 
@@ -7051,6 +7155,59 @@ function setupModalBackdrops() {
 }
 
 
+/*
+    Carte « Ton niveau » : un clic ouvre la fenêtre XP
+    (niveau actuel et façons de gagner de l'XP).
+*/
+
+function setupXpModal() {
+
+    const card =
+        document.getElementById("level-sidebar");
+
+    const modal =
+        document.getElementById("xp-modal");
+
+    if (!card || !modal) {
+        return;
+    }
+
+    const open = event => {
+
+        // Le bouton « Débloquer le niveau » garde son propre rôle.
+        if (event.target.closest("#level-up-button")) {
+            return;
+        }
+
+        document.getElementById("xp-modal-label").textContent =
+            document.getElementById("level-sidebar-label").textContent;
+
+        document.getElementById("xp-modal-xp").textContent =
+            document.getElementById("level-sidebar-xp").textContent;
+
+        document.getElementById("xp-modal-fill").style.width =
+            document.getElementById("level-sidebar-fill").style.width;
+
+        modal.classList.remove("hidden");
+
+    };
+
+    card.addEventListener("click", open);
+
+    card.addEventListener("keydown", event => {
+        if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            open(event);
+        }
+    });
+
+    document
+        .getElementById("close-xp-modal")
+        .addEventListener("click", () => modal.classList.add("hidden"));
+
+}
+
+
 function setupShopPreview() {
 
     const modal =
@@ -7084,7 +7241,8 @@ function setupShopPreview() {
         const card =
             event.target.closest("[data-shop-item]");
 
-        if (card) {
+        // Pas d'aperçu pour les articles sans effet sur le pseudo.
+        if (card && !["clic_perroquet", "bouclier", "rattrapage"].includes(card.dataset.shopItem)) {
             openShopPreview(card.dataset.shopItem);
         }
 
@@ -7225,7 +7383,8 @@ function cosmeticCardHtml(item) {
     const previewOn =
         hasMyCosmetic(item.id);
 
-    const adminToggle = currentProfile.is_admin
+    // Le clic du perroquet ne change pas le pseudo : pas d'aperçu.
+    const adminToggle = currentProfile.is_admin && item.id !== "clic_perroquet"
         ? `
             <button
                 class="reward-preview-toggle cosmetic-preview-toggle${previewOn ? " on" : ""}"
@@ -8140,6 +8299,8 @@ async function initAppPage() {
 
         setupShopPreview();
 
+        setupXpModal();
+
         setupModalBackdrops();
 
         await initAnimations();
@@ -8363,8 +8524,16 @@ async function initAppPage() {
     }
 
 
+    stakeInput.addEventListener("input", () => {
+
+        document.getElementById("bet-allin-note")?.classList.add("hidden");
+
+    });
+
+
     /*
-        Mises rapides (20 €, 50 €, 100 €).
+        Mises rapides (50 €, 100 €, 200 €), moitié du solde et tout le solde.
+        Les mises sont des montants ronds : on arrondit à l'euro inférieur.
     */
 
     document
@@ -8373,7 +8542,20 @@ async function initAppPage() {
 
             button.addEventListener("click", () => {
 
-                stakeInput.value = button.dataset.stake;
+                const balance = Math.floor(Number(currentProfile?.balance) || 0);
+
+                // All in : plafonné à la mise maximum (on le signale : « faux all in »).
+                const cappedAllIn =
+                    button.dataset.stake === "all" && balance > STAKE_MAX;
+
+                stakeInput.value =
+                    button.dataset.stake === "half" ? Math.min(STAKE_MAX, Math.floor(balance / 2))
+                    : button.dataset.stake === "all" ? Math.min(STAKE_MAX, balance)
+                    : button.dataset.stake;
+
+                document
+                    .getElementById("bet-allin-note")
+                    .classList.toggle("hidden", !cappedAllIn);
 
                 updatePotentialWin();
 
