@@ -2359,6 +2359,173 @@ async function createPopupMessage() {
 }
 
 
+/*
+    Admin : soldes de tous les joueurs, groupe par groupe (voir admin-soldes.sql).
+*/
+
+let adminBalances = [];
+
+async function displayAdminBalances() {
+
+    const select = document.getElementById("admin-balance-group");
+
+    const list = document.getElementById("admin-balance-list");
+
+    if (!select || !list) {
+        return;
+    }
+
+    const { data, error } = await supabaseClient.rpc("admin_list_balances");
+
+    if (error) {
+
+        console.error(error);
+
+        list.innerHTML = `<p class="error-message">Impossible de charger les soldes (admin-soldes.sql lancé ?).</p>`;
+
+        return;
+
+    }
+
+    adminBalances = data || [];
+
+    const groups = [...new Map(adminBalances.map(row => [row.group_id, row.group_name])).entries()];
+
+    const previous = select.value;
+
+    select.innerHTML = groups.map(([id, name]) =>
+        `<option value="${id}">${escapeHtml(name)}</option>`
+    ).join("");
+
+    select.value = groups.some(([id]) => id === previous)
+        ? previous
+        : currentGroup && groups.some(([id]) => id === currentGroup.id) ? currentGroup.id : groups[0]?.[0] || "";
+
+    if (!select.dataset.ready) {
+
+        select.dataset.ready = "1";
+
+        select.addEventListener("change", renderAdminBalances);
+
+        list.addEventListener("click", event => {
+
+            const button = event.target.closest("[data-save-balance]");
+
+            if (button) {
+                saveAdminBalance(button);
+            }
+
+        });
+
+        list.addEventListener("keydown", event => {
+
+            if (event.key === "Enter" && event.target.matches(".admin-balance-input")) {
+                event.target.closest(".admin-balance-row").querySelector("[data-save-balance]").click();
+            }
+
+        });
+
+    }
+
+    renderAdminBalances();
+
+}
+
+
+function renderAdminBalances() {
+
+    const groupId = document.getElementById("admin-balance-group").value;
+
+    const rows = adminBalances.filter(row => row.group_id === groupId);
+
+    document.getElementById("admin-balance-list").innerHTML = rows.length
+        ? rows.map(row => `
+            <div class="admin-balance-row">
+                <span class="admin-balance-name">${escapeHtml(row.username)}</span>
+                <input
+                    type="number"
+                    class="admin-balance-input"
+                    min="0"
+                    step="1"
+                    value="${Math.round(Number(row.balance))}"
+                >
+                <span class="admin-balance-unit">€</span>
+                <button
+                    type="button"
+                    class="primary-button"
+                    data-save-balance="${row.user_id}"
+                >
+                    Enregistrer
+                </button>
+            </div>
+        `).join("")
+        : `<div class="empty-state">Aucun joueur dans ce groupe.</div>`;
+
+}
+
+
+async function saveAdminBalance(button) {
+
+    const groupId = document.getElementById("admin-balance-group").value;
+
+    const userId = button.dataset.saveBalance;
+
+    const input = button.closest(".admin-balance-row").querySelector("input");
+
+    const message = document.getElementById("admin-balance-message");
+
+    const value = Number(input.value);
+
+    const row = adminBalances.find(r => r.group_id === groupId && r.user_id === userId);
+
+    if (!Number.isFinite(value) || value < 0) {
+
+        message.textContent = "Entre un solde positif.";
+
+        message.classList.add("error");
+
+        return;
+
+    }
+
+    button.disabled = true;
+
+    const { data, error } = await supabaseClient.rpc("admin_set_balance", {
+        p_group: groupId,
+        p_user: userId,
+        p_balance: Math.round(value)
+    });
+
+    button.disabled = false;
+
+    if (error) {
+
+        message.textContent = error.message || "Impossible de modifier ce solde.";
+
+        message.classList.add("error");
+
+        return;
+
+    }
+
+    if (row) {
+        row.balance = data;
+    }
+
+    input.value = Math.round(Number(data));
+
+    message.classList.remove("error");
+
+    message.textContent = "✓ Solde de " + (row ? row.username : "ce joueur") + " : " + formatBalance(data);
+
+    // Le classement du groupe en cours suit.
+    if (currentGroup && currentGroup.id === groupId && typeof displayLeaderboard === "function") {
+        displayLeaderboard();
+    }
+
+}
+
+
 async function displayPopupHistory() {
 
     const container =
@@ -8287,6 +8454,8 @@ async function initAppPage() {
                 .classList.remove("hidden");
 
             await displayPopupHistory();
+
+            await displayAdminBalances();
 
         }
 
