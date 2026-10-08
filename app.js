@@ -3186,22 +3186,24 @@ function renderAdminBalances() {
     document.getElementById("admin-balance-list").innerHTML = rows.length
         ? rows.map(row => `
             <div class="admin-balance-row">
-                <span class="admin-balance-name">${escapeHtml(row.username)}</span>
-                <input
-                    type="number"
-                    class="admin-balance-input"
-                    min="0"
-                    step="1"
-                    value="${Math.round(Number(row.balance))}"
-                >
-                <span class="admin-balance-unit">€</span>
-                <button
-                    type="button"
-                    class="primary-button"
-                    data-save-balance="${row.user_id}"
-                >
-                    Enregistrer
-                </button>
+                <span class="admin-balance-name" title="${escapeHtml(row.username)}">👤 ${escapeHtml(row.username)}</span>
+                <div class="admin-balance-edit">
+                    <input
+                        type="number"
+                        class="admin-balance-input"
+                        min="0"
+                        step="1"
+                        value="${Math.round(Number(row.balance))}"
+                    >
+                    <span class="admin-balance-unit">€</span>
+                    <button
+                        type="button"
+                        class="primary-button"
+                        data-save-balance="${row.user_id}"
+                    >
+                        Enregistrer
+                    </button>
+                </div>
             </div>
         `).join("")
         : `<div class="empty-state">Aucun joueur dans ce groupe.</div>`;
@@ -4080,25 +4082,76 @@ function renderDraftCard(bet) {
 
 }
 
+// Brouillons en train de partir : la liste ne se redessine pas pendant leur animation.
+let leavingDrafts = 0;
+
+/*
+    Suppression directe, sans fenêtre de confirmation du navigateur.
+    La carte glisse vers la gauche en s'effaçant, puis sa place se referme :
+    les cartes du dessous remontent en douceur.
+*/
+
 async function deleteDraft(bet, card) {
 
-    if (!window.confirm("Supprimer ce brouillon ? Il n'a pas encore été publié.")) {
+    if (card.classList.contains("deleting")) {
         return;
     }
 
-    const { error } = await supabaseClient.rpc("delete_draft_bet", { p_bet_id: bet.id });
+    card.classList.add("deleting");
+
+    leavingDrafts++;
+
+    const slide = card.animate(
+        [
+            { opacity: 1, transform: card.style.transform || "none" },
+            { opacity: 0, transform: "translateX(-70px) rotate(-2deg)" }
+        ],
+        { duration: 340, easing: "cubic-bezier(.4,0,.7,.2)", fill: "forwards" }
+    );
+
+    const [{ error }] = await Promise.all([
+        supabaseClient.rpc("delete_draft_bet", { p_bet_id: bet.id }),
+        slide.finished.catch(() => {})
+    ]);
 
     if (error) {
 
         console.error(error);
 
-        window.alert(error.message || "Impossible de supprimer le brouillon.");
+        // Échec : la carte revient à sa place.
+        slide.reverse();
+
+        await slide.finished.catch(() => {});
+
+        slide.cancel();
+
+        card.classList.remove("deleting");
+
+        leavingDrafts--;
+
+        alertToast(escapeHtml(error.message || "Impossible de supprimer le brouillon."));
 
         return;
 
     }
 
+
+    // La place de la carte (et l'espace sous elle) se referme.
+    const gap = parseFloat(getComputedStyle(card.parentElement).rowGap) || 0;
+
+    card.style.overflow = "hidden";
+
+    await card.animate(
+        [
+            { height: card.offsetHeight + "px", marginBottom: "0px", paddingTop: getComputedStyle(card).paddingTop, paddingBottom: getComputedStyle(card).paddingBottom },
+            { height: "0px", marginBottom: -gap + "px", paddingTop: "0px", paddingBottom: "0px" }
+        ],
+        { duration: 300, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" }
+    ).finished.catch(() => {});
+
     card.remove();
+
+    leavingDrafts--;
 
     await displayBets({ quiet: true, force: true });
 
@@ -4775,6 +4828,14 @@ async function displayBets({ quiet = false, force = false } = {}) {
 
         // Les paris plus jouables sortent du ticket.
         pruneTicket(bets);
+
+
+        // Un brouillon supprimé est en train de partir : on redessine après son animation.
+        if (quiet && leavingDrafts > 0) {
+
+            return;
+
+        }
 
 
         // Panneau des parieurs ouvert : on ne remplace pas la carte soulevée.
@@ -6525,10 +6586,14 @@ function updateTicketLive() {
 
         go.disabled = !ticketStake || blocked || ticketBusy;
 
+        // Mise impossible (pari simple déjà misé, combiné déjà joué) :
+        // le bouton change de couleur pour le faire comprendre.
+        go.classList.toggle("ticket-go--blocked", blocked);
+
         go.textContent = duplicate
-            ? "Combiné déjà joué"
+            ? "⛔ Combiné déjà joué"
             : blocked
-            ? "Déjà misé sur ce pari"
+            ? "⛔ Déjà misé sur ce pari"
             : !ticketStake
                 ? "Choisis ta mise"
                 : (entries.length > 1

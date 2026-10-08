@@ -6084,13 +6084,29 @@ body.parrot-phenix #parrot {
     background: #14161e;
 }
 
+/* Le pseudo garde au moins 140 px : s'il manque de place (téléphone,
+   colonne étroite), il passe sur sa propre ligne au-dessus du solde
+   au lieu d'être réduit à « … ». */
+.admin-balance-row {
+    flex-wrap: wrap;
+    row-gap: 8px;
+}
+
 .admin-balance-name {
-    flex: 1;
+    flex: 1 1 140px;
     min-width: 0;
     font-weight: 700;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* Solde, « € » et bouton restent ensemble (ils passent à la ligne d'un bloc). */
+.admin-balance-edit {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
 }
 
 .admin-balance-input {
@@ -8869,4 +8885,17 @@ body.ticket-combo .bet-choice-button.in-ticket::after {
    est coupé au lieu de pousser la colonne des perdants hors de la carte. */
 .validate-cols {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+/* Bouton du ticket quand la mise est impossible (pari simple déjà misé,
+   combiné déjà joué) : rouge orangé au lieu du gris « choisis ta mise ». */
+.ticket-go.ticket-go--blocked,
+.ticket-go.ticket-go--blocked:disabled,
+body.ticket-combo .ticket-go.ticket-go--blocked {
+    opacity: 1;
+    background: rgba(255, 107, 66, 0.14);
+    border: 1px solid #ff6b42;
+    color: #ff9a7a;
+    box-shadow: none;
+    cursor: not-allowed;
 }
