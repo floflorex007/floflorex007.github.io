@@ -2066,16 +2066,16 @@ function cascadeIn(root) {
 
     };
 
-    // Titres, filtres (boutique, Historique), contestations, cartes et messages
+    // Titres, filtres (boutique, Historique), contestations, carte « Créer un pari », cartes et messages
     // « rien pour le moment », dans l'ordre de la page.
     root
-        .querySelectorAll(".page-header, .shop-filters, .missions-title, .contests-block, .my-bets-summary, .my-bets-filters, .bet-card, .my-bet-item, .mission-card, .empty-state")
+        .querySelectorAll(".page-header, .shop-filters, .missions-title, .contests-block, .my-bets-summary, .my-bets-filters, .bet-create-card, .bet-card, .my-bet-item, .mission-card, .empty-state")
         .forEach(play);
 
-    // Colonnes latérales (top parieurs, message, XP, coffre) : elles arrivent
+    // Colonnes latérales (top parieurs, ticket, message, XP, coffre) : elles arrivent
     // tout de suite après le titre, l'une après l'autre.
     root
-        .querySelectorAll(".leaderboard-sidebar, .admin-message-sidebar, .chest-card")
+        .querySelectorAll(".leaderboard-sidebar, .bet-ticket, .admin-message-sidebar, .chest-card")
         .forEach((element, index) => play(element, index + 1));
 
 }
@@ -2263,12 +2263,238 @@ function removeToast(toast) {
 
 
 /*
+    Téléphone : cloche ronde à gauche, au-dessus des onglets (version D de
+    demo-notifs-mobile.html). Une notification fait sonner la cloche, monte
+    son compteur et montre un aperçu d'une ligne pendant 3 s, sans passer
+    sur le perroquet. Toucher la cloche ouvre la liste des dernières.
+*/
+
+const PHONE_PEEK_LIFE = 3000;
+
+const PHONE_HISTORY_MAX = 15;
+
+let phoneNotifs = [];
+
+let phoneUnread = 0;
+
+let phonePeekTimer = null;
+
+function ensurePhoneBell() {
+
+    let bell = document.getElementById("phone-bell");
+
+    if (bell) {
+        return bell;
+    }
+
+    bell = document.createElement("button");
+
+    bell.type = "button";
+
+    bell.id = "phone-bell";
+
+    bell.className = "phone-bell";
+
+    bell.setAttribute("aria-label", "Notifications");
+
+    bell.innerHTML = `🔔<span class="phone-bell-count hidden"></span>`;
+
+    document.body.appendChild(bell);
+
+    const peek = document.createElement("div");
+
+    peek.id = "phone-bell-peek";
+
+    peek.className = "phone-bell-peek hidden";
+
+    document.body.appendChild(peek);
+
+    const panel = document.createElement("div");
+
+    panel.id = "phone-bell-panel";
+
+    panel.className = "phone-bell-panel hidden";
+
+    document.body.appendChild(panel);
+
+    bell.addEventListener("click", event => {
+
+        event.stopPropagation();
+
+        togglePhoneBellPanel(panel.classList.contains("hidden"));
+
+    });
+
+    // Toucher ailleurs referme la liste.
+    document.addEventListener("click", event => {
+
+        if (!panel.classList.contains("hidden") && !panel.contains(event.target)) {
+
+            togglePhoneBellPanel(false);
+
+        }
+
+    });
+
+    return bell;
+
+}
+
+function updatePhoneBellCount() {
+
+    const count = document.querySelector("#phone-bell .phone-bell-count");
+
+    if (!count) {
+        return;
+    }
+
+    count.textContent = phoneUnread > 9 ? "9+" : phoneUnread;
+
+    count.classList.toggle("hidden", phoneUnread === 0);
+
+}
+
+function togglePhoneBellPanel(open) {
+
+    const panel = document.getElementById("phone-bell-panel");
+
+    if (!panel) {
+        return;
+    }
+
+    if (!open) {
+
+        panel.classList.add("hidden");
+
+        return;
+
+    }
+
+    phoneUnread = 0;
+
+    updatePhoneBellCount();
+
+    document.getElementById("phone-bell-peek")?.classList.add("hidden");
+
+    panel.innerHTML = `
+        <div class="phone-bell-head">
+            <span>Notifications</span>
+            <button type="button" class="phone-bell-close" aria-label="Fermer">✕</button>
+        </div>
+        ${phoneNotifs.length === 0
+            ? `<div class="phone-bell-row">Rien pour le moment.</div>`
+            : phoneNotifs.map((notif, index) => `
+                <div class="phone-bell-row${notif.onClick ? " clickable" : ""}" data-index="${index}">
+                    <span class="phone-bell-icon">${notif.style.icon}</span>
+                    <span>
+                        ${notif.text}
+                        <span class="activity-toast-time">${toastTimeLabel(notif.at)}</span>
+                    </span>
+                </div>
+            `).join("")
+        }
+    `;
+
+    panel
+        .querySelector(".phone-bell-close")
+        .addEventListener("click", () => togglePhoneBellPanel(false));
+
+    panel.querySelectorAll(".phone-bell-row.clickable").forEach(row => {
+
+        row.addEventListener("click", () => {
+
+            togglePhoneBellPanel(false);
+
+            phoneNotifs[Number(row.dataset.index)]?.onClick?.();
+
+        });
+
+    });
+
+    panel.classList.remove("hidden");
+
+    panel.animate(
+        [{ opacity: 0, transform: "translateY(12px)" }, { opacity: 1, transform: "none" }],
+        { duration: 220, easing: "ease-out" }
+    );
+
+}
+
+function phoneNotify(text, { type = "error", at = null, onClick = null } = {}) {
+
+    const style = TOAST_TYPES[type] || TOAST_TYPES.error;
+
+    const bell = ensurePhoneBell();
+
+    phoneNotifs.unshift({ text, style, at: at || new Date().toISOString(), onClick });
+
+    phoneNotifs = phoneNotifs.slice(0, PHONE_HISTORY_MAX);
+
+    // Liste ouverte : elle se met à jour, pas d'aperçu.
+    if (!document.getElementById("phone-bell-panel").classList.contains("hidden")) {
+
+        togglePhoneBellPanel(true);
+
+        return;
+
+    }
+
+    phoneUnread++;
+
+    updatePhoneBellCount();
+
+    bell.classList.remove("ring");
+
+    void bell.offsetWidth;
+
+    bell.classList.add("ring");
+
+    // Aperçu d'une ligne (texte sans mise en forme), puis il s'efface.
+    const peek = document.getElementById("phone-bell-peek");
+
+    const plain = document.createElement("div");
+
+    plain.innerHTML = text;
+
+    peek.textContent = style.icon + " " + plain.textContent.replace(/\s+/g, " ").trim();
+
+    peek.classList.remove("hidden");
+
+    peek.animate(
+        [{ opacity: 0, transform: "translateX(-10px)" }, { opacity: 1, transform: "none" }],
+        { duration: 250, easing: "ease-out" }
+    );
+
+    clearTimeout(phonePeekTimer);
+
+    phonePeekTimer = setTimeout(() => {
+
+        peek.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 250 })
+            .finished
+            .then(() => peek.classList.add("hidden"))
+            .catch(() => peek.classList.add("hidden"));
+
+    }, PHONE_PEEK_LIFE);
+
+}
+
+
+/*
     type : stake, create, error, contest, join, joined (icône + couleur).
     at : date de l'événement, pour « il y a… ».
     onClick : action au clic (en plus de fermer la notification).
 */
 
 function alertToast(text, { type = "error", at = null, onClick = null } = {}) {
+
+    // Téléphone : la cloche repliée (phoneNotify) au lieu des bulles empilées.
+    if (typeof PHONE_LAYOUT !== "undefined" && PHONE_LAYOUT.matches) {
+
+        phoneNotify(text, { type, at, onClick });
+
+        return;
+
+    }
 
     let stack =
         document.getElementById("activity-feed");
@@ -2394,23 +2620,46 @@ async function pollActivity() {
 
 
     /*
-        Premier passage : on montre les dernières
-        activités des 3 derniers jours.
-    */
-
-    /*
-        Le curseur est gardé dans le navigateur :
-        une notification déjà vue ne réapparaît pas au rechargement.
+        Arrivée sur le site : pas de rattrapage des mises et des paris créés
+        pendant l'absence (sinon une rafale de notifications). Le curseur part
+        de la dernière activité du groupe : seul le direct s'affiche ensuite.
+        (Les demandes d'adhésion, elles, s'affichent aussi à l'arrivée.)
     */
 
     if (!feedCursor) {
-        feedCursor = readStorage("feed-cursor");
+
+        const [lastStake, lastBet] = await Promise.all([
+
+            supabaseClient
+                .from("stakes")
+                .select("created_at, bets!inner ( group_id )")
+                .eq("bets.group_id", currentGroup?.id)
+                .order("created_at", { ascending: false })
+                .limit(1),
+
+            supabaseClient
+                .from("bets")
+                .select("created_at")
+                .eq("group_id", currentGroup?.id)
+                .order("created_at", { ascending: false })
+                .limit(1)
+
+        ]);
+
+        const latest = [
+            ...(lastStake.data || []),
+            ...(lastBet.data || [])
+        ].map(row => row.created_at).sort();
+
+        feedCursor = latest.length > 0
+            ? latest[latest.length - 1]
+            : new Date().toISOString();
+
+        return;
+
     }
 
-    const firstPass = !feedCursor;
-
-    const since = feedCursor ||
-        new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString();
+    const since = feedCursor;
 
 
     const [stakesResult, betsResult] = await Promise.all([
@@ -2421,8 +2670,8 @@ async function pollActivity() {
             .eq("bets.group_id", currentGroup?.id)
             .gt("created_at", since)
             .neq("user_id", currentUser.id)
-            .order("created_at", { ascending: firstPass ? false : true })
-            .limit(firstPass ? 3 : 5),
+            .order("created_at", { ascending: true })
+            .limit(5),
 
         supabaseClient
             .from("bets")
@@ -2430,8 +2679,8 @@ async function pollActivity() {
             .eq("group_id", currentGroup?.id)
             .gt("created_at", since)
             .neq("author_id", currentUser.id)
-            .order("created_at", { ascending: firstPass ? false : true })
-            .limit(firstPass ? 1 : 3)
+            .order("created_at", { ascending: true })
+            .limit(3)
 
     ]);
 
@@ -2472,9 +2721,7 @@ async function pollActivity() {
 
     feedCursor = allDates.length > 0
         ? allDates[allDates.length - 1]
-        : feedCursor || new Date().toISOString();
-
-    writeStorage("feed-cursor", feedCursor);
+        : feedCursor;
 
 }
 
@@ -3312,6 +3559,13 @@ async function showVerdict(contest, info, shown) {
 async function initAnimations() {
 
     setupPointerEffects();
+
+    // Téléphone : la cloche des notifications est là dès l'arrivée.
+    if (typeof PHONE_LAYOUT !== "undefined" && PHONE_LAYOUT.matches) {
+
+        ensurePhoneBell();
+
+    }
 
     document
         .getElementById("level-up-button")

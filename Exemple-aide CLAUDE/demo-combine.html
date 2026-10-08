@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Présentation du mode combiné (propositions)</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body.demo { background: #0b0c10; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 80px; margin: 0; display: block; min-height: 0; }
+.demo h1.t { font-size: 26px; margin: 0 0 6px; }
+.demo .sub { color: #858a98; margin: 0 0 14px; max-width: 900px; font-size: 14px; line-height: 1.5; }
+.demo .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; position: sticky; top: 0; background: #0b0c10; padding: 10px 0; z-index: 90; align-items: center; }
+.demo .tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; font: inherit; }
+.demo .tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.demo .pick { margin-left: auto; background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; padding: 10px 16px; border-radius: 12px; cursor: pointer; font: inherit; font-weight: 900; }
+.demo .desc { color: #aaaeba; font-size: 14px; max-width: 900px; margin: 0 0 16px; line-height: 1.55; }
+.demo .desc b { color: #e6e8ee; }
+.opts { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 14px; font-size: 14px; color: #c9ccd6; }
+.opts label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+
+/* ---------- Écran simulé ---------- */
+.screen-box { width: 100%; max-width: 1242px; }
+.screen-scale { transform-origin: top left; }
+.screen { width: 1240px; height: 800px; background: #0f1117; border: 1px solid #2c3040; border-radius: 14px; overflow: hidden; position: relative; }
+.mk-header { position: absolute; top: 0; left: 0; right: 0; height: 64px; display: flex; align-items: center; gap: 18px; padding: 0 24px; background: #14161e; border-bottom: 1px solid #23262f; z-index: 4; }
+.mk-logo { font-weight: 900; font-size: 20px; }
+.mk-logo span { color: #6c63ff; }
+.mk-nav { display: flex; gap: 4px; }
+.mk-nav b { padding: 8px 14px; border-radius: 10px; font-weight: 600; font-size: 14px; color: #aaaeba; }
+.mk-nav b.on { background: #23262f; color: white; }
+.mk-user { margin-left: auto; display: flex; gap: 10px; font-size: 13px; }
+.mk-pill { background: #1c202c; border: 1px solid #2c3040; border-radius: 10px; padding: 6px 10px; }
+.screen-scroll { position: absolute; inset: 64px 0 0 0; overflow-y: auto; padding: 22px 28px 140px; }
+.mk-layout { display: flex; gap: 20px; align-items: flex-start; }
+.mk-left { width: 280px; flex-shrink: 0; position: sticky; top: 0; display: flex; flex-direction: column; gap: 16px; }
+.mk-center { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 18px; position: relative; }
+.mk-center .bet-card { max-width: 480px; cursor: default; position: relative; }
+.mk-right { width: 280px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; position: sticky; top: 0; }
+.mk-box { background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; border-radius: 18px; padding: 16px; }
+.mk-box h4 { margin: 0 0 12px; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.mk-row { display: flex; justify-content: space-between; font-size: 13px; color: #c9ccd6; padding: 6px 0; border-bottom: 1px solid #23262f; }
+.mk-bar { height: 8px; background: #23262f; border-radius: 99px; overflow: hidden; margin-top: 8px; }
+.mk-bar i { display: block; height: 100%; width: 45%; background: #6c63ff; }
+.own-tag { margin-left: auto; font-size: 10px; font-weight: 900; text-transform: uppercase; background: #23262f; color: #a59fff; padding: 2px 8px; border-radius: 999px; }
+
+/* Cotes sélectionnées dans le combiné */
+.bet-choice-button { position: relative; }
+.bet-choice-button.in-combo { background: #2a2850; border-color: #c86bff; box-shadow: 0 0 0 1px #c86bff, 0 0 16px rgba(200, 107, 255, .45); }
+.bet-choice-button.in-combo::after { content: "🔗"; position: absolute; top: -9px; left: -7px; font-size: 13px; background: #c86bff; border-radius: 50%; width: 22px; height: 22px; display: grid; place-items: center; }
+.combo-mode .mk-center .bet-card { box-shadow: 0 0 0 1px rgba(200, 107, 255, .35); }
+.combo-mode .mk-center .bet-choice-button:not(.in-combo):hover { border-color: #c86bff; }
+
+/* Petit « + » sur chaque cote (D) */
+.add-mini { position: absolute; top: -9px; right: -7px; width: 22px; height: 22px; border-radius: 50%; border: none; background: #c86bff; color: white; font-weight: 900; font-size: 15px; line-height: 1; display: grid; place-items: center; cursor: pointer; box-shadow: 0 4px 10px rgba(200, 107, 255, .45); z-index: 2; padding: 0; }
+.add-mini.on { background: #63d69f; color: #0b1f15; }
+
+/* A : interrupteur « Mode combiné » */
+.combo-switch { align-self: flex-start; max-width: 480px; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border-radius: 14px; border: 1px solid #2c3040; background: #14161e; cursor: pointer; font-weight: 800; transition: border-color .2s, background .2s; }
+.combo-switch small { display: block; font-weight: 500; color: #858a98; font-size: 12px; }
+.combo-switch .sw { width: 44px; height: 24px; border-radius: 99px; background: #343846; position: relative; transition: background .2s; flex-shrink: 0; }
+.combo-switch .sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: white; transition: left .2s; }
+.combo-switch.on { border-color: #c86bff; background: rgba(200, 107, 255, .1); }
+.combo-switch.on .sw { background: #c86bff; }
+.combo-switch.on .sw::after { left: 23px; }
+
+/* Ticket (contenu commun) */
+.ticket h4 { margin: 0 0 10px; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.ticket h4 .clear { margin-left: auto; font-size: 12px; color: #858a98; cursor: pointer; font-weight: 600; }
+.t-empty { color: #858a98; font-size: 13px; line-height: 1.5; padding: 4px 0 2px; }
+.t-leg { display: flex; gap: 8px; align-items: flex-start; padding: 8px 0; border-top: 1px solid #23262f; font-size: 12px; animation: legin .25s ease-out; }
+@keyframes legin { from { opacity: 0; transform: translateX(-8px); } }
+.t-leg .q { flex: 1; min-width: 0; color: #aaaeba; line-height: 1.35; }
+.t-leg .q b { color: white; display: block; }
+.t-leg .o { color: #c86bff; font-weight: 900; }
+.t-leg .x { color: #737887; cursor: pointer; padding: 0 2px; }
+.t-sum { display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px; padding-top: 10px; border-top: 1px dashed #343846; font-size: 13px; color: #c9ccd6; }
+.t-sum .big { font-size: 22px; font-weight: 900; color: #c86bff; transition: transform .2s; display: inline-block; }
+.t-sum .big.bump { animation: bump .35s ease; }
+@keyframes bump { 40% { transform: scale(1.25); } }
+.t-boost { font-size: 11px; color: #f5c451; font-weight: 800; text-align: right; margin-top: 2px; }
+.t-kind { font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .5px; padding: 2px 8px; border-radius: 999px; background: #23262f; color: #aaaeba; }
+.t-kind.combo { background: #c86bff; color: white; }
+.t-stake { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
+.t-stake input { flex: 1; min-width: 0; background: #101219; border: 1px solid #343846; border-radius: 10px; padding: 9px 10px; color: white; font: inherit; font-weight: 800; font-size: 16px; }
+.t-chips { display: flex; gap: 5px; margin-top: 6px; flex-wrap: wrap; }
+.t-chips button { background: #23262f; border: 1px solid #343846; color: #e6e8ee; border-radius: 999px; padding: 4px 9px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.t-win { display: flex; justify-content: space-between; margin-top: 10px; padding: 9px 11px; background: rgba(99,214,159,.08); border: 1px solid rgba(99,214,159,.3); border-radius: 10px; font-size: 13px; }
+.t-win strong { color: #63d69f; }
+.t-go { width: 100%; margin-top: 10px; border: none; border-radius: 12px; padding: 12px; font: inherit; font-weight: 900; font-size: 15px; color: white; background: linear-gradient(135deg, #8b5cf6, #c86bff); box-shadow: 0 8px 22px rgba(200, 107, 255, .35); cursor: pointer; }
+.t-go:disabled { background: #2c3040; color: #737887; box-shadow: none; cursor: not-allowed; }
+.t-note { font-size: 11px; color: #737887; margin-top: 8px; line-height: 1.4; }
+
+/* A : ticket flottant en bas au centre */
+.float-ticket { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); width: 420px; z-index: 8; background: #14161e; border: 1px solid #c86bff; border-radius: 18px; padding: 14px 16px; box-shadow: 0 18px 50px rgba(0,0,0,.6), 0 0 30px rgba(200, 107, 255, .2); animation: up .3s ease-out; }
+@keyframes up { from { opacity: 0; transform: translate(-50%, 20px); } }
+.float-ticket.mini .t-leg, .float-ticket.mini .t-stake, .float-ticket.mini .t-chips, .float-ticket.mini .t-win, .float-ticket.mini .t-go, .float-ticket.mini .t-note, .float-ticket.mini .t-empty { display: none; }
+.float-ticket.mini .t-sum { margin: 0; padding: 0; border: none; }
+.float-ticket.mini { cursor: pointer; }
+
+/* B : fenêtre de mise simulée */
+.fake-modal-bg { position: absolute; inset: 0; background: rgba(0,0,0,.6); z-index: 20; display: grid; place-items: center; animation: fade .2s; }
+@keyframes fade { from { opacity: 0; } }
+.fake-modal { width: 400px; background: linear-gradient(180deg, #1c202c, #14161e); border: 1px solid #2c3040; border-radius: 20px; padding: 22px; position: relative; animation: pop .25s ease-out; }
+@keyframes pop { from { transform: scale(.94); opacity: 0; } }
+.fake-modal h3 { margin: 0 0 4px; font-size: 18px; }
+.fake-modal .who { color: #858a98; font-size: 13px; margin-bottom: 14px; }
+.fake-modal .pickline { display: flex; justify-content: space-between; padding: 12px 14px; border-radius: 12px; background: #101219; border: 1px solid #343846; margin-bottom: 12px; font-weight: 800; }
+.fake-modal .pickline b { color: #a59fff; }
+.fake-modal .close { position: absolute; top: 12px; right: 14px; color: #858a98; cursor: pointer; font-size: 20px; }
+.m-go { width: 100%; margin-top: 12px; border: none; border-radius: 12px; padding: 13px; font: inherit; font-weight: 900; font-size: 15px; color: white; background: linear-gradient(135deg, #6c63ff, #8b5cf6); cursor: pointer; }
+.m-add { width: 100%; margin-top: 8px; border: 1px dashed #c86bff; border-radius: 12px; padding: 11px; font: inherit; font-weight: 800; font-size: 14px; color: #e3b8ff; background: rgba(200, 107, 255, .08); cursor: pointer; }
+.m-add.done { border-style: solid; background: rgba(99,214,159,.1); color: #63d69f; border-color: #63d69f; }
+
+/* B : pastille du combiné en bas à droite */
+.combo-chip { position: absolute; right: 310px; bottom: 18px; z-index: 8; display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 999px; background: linear-gradient(135deg, #8b5cf6, #c86bff); font-weight: 900; cursor: pointer; box-shadow: 0 10px 26px rgba(200, 107, 255, .45); animation: up2 .3s ease-out; }
+@keyframes up2 { from { opacity: 0; transform: translateY(16px); } }
+.combo-chip .n { background: white; color: #8b5cf6; border-radius: 99px; padding: 1px 8px; font-size: 13px; }
+.chip-panel { position: absolute; right: 310px; bottom: 74px; width: 360px; z-index: 9; background: #14161e; border: 1px solid #c86bff; border-radius: 18px; padding: 14px 16px; box-shadow: 0 18px 50px rgba(0,0,0,.6); animation: up2 .25s ease-out; }
+
+/* C : ticket dans la colonne de gauche */
+.mk-box.ticket.live { border-color: #c86bff; box-shadow: 0 0 24px rgba(200, 107, 255, .15); }
+
+/* D : tiroir à droite */
+.drawer { position: absolute; top: 64px; right: 0; bottom: 0; width: 330px; z-index: 12; background: #14161e; border-left: 1px solid #c86bff; padding: 18px; box-shadow: -20px 0 50px rgba(0,0,0,.5); animation: slidein .3s ease-out; overflow-y: auto; }
+@keyframes slidein { from { transform: translateX(100%); } }
+.drawer-tab { position: absolute; right: 0; top: 300px; z-index: 11; writing-mode: vertical-rl; transform: rotate(180deg); background: linear-gradient(135deg, #8b5cf6, #c86bff); padding: 14px 8px; border-radius: 0 12px 12px 0; font-weight: 900; cursor: pointer; font-size: 13px; box-shadow: 0 8px 22px rgba(200, 107, 255, .4); }
+
+.toast-ok { position: absolute; left: 50%; top: 90px; transform: translateX(-50%); z-index: 40; background: #1c202c; border: 1px solid #63d69f; padding: 12px 18px; border-radius: 14px; font-weight: 800; animation: fade .2s; }
+.copied { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1c202c; border: 1px solid #63d69f; padding: 12px 18px; border-radius: 14px; font-weight: 700; z-index: 99; max-width: calc(100% - 32px); }
+</style>
+</head>
+<body class="demo">
+
+<h1 class="t">Présentation du mode combiné</h1>
+<p class="sub">
+    Essaie chaque version : clique sur plusieurs cotes de paris différents, regarde la cote combinée se mettre à jour, tape une mise, valide.
+    Règles de la démo : 2 à 4 paris, un seul choix par pari (cliquer l'autre choix le remplace), cote totale max ×100, tes propres paris sont autorisés (« Ton pari »).
+</p>
+
+<div class="tabs">
+    <button class="tab active" data-v="A">A · Interrupteur « Mode combiné »</button>
+    <button class="tab" data-v="B">B · Option dans la fenêtre de mise</button>
+    <button class="tab" data-v="C">C · Ticket sous le classement</button>
+    <button class="tab" data-v="D">D · « + » sur les cotes + tiroir</button>
+    <button class="pick" id="choose">Je choisis celle-ci</button>
+</div>
+
+<p class="desc" id="desc"></p>
+
+<div class="opts">
+    <label><input type="checkbox" id="o-boost" checked> Boost : +5 % sur la cote par pari au-delà de 2</label>
+</div>
+
+<div class="screen-box" id="screen-box">
+    <div class="screen-scale" id="screen-scale">
+        <div class="screen" id="screen"></div>
+    </div>
+</div>
+
+<script>
+const DESCS = {
+    A: "<b>Un interrupteur « 🔗 Mode combiné » en tête de la liste.</b> Éteint : une cote ouvre la fenêtre de mise habituelle. Allumé : les cartes prennent un liseré violet et chaque cote touchée rejoint le ticket qui flotte en bas au centre (repliable en une ligne). On voit tout de suite qu'on est dans un autre mode.",
+    B: "<b>Rien ne change au départ</b> : une cote ouvre la fenêtre de mise, qui a un 2e bouton « 🔗 Ajouter au combiné ». Une pastille violette apparaît en bas (« Combiné · 2 · ×4,05 ») ; on la touche pour voir le ticket et miser. Le plus discret : ceux qui ne veulent pas de combiné ne voient rien.",
+    C: "<b>La fenêtre de mise est remplacée par un ticket fixe à gauche, sous le classement</b> (ton idée). Une cote touchée s'y ajoute : 1 sélection = mise simple, 2 et plus = combiné, la cote totale se met à jour à chaque clic. Plus de fenêtre qui s'ouvre et se ferme : on compose et on mise au même endroit.",
+    D: "<b>Une cote touchée ouvre toujours la fenêtre de mise</b>, mais chaque cote a un petit « + » violet dans son coin pour l'ajouter au combiné. Un onglet « 🔗 Combiné » apparaît sur le bord droit et ouvre un tiroir avec le ticket. Les deux usages cohabitent sans interrupteur."
+};
+
+const BETS = [
+    { id: "b1", q: "Est-ce que Thomas arrivera en retard demain ?", by: "Yann", c: [["Oui", 1.80], ["Non", 2.25]], pct: 64 },
+    { id: "b2", q: "Le PSG gagne ce week-end ?", by: "Léa", c: [["Oui", 1.50], ["Non", 3.00]], pct: 72 },
+    { id: "b3", q: "Il pleut vendredi midi ?", by: "Toi", own: true, c: [["Oui", 2.10], ["Non", 1.90]], pct: 40 },
+    { id: "b4", q: "Qui gagne le baby-foot de 16h ?", by: "Max", c: [["Léa", 1.65], ["Max", 2.55]], pct: 58 },
+    { id: "b5", q: "La machine à café sera réparée lundi ?", by: "Sam", c: [["Oui", 3.40], ["Non", 1.30]], pct: 30 }
+];
+
+let version = "A";
+let legs = [];          // [{ betId, idx }]
+let stake = 0;
+let modeOn = false;     // A
+let mini = false;       // A
+let modal = null;       // B, D : { betId, idx }
+let chipOpen = false;   // B
+let drawerOpen = false; // D
+let boost = true;
+
+const screen = document.getElementById("screen");
+
+function fmt(n) { return Number(n).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function money(n) { return Math.round(n).toLocaleString("fr-FR") + " €"; }
+
+function baseOdds() { return legs.reduce((t, l) => t * BETS.find(b => b.id === l.betId).c[l.idx][1], 1); }
+function boostRate() { return boost && legs.length > 2 ? (legs.length - 2) * 0.05 : 0; }
+function totalOdds() { return Math.min(100, baseOdds() * (1 + boostRate())); }
+
+function toggleLeg(betId, idx) {
+    const i = legs.findIndex(l => l.betId === betId);
+    if (i >= 0 && legs[i].idx === idx) legs.splice(i, 1);
+    else if (i >= 0) legs[i].idx = idx;
+    else if (legs.length < 4) legs.push({ betId, idx });
+    else return flash("4 paris maximum dans un combiné");
+    bumpNext = true;
+    render();
+}
+let bumpNext = false;
+
+function cardHtml(b) {
+    const leg = legs.find(l => l.betId === b.id);
+    return `<div class="bet-card">
+        <div class="bet-card-header"><span>🏆</span><span class="bet-author">Créé par <b>${b.by}</b></span>${b.own ? `<span class="own-tag">Ton pari</span>` : ""}</div>
+        <div class="bet-question-row"><span class="bet-question-icon">🎲</span><h3>${b.q}</h3><span class="bet-deadline">Demain 20:00</span></div>
+        <div class="bet-choices">
+            ${b.c.map(([label, odds], idx) => `<div class="bet-choice-wrapper">
+                ${version === "D" ? `<button class="add-mini${leg && leg.idx === idx ? " on" : ""}" data-add="${b.id}:${idx}" title="Ajouter au combiné">${leg && leg.idx === idx ? "✓" : "+"}</button>` : ""}
+                <div class="bet-choice-button${leg && leg.idx === idx ? " in-combo" : ""}" data-odd="${b.id}:${idx}" style="cursor:pointer"><span>${label}</span><strong>${fmt(odds)}</strong></div>
+                <div class="choice-bar-track"><div class="choice-bar-fill" style="width:${idx ? 100 - b.pct : b.pct}%"></div></div>
+            </div>`).join("")}
+        </div>
+    </div>`;
+}
+
+function ticketInner({ closeable = false } = {}) {
+    const n = legs.length;
+    const combo = n >= 2;
+    const odds = n === 0 ? 0 : n === 1 ? baseOdds() : totalOdds();
+    const kind = n === 0 ? "" : combo ? `<span class="t-kind combo">Combiné · ${n}</span>` : `<span class="t-kind">Mise simple</span>`;
+    const canGo = (version === "C" ? n >= 1 : n >= 2) && stake >= 10;
+    return `
+        <h4>🎟️ ${version === "C" ? "Ton ticket" : "Ton combiné"} ${kind}${n ? `<span class="clear" data-clear>Vider</span>` : ""}${closeable ? `<span class="clear" data-close style="margin-left:${n ? "10px" : "auto"}">✕</span>` : ""}</h4>
+        ${n === 0
+            ? `<div class="t-empty">${version === "C" ? "Clique sur une cote pour parier. Ajoutes-en d'autres (paris différents) pour faire un combiné." : "Ajoute au moins 2 cotes de paris différents."}</div>`
+            : legs.map((l, i) => {
+                const b = BETS.find(x => x.id === l.betId);
+                return `<div class="t-leg"><span class="q"><b>${b.c[l.idx][0]}</b>${b.q}</span><span class="o">${fmt(b.c[l.idx][1])}</span><span class="x" data-rm="${i}">✕</span></div>`;
+            }).join("")}
+        ${n ? `
+            <div class="t-sum"><span>${combo ? "Cote combinée" : "Cote"}</span><span class="big${bumpNext ? " bump" : ""}">×${fmt(odds)}</span></div>
+            ${combo && boostRate() ? `<div class="t-boost">⚡ Boost +${Math.round(boostRate() * 100)} % inclus</div>` : ""}
+            ${version !== "C" && n === 1 ? `<div class="t-note">Ajoute un 2e pari pour faire un combiné.</div>` : ""}
+            <div class="t-stake"><input type="number" min="10" placeholder="Ta mise" value="${stake || ""}" data-stake><span>€</span></div>
+            <div class="t-chips">${[10, 50, 100, 250].map(a => `<button data-amt="${a}">${a} €</button>`).join("")}</div>
+            <div class="t-win"><span>Gain possible</span><strong data-win>${money(stake * odds)}</strong></div>
+            <button class="t-go" data-go ${canGo ? "" : "disabled"}>${canGo ? `${combo ? "🔗 Miser le combiné" : "🎟️ Miser"} · ${money(stake)}` : (version !== "C" && n < 2 ? "2 paris minimum" : "Choisis ta mise")}</button>
+        ` : ""}`;
+}
+
+function render() {
+    const v = version;
+    let center = "";
+    if (v === "A") center += `<div class="combo-switch${modeOn ? " on" : ""}" data-switch><span>🔗 Mode combiné<small>${modeOn ? "Touche des cotes pour les ajouter au ticket" : "Allume-le pour enchaîner plusieurs paris"}</small></span><span class="sw"></span></div>`;
+    center += BETS.map(cardHtml).join("");
+
+    const leaderboard = `<div class="mk-box"><h4>🏆 Classement</h4>${["Léa", "Yann", "Toi", "Max", "Sam"].map((n, i) => `<div class="mk-row"><span>${i + 1}. ${n}</span><b>${1900 - i * 210} €</b></div>`).join("")}</div>`;
+    const leftTicket = v === "C" ? `<div class="mk-box ticket${legs.length ? " live" : ""}">${ticketInner()}</div>` : "";
+
+    let overlay = "";
+    if (v === "A" && (modeOn || legs.length)) overlay += `<div class="float-ticket ticket${mini ? " mini" : ""}" data-float>${ticketInner()}${legs.length ? `<div style="text-align:center;margin-top:6px"><span class="clear" data-mini style="font-size:12px;color:#858a98;cursor:pointer">${mini ? "▲ Déplier" : "▼ Replier"}</span></div>` : ""}</div>`;
+    if (v === "B" && legs.length) {
+        overlay += `<div class="combo-chip" data-chip>🔗 Combiné <span class="n">${legs.length}</span> ×${fmt(legs.length > 1 ? totalOdds() : baseOdds())}</div>`;
+        if (chipOpen) overlay += `<div class="chip-panel ticket">${ticketInner({ closeable: true })}</div>`;
+    }
+    if (v === "D") {
+        if (legs.length && !drawerOpen) overlay += `<div class="drawer-tab" data-drawer>🔗 Combiné · ${legs.length}</div>`;
+        if (drawerOpen) overlay += `<div class="drawer ticket">${ticketInner({ closeable: true })}</div>`;
+    }
+    if (modal) {
+        const b = BETS.find(x => x.id === modal.betId);
+        const inCombo = legs.some(l => l.betId === b.id && l.idx === modal.idx);
+        overlay += `<div class="fake-modal-bg" data-bg><div class="fake-modal">
+            <span class="close" data-mclose>×</span>
+            <h3>${b.q}</h3><div class="who">Créé par ${b.by}</div>
+            <div class="pickline"><span>${b.c[modal.idx][0]}</span><b>× ${fmt(b.c[modal.idx][1])}</b></div>
+            <div class="t-stake"><input type="number" placeholder="Ta mise" value=""><span>€</span></div>
+            <button class="m-go" data-msimple>🎟️ Miser</button>
+            ${v === "B" ? `<button class="m-add${inCombo ? " done" : ""}" data-madd>${inCombo ? "✓ Dans ton combiné" : "🔗 Ajouter au combiné"}</button>` : ""}
+        </div></div>`;
+    }
+
+    screen.className = "screen" + (v === "A" && modeOn ? " combo-mode" : "");
+    screen.innerHTML = `
+        <div class="mk-header"><div class="mk-logo"><span>BET</span>LAB</div><div class="mk-nav"><b class="on">Paris</b><b>Historique</b><b>Missions</b><b>Boutique</b></div>
+            <div class="mk-user"><div class="mk-pill">Solde 1 250 €</div><div class="mk-pill">👤 Profil</div></div></div>
+        <div class="screen-scroll"><div class="mk-layout">
+            <div class="mk-left">${leaderboard}${leftTicket}</div>
+            <div class="mk-center">${center}</div>
+            <div class="mk-right"><div class="mk-box"><h4>⭐ Ton niveau</h4><div class="mk-row" style="border:none"><b>Niveau 7</b><span>450 / 1000 XP</span></div><div class="mk-bar"><i></i></div></div>
+                <div class="mk-box"><h4>📢 Message</h4><div style="font-size:13px;color:#c9ccd6">Tournoi de baby-foot vendredi !</div></div></div>
+        </div></div>
+        ${overlay}`;
+    bumpNext = false;
+    bind();
+    document.getElementById("desc").innerHTML = DESCS[v];
+    fit();
+}
+
+function bind() {
+    const q = (sel, fn, ev = "click") => screen.querySelectorAll(sel).forEach(el => el.addEventListener(ev, fn));
+    q("[data-odd]", e => {
+        const [betId, idx] = e.currentTarget.dataset.odd.split(":");
+        const i = Number(idx);
+        if (version === "C" || (version === "A" && modeOn)) return toggleLeg(betId, i);
+        modal = { betId, idx: i };
+        render();
+    });
+    q("[data-add]", e => { e.stopPropagation(); const [b, i] = e.currentTarget.dataset.add.split(":"); toggleLeg(b, Number(i)); });
+    q("[data-switch]", () => { modeOn = !modeOn; mini = false; render(); });
+    q("[data-rm]", e => { legs.splice(Number(e.currentTarget.dataset.rm), 1); bumpNext = true; render(); });
+    q("[data-clear]", () => { legs = []; stake = 0; render(); });
+    q("[data-close]", () => { chipOpen = false; drawerOpen = false; render(); });
+    q("[data-mini]", e => { e.stopPropagation(); mini = !mini; render(); });
+    q("[data-float]", () => { if (mini) { mini = false; render(); } });
+    q("[data-chip]", () => { chipOpen = !chipOpen; render(); });
+    q("[data-drawer]", () => { drawerOpen = true; render(); });
+    q("[data-mclose]", () => { modal = null; render(); });
+    q("[data-bg]", e => { if (e.target === e.currentTarget) { modal = null; render(); } });
+    q("[data-msimple]", () => { modal = null; render(); flash("✓ Mise simple placée (fenêtre habituelle)"); });
+    q("[data-madd]", () => { const m = modal; modal = null; if (!legs.some(l => l.betId === m.betId && l.idx === m.idx)) toggleLeg(m.betId, m.idx); else render(); });
+    q("[data-amt]", e => { e.stopPropagation(); stake = Number(e.currentTarget.dataset.amt); render(); });
+    q("[data-stake]", e => {
+        stake = Number(e.target.value) || 0;
+        const odds = legs.length > 1 ? totalOdds() : baseOdds();
+        screen.querySelector("[data-win]").textContent = money(stake * odds);
+        const go = screen.querySelector("[data-go]");
+        const ok = (version === "C" ? legs.length >= 1 : legs.length >= 2) && stake >= 10;
+        go.disabled = !ok;
+        go.textContent = ok ? `${legs.length > 1 ? "🔗 Miser le combiné" : "🎟️ Miser"} · ${money(stake)}` : (version !== "C" && legs.length < 2 ? "2 paris minimum" : "Choisis ta mise");
+    }, "input");
+    q("[data-stake]", e => e.stopPropagation());
+    q("[data-go]", e => {
+        e.stopPropagation();
+        const combo = legs.length > 1;
+        legs = []; stake = 0; chipOpen = false; drawerOpen = false; mini = false;
+        render();
+        flash(combo ? "🔗 Combiné placé !" : "🎟️ Mise placée !");
+    });
+}
+
+function flash(text) {
+    const t = document.createElement("div");
+    t.className = "toast-ok";
+    t.textContent = text;
+    screen.appendChild(t);
+    setTimeout(() => t.remove(), 1800);
+}
+
+function fit() {
+    const box = document.getElementById("screen-box");
+    const scale = Math.min(1, box.clientWidth / 1242);
+    document.getElementById("screen-scale").style.transform = `scale(${scale})`;
+    box.style.height = (802 * scale) + "px";
+}
+window.addEventListener("resize", fit);
+
+document.getElementById("o-boost").addEventListener("change", e => { boost = e.target.checked; render(); });
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === t));
+    version = t.dataset.v;
+    legs = []; stake = 0; modeOn = false; mini = false; modal = null; chipOpen = false; drawerOpen = false;
+    render();
+});
+
+document.getElementById("choose").onclick = () => {
+    const text = `Mode combiné : je choisis la version ${version}${boost ? " (avec boost)" : " (sans boost)"}`;
+    navigator.clipboard && navigator.clipboard.writeText(text).catch(() => {});
+    const t = document.createElement("div");
+    t.className = "copied";
+    t.textContent = "✅ Copié : " + text;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+};
+
+render();
+</script>
+</body>
+</html>

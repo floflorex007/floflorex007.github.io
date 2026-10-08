@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Page des paris sans titre, bouton « Créer » (propositions)</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body.demo { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; margin: 0; display: block; min-height: 0; }
+.demo h1.t { font-size: 26px; margin: 0 0 6px; }
+.demo .sub { color: #858a98; margin: 0 0 16px; max-width: 860px; font-size: 14px; line-height: 1.5; }
+.demo .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; position: sticky; top: 0; background: #0f1117; padding: 10px 0; z-index: 90; align-items: center; }
+.demo .tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; font: inherit; }
+.demo .tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.demo .pick { margin-left: auto; background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; padding: 10px 16px; border-radius: 12px; cursor: pointer; font: inherit; font-weight: 900; }
+.demo .desc { color: #aaaeba; font-size: 14px; max-width: 820px; margin-bottom: 18px; line-height: 1.5; }
+.demo .desc b { color: #e6e8ee; }
+
+.wrap { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+
+/* Maquette de la page (largeur d'un écran d'ordinateur, réduite pour tenir) */
+.screen-box { flex: 1 1 700px; min-width: 0; }
+.screen-scale { transform-origin: top left; }
+.screen { width: 1240px; height: 760px; background: #0f1117; border: 1px solid #2c3040; border-radius: 14px; overflow: hidden; position: relative; }
+.screen-scroll { position: absolute; inset: 64px 0 0 0; overflow-y: auto; padding: 22px 28px 120px; }
+.mk-header { position: absolute; top: 0; left: 0; right: 0; height: 64px; display: flex; align-items: center; gap: 18px; padding: 0 24px; background: #14161e; border-bottom: 1px solid #23262f; z-index: 4; }
+.mk-logo { font-weight: 900; font-size: 20px; letter-spacing: 1px; }
+.mk-logo span { color: #6c63ff; }
+.mk-group { background: #1c202c; border: 1px solid #2c3040; border-radius: 10px; padding: 7px 12px; font-size: 13px; color: #c9ccd6; }
+.mk-nav { display: flex; gap: 4px; align-items: center; }
+.mk-nav b { padding: 8px 14px; border-radius: 10px; font-weight: 600; font-size: 14px; color: #aaaeba; }
+.mk-nav b.on { background: #23262f; color: white; }
+.mk-user { margin-left: auto; display: flex; gap: 10px; align-items: center; font-size: 13px; }
+.mk-pill { background: #1c202c; border: 1px solid #2c3040; border-radius: 10px; padding: 6px 10px; }
+.mk-pill strong { display: block; font-size: 14px; }
+.mk-pill span { color: #858a98; font-size: 11px; }
+
+.mk-old-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; }
+.mk-old-head h2 { margin: 0 0 4px; font-size: 28px; }
+.mk-old-head p { margin: 0; color: #858a98; }
+
+.mk-layout { display: flex; gap: 20px; align-items: flex-start; }
+.mk-left { width: 280px; flex-shrink: 0; position: sticky; top: 0; }
+.mk-center { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 18px; }
+.mk-center .bet-card { max-width: 480px; cursor: default; }
+.mk-right { width: 280px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; position: sticky; top: 0; }
+.mk-box { background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; border-radius: 18px; padding: 16px; }
+.mk-box h4 { margin: 0 0 12px; font-size: 14px; }
+.mk-row { display: flex; justify-content: space-between; font-size: 13px; color: #c9ccd6; padding: 6px 0; border-bottom: 1px solid #23262f; }
+.mk-bar { height: 8px; background: #23262f; border-radius: 99px; overflow: hidden; margin-top: 8px; }
+.mk-bar i { display: block; height: 100%; width: 45%; background: #6c63ff; }
+.mk-parrot { position: absolute; right: 70px; bottom: -30px; width: 190px; height: 240px; border-radius: 50% 50% 10px 10px; background: radial-gradient(circle at 50% 30%, #2fa36f, #1d6b48); opacity: .35; z-index: 1; display: grid; place-items: center; font-size: 60px; }
+
+/* Le bouton « Créer un pari » et ses réglages */
+.cb { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: none; border-radius: var(--r); font: inherit; font-weight: 800; cursor: pointer; white-space: nowrap; transition: transform .15s, box-shadow .15s, max-width .25s, padding .25s; color: white; }
+.cb:hover { transform: translateY(-2px); }
+.cb.s-plein { background: #6c63ff; box-shadow: 0 8px 22px rgba(108, 99, 255, .35); }
+.cb.s-degrade { background: linear-gradient(135deg, #6c63ff, #8b5cf6); box-shadow: 0 8px 24px rgba(108, 99, 255, .4); }
+.cb.s-vert { background: linear-gradient(135deg, #2fa36f, #63d69f); color: #0b1f15; box-shadow: 0 8px 24px rgba(99, 214, 159, .35); }
+.cb.s-contour { background: transparent; color: #a59fff; border: 2px solid #6c63ff; box-shadow: none; }
+.cb.z-petit { padding: 7px 12px; font-size: 13px; }
+.cb.z-normal { padding: 10px 16px; font-size: 14px; }
+.cb.z-grand { padding: 14px 22px; font-size: 16px; }
+.cb.glow { animation: cb-glow 2.4s ease-in-out infinite; }
+@keyframes cb-glow { 50% { box-shadow: 0 0 0 6px rgba(108, 99, 255, .18), 0 8px 26px rgba(108, 99, 255, .5); } }
+.cb .ic { font-size: 1.15em; line-height: 1; }
+
+/* B : carte fantôme en tête de liste */
+.ghost-card { max-width: 480px; box-sizing: border-box; border: 2px dashed #3a3f55; border-radius: 18px; padding: 22px; display: flex; align-items: center; gap: 16px; cursor: pointer; background: rgba(108, 99, 255, .04); transition: border-color .2s, background .2s, transform .2s; }
+.ghost-card:hover { border-color: #6c63ff; background: rgba(108, 99, 255, .1); transform: translateY(-2px); }
+.ghost-plus { width: 46px; height: 46px; border-radius: 14px; background: #6c63ff; display: grid; place-items: center; font-size: 26px; font-weight: 900; flex-shrink: 0; box-shadow: 0 8px 20px rgba(108, 99, 255, .35); }
+.ghost-card b { display: block; font-size: 16px; }
+.ghost-card small { color: #858a98; font-size: 13px; }
+.ghost-card.compact { padding: 12px 16px; }
+.ghost-card.compact .ghost-plus { width: 34px; height: 34px; font-size: 20px; border-radius: 10px; }
+
+/* D : bouton flottant */
+.fab { position: absolute; z-index: 6; height: 56px; min-width: 56px; padding: 0 18px; border-radius: 999px; }
+.fab.round { padding: 0; width: 56px; }
+.fab.round .lbl { display: none; }
+.fab.expand { max-width: 56px; padding: 0; overflow: hidden; justify-content: flex-start; }
+.fab.expand .ic { min-width: 56px; text-align: center; }
+.fab.expand .lbl { opacity: 0; transition: opacity .2s; padding-right: 18px; }
+.fab.expand:hover { max-width: 240px; }
+.fab.expand:hover .lbl { opacity: 1; }
+.fab.p-bg { left: 28px; bottom: 28px; }
+.fab.p-bc { left: 50%; bottom: 28px; transform: translateX(-50%); }
+.fab.p-bc:hover { transform: translateX(-50%) translateY(-2px); }
+.fab.p-bd { right: 290px; bottom: 28px; }
+
+/* Paramètres */
+.params { flex: 0 1 300px; background: #14161e; border: 1px solid #23262f; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 14px; position: sticky; top: 76px; }
+.params h3 { margin: 0; font-size: 15px; }
+.prm > label { display: block; font-size: 12px; font-weight: 800; color: #aaaeba; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .4px; }
+.prm input[type=text] { width: 100%; box-sizing: border-box; background: #101219; border: 1px solid #343846; color: #e6e8ee; border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 14px; }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.sg { background: #23262f; border: 1px solid #343846; color: #e6e8ee; border-radius: 10px; padding: 6px 10px; cursor: pointer; font: inherit; font-size: 13px; }
+.sg.on { border-color: #6c63ff; background: rgba(108, 99, 255, .2); }
+.prm > .chk { text-transform: none; letter-spacing: 0; font-weight: 500; margin: 0; display: flex; align-items: center; gap: 8px; font-size: 14px; color: #c9ccd6; cursor: pointer; }
+.only { display: none; }
+.hintp { color: #737887; font-size: 12px; line-height: 1.5; margin: 0; }
+.copied { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1c202c; border: 1px solid #63d69f; padding: 12px 18px; border-radius: 14px; font-weight: 700; z-index: 99; max-width: calc(100% - 32px); }
+.flash { position: absolute; inset: 0; display: grid; place-items: center; z-index: 20; background: rgba(0,0,0,.45); font-size: 22px; font-weight: 800; animation: fl .9s ease forwards; pointer-events: none; }
+@keyframes fl { 0% { opacity: 0; } 20% { opacity: 1; } 100% { opacity: 0; } }
+@media (max-width: 760px) { .params { position: static; } .demo .pick { margin-left: 0; } }
+</style>
+</head>
+<body class="demo">
+
+<h1 class="t">Page des paris : sans titre, bouton « Créer » ailleurs</h1>
+<p class="sub">
+    « Paris disponibles / Découvre les paris créés par les utilisateurs » est retiré : les cartes remontent.
+    Choisis où va le bouton « + Créer un pari », règle-le à droite, puis « Je choisis celle-ci » (réglages copiés avec).
+    Le petit bouton rond « + » du téléphone (dans la barre d'onglets) ne change pas.
+</p>
+
+<div class="tabs">
+    <button class="tab" data-v="0">Avant</button>
+    <button class="tab active" data-v="A">A · Dans la barre du haut</button>
+    <button class="tab" data-v="B">B · Carte « + » en tête des paris</button>
+    <button class="tab" data-v="C">C · En haut de la colonne de droite</button>
+    <button class="tab" data-v="D">D · Bouton flottant</button>
+    <button class="pick" id="choose">Je choisis celle-ci</button>
+</div>
+
+<p class="desc" id="desc"></p>
+
+<div class="wrap">
+
+    <div class="screen-box" id="screen-box">
+        <div class="screen-scale" id="screen-scale">
+            <div class="screen" id="screen"></div>
+        </div>
+    </div>
+
+    <div class="params" id="params">
+        <h3>⚙️ Paramètres</h3>
+
+        <div class="prm"><label>Couleur</label><div class="seg" id="p-style"></div></div>
+
+        <div class="prm"><label>Taille</label><div class="seg" id="p-size"></div></div>
+
+        <div class="prm"><label>Texte</label><input type="text" id="p-label"></div>
+
+        <div class="prm"><label>Arrondi</label><div class="seg" id="p-radius"></div></div>
+
+        <div class="prm only" data-for="A"><label>Place dans la barre</label><div class="seg" id="p-barpos"></div></div>
+
+        <div class="prm only" data-for="B"><label>Carte</label><div class="seg" id="p-ghost"></div></div>
+
+        <div class="prm only" data-for="D"><label>Position</label><div class="seg" id="p-fabpos"></div></div>
+
+        <div class="prm only" data-for="D"><label>Forme</label><div class="seg" id="p-fabshape"></div></div>
+
+        <div class="prm">
+            <label class="chk"><input type="checkbox" id="p-glow"> Lueur qui attire l'œil</label>
+        </div>
+
+        <p class="hintp">Clique le bouton dans la maquette pour voir où il est cliquable. La maquette défile (molette dessus) : regarde s'il reste visible.</p>
+    </div>
+
+</div>
+
+<script>
+const DESCS = {
+    0: "<b>La page actuelle</b>, pour comparer : le titre et le bouton prennent une bande en haut.",
+    A: "<b>Le bouton passe dans la barre du haut</b>, à côté des onglets : visible sur toutes les pages, et il ne bouge jamais quand on fait défiler.",
+    B: "<b>Une carte « + Créer un pari » en pointillés en tête de la liste</b>, à la taille d'une carte de pari : on comprend qu'on ajoute un pari à la liste. Elle défile avec les cartes.",
+    C: "<b>Le bouton en haut de la colonne de droite</b>, au-dessus de « Ton niveau », sur toute la largeur de la colonne. Il reste collé en haut comme la colonne.",
+    D: "<b>Un bouton rond flottant</b>, toujours au même endroit de l'écran, même en défilant. Il peut se déplier au survol pour montrer son texte."
+};
+
+const STYLES = { degrade: "Violet dégradé", plein: "Violet plein", vert: "Vert", contour: "Contour" };
+const SIZES = { petit: "Petit", normal: "Normal", grand: "Grand" };
+const RADII = { 10: "Carré doux", 14: "Arrondi", 999: "Pilule" };
+const BARPOS = { nav: "Après les onglets", user: "Avant le solde" };
+const GHOST = { pleine: "Taille d'une carte", compact: "Compacte" };
+const FABPOS = { bg: "Bas gauche", bc: "Bas centre", bd: "Bas droite (à côté du perroquet)" };
+const FABSHAPE = { expand: "Rond qui se déplie", round: "Rond seul « + »", pill: "Pilule avec texte" };
+
+const PRESETS = {
+    0: { style: "degrade", size: "normal", label: "+ Créer un pari", radius: "14", glow: false },
+    A: { style: "degrade", size: "petit", label: "+ Créer un pari", radius: "999", barpos: "nav", glow: false },
+    B: { style: "degrade", size: "normal", label: "Créer un pari", radius: "14", ghost: "pleine", glow: false },
+    C: { style: "degrade", size: "grand", label: "+ Créer un pari", radius: "14", glow: true },
+    D: { style: "degrade", size: "grand", label: "Créer un pari", radius: "999", fabpos: "bg", fabshape: "expand", glow: false }
+};
+
+let version = "A";
+let p = { ...PRESETS.A };
+
+const QUESTIONS = [
+    ["Est-ce que Thomas arrivera en retard demain ?", "Oui", "1.80", "Non", "2.25", 64],
+    ["Le PSG gagne ce week-end ?", "Oui", "1.50", "Non", "3.00", 72],
+    ["Il pleut vendredi midi ?", "Oui", "2.10", "Non", "1.90", 40],
+    ["Qui gagne le baby-foot de 16h ?", "Léa", "1.65", "Max", "2.55", 58]
+];
+
+function card([q, a, oa, b, ob, pct], i) {
+    return `<div class="bet-card${i === 0 ? " bet-card-new" : ""}">
+        ${i === 0 ? `<span class="bet-new-badge">NEW</span>` : ""}
+        <div class="bet-card-header"><span>🏆</span><span class="bet-author">Créé par <b>Yann</b></span></div>
+        <div class="bet-question-row"><span class="bet-question-icon">🎲</span><h3>${q}</h3><span class="bet-deadline">Demain 20:00</span></div>
+        <div class="bet-choices">
+            <div class="bet-choice-wrapper"><div class="bet-choice-button"><span>${a}</span><strong>${oa}</strong></div><div class="choice-bar-track"><div class="choice-bar-fill" style="width:${pct}%"></div></div><div class="choice-pct">${pct}%</div></div>
+            <div class="bet-choice-wrapper"><div class="bet-choice-button"><span>${b}</span><strong>${ob}</strong></div><div class="choice-bar-track"><div class="choice-bar-fill" style="width:${100 - pct}%"></div></div><div class="choice-pct">${100 - pct}%</div></div>
+        </div>
+        <div class="bet-footer"><span></span><div class="bet-total-footer"><span>Solde misé</span><strong>${120 + i * 45} €</strong></div></div>
+    </div>`;
+}
+
+function btn(extra = "", inner = null) {
+    const label = p.label.trim();
+    return `<button class="cb s-${p.style} z-${p.size}${p.glow ? " glow" : ""} ${extra}" style="--r:${p.radius}px" data-create>${inner ?? escapeHtml(label)}</button>`;
+}
+
+function escapeHtml(s) { return s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
+
+function render() {
+    const screen = document.getElementById("screen");
+    const v = version;
+
+    const navBtn = v === "A" && p.barpos === "nav" ? btn() : "";
+    const userBtn = v === "A" && p.barpos === "user" ? btn() : "";
+
+    const header = `<div class="mk-header">
+        <div class="mk-logo"><span>BET</span>LAB</div>
+        <div class="mk-group">👥 BetLab Bureau ▾</div>
+        <div class="mk-nav"><b class="on">Paris</b><b>Historique</b><b>Missions</b><b>Boutique</b>${navBtn}</div>
+        <div class="mk-user">${userBtn}<div class="mk-pill">🔥 4</div><div class="mk-pill"><span>Solde</span><strong>1 250 €</strong></div><div class="mk-pill"><span>Points</span><strong>320 🪙</strong></div><div class="mk-pill">👤 Profil</div></div>
+    </div>`;
+
+    const oldHead = v === "0"
+        ? `<div class="mk-old-head"><div><h2>Paris disponibles</h2><p>Découvre les paris créés par les utilisateurs.</p></div>${btn()}</div>`
+        : "";
+
+    const label = p.label.trim().replace(/^\+\s*/, "");
+    const ghost = v === "B"
+        ? `<div class="ghost-card${p.ghost === "compact" ? " compact" : ""}" data-create>
+            <div class="ghost-plus" style="border-radius:${Math.min(Number(p.radius), 14)}px">+</div>
+            <div><b>${escapeHtml(label || "Créer un pari")}</b>${p.ghost === "compact" ? "" : `<small>Propose un sujet, choisis les cotes, mise pour le publier.</small>`}</div>
+        </div>`
+        : "";
+
+    const leaderboard = `<div class="mk-box"><h4>🏆 Classement</h4>
+        ${["Léa", "Yann", "Toi", "Max", "Sam"].map((n, i) => `<div class="mk-row"><span>${i + 1}. ${n}</span><b>${1900 - i * 210} €</b></div>`).join("")}
+    </div>`;
+
+    const right = `<div class="mk-right">
+        ${v === "C" ? `<div>${btn().replace('class="cb', 'class="cb cb-full')}</div>` : ""}
+        <div class="mk-box"><h4>⭐ Ton niveau</h4><div class="mk-row" style="border:none"><b>Niveau 7</b><span>450 / 1000 XP</span></div><div class="mk-bar"><i></i></div></div>
+        <div class="mk-box"><h4>📢 Message</h4><div style="font-size:13px;color:#c9ccd6">Tournoi de baby-foot vendredi !</div></div>
+    </div>`;
+
+    let fab = "";
+    if (v === "D") {
+        const shape = p.fabshape;
+        const inner = `<span class="ic">+</span><span class="lbl">${escapeHtml(label || "Créer un pari")}</span>`;
+        fab = btn(`fab p-${p.fabpos} ${shape === "round" ? "round" : shape === "expand" ? "expand" : ""}`, inner)
+            .replace(/style="--r:[^"]*"/, 'style="--r:999px"');
+    }
+
+    screen.innerHTML = header + `
+        <div class="screen-scroll">
+            ${oldHead}
+            <div class="mk-layout">
+                <div class="mk-left">${leaderboard}</div>
+                <div class="mk-center">${ghost}${QUESTIONS.map(card).join("")}${QUESTIONS.map((q, i) => card(q, i + 4)).join("")}</div>
+                ${right}
+            </div>
+        </div>
+        <div class="mk-parrot">🦜</div>
+        ${fab}`;
+
+    screen.querySelectorAll(".cb-full").forEach(b => { b.style.width = "100%"; });
+
+    screen.querySelectorAll("[data-create]").forEach(el => el.addEventListener("click", () => {
+        const f = document.createElement("div");
+        f.className = "flash";
+        f.textContent = "→ ouvre la fenêtre « Créer un pari »";
+        screen.appendChild(f);
+        setTimeout(() => f.remove(), 900);
+    }));
+
+    document.getElementById("desc").innerHTML = DESCS[v];
+    renderParams();
+    fit();
+}
+
+function seg(id, map, key) {
+    const el = document.getElementById(id);
+    el.innerHTML = Object.entries(map).map(([k, v]) => `<button class="sg${String(p[key]) === k ? " on" : ""}" data-k="${k}">${v}</button>`).join("");
+    el.onclick = e => {
+        const k = e.target.closest("[data-k]")?.dataset.k;
+        if (k) { p[key] = k; render(); }
+    };
+}
+
+function renderParams() {
+    seg("p-style", STYLES, "style");
+    seg("p-size", SIZES, "size");
+    seg("p-radius", RADII, "radius");
+    seg("p-barpos", BARPOS, "barpos");
+    seg("p-ghost", GHOST, "ghost");
+    seg("p-fabpos", FABPOS, "fabpos");
+    seg("p-fabshape", FABSHAPE, "fabshape");
+    const label = document.getElementById("p-label");
+    if (document.activeElement !== label) label.value = p.label;
+    document.getElementById("p-glow").checked = p.glow;
+    document.querySelectorAll(".only").forEach(el => el.style.display = el.dataset.for === version ? "block" : "none");
+    document.getElementById("params").style.visibility = version === "0" ? "hidden" : "visible";
+}
+
+document.getElementById("p-label").addEventListener("input", e => { p.label = e.target.value; render(); });
+document.getElementById("p-glow").addEventListener("change", e => { p.glow = e.target.checked; render(); });
+
+function fit() {
+    const box = document.getElementById("screen-box");
+    const scale = Math.min(1, box.clientWidth / 1242);
+    const sc = document.getElementById("screen-scale");
+    sc.style.transform = `scale(${scale})`;
+    box.style.height = (762 * scale) + "px";
+}
+window.addEventListener("resize", fit);
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === t));
+    version = t.dataset.v;
+    p = { ...PRESETS[version] };
+    render();
+});
+
+document.getElementById("choose").onclick = () => {
+    if (version === "0") return;
+    const extra = version === "A" ? `, place : ${BARPOS[p.barpos].toLowerCase()}`
+        : version === "B" ? `, carte : ${GHOST[p.ghost].toLowerCase()}`
+        : version === "D" ? `, position : ${FABPOS[p.fabpos].toLowerCase()}, forme : ${FABSHAPE[p.fabshape].toLowerCase()}`
+        : "";
+    const text = `Bouton Créer : version ${version} — couleur ${STYLES[p.style].toLowerCase()}, taille ${SIZES[p.size].toLowerCase()}, texte « ${p.label} », arrondi ${RADII[p.radius].toLowerCase()}${extra}${p.glow ? ", lueur" : ""}`;
+    navigator.clipboard && navigator.clipboard.writeText(text).catch(() => {});
+    const t = document.createElement("div");
+    t.className = "copied";
+    t.textContent = "✅ Copié : " + text;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3500);
+};
+
+render();
+</script>
+</body>
+</html>

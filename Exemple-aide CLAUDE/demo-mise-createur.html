@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BetLab – Mise obligatoire du créateur (propositions)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+h1 { font-size: 26px; margin-bottom: 6px; }
+.sub { color: #858a98; margin-bottom: 16px; max-width: 800px; font-size: 14px; line-height: 1.5; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; position: sticky; top: 0; background: #0f1117; padding: 10px 0; z-index: 30; align-items: center; }
+.tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; }
+.tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.pick { margin-left: auto; background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; font-weight: 900; padding: 10px 16px; border-radius: 12px; }
+.reset { background: #1c202c; border: 1px solid #2c3040; color: #c9ccd6; padding: 10px 14px; border-radius: 12px; }
+.desc { color: #aaaeba; font-size: 14px; max-width: 760px; margin-bottom: 20px; line-height: 1.5; }
+.desc b { color: #e6e8ee; }
+.stage { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; }
+
+/* Fenêtre de création (tailles du site) */
+.modal { width: 100%; max-width: 480px; background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; border-radius: 20px; padding: 22px 20px; box-shadow: 0 20px 50px rgba(0,0,0,.45); position: relative; overflow: hidden; }
+.modal h2 { font-size: 22px; margin-bottom: 4px; }
+.intro { color: #858a98; font-size: 14px; margin-bottom: 16px; }
+.section { display: flex; gap: 12px; padding: 14px 0; border-top: 1px solid #23262f; }
+.section:first-of-type { border-top: none; }
+.icon { width: 34px; height: 34px; border-radius: 10px; background: #23262f; display: grid; place-items: center; flex-shrink: 0; }
+.body { flex: 1; min-width: 0; }
+.lbl { display: block; font-size: 13px; font-weight: 800; color: #c9ccd6; margin-bottom: 8px; }
+.field { width: 100%; background: #101219; border: 1px solid #343846; border-radius: 10px; padding: 10px 12px; }
+.duel { display: flex; gap: 8px; align-items: center; }
+.duel > div { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.vs { flex: 0 0 auto !important; color: #737887; font-weight: 900; font-size: 12px; }
+.ro { color: #a59fff; font-weight: 800; }
+.mini { font-size: 12px; color: #737887; margin-top: 6px; }
+.primary { width: 100%; margin-top: 16px; border: none; border-radius: 14px; padding: 14px; font-weight: 900; font-size: 16px; background: linear-gradient(135deg, #6c63ff, #8f88ff); color: white; box-shadow: 0 10px 24px rgba(108,99,255,.35); transition: opacity .2s, transform .15s; }
+.primary:disabled { background: #2c3040; color: #737887; box-shadow: none; cursor: not-allowed; }
+.primary:not(:disabled):hover { transform: translateY(-1px); }
+.ghost { background: none; border: 1px solid #343846; color: #aaaeba; border-radius: 12px; padding: 10px 14px; }
+
+/* Choix du camp */
+.sides { display: flex; gap: 8px; }
+.side { flex: 1; display: flex; justify-content: space-between; align-items: center; gap: 6px; background: #101219; border: 1px solid #343846; border-radius: 12px; padding: 10px 12px; text-align: left; transition: border-color .15s, background .15s, box-shadow .15s, transform .15s; }
+.side b { color: #a59fff; }
+.side:hover { transform: translateY(-1px); border-color: #6c63ff; }
+.side.sel { border-color: #6c63ff; background: rgba(108,99,255,.16); box-shadow: 0 0 0 2px #6c63ff; }
+
+/* Montant */
+.amount { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
+.amount .field { font-size: 18px; font-weight: 800; }
+.chips { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.chip { background: #23262f; border: 1px solid #343846; border-radius: 999px; padding: 5px 11px; font-size: 13px; font-weight: 700; }
+.chip:hover { border-color: #6c63ff; }
+.win { display: flex; justify-content: space-between; margin-top: 10px; padding: 10px 12px; background: rgba(99,214,159,.08); border: 1px solid rgba(99,214,159,.3); border-radius: 10px; font-size: 14px; }
+.win strong { color: #63d69f; }
+.err { color: #ff8a8a; font-size: 13px; margin-top: 8px; min-height: 18px; }
+
+/* Section mise mise en avant (A) */
+.must { border: 1px solid rgba(245,196,81,.45); background: rgba(245,196,81,.06); border-radius: 14px; padding: 12px; margin-top: 4px; }
+.must .lbl { color: #f5c451; }
+.must-tag { display: inline-block; font-size: 10px; font-weight: 900; letter-spacing: .5px; text-transform: uppercase; background: #f5c451; color: #3a2a00; padding: 2px 8px; border-radius: 999px; margin-left: 6px; vertical-align: 1px; }
+
+/* Étapes (B) */
+.steps { display: flex; gap: 6px; margin-bottom: 14px; }
+.step { flex: 1; height: 5px; border-radius: 99px; background: #23262f; overflow: hidden; }
+.step i { display: block; height: 100%; width: 0; background: #6c63ff; transition: width .35s; }
+.step.on i { width: 100%; }
+.slide { animation: slideIn .3s ease-out; }
+@keyframes slideIn { from { opacity: 0; transform: translateX(24px); } }
+.preview { background: #101219; border: 1px solid #2c3040; border-radius: 16px; padding: 16px; margin-bottom: 14px; }
+.preview .q { font-weight: 800; font-size: 16px; margin-bottom: 12px; }
+.preview .sides .side { animation: pulse 1.4s infinite; }
+.preview .sides .side.sel, .preview.picked .side { animation: none; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 5px rgba(108,99,255,0); } 0% { box-shadow: 0 0 0 0 rgba(108,99,255,.5); } }
+.hint { font-size: 13px; font-weight: 800; color: #a59fff; margin-bottom: 10px; }
+.row { display: flex; gap: 8px; }
+.row .primary { margin-top: 0; }
+
+/* Carte dans la liste (C) */
+.list { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 16px; }
+.list h3 { font-size: 15px; color: #858a98; }
+.card { position: relative; background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; border-radius: 18px; padding: 18px; transition: all .4s; }
+.card.draft { border: 1px dashed #f5c451; background: repeating-linear-gradient(135deg, rgba(245,196,81,.05) 0 12px, transparent 12px 24px), #14161e; }
+.card .head { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #858a98; margin-bottom: 10px; }
+.tag { margin-left: auto; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .5px; padding: 3px 10px; border-radius: 999px; }
+.tag.d { background: #f5c451; color: #3a2a00; }
+.tag.p { background: #63d69f; color: #0b1f15; animation: pop .4s ease-out; }
+@keyframes pop { 0% { transform: scale(.4); } 70% { transform: scale(1.15); } }
+.card .q { font-weight: 800; font-size: 16px; margin-bottom: 12px; }
+.card.draft .side { border-color: #f5c451; animation: pulseY 1.4s infinite; }
+@keyframes pulseY { 0% { box-shadow: 0 0 0 0 rgba(245,196,81,.5); } 50% { box-shadow: 0 0 0 5px rgba(245,196,81,0); } }
+.banner { margin-top: 12px; font-size: 13px; color: #f5c451; font-weight: 700; }
+.foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; font-size: 13px; color: #858a98; }
+.foot strong { color: white; }
+.others { opacity: .55; }
+.betbox { margin-top: 14px; padding-top: 14px; border-top: 1px dashed #f5c451; animation: slideDown .3s ease-out; }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } }
+
+/* Écran final commun */
+.done { text-align: center; padding: 30px 10px; animation: slideIn .3s ease-out; }
+.done .big { font-size: 46px; margin-bottom: 8px; animation: pop .5s ease-out; }
+.done p { color: #aaaeba; margin-top: 6px; font-size: 14px; }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1c202c; border: 1px solid #63d69f; color: #e6e8ee; padding: 12px 18px; border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.5); font-weight: 700; animation: rise .3s ease-out; z-index: 50; }
+@keyframes rise { from { opacity: 0; transform: translate(-50%, 12px); } }
+.side-note { flex: 1; min-width: 240px; max-width: 340px; color: #858a98; font-size: 13px; line-height: 1.6; background: #14161e; border: 1px solid #23262f; border-radius: 14px; padding: 14px 16px; }
+.side-note b { color: #c9ccd6; }
+@media (max-width: 520px) { .pick { margin-left: 0; } .modal { padding: 18px 14px; } }
+</style>
+</head>
+<body>
+
+<h1>Mise obligatoire du créateur</h1>
+<p class="sub">
+    Le créateur doit miser sur son pari pour qu'il soit publié : tant qu'il n'a pas misé, personne d'autre ne le voit.
+    Choisis une version à droite, essaie-la (choisis un camp, une mise, publie), puis « Je choisis celle-ci ».
+    Solde fictif de la démo : 1 000 €. Mise de 10 € à 5 000 €.
+</p>
+
+<div class="tabs">
+    <button class="tab active" data-v="A">A · Dans le formulaire</button>
+    <button class="tab" data-v="B">B · Deuxième étape</button>
+    <button class="tab" data-v="C">C · Brouillon dans la liste</button>
+    <button class="reset" id="reset">↺ Rejouer</button>
+    <button class="pick" id="choose">Je choisis celle-ci</button>
+</div>
+
+<p class="desc" id="desc"></p>
+
+<div class="stage" id="stage"></div>
+
+<script>
+const BALANCE = 1000;
+const Q = "Est-ce que Thomas arrivera en retard demain ?";
+const C1 = { label: "Oui", odds: 1.80 };
+const C2 = { label: "Non", odds: 2.25 };
+
+const DESCS = {
+    A: "<b>Une section « Ta mise » de plus dans le formulaire</b>, encadrée en jaune avec « obligatoire ». Les deux camps reprennent les choix que tu viens de taper. Le bouton devient « Miser 50 € et publier ». Tout part en une fois : le pari, les choix et ta mise. C'est le plus rapide, mais le formulaire est plus long.",
+    B: "<b>Le formulaire garde sa taille, puis une 2e étape</b> : « Suivant » transforme la fenêtre en aperçu de ta carte. Tu cliques ta cote comme un joueur, tu tapes ta mise, « Publier ». Une barre en haut montre l'étape 1/2. On peut revenir corriger. Tout part en une fois à la fin.",
+    C: "<b>Le pari est créé en brouillon</b> : il apparaît dans ta liste avec un cadre jaune pointillé « Brouillon · visible par toi seul ». Tu cliques une cote, la mise s'ouvre sous la carte, et dès que tu mises la carte passe « Publié » pour tout le monde. Plus visuel, mais un brouillon peut rester en attente si tu ne mises pas (il faudrait le supprimer au bout d'un moment)."
+};
+
+const NOTES = {
+    A: "<b>Côté base</b> : une seule fonction crée le pari, les 2 choix et ta mise d'un coup. Si ta mise est refusée (solde insuffisant…), rien n'est créé.",
+    B: "<b>Côté base</b> : pareil que A, tout est créé d'un coup à la 2e étape. Si tu fermes la fenêtre à l'étape 2, rien n'est publié (ce que tu as tapé est gardé).",
+    C: "<b>Côté base</b> : nouvel état « brouillon » sur les paris, caché aux autres joueurs et sans notification. La mise du créateur le passe en « ouvert ». Il faut aussi décider quoi faire d'un brouillon oublié."
+};
+
+let version = "A";
+let state = {};
+
+function money(n) { return n.toLocaleString("fr-FR") + " €"; }
+
+function stakeError(v) {
+    if (!v) return "Choisis ton montant.";
+    if (v !== Math.trunc(v)) return "Mise sans centimes.";
+    if (v < 10) return "Mise minimum : 10 €.";
+    if (v > 5000) return "Mise maximum : 5 000 €.";
+    if (v > BALANCE) return "Solde insuffisant (" + money(BALANCE) + ").";
+    return "";
+}
+
+function sidesHtml(cls = "") {
+    return `<div class="sides ${cls}">
+        ${[C1, C2].map((c, i) => `<button type="button" class="side${state.side === i ? " sel" : ""}" data-side="${i}"><span>${c.label}</span><b>${c.odds.toFixed(2)}</b></button>`).join("")}
+    </div>`;
+}
+
+function amountHtml() {
+    const v = state.stake || "";
+    const odds = state.side == null ? 0 : [C1, C2][state.side].odds;
+    return `
+        <div class="amount"><input class="field" type="number" min="10" step="1" placeholder="Ta mise" id="stake" value="${v}"><span>€</span></div>
+        <div class="chips">${[10, 50, 100, 250].map(n => `<button type="button" class="chip" data-amt="${n}">${n} €</button>`).join("")}<button type="button" class="chip" data-amt="${BALANCE}">Max</button></div>
+        <div class="win"><span>Gain possible</span><strong id="win">${money(Math.round((state.stake || 0) * odds))}</strong></div>
+        <div class="err" id="err"></div>`;
+}
+
+function formTop() {
+    return `
+        <div class="section"><div class="icon">🎲</div><div class="body"><span class="lbl">Question</span><input class="field" value="${Q}"></div></div>
+        <div class="section"><div class="icon">⚖️</div><div class="body"><span class="lbl">Choix et cotes</span>
+            <div class="duel"><div><input class="field" value="${C1.label}"><input class="field" value="${C1.odds.toFixed(2)}"></div><div class="vs">VS</div><div><input class="field" value="${C2.label}"><span class="field ro">${C2.odds.toFixed(2)} <small style="color:#737887">auto</small></span></div></div>
+        </div></div>
+        <div class="section"><div class="icon">⏳</div><div class="body"><span class="lbl">Échéance</span><div class="field">Demain · 20:00</div></div></div>`;
+}
+
+function canPublish() { return state.side != null && !stakeError(state.stake); }
+
+function publishLabel(prefix) {
+    return canPublish() ? `${prefix} ${money(state.stake)} et publier` : (state.side == null ? "Choisis ton camp pour publier" : "Choisis ta mise pour publier");
+}
+
+function render() {
+    const stage = document.getElementById("stage");
+    document.getElementById("desc").innerHTML = DESCS[version];
+    let html = "";
+
+    if (state.done) {
+        html = `<div class="modal"><div class="done"><div class="big">🚀</div><h2>Pari publié !</h2>
+            <p>Tu as misé <b style="color:#e6e8ee">${money(state.stake)}</b> sur « ${[C1, C2][state.side].label} ».</p>
+            <p>Il arrive maintenant chez tout le monde.</p></div></div>`;
+    } else if (version === "A") {
+        html = `<div class="modal"><h2>Créer un pari</h2><p class="intro">Propose ton propre sujet à la communauté.</p>
+            ${formTop()}
+            <div class="section"><div class="icon">💰</div><div class="body must">
+                <span class="lbl">Ta mise <span class="must-tag">obligatoire</span></span>
+                <p class="mini" style="margin:-4px 0 10px">Ton pari est publié dès que tu as misé dessus.</p>
+                ${sidesHtml()}
+                ${amountHtml()}
+            </div></div>
+            <button class="primary" id="publish" ${canPublish() ? "" : "disabled"}>${publishLabel("Miser")}</button>
+        </div>`;
+    } else if (version === "B") {
+        if (!state.step2) {
+            html = `<div class="modal"><div class="steps"><div class="step on"><i></i></div><div class="step"><i></i></div></div>
+                <h2>Créer un pari</h2><p class="intro">Étape 1/2 · Ton sujet</p>
+                ${formTop()}
+                <button class="primary" id="next">Suivant : ta mise →</button>
+            </div>`;
+        } else {
+            html = `<div class="modal slide"><div class="steps"><div class="step on"><i></i></div><div class="step on"><i></i></div></div>
+                <h2>Ta mise</h2><p class="intro">Étape 2/2 · Mise sur ton pari pour le publier</p>
+                <div class="preview${state.side != null ? " picked" : ""}">
+                    <div class="q">${Q}</div>
+                    ${state.side == null ? `<div class="hint">👆 Clique ton camp</div>` : ""}
+                    ${sidesHtml()}
+                </div>
+                ${state.side != null ? `<div class="slide">${amountHtml()}</div>` : ""}
+                <div class="row" style="margin-top:12px"><button class="ghost" id="back">← Retour</button><button class="primary" id="publish" ${canPublish() ? "" : "disabled"}>${canPublish() ? "Publier · " + money(state.stake) : "Publier"}</button></div>
+            </div>`;
+        }
+    } else {
+        if (!state.draft) {
+            html = `<div class="modal"><h2>Créer un pari</h2><p class="intro">Propose ton propre sujet à la communauté.</p>
+                ${formTop()}
+                <button class="primary" id="mkdraft">Créer le pari</button>
+                <p class="mini" style="text-align:center">Il sera publié quand tu auras misé dessus.</p>
+            </div>`;
+        } else {
+            const pub = state.published;
+            html = `<div class="list"><h3>Paris ouverts</h3>
+                <div class="card${pub ? "" : " draft"}">
+                    <div class="head">👤 Toi · demain 20:00 ${pub ? `<span class="tag p">Publié</span>` : `<span class="tag d">Brouillon · visible par toi seul</span>`}</div>
+                    <div class="q">${Q}</div>
+                    ${sidesHtml()}
+                    ${!pub && state.side == null ? `<div class="banner">👆 Mise sur ton pari pour le publier</div>` : ""}
+                    ${!pub && state.side != null ? `<div class="betbox">${amountHtml()}<button class="primary" id="publish" ${canPublish() ? "" : "disabled"}>${publishLabel("Miser")}</button></div>` : ""}
+                    <div class="foot"><span>Solde misé</span><strong>${pub ? money(state.stake) : "0 €"}</strong></div>
+                </div>
+                <div class="card others"><div class="head">👤 Yann · samedi 18:00</div><div class="q">Le PSG gagne ce week-end ?</div>
+                    <div class="sides"><button class="side"><span>Oui</span><b>1.50</b></button><button class="side"><span>Non</span><b>3.00</b></button></div></div>
+            </div>`;
+        }
+    }
+
+    stage.innerHTML = html + `<div class="side-note">${NOTES[version]}</div>`;
+    bind();
+}
+
+function refreshStake() {
+    const v = Number(document.getElementById("stake").value);
+    state.stake = v;
+    const odds = state.side == null ? 0 : [C1, C2][state.side].odds;
+    document.getElementById("win").textContent = money(Math.round((v || 0) * odds));
+    document.getElementById("err").textContent = v ? stakeError(v) : "";
+    const btn = document.getElementById("publish");
+    if (btn) {
+        btn.disabled = !canPublish();
+        btn.textContent = version === "B" ? (canPublish() ? "Publier · " + money(v) : "Publier") : publishLabel("Miser");
+    }
+}
+
+function bind() {
+    document.querySelectorAll("[data-side]").forEach(b => b.onclick = () => {
+        if (version === "C" && state.published) return;
+        state.side = Number(b.dataset.side);
+        render();
+        document.getElementById("stake")?.focus();
+    });
+    document.querySelectorAll("[data-amt]").forEach(b => b.onclick = () => {
+        document.getElementById("stake").value = Math.min(Number(b.dataset.amt), BALANCE);
+        refreshStake();
+    });
+    const s = document.getElementById("stake");
+    if (s) s.oninput = refreshStake;
+    const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+    on("next", () => { state.step2 = true; render(); });
+    on("back", () => { state.step2 = false; render(); });
+    on("mkdraft", () => { state.draft = true; render(); });
+    on("publish", () => {
+        if (!canPublish()) return;
+        if (version === "C") state.published = true; else state.done = true;
+        render();
+        toast("🔔 Les autres joueurs reçoivent le nouveau pari");
+    });
+}
+
+function toast(text) {
+    const t = document.createElement("div");
+    t.className = "toast";
+    t.textContent = text;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2600);
+}
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === t));
+    version = t.dataset.v;
+    state = {};
+    render();
+});
+
+document.getElementById("reset").onclick = () => { state = {}; render(); };
+
+document.getElementById("choose").onclick = () => {
+    const text = "Mise du créateur : je choisis la version " + version;
+    navigator.clipboard && navigator.clipboard.writeText(text).catch(() => {});
+    toast("✅ Copié : « " + text + " »");
+};
+
+render();
+</script>
+</body>
+</html>

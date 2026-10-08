@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<base href="../">
+<title>BetLab – Notifications sur téléphone (propositions)</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body.demo { background: #0b0c10; color: #e6e8ee; font-family: system-ui, sans-serif; margin: 0; padding: 16px 12px 40px; display: block; min-height: 0; }
+.demo h1.t { font-size: 22px; margin: 0 0 4px; }
+.demo .sub { color: #858a98; margin: 0 0 12px; font-size: 13px; line-height: 1.45; max-width: 760px; }
+.demo .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.demo .tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 8px 12px; border-radius: 999px; cursor: pointer; font: inherit; font-size: 13px; }
+.demo .tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.demo .desc { color: #aaaeba; font-size: 13px; line-height: 1.45; margin: 0 0 12px; max-width: 760px; }
+.demo .desc b { color: #e6e8ee; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.act { border: none; border-radius: 12px; padding: 10px 14px; font: inherit; font-weight: 800; font-size: 14px; cursor: pointer; }
+.act.go { background: #f5c451; color: #3a2a00; }
+.act.one { background: #23262f; color: #e6e8ee; border: 1px solid #343846; }
+.act.pick { background: linear-gradient(135deg, #2fa36f, #63d69f); color: #0b1f15; }
+
+.wrap { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+
+/* Téléphone simulé (plein écran sur un vrai téléphone) */
+.phone { position: relative; width: min(390px, 100%); height: min(760px, calc(100dvh - 24px)); background: #0f1117; border: 1px solid #2c3040; border-radius: 28px; overflow: hidden; flex-shrink: 0; }
+.ph-head { position: absolute; top: 0; left: 0; right: 0; height: 52px; display: flex; align-items: center; gap: 8px; padding: 0 12px; background: #14161e; border-bottom: 1px solid #23262f; z-index: 5; font-size: 13px; }
+.ph-head .lg { font-weight: 900; font-size: 17px; }
+.ph-head .lg span { color: #6c63ff; }
+.ph-head .pill { margin-left: auto; background: #1c202c; border: 1px solid #2c3040; border-radius: 10px; padding: 5px 9px; font-weight: 700; }
+.ph-scroll { position: absolute; inset: 52px 0 0 0; overflow-y: auto; padding: 12px 12px 140px; display: flex; flex-direction: column; gap: 14px; }
+.ph-scroll .bet-card { cursor: default; padding: 16px; }
+.ph-tabs { position: absolute; left: 12px; right: 12px; bottom: 12px; height: 60px; background: #1c202c; border: 1px solid #2c3040; border-radius: 20px; display: flex; align-items: center; justify-content: space-around; z-index: 7; font-size: 11px; color: #aaaeba; }
+.ph-tabs .plus { width: 52px; height: 52px; margin-top: -26px; border-radius: 50%; background: linear-gradient(135deg, #6c63ff, #8b5cf6); color: white; display: grid; place-items: center; font-size: 28px; font-weight: 700; box-shadow: 0 8px 20px rgba(108, 99, 255, .45); }
+.ph-tabs .on { color: white; font-weight: 800; }
+.ph-parrot { position: absolute; right: 4px; bottom: 56px; width: 130px; aspect-ratio: 512 / 650; z-index: 6; pointer-events: none; }
+.ph-parrot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.ph-parrot.ghosted { outline: 2px dashed rgba(245, 196, 81, .6); outline-offset: -6px; border-radius: 20px; }
+
+/* Zone des notifications */
+.nf-layer { position: absolute; inset: 0; pointer-events: none; z-index: 8; }
+.nf { position: absolute; display: flex; align-items: center; gap: 8px; background: #1c202c; border: 1px solid #2c3040; border-left: 3px solid var(--c); border-radius: 10px; color: #aaaeba; box-shadow: 0 8px 20px rgba(0,0,0,.45); pointer-events: auto; cursor: pointer; overflow: hidden; transition: transform .35s cubic-bezier(.2,.8,.2,1), opacity .3s; }
+.nf strong { color: white; }
+.nf .ic { flex-shrink: 0; }
+.nf .tx { min-width: 0; line-height: 1.3; }
+.nf .tm { display: block; font-size: .8em; color: #737887; margin-top: 1px; }
+.nf .bar { position: absolute; left: 0; bottom: 0; height: 2px; width: 100%; background: var(--c); transform-origin: left; opacity: .8; }
+.nf.one-line .tx { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nf.z-petite { font-size: 11px; padding: 6px 9px; }
+.nf.z-normale { font-size: 12px; padding: 8px 10px; }
+
+/* Actuel */
+.v0 .nf { left: 8px; right: 8px; }
+/* A : à gauche du perroquet */
+.vA .nf { left: 8px; right: 142px; }
+/* B : en haut */
+.vB .nf { left: 10px; right: 10px; border-left-width: 1px; border-top: 3px solid var(--c); border-radius: 14px; }
+/* C : bulle du perroquet */
+.vC .nf { right: 22px; max-width: 250px; border-left-width: 1px; border: 1px solid var(--c); border-radius: 16px 16px 4px 16px; background: #1c202c; }
+.vC .nf::after { content: ""; position: absolute; right: -1px; bottom: -1px; width: 0; height: 0; }
+/* D : cloche repliée */
+.bell { position: absolute; left: 12px; bottom: 84px; z-index: 9; width: 42px; height: 42px; border-radius: 50%; background: #1c202c; border: 1px solid #2c3040; display: grid; place-items: center; font-size: 19px; cursor: pointer; box-shadow: 0 6px 16px rgba(0,0,0,.4); pointer-events: auto; transition: transform .2s; }
+.bell .cnt { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 9px; background: #ff5c5c; color: white; font-size: 11px; font-weight: 800; display: grid; place-items: center; }
+.bell.ring { animation: ring .6s ease; }
+@keyframes ring { 20% { transform: rotate(-16deg); } 40% { transform: rotate(14deg); } 60% { transform: rotate(-8deg); } 80% { transform: rotate(5deg); } }
+.peek { position: absolute; left: 62px; bottom: 90px; max-width: 170px; z-index: 9; font-size: 11px; background: #1c202c; border: 1px solid #2c3040; border-radius: 10px; padding: 6px 9px; color: #c9ccd6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.panel { position: absolute; left: 10px; right: 10px; bottom: 84px; max-height: 50%; overflow-y: auto; z-index: 10; background: #14161e; border: 1px solid #2c3040; border-radius: 16px; padding: 10px; box-shadow: 0 16px 40px rgba(0,0,0,.6); pointer-events: auto; }
+.panel h4 { margin: 2px 4px 8px; font-size: 13px; display: flex; justify-content: space-between; }
+.panel .row { display: flex; gap: 8px; font-size: 12px; color: #aaaeba; padding: 8px 4px; border-top: 1px solid #23262f; }
+.panel .row strong { color: white; }
+
+/* Paramètres */
+.params { flex: 1 1 280px; max-width: 360px; background: #14161e; border: 1px solid #23262f; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.params h3 { margin: 0; font-size: 15px; }
+.prm > label { display: block; font-size: 11px; font-weight: 800; color: #aaaeba; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .4px; }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.sg { background: #23262f; border: 1px solid #343846; color: #e6e8ee; border-radius: 10px; padding: 6px 10px; cursor: pointer; font: inherit; font-size: 13px; }
+.sg.on { border-color: #6c63ff; background: rgba(108, 99, 255, .2); }
+.prm > .chk { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #c9ccd6; cursor: pointer; text-transform: none; letter-spacing: 0; font-weight: 500; margin: 0; }
+.copied { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: #1c202c; border: 1px solid #63d69f; padding: 12px 16px; border-radius: 14px; font-weight: 700; z-index: 99; max-width: calc(100% - 32px); font-size: 13px; }
+</style>
+</head>
+<body class="demo">
+
+<h1 class="t">Notifications sur téléphone</h1>
+<p class="sub">Moins encombrantes, et sans passer sur le perroquet. Choisis une version, appuie sur « 🔔 Rafale » (3 notifications d'un coup) ou « + 1 », règle les paramètres, puis « Je choisis celle-ci ».</p>
+
+<div class="tabs">
+    <button class="tab" data-v="0">Actuel</button>
+    <button class="tab active" data-v="A">A · À gauche du perroquet</button>
+    <button class="tab" data-v="B">B · En haut</button>
+    <button class="tab" data-v="C">C · Bulle du perroquet</button>
+    <button class="tab" data-v="D">D · Cloche repliée</button>
+</div>
+
+<p class="desc" id="desc"></p>
+
+<div class="actions">
+    <button class="act go" id="burst">🔔 Rafale</button>
+    <button class="act one" id="one">+ 1</button>
+    <button class="act pick" id="choose">Je choisis celle-ci</button>
+</div>
+
+<div class="wrap">
+
+    <div class="phone" id="phone">
+        <div class="ph-head"><span class="lg"><span>BET</span>LAB</span><span style="color:#858a98">👥 Bureau</span><span class="pill">1 250 €</span></div>
+        <div class="ph-scroll" id="ph-scroll"></div>
+        <div class="ph-parrot" id="parrot"><img src="assets/perroquet/l2-body.png" alt=""><img src="assets/perroquet/l2-head.png" alt=""></div>
+        <div class="nf-layer" id="layer"></div>
+        <div class="ph-tabs"><span class="on">Paris</span><span>Historique</span><span class="plus">+</span><span>Missions</span><span>Boutique</span></div>
+    </div>
+
+    <div class="params" id="params">
+        <h3>⚙️ Paramètres</h3>
+        <div class="prm"><label>Visibles en même temps</label><div class="seg" id="p-max"></div></div>
+        <div class="prm"><label>Durée</label><div class="seg" id="p-life"></div></div>
+        <div class="prm"><label>Taille</label><div class="seg" id="p-size"></div></div>
+        <div class="prm"><label>Texte</label><div class="seg" id="p-text"></div></div>
+        <div class="prm"><label class="chk"><input type="checkbox" id="p-time"> Afficher « il y a… »</label></div>
+        <div class="prm"><label class="chk"><input type="checkbox" id="p-bar"> Barre du temps restant</label></div>
+        <div class="prm"><label class="chk"><input type="checkbox" id="p-show"> Montrer la place du perroquet (pointillés)</label></div>
+    </div>
+
+</div>
+
+<script>
+const DESCS = {
+    0: "<b>Aujourd'hui</b> : toute la largeur de l'écran, 2 visibles, 9 s, au-dessus des onglets : elles passent sur le perroquet.",
+    A: "<b>Plus étroites, à gauche du perroquet</b> : elles s'arrêtent avant lui, une seule ligne, une à la fois, 5 s. Toujours au-dessus des onglets.",
+    B: "<b>Elles tombent du haut de l'écran</b>, sous la barre du solde, loin du perroquet et des onglets. Une seule à la fois, sur une ligne. Glisse-la vers le haut (ou touche-la) pour la fermer.",
+    C: "<b>Le perroquet les « dit »</b> : une petite bulle sort de sa tête, une à la fois. Rien ne le cache, puisque c'est lui qui parle.",
+    D: "<b>Une cloche ronde à gauche, avec un compteur</b> : elle sonne et montre un petit aperçu d'une ligne, puis se replie. Touche-la pour voir la liste des dernières notifications."
+};
+
+const PRESETS = {
+    0: { max: "2", life: "9", size: "normale", text: "complet", time: true, bar: true },
+    A: { max: "1", life: "5", size: "petite", text: "court", time: false, bar: true },
+    B: { max: "1", life: "4", size: "normale", text: "court", time: false, bar: false },
+    C: { max: "1", life: "4", size: "petite", text: "court", time: false, bar: false },
+    D: { max: "1", life: "3", size: "petite", text: "court", time: false, bar: false }
+};
+
+const MAX = { 1: "1", 2: "2" };
+const LIFE = { 3: "3 s", 4: "4 s", 5: "5 s", 9: "9 s" };
+const SIZE = { petite: "Petite", normale: "Normale" };
+const TEXT = { court: "Une ligne (coupée)", complet: "Texte complet" };
+
+const EVENTS = [
+    { c: "#6c63ff", i: "💸", h: "<strong>Yann</strong> a misé 50 € sur « Est-ce que Thomas arrivera en retard demain ? »" },
+    { c: "#3fa9f5", i: "🆕", h: "<strong>Léa</strong> a créé « Il pleut vendredi midi ? »" },
+    { c: "#6c63ff", i: "💸", h: "<strong>Max</strong> a misé 120 € sur « Le PSG gagne ce week-end ? »" },
+    { c: "#6c63ff", i: "🙋", h: "<strong>Sam</strong> demande à rejoindre le groupe · <u>voir</u>" }
+];
+
+let version = "A";
+let p = { ...PRESETS.A };
+let live = [];
+let history = [];
+let evIndex = 0;
+let panelOpen = false;
+let unread = 0;
+
+const layer = document.getElementById("layer");
+const phone = document.getElementById("phone");
+
+function cards() {
+    const qs = [["Est-ce que Thomas arrivera en retard demain ?", 64], ["Le PSG gagne ce week-end ?", 72], ["Il pleut vendredi midi ?", 40], ["Qui gagne le baby-foot de 16h ?", 58]];
+    document.getElementById("ph-scroll").innerHTML = qs.map(([q, pct], i) => `<div class="bet-card">
+        <div class="bet-card-header"><span>🏆</span><span class="bet-author">Créé par <b>Yann</b></span></div>
+        <div class="bet-question-row"><span class="bet-question-icon">🎲</span><h3>${q}</h3></div>
+        <div class="bet-choices">
+            <div class="bet-choice-wrapper"><div class="bet-choice-button"><span>Oui</span><strong>1.80</strong></div><div class="choice-bar-track"><div class="choice-bar-fill" style="width:${pct}%"></div></div></div>
+            <div class="bet-choice-wrapper"><div class="bet-choice-button"><span>Non</span><strong>2.25</strong></div><div class="choice-bar-track"><div class="choice-bar-fill" style="width:${100 - pct}%"></div></div></div>
+        </div></div>`).join("");
+}
+
+function clearAll() {
+    live.forEach(n => { clearTimeout(n.timer); n.el.remove(); });
+    live = [];
+    layer.innerHTML = "";
+    panelOpen = false;
+    unread = 0;
+}
+
+function phoneBottomOffset() { return 84; } // au-dessus des onglets et du « + »
+
+function layout() {
+    const visible = live.filter(n => !n.leaving);
+    if (version === "B") {
+        let y = 62;
+        visible.forEach(n => { n.el.style.top = "0"; n.el.style.transform = `translateY(${y}px)`; y += n.el.offsetHeight + 6; });
+    } else if (version === "C") {
+        const parrot = document.getElementById("parrot");
+        const pr = parrot.getBoundingClientRect(), ph = phone.getBoundingClientRect();
+        let y = ph.bottom - pr.top - 6;
+        visible.forEach(n => { n.el.style.bottom = "0"; n.el.style.transform = `translateY(${-y}px)`; y += n.el.offsetHeight + 6; });
+    } else {
+        let y = phoneBottomOffset();
+        visible.forEach(n => { n.el.style.bottom = "0"; n.el.style.transform = `translateY(${-y}px)`; y += n.el.offsetHeight + 6; });
+    }
+}
+
+function removeN(n) {
+    if (n.leaving) return;
+    n.leaving = true;
+    clearTimeout(n.timer);
+    const out = version === "B" ? [{ opacity: 1 }, { opacity: 0, marginTop: "-30px" }] : version === "C" ? [{ opacity: 1, scale: 1 }, { opacity: 0, scale: .8 }] : [{ opacity: 1, translate: "0 0" }, { opacity: 0, translate: "-110% 0" }];
+    n.el.animate(out, { duration: 300, easing: "ease-in", fill: "forwards" }).onfinish = () => {
+        n.el.remove();
+        live = live.filter(x => x !== n);
+        layout();
+    };
+    layout();
+}
+
+function notify() {
+    const ev = EVENTS[evIndex++ % EVENTS.length];
+    history.unshift(ev);
+    if (version === "D") return bell(ev);
+
+    const el = document.createElement("div");
+    el.className = `nf z-${p.size}${p.text === "court" ? " one-line" : ""}`;
+    el.style.setProperty("--c", ev.c);
+    el.innerHTML = `<span class="ic">${ev.i}</span><span class="tx">${ev.h}${p.time ? `<span class="tm">à l'instant</span>` : ""}</span>${p.bar ? `<span class="bar"></span>` : ""}`;
+    layer.appendChild(el);
+
+    const n = { el, leaving: false };
+    live.unshift(n);
+    live.filter(x => !x.leaving).slice(Number(p.max)).forEach(removeN);
+
+    const from = version === "B" ? [{ opacity: 0, marginTop: "-30px" }, { opacity: 1, marginTop: "0px" }]
+        : version === "C" ? [{ opacity: 0, scale: .6, transformOrigin: "100% 100%" }, { opacity: 1, scale: 1, transformOrigin: "100% 100%" }]
+        : [{ opacity: 0, translate: "0 30px" }, { opacity: 1, translate: "0 0" }];
+    el.animate(from, { duration: 380, easing: "cubic-bezier(.2,.8,.2,1)" });
+    if (p.bar) el.querySelector(".bar").animate([{ transform: "scaleX(1)" }, { transform: "scaleX(0)" }], { duration: Number(p.life) * 1000, fill: "forwards" });
+    n.timer = setTimeout(() => removeN(n), Number(p.life) * 1000);
+    el.addEventListener("click", () => removeN(n));
+
+    // B : glisser vers le haut pour fermer.
+    if (version === "B") {
+        let startY = null;
+        el.addEventListener("pointerdown", e => { startY = e.clientY; });
+        el.addEventListener("pointerup", e => { if (startY !== null && startY - e.clientY > 20) removeN(n); startY = null; });
+    }
+    layout();
+}
+
+function bell(ev) {
+    unread++;
+    renderBell();
+    const b = layer.querySelector(".bell");
+    b.classList.remove("ring"); void b.offsetWidth; b.classList.add("ring");
+    if (panelOpen) return renderPanel();
+    layer.querySelector(".peek")?.remove();
+    const peek = document.createElement("div");
+    peek.className = "peek";
+    peek.innerHTML = `${ev.i} ${ev.h.replace(/<[^>]+>/g, "")}`;
+    layer.appendChild(peek);
+    peek.animate([{ opacity: 0, translate: "-10px 0" }, { opacity: 1, translate: "0 0" }], { duration: 250 });
+    clearTimeout(bell.t);
+    bell.t = setTimeout(() => peek.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 250, fill: "forwards" }).onfinish = () => peek.remove(), Number(p.life) * 1000);
+}
+
+function renderBell() {
+    let b = layer.querySelector(".bell");
+    if (!b) {
+        b = document.createElement("div");
+        b.className = "bell";
+        layer.appendChild(b);
+        b.addEventListener("click", () => { panelOpen = !panelOpen; unread = 0; renderBell(); renderPanel(); });
+    }
+    b.innerHTML = `🔔${unread ? `<span class="cnt">${unread}</span>` : ""}`;
+}
+
+function renderPanel() {
+    layer.querySelector(".panel")?.remove();
+    layer.querySelector(".peek")?.remove();
+    if (!panelOpen) return;
+    const panel = document.createElement("div");
+    panel.className = "panel";
+    panel.innerHTML = `<h4><span>Notifications</span><span style="color:#858a98;cursor:pointer" id="pclose">✕</span></h4>` +
+        (history.length ? history.slice(0, 8).map(ev => `<div class="row"><span>${ev.i}</span><span>${ev.h}</span></div>`).join("") : `<div class="row">Rien pour le moment.</div>`);
+    layer.appendChild(panel);
+    panel.querySelector("#pclose").onclick = () => { panelOpen = false; renderPanel(); };
+    panel.animate([{ opacity: 0, translate: "0 12px" }, { opacity: 1, translate: "0 0" }], { duration: 220 });
+}
+
+function seg(id, map, key) {
+    const el = document.getElementById(id);
+    el.innerHTML = Object.entries(map).map(([k, v]) => `<button class="sg${String(p[key]) === k ? " on" : ""}" data-k="${k}">${v}</button>`).join("");
+    el.onclick = e => { const k = e.target.closest("[data-k]")?.dataset.k; if (k) { p[key] = k; renderParams(); } };
+}
+
+function renderParams() {
+    seg("p-max", MAX, "max");
+    seg("p-life", LIFE, "life");
+    seg("p-size", SIZE, "size");
+    seg("p-text", TEXT, "text");
+    document.getElementById("p-time").checked = p.time;
+    document.getElementById("p-bar").checked = p.bar;
+}
+
+["time", "bar"].forEach(k => document.getElementById("p-" + k).addEventListener("change", e => { p[k] = e.target.checked; }));
+document.getElementById("p-show").addEventListener("change", e => document.getElementById("parrot").classList.toggle("ghosted", e.target.checked));
+
+function setVersion(v) {
+    version = v;
+    p = { ...PRESETS[v] };
+    clearAll();
+    layer.className = "nf-layer v" + v;
+    document.getElementById("desc").innerHTML = DESCS[v];
+    if (v === "D") renderBell();
+    renderParams();
+    setTimeout(burst, 300);
+}
+
+function burst() { [0, 1, 2].forEach(i => setTimeout(notify, i * (version === "0" ? 1500 : 1200))); }
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === t));
+    setVersion(t.dataset.v);
+});
+document.getElementById("burst").onclick = burst;
+document.getElementById("one").onclick = notify;
+document.getElementById("choose").onclick = () => {
+    if (version === "0") return;
+    const text = `Notifications téléphone : version ${version} — ${p.max} visible(s), ${p.life} s, taille ${SIZE[p.size].toLowerCase()}, texte ${TEXT[p.text].toLowerCase()}${p.time ? ", avec « il y a… »" : ""}${p.bar ? ", barre du temps" : ""}`;
+    navigator.clipboard && navigator.clipboard.writeText(text).catch(() => {});
+    const t = document.createElement("div");
+    t.className = "copied";
+    t.textContent = "✅ Copié : " + text;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3500);
+};
+
+cards();
+setVersion("A");
+</script>
+</body>
+</html>

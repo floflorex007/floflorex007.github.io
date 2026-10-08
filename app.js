@@ -1097,6 +1097,11 @@ function setupBetsRealtime() {
             { event: "*", schema: "public", table: "stakes" },
             scheduleBetsRefresh
         )
+        .on(
+            "postgres_changes",
+            { event: "INSERT", schema: "public", table: "combo_legs" },
+            scheduleBetsRefresh
+        )
         .subscribe();
 
 }
@@ -1681,6 +1686,21 @@ async function refreshJoinRequests() {
 
     groupJoinRequests = data || [];
 
+    // Quelqu'un qui est déjà dans le groupe (accepté entre-temps) n'est plus une demande.
+    if (groupJoinRequests.length > 0) {
+
+        const { data: members } = await supabaseClient
+            .from("group_members")
+            .select("user_id")
+            .eq("group_id", currentGroup.id)
+            .in("user_id", groupJoinRequests.map(request => request.user_id));
+
+        const memberIds = new Set((members || []).map(member => member.user_id));
+
+        groupJoinRequests = groupJoinRequests.filter(request => !memberIds.has(request.user_id));
+
+    }
+
     if (dot) {
 
         dot.textContent = groupJoinRequests.length;
@@ -1701,10 +1721,20 @@ async function refreshJoinRequests() {
 
         writeStorage("seen-join-requests", [...seen, ...fresh.map(key)].slice(-100));
 
-        fresh.forEach((request, index) => setTimeout(() => alertToast(
-            `<strong>${escapeHtml(request.username)}</strong> demande à rejoindre le groupe · <u>voir</u>`,
-            { type: "join", at: request.created_at, onClick: openGroupModal }
-        ), index * 1500));
+        // Les notifications arrivent l'une après l'autre : on revérifie au moment
+        // de l'afficher que la demande attend toujours (pas acceptée entre-temps).
+        fresh.forEach((request, index) => setTimeout(() => {
+
+            if (!groupJoinRequests.some(other => key(other) === key(request))) {
+                return;
+            }
+
+            alertToast(
+                `<strong>${escapeHtml(request.username)}</strong> demande à rejoindre le groupe · <u>voir</u>`,
+                { type: "join", at: request.created_at, onClick: openGroupModal }
+            );
+
+        }, index * 1500));
 
     }
 
@@ -1896,8 +1926,14 @@ async function refreshInPlay() {
         return;
     }
 
+    // Combinés pas encore soldés (gagnés, perdus ou en attente).
+    const combos = await loadMyCombos();
+
     const total =
-        (data || []).reduce((sum, s) => sum + Number(s.stake), 0);
+        (data || []).reduce((sum, s) => sum + Number(s.stake), 0) +
+        combos
+            .filter(combo => !combo.claimed_at)
+            .reduce((sum, combo) => sum + Number(combo.stake), 0);
 
     updateParrotSize(total);
 
@@ -2136,8 +2172,13 @@ function parrotWidthLimit(wanted) {
 
     }
 
-    // Le haut du perroquet doit rester sous le bas de la colonne.
-    const room = window.innerHeight + PARROT_BOTTOM_OFFSET - columnRect.bottom - PARROT_GAP;
+    // Le haut du perroquet doit rester sous le bas de la colonne, mesuré page
+    // tout en haut : la colonne (collante) remonte quand on fait défiler,
+    // mais le perroquet ne doit pas grandir pour autant.
+    const columnBottom =
+        column.parentElement.getBoundingClientRect().top + window.scrollY + column.offsetHeight;
+
+    const room = window.innerHeight + PARROT_BOTTOM_OFFSET - columnBottom - PARROT_GAP;
 
     return room * 512 / 650;
 
@@ -2268,8 +2309,6 @@ function setupParrotFit() {
     };
 
     window.addEventListener("resize", refit);
-
-    window.addEventListener("scroll", refit, { passive: true });
 
     const column = document.querySelector(".right-column");
 
@@ -3359,7 +3398,8 @@ async function getBets() {
             target:profiles!bets_target_user_id_fkey ( username, gold_frame_until, name_color_until, cosmetics ),
             stakes ( id, user_id, choice_id, stake, potential_win, claimed_at, created_at, profiles!stakes_user_id_fkey ( username, gold_frame_until, name_color_until, cosmetics ) ),
             bet_contests ( status, ends_at ),
-            bet_commissions ( user_id, amount, claimed_at, reversed_at )
+            bet_commissions ( user_id, amount, claimed_at, reversed_at ),
+            combo_legs ( choice_id, combos ( user_id, stake, odds, potential_win, created_at, profiles ( username, gold_frame_until, name_color_until, cosmetics ), combo_legs ( bet_id ) ) )
         `)
         .eq("group_id", currentGroup?.id)
         .order("created_at", { ascending: false });
@@ -3397,17 +3437,6 @@ function isCreatedToday(createdAt) {
 
     return new Date(createdAt).toDateString() ===
         new Date().toDateString();
-
-}
-
-
-
-function isMyOwnBet(bet) {
-
-    return Boolean(
-        currentUser &&
-        bet.author_id === currentUser.id
-    );
 
 }
 
@@ -3535,11 +3564,6 @@ function renderBetSummaryHtml(
         isBlockedTarget(bet);
 
 
-    // Le créateur ne mise pas sur son propre pari (aussi vérifié côté base).
-    const isOwnBet =
-        isMyOwnBet(bet);
-
-
     const myChoiceIds =
         (bet.stakes || [])
             .filter(
@@ -3644,8 +3668,7 @@ function renderBetSummaryHtml(
                         Number(choice.odds) >= 10 &&
                         !validating &&
                         !isClosed &&
-                        !isTargetBlocked &&
-                        !isOwnBet;
+                        !isTargetBlocked;
 
                     return `
 
@@ -3657,9 +3680,9 @@ function renderBetSummaryHtml(
                             }
 
                             <${tag}
-                                class="bet-choice-button${onFire ? " odds-fire" : ""}${!validating && (isClosed || isTargetBlocked) ? " bet-choice-closed" : ""}${!validating && isOwnBet && !isClosed && !isTargetBlocked ? " bet-choice-own" : ""}${myChoiceIds.includes(choice.id) ? " bet-choice-picked" : ""}${interactive ? "" : " bet-choice-readonly"}${validating ? " bet-choice-validate" : ""}${validating && cardValidation?.pick === choice.id ? " validate-selected" : ""}"
+                                class="bet-choice-button${onFire ? " odds-fire" : ""}${!validating && (isClosed || isTargetBlocked) ? " bet-choice-closed" : ""}${myChoiceIds.includes(choice.id) ? " bet-choice-picked" : ""}${interactive ? "" : " bet-choice-readonly"}${validating ? " bet-choice-validate" : ""}${validating && cardValidation?.pick === choice.id ? " validate-selected" : ""}"
                                 ${interactive
-                                    ? `data-bet-id="${bet.id}" data-choice-id="${choice.id}" ${!validating && (isClosed || isTargetBlocked || isOwnBet) ? "disabled" : ""}${!validating && isOwnBet ? ' title="Tu ne peux pas miser sur ton propre pari"' : ""}`
+                                    ? `data-bet-id="${bet.id}" data-choice-id="${choice.id}" ${!validating && (isClosed || isTargetBlocked) ? "disabled" : ""}`
                                     : ""
                                 }
                             >
@@ -3916,9 +3939,9 @@ async function claimBet(betId, won, card, rpcName = "claim_bet") {
     const { data, error } =
         await supabaseClient.rpc(
             rpcName,
-            {
-                p_bet_id: betId
-            }
+            rpcName === "claim_combo"
+                ? { p_combo: betId }
+                : { p_bet_id: betId }
         );
 
     if (error) {
@@ -3997,6 +4020,92 @@ async function claimBet(betId, won, card, rpcName = "claim_bet") {
     }, won ? confettiMs + 2800 : 2400);
 
 }
+
+
+/* =========================================================
+   BROUILLON : LE CRÉATEUR MISE POUR PUBLIER
+   Un pari créé reste un brouillon visible par son créateur seul
+   (voir brouillon-createur.sql). Il clique sa cote, la fenêtre
+   de mise habituelle s'ouvre, et sa mise publie le pari.
+========================================================= */
+
+function isMyDraft(bet) {
+
+    return Boolean(
+        currentUser &&
+        bet.author_id === currentUser.id &&
+        bet.status === "draft"
+    );
+
+}
+
+function renderDraftCard(bet) {
+
+    const card =
+        document.createElement("div");
+
+    card.className =
+        "bet-card bet-card-draft";
+
+    card.dataset.draftId =
+        bet.id;
+
+    card.innerHTML =
+        renderBetSummaryHtml(bet, {
+            headerExtra: `<span class="draft-tag">Brouillon · visible par toi seul</span>`
+        }) + `
+
+        ${isBetClosed(bet)
+            ? `<div class="draft-banner draft-banner--closed">⏳ Échéance trop proche : ce brouillon ne peut plus être publié.</div>`
+            : `<div class="draft-banner">👆 Mise sur ton pari (seul ou dans un combiné) pour le publier</div>`
+        }
+
+        <div class="bet-footer">
+
+            <button type="button" class="draft-delete">🗑 Supprimer le brouillon</button>
+
+            <div class="bet-total-footer">
+                <span>Solde misé</span>
+                <strong>${formatMoney(0)}</strong>
+            </div>
+
+        </div>
+    `;
+
+    card
+        .querySelector(".draft-delete")
+        .addEventListener("click", () => deleteDraft(bet, card));
+
+    return card;
+
+}
+
+async function deleteDraft(bet, card) {
+
+    if (!window.confirm("Supprimer ce brouillon ? Il n'a pas encore été publié.")) {
+        return;
+    }
+
+    const { error } = await supabaseClient.rpc("delete_draft_bet", { p_bet_id: bet.id });
+
+    if (error) {
+
+        console.error(error);
+
+        window.alert(error.message || "Impossible de supprimer le brouillon.");
+
+        return;
+
+    }
+
+    card.remove();
+
+    await displayBets({ quiet: true, force: true });
+
+    await displayMyBets();
+
+}
+
 
 
 /* =========================================================
@@ -4141,8 +4250,25 @@ function isMyOpenBet(bet) {
 }
 
 /*
+    Un autre joueur que le créateur a misé : le pari devient validable
+    (sinon le créateur pourrait miser puis valider aussitôt).
+    Même règle côté base : resolve_bet dans validation-autre-joueur.sql.
+*/
+
+function hasOtherStake(bet) {
+
+    return (bet.stakes || []).some(
+        stake => stake.user_id !== bet.author_id
+    ) || (bet.combo_legs || []).some(
+        // Une mise en combiné compte aussi (combines.sql).
+        leg => leg.combos && leg.combos.user_id !== bet.author_id
+    );
+
+}
+
+/*
     Commission du créateur si ce choix gagne : 10 % des mises perdues,
-    arrondi à l'euro (ses propres anciennes mises ne comptent pas).
+    arrondi à l'euro (ses propres mises ne comptent pas).
     Même calcul côté base : resolve_bet dans commission-createur.sql.
 */
 
@@ -4307,9 +4433,10 @@ function computeBetsSignature(bets) {
             (bet.stakes || []).length,
             (bet.stakes || []).reduce((sum, s) => sum + Number(s.stake), 0),
             (bet.stakes || []).filter(s => s.claimed_at).length,
+            (bet.combo_legs || []).length,
             myCommission(bet)
         ].join(":"))
-        .join("|");
+        .join("|") + "#" + combosSignature();
 
 }
 
@@ -4406,6 +4533,158 @@ function animateLiveCards(container, previousTops) {
 }
 
 
+/*
+    Brouillon publié : la carte jaune se retourne comme une carte à jouer,
+    le pari publié est au verso. Puis la barre de ma cote se remplit
+    et les pastilles apparaissent.
+*/
+
+function playDraftFlips(container, draftFlips) {
+
+    draftFlips.forEach((front, betId) => {
+
+        const card =
+            container.querySelector(`.bet-card[data-bet-id="${betId}"]`);
+
+        if (!card) {
+
+            return;
+
+        }
+
+        const rect = card.getBoundingClientRect();
+
+        front.removeAttribute("data-draft-id");
+
+        Object.assign(front.style, {
+            position: "fixed",
+            left: rect.left + "px",
+            top: rect.top + "px",
+            width: rect.width + "px",
+            height: rect.height + "px",
+            margin: "0",
+            zIndex: "5",
+            pointerEvents: "none",
+            transform: "",
+            backfaceVisibility: "hidden",
+            webkitBackfaceVisibility: "hidden"
+        });
+
+        document.body.appendChild(front);
+
+        const timing = { duration: 1100, delay: 150, easing: "cubic-bezier(.45,0,.25,1)", fill: "both" };
+
+        // Recto : le brouillon part de face et passe de dos.
+        front.animate(
+            [
+                { transform: "perspective(1400px) rotateY(0deg) scale(1)" },
+                { transform: "perspective(1400px) rotateY(90deg) scale(.94)", offset: 0.45 },
+                { transform: "perspective(1400px) rotateY(185deg) scale(1.02)", offset: 0.8 },
+                { transform: "perspective(1400px) rotateY(180deg) scale(1)" }
+            ],
+            timing
+        ).finished.then(() => front.remove()).catch(() => front.remove());
+
+        // Verso : le pari publié arrive de dos et finit de face, avec un petit rebond.
+        card.style.backfaceVisibility = "hidden";
+
+        card.animate(
+            [
+                { transform: "perspective(1400px) rotateY(-180deg) scale(1)" },
+                { transform: "perspective(1400px) rotateY(-90deg) scale(.94)", offset: 0.45 },
+                { transform: "perspective(1400px) rotateY(5deg) scale(1.02)", offset: 0.8 },
+                { transform: "perspective(1400px) rotateY(0deg) scale(1)" }
+            ],
+            { ...timing, fill: "backwards" }
+        ).finished.finally(() => {
+
+            card.style.backfaceVisibility = "";
+
+        });
+
+        // Ma cote : la barre se remplit, puis les pastilles sautent.
+        const picked =
+            card.querySelector(".bet-choice-picked")?.closest(".bet-choice-wrapper");
+
+        const fill =
+            picked?.querySelector(".choice-bar-fill");
+
+        if (fill) {
+
+            fill.animate(
+                [{ width: "0%" }, { width: fill.style.width || "100%" }],
+                { duration: 700, delay: 1250, easing: "cubic-bezier(.2,.8,.2,1)", fill: "backwards" }
+            );
+
+        }
+
+        [picked?.querySelector(".choice-badge"), card.querySelector(".bet-new-badge")]
+            .filter(Boolean)
+            .forEach((badge, index) => {
+
+                badge.animate(
+                    [
+                        { transform: "scale(0)", opacity: 0 },
+                        { transform: "scale(1.25)", opacity: 1, offset: 0.7 },
+                        { transform: "scale(1)", opacity: 1 }
+                    ],
+                    { duration: 450, delay: 1350 + index * 100, fill: "backwards" }
+                );
+
+            });
+
+    });
+
+}
+
+
+/*
+    Carte « Créer un pari » en pointillés, en tête de la liste des paris
+    (version B de demo-bouton-creer.html). Ouvre la fenêtre de création.
+*/
+
+function renderCreateBetCard() {
+
+    const card =
+        document.createElement("div");
+
+    card.className =
+        "bet-create-card";
+
+    card.setAttribute("role", "button");
+
+    card.tabIndex = 0;
+
+    card.innerHTML = `
+
+        <span class="bet-create-plus" aria-hidden="true"></span>
+
+        <div>
+            <b>Créer un pari</b>
+            <small>Propose un sujet, choisis les cotes, mise pour le publier.</small>
+        </div>
+
+    `;
+
+    card.addEventListener("click", openCreateModal);
+
+    card.addEventListener("keydown", event => {
+
+        if (event.key === "Enter" || event.key === " ") {
+
+            event.preventDefault();
+
+            openCreateModal();
+
+        }
+
+    });
+
+    return card;
+
+}
+
+
 async function displayBets({ quiet = false, force = false } = {}) {
 
     const container =
@@ -4429,7 +4708,10 @@ async function displayBets({ quiet = false, force = false } = {}) {
 
     try {
 
-        const bets = await getBets();
+        const [bets] = await Promise.all([getBets(), loadMyCombos()]);
+
+        // Les paris plus jouables sortent du ticket.
+        pruneTicket(bets);
 
 
         // Panneau des parieurs ouvert : on ne remplace pas la carte soulevée.
@@ -4456,6 +4738,10 @@ async function displayBets({ quiet = false, force = false } = {}) {
 
         // Rafraîchissement en direct : on retient où étaient les cartes.
         const previousTops = new Map();
+
+        // Brouillons qui viennent d'être publiés : copie de la carte jaune,
+        // qui se retourne pour laisser place au pari publié (playDraftFlips).
+        const draftFlips = new Map();
 
         // Inclinaison « la carte suit la souris » : on la retient pour la remettre
         // sur la carte redessinée (sinon elle se remet à plat d'un coup).
@@ -4545,10 +4831,28 @@ async function displayBets({ quiet = false, force = false } = {}) {
 
                 });
 
+            container
+                .querySelectorAll(".bet-card-draft[data-draft-id]")
+                .forEach(card => {
+
+                    const id = card.dataset.draftId;
+
+                    if (bets.some(bet => bet.id === id && bet.status === "open")) {
+
+                        draftFlips.set(id, card.cloneNode(true));
+
+                    }
+
+                });
+
         }
 
 
         container.innerHTML = "";
+
+
+        // Carte « Créer un pari » en tête de liste (ordinateur ; sur téléphone, le « + » du menu).
+        container.appendChild(renderCreateBetCard());
 
 
         const openBets =
@@ -4571,6 +4875,10 @@ async function displayBets({ quiet = false, force = false } = {}) {
                     )
             );
 
+        // Mes brouillons : en haut, je dois miser pour les publier.
+        const draftBets =
+            bets.filter(isMyDraft);
+
         // Paris validés où ma commission de créateur attend (cartes jaunes).
         const commissionBets =
             bets.filter(
@@ -4579,12 +4887,22 @@ async function displayBets({ quiet = false, force = false } = {}) {
                     myCommission(bet) > 0
             );
 
+        // Combinés gagnés (ou remboursés) à récupérer.
+        const comboClaims = claimableCombos();
+
         const previousClaimIds = renderedClaimIds;
 
         renderedClaimIds = new Set([
             ...claimableBets.map(bet => bet.id),
-            ...commissionBets.map(bet => "commission-" + bet.id)
+            ...commissionBets.map(bet => "commission-" + bet.id),
+            ...comboClaims.map(item => "combo-" + item.combo.id)
         ]);
+
+        draftBets.forEach(bet => {
+
+            container.appendChild(renderDraftCard(bet));
+
+        });
 
         commissionBets.forEach(bet => {
 
@@ -4615,21 +4933,35 @@ async function displayBets({ quiet = false, force = false } = {}) {
 
         });
 
+        comboClaims.forEach(item => {
 
-        if (openBets.length === 0 && claimableBets.length === 0 && commissionBets.length === 0) {
+            const comboCard = renderComboClaimCard(item);
 
-            container.innerHTML = `
+            if (quiet && !previousClaimIds.has("combo-" + item.combo.id)) {
+
+                comboCard.classList.add("claim-card-enter");
+
+            }
+
+            container.appendChild(comboCard);
+
+        });
+
+
+        if (openBets.length === 0 && draftBets.length === 0 && claimableBets.length === 0 && commissionBets.length === 0 && comboClaims.length === 0) {
+
+            container.insertAdjacentHTML("beforeend", `
                 <div class="empty-state">
                     Aucun pari disponible pour le moment.
                 </div>
-            `;
+            `);
 
             return;
 
         }
 
 
-        if (cardValidation && !openBets.some(bet => bet.id === cardValidation.betId && isMyOpenBet(bet))) {
+        if (cardValidation && !openBets.some(bet => bet.id === cardValidation.betId && isMyOpenBet(bet) && hasOtherStake(bet))) {
 
             cardValidation = null;
 
@@ -4653,10 +4985,9 @@ async function displayBets({ quiet = false, force = false } = {}) {
 
                 card.className =
                     "bet-card" +
-                    // Grisée aussi pour le créateur : il ne peut pas miser sur son pari.
-                    (isBlockedTarget(bet) || isBetClosed(bet) || isMyOwnBet(bet) ? " bet-card-locked" : "") +
+                    (isBlockedTarget(bet) || isBetClosed(bet) ? " bet-card-locked" : "") +
                     (isCreatedToday(bet.created_at) ? " bet-card-new" : "") +
-                    (quiet && !previousIds.has(bet.id) ? " bet-card-live-in" : "");
+                    (quiet && !previousIds.has(bet.id) && !draftFlips.has(bet.id) ? " bet-card-live-in" : "");
 
 
                 /*
@@ -4705,8 +5036,10 @@ async function displayBets({ quiet = false, force = false } = {}) {
                     );
 
 
-                // Mode validation (créateur du pari seulement).
-                const mine = isMyOpenBet(bet);
+                // Mode validation (créateur du pari seulement, dès qu'un autre joueur a misé).
+                const mine = isMyOpenBet(bet) && hasOtherStake(bet);
+
+                const waitingOther = isMyOpenBet(bet) && !hasOtherStake(bet);
 
                 const validating = mine && cardValidation?.betId === bet.id;
 
@@ -4763,6 +5096,9 @@ async function displayBets({ quiet = false, force = false } = {}) {
                 card.innerHTML =
                     (mine
                         ? `<button type="button" class="validate-fab${validating ? " open" : ""}${animateHint ? " validate-enter" : ""}" data-validate-toggle="${bet.id}">${validating ? "✕<span>Annuler</span>" : "✓<span>Valider</span>"}</button>`
+                        : waitingOther
+                        // Pas encore validable : pastille vide, elle fait « non » au clic.
+                        ? `<button type="button" class="validate-fab validate-fab-wait" data-validate-wait>✓<span>En attente d'un parieur</span></button>`
                         : "") +
                     (betBadgeLabel(bet)
                         ? `<span class="bet-new-badge">${betBadgeLabel(bet)}</span>`
@@ -4777,11 +5113,6 @@ async function displayBets({ quiet = false, force = false } = {}) {
 
                         ${bet.target_user_id
                             ? `<span class="bet-target-footer">🎯 ${bet.target_blocked ? "Bloqué pour" : "Concerne"} ${styledName(bet.target, "un parieur")}</span>`
-                            : ""
-                        }
-
-                        ${mine && !validating && !bet.target_user_id
-                            ? `<span class="bet-own-footer">✋ Ton pari : tu ne peux pas miser</span>`
                             : ""
                         }
 
@@ -4826,6 +5157,10 @@ async function displayBets({ quiet = false, force = false } = {}) {
                             openBets.find(
                                 item =>
                                     item.id === betId
+                            ) ||
+                            draftBets.find(
+                                item =>
+                                    item.id === betId
                             );
 
 
@@ -4848,18 +5183,9 @@ async function displayBets({ quiet = false, force = false } = {}) {
                         }
 
 
-                        /*
-                            Petit délai pour laisser
-                            l'onde du clic s'afficher.
-                        */
-
-                        setTimeout(
-                            () => openBetModal(
-                                bet,
-                                choice
-                            ),
-                            220
-                        );
+                        // La cote rejoint le ticket (mise simple ou combiné ;
+                        // un brouillon est publié par la mise).
+                        toggleTicketLeg(bet, choice);
 
                     }
                 );
@@ -4868,6 +5194,8 @@ async function displayBets({ quiet = false, force = false } = {}) {
 
 
         updateCountdowns();
+
+        syncTicketHighlights();
 
         // Le bouton « Valider » redessiné retrouve tout de suite son état :
         // d'abord celui d'avant le redessin, puis la position réelle de la souris.
@@ -5022,6 +5350,22 @@ async function displayBets({ quiet = false, force = false } = {}) {
 
         });
 
+        container.querySelectorAll("[data-validate-wait]").forEach(button => {
+
+            button.addEventListener("click", event => {
+
+                event.stopPropagation();
+
+                button.classList.remove("validate-fab-no");
+
+                void button.offsetWidth;
+
+                button.classList.add("validate-fab-no");
+
+            });
+
+        });
+
         container.querySelectorAll("[data-validate-confirm]").forEach(button => {
 
             button.addEventListener("click", event => {
@@ -5039,6 +5383,8 @@ async function displayBets({ quiet = false, force = false } = {}) {
 
             animateLiveCards(container, previousTops);
 
+            playDraftFlips(container, draftFlips);
+
         }
 
 
@@ -5049,7 +5395,7 @@ async function displayBets({ quiet = false, force = false } = {}) {
         */
 
         document
-            .querySelectorAll(".bet-card:not(.claim-card)")
+            .querySelectorAll(".bet-card:not(.claim-card):not(.bet-card-draft)")
             .forEach(card => {
 
                 card.addEventListener(
@@ -5165,15 +5511,13 @@ function openBetModal(
     updateBetGauge(0, 0);
 
 
-    // Pari créé par moi ou déjà misé : on le dit tout de suite.
+    // Pari déjà misé : on le dit tout de suite.
     document.getElementById(
         "modal-error"
     ).textContent =
-        isMyOwnBet(bet)
-            ? "Tu ne peux pas miser sur ton propre pari."
-            : myStakesOn(bet) >= STAKES_PER_BET
-                ? "Tu as déjà misé sur ce pari (1 seule mise par pari)."
-                : "";
+        myStakesOn(bet) >= STAKES_PER_BET
+            ? "Tu as déjà misé sur ce pari (1 seule mise par pari)."
+            : "";
 
 
     document
@@ -5385,9 +5729,13 @@ function updateBetGauge(stake, gain) {
 
     button.disabled = !stake;
 
+    // Brouillon : la mise publie le pari.
+    const publishing =
+        currentBet?.status === "draft";
+
     button.textContent = stake
-        ? "🎟️ Miser " + formatMoney(stake)
-        : "Placer le pari";
+        ? "🎟️ Miser " + formatMoney(stake) + (publishing ? " et publier" : "")
+        : publishing ? "Miser pour publier" : "Placer le pari";
 
 }
 
@@ -5423,16 +5771,6 @@ async function placeBet() {
 
 
     errorElement.textContent = "";
-
-
-    if (currentBet && isMyOwnBet(currentBet)) {
-
-        errorElement.textContent =
-            "Tu ne peux pas miser sur ton propre pari.";
-
-        return;
-
-    }
 
 
     if (currentBet && isBlockedTarget(currentBet)) {
@@ -5603,6 +5941,1094 @@ async function placeBet() {
 
 
 /* =========================================================
+   6 bis. TICKET : MISE SIMPLE OU COMBINÉ (voir combines.sql)
+   Une cote touchée rejoint le ticket sous le classement :
+   1 cote = mise simple, 2 à 4 cotes de paris différents = combiné.
+   Les cotes se multiplient, boost de +5 % par pari au-delà de 2,
+   cote totale plafonnée à 100. Tout ou rien.
+========================================================= */
+
+const COMBO_MAX_LEGS = 4;
+
+const COMBO_MAX_ODDS = 100;
+
+const COMBO_BOOST_PER_LEG = 0.05;
+
+// Sélections du ticket : [{ betId, choiceId }]
+let ticketLegs = [];
+
+let ticketStake = 0;
+
+let ticketTimer = null;
+
+// Téléphone : ticket déplié (sinon une simple barre en bas).
+let ticketOpen = false;
+
+let ticketBusy = false;
+
+// Derniers paris chargés (pour retrouver ceux du ticket).
+let lastLoadedBets = [];
+
+// Mes combinés dans le groupe (loadMyCombos).
+let myCombos = [];
+
+
+// Même calcul côté base : combo_odds().
+function comboBoost(legCount) {
+
+    return COMBO_BOOST_PER_LEG * Math.max(legCount - 2, 0);
+
+}
+
+function comboOdds(product, legCount) {
+
+    return Math.round(Math.min(COMBO_MAX_ODDS, product * (1 + comboBoost(legCount))) * 100) / 100;
+
+}
+
+
+// Mon brouillon démarre au moment où je mise : sa mise max et sa fermeture se calculent depuis maintenant.
+function ticketBet(bet) {
+
+    return bet && bet.status === "draft"
+        ? { ...bet, created_at: new Date().toISOString() }
+        : bet;
+
+}
+
+function ticketEntries() {
+
+    return ticketLegs
+        .map(leg => {
+
+            const bet = ticketBet(lastLoadedBets.find(item => item.id === leg.betId));
+
+            const choice = bet?.bet_choices?.find(item => item.id === leg.choiceId);
+
+            return bet && choice ? { bet, choice } : null;
+
+        })
+        .filter(Boolean);
+
+}
+
+function ticketOdds(entries = ticketEntries()) {
+
+    if (entries.length === 0) {
+        return 0;
+    }
+
+    const product = entries.reduce((total, entry) => total * Number(entry.choice.odds), 1);
+
+    return entries.length === 1 ? product : comboOdds(product, entries.length);
+
+}
+
+// Mise max du ticket : la plus petite mise max du moment parmi ses paris.
+function ticketMaxStake(entries = ticketEntries()) {
+
+    return entries.reduce(
+        (max, entry) => Math.min(max, betMaxStake(entry.bet)),
+        STAKE_MAX
+    );
+
+}
+
+// Mise simple impossible : j'ai déjà misé sur ce pari (1 mise par pari).
+function ticketSingleBlocked(entries = ticketEntries()) {
+
+    return entries.length === 1 && myStakesOn(entries[0].bet) >= STAKES_PER_BET;
+
+}
+
+
+function toggleTicketLeg(bet, choice) {
+
+    bet = ticketBet(bet);
+
+    if (isBlockedTarget(bet)) {
+
+        alertToast("Tu es concerné(e) par ce pari, tu ne peux pas parier.");
+
+        return;
+
+    }
+
+    if (isBetClosed(bet)) {
+
+        alertToast("Les mises sont closes sur ce pari (échéance trop proche).");
+
+        return;
+
+    }
+
+    const index = ticketLegs.findIndex(leg => leg.betId === bet.id);
+
+    if (index >= 0 && ticketLegs[index].choiceId === choice.id) {
+
+        ticketLegs.splice(index, 1);
+
+    } else if (index >= 0) {
+
+        // Un seul choix par pari : l'autre cote remplace la première.
+        ticketLegs[index].choiceId = choice.id;
+
+    } else if (ticketLegs.length < COMBO_MAX_LEGS) {
+
+        ticketLegs.push({ betId: bet.id, choiceId: choice.id });
+
+    } else {
+
+        alertToast(COMBO_MAX_LEGS + " paris maximum dans un combiné.");
+
+        return;
+
+    }
+
+    renderTicket({ bump: true });
+
+    syncTicketHighlights();
+
+}
+
+
+// Cotes du ticket entourées sur les cartes (et dans le panneau des parieurs).
+function syncTicketHighlights() {
+
+    document.body.classList.toggle("ticket-combo", ticketLegs.length > 1);
+
+    document
+        .querySelectorAll(".bet-choice-button[data-choice-id]")
+        .forEach(button => button.classList.toggle(
+            "in-ticket",
+            ticketLegs.some(leg => leg.choiceId === button.dataset.choiceId)
+        ));
+
+}
+
+
+// Paris rechargés : ceux qui ne sont plus jouables sortent du ticket.
+function pruneTicket(bets) {
+
+    lastLoadedBets = bets;
+
+    const before = ticketLegs.length;
+
+    ticketLegs = ticketLegs.filter(leg => {
+
+        const bet = ticketBet(bets.find(item => item.id === leg.betId));
+
+        return bet &&
+            (bet.status === "open" || isMyDraft(bet)) &&
+            !isBetClosed(bet) &&
+            !isBlockedTarget(bet) &&
+            bet.bet_choices?.some(choice => choice.id === leg.choiceId);
+
+    });
+
+    const ticket = document.getElementById("bet-ticket");
+
+    if (ticketLegs.length !== before || (ticket && !ticket.firstElementChild)) {
+
+        renderTicket();
+
+    }
+
+}
+
+
+function renderTicket({ bump = false } = {}) {
+
+    const ticket =
+        document.getElementById("bet-ticket");
+
+    if (!ticket) {
+        return;
+    }
+
+    const entries = ticketEntries();
+
+    const count = entries.length;
+
+    const combo = count > 1;
+
+    if (count === 0) {
+
+        ticketOpen = false;
+
+    }
+
+    document.body.classList.toggle("ticket-has-legs", count > 0);
+
+    ticket.classList.toggle("live", count > 0);
+
+    ticket.classList.toggle("open", ticketOpen);
+
+    clearInterval(ticketTimer);
+
+    ticketTimer = null;
+
+
+    const kind = count === 0
+        ? ""
+        : combo
+            ? `<span class="t-kind combo">Combiné · ${count}</span>`
+            : `<span class="t-kind">Mise simple</span>`;
+
+    const odds = ticketOdds(entries);
+
+    const boost = combo ? comboBoost(count) : 0;
+
+
+    ticket.innerHTML = `
+
+        <button type="button" class="ticket-bar" data-ticket-toggle>
+            <span>🎟️ Ton ticket</span>
+            ${kind}
+            <b class="ticket-bar-odds${bump ? " bump" : ""}">× ${formatOdds(odds)}</b>
+            <span class="ticket-bar-arrow">▲</span>
+        </button>
+
+        <div class="ticket-body">
+
+            <div class="leaderboard-header ticket-header">
+                <span>🎟️</span>
+                <span>Ton ticket</span>
+                ${kind}
+                ${count ? `<button type="button" class="ticket-clear" data-ticket-clear>Vider</button>` : ""}
+                <button type="button" class="ticket-close" data-ticket-toggle aria-label="Replier">▼</button>
+            </div>
+
+            ${count === 0
+                ? `<p class="ticket-empty">Clique sur une cote pour parier. Ajoutes-en d'autres (paris différents) pour faire un combiné.</p>`
+                : `
+                <div class="ticket-legs">
+                    ${entries.map(entry => `
+                        <div class="ticket-leg">
+                            <span class="ticket-leg-text">
+                                <b>${escapeHtml(entry.choice.label)}</b>
+                                ${escapeHtml(entry.bet.question)}
+                            </span>
+                            <span class="ticket-leg-odds">${formatOdds(entry.choice.odds)}</span>
+                            <button type="button" class="ticket-leg-remove" data-ticket-remove="${entry.bet.id}" aria-label="Retirer">✕</button>
+                        </div>
+                    `).join("")}
+                </div>
+
+                <div class="ticket-sum">
+                    <span>${combo ? "Cote combinée" : "Cote"}</span>
+                    <b class="ticket-odds${bump ? " bump" : ""}">× ${formatOdds(odds)}</b>
+                </div>
+
+                ${entries.some(entry => entry.bet.status === "draft")
+                    ? `<p class="ticket-note ticket-note-draft">📝 Ta mise publie ${entries.filter(entry => entry.bet.status === "draft").length > 1 ? "tes brouillons" : "ton brouillon"}.</p>`
+                    : ""}
+
+                ${boost ? `<p class="ticket-boost">⚡ Boost +${Math.round(boost * 100)} % inclus${odds >= COMBO_MAX_ODDS ? " · cote max " + COMBO_MAX_ODDS : ""}</p>` : ""}
+
+                ${ticketSingleBlocked(entries)
+                    ? `<p class="ticket-note">Tu as déjà misé sur ce pari (1 seule mise par pari). Ajoute un 2e pari pour faire un combiné.</p>`
+                    : count === 1 ? `<p class="ticket-note">Ajoute une cote d'un autre pari pour faire un combiné.</p>` : ""}
+
+                <input
+                    type="number"
+                    class="ticket-stake"
+                    inputmode="numeric"
+                    min="${STAKE_MIN}"
+                    step="1"
+                    placeholder="Ta mise (€)"
+                    value="${ticketStake || ""}"
+                    data-ticket-stake
+                >
+
+                <div class="ticket-chips">
+                    ${[50, 100, 200].map(amount => `<button type="button" data-ticket-amount="${amount}">${amount} €</button>`).join("")}
+                    <button type="button" class="ticket-chip-max" data-ticket-amount="max">🔥 Max <b data-ticket-max></b></button>
+                </div>
+
+                <div class="ticket-win">
+                    <span>Gain possible</span>
+                    <strong data-ticket-win>0 €</strong>
+                </div>
+
+                <button type="button" class="primary-button ticket-go" data-ticket-go disabled></button>
+
+                <p class="ticket-rules">
+                    Mise de ${formatMoney(STAKE_MIN)} à <b data-ticket-max></b> · montant rond${combo ? " · tout ou rien : perdu dès qu'un pari est perdu" : ""}
+                </p>
+
+                <p class="error-message" data-ticket-error></p>
+                `}
+
+        </div>
+
+    `;
+
+
+    ticket.querySelectorAll("[data-ticket-toggle]").forEach(button => {
+
+        button.addEventListener("click", () => {
+
+            ticketOpen = !ticketOpen;
+
+            ticket.classList.toggle("open", ticketOpen);
+
+        });
+
+    });
+
+    ticket.querySelector("[data-ticket-clear]")?.addEventListener("click", () => {
+
+        ticketLegs = [];
+
+        ticketStake = 0;
+
+        renderTicket();
+
+        syncTicketHighlights();
+
+    });
+
+    ticket.querySelectorAll("[data-ticket-remove]").forEach(button => {
+
+        button.addEventListener("click", () => {
+
+            ticketLegs = ticketLegs.filter(leg => leg.betId !== button.dataset.ticketRemove);
+
+            renderTicket({ bump: true });
+
+            syncTicketHighlights();
+
+        });
+
+    });
+
+    const input = ticket.querySelector("[data-ticket-stake]");
+
+    input?.addEventListener("input", () => {
+
+        ticketStake = Number(input.value) || 0;
+
+        updateTicketLive();
+
+    });
+
+    input?.addEventListener("keydown", event => {
+
+        if (event.key === "Enter") {
+            placeTicket();
+        }
+
+    });
+
+    ticket.querySelectorAll("[data-ticket-amount]").forEach(button => {
+
+        button.addEventListener("click", () => {
+
+            const balance = Math.floor(Number(currentProfile?.balance) || 0);
+
+            ticketStake = button.dataset.ticketAmount === "max"
+                ? Math.min(ticketMaxStake(), balance > 0 ? balance : STAKE_MAX)
+                : Number(button.dataset.ticketAmount);
+
+            input.value = ticketStake;
+
+            updateTicketLive();
+
+        });
+
+    });
+
+    ticket.querySelector("[data-ticket-go]")?.addEventListener("click", placeTicket);
+
+
+    if (count > 0) {
+
+        updateTicketLive();
+
+        // La mise max baisse avec le temps : affichage mis à jour chaque seconde.
+        ticketTimer = setInterval(updateTicketLive, 1000);
+
+    }
+
+}
+
+
+// Mise max, gain possible et bouton, sans redessiner le ticket (le champ garde le focus).
+function updateTicketLive() {
+
+    const ticket = document.getElementById("bet-ticket");
+
+    const entries = ticketEntries();
+
+    if (!ticket || entries.length === 0) {
+        return;
+    }
+
+    const odds = ticketOdds(entries);
+
+    const max = formatMoney(ticketMaxStake(entries));
+
+    ticket.querySelectorAll("[data-ticket-max]").forEach(element => {
+
+        element.textContent = max;
+
+    });
+
+    const win = ticket.querySelector("[data-ticket-win]");
+
+    if (win) {
+
+        win.textContent = formatMoney(ticketStake * odds);
+
+    }
+
+    const go = ticket.querySelector("[data-ticket-go]");
+
+    if (go) {
+
+        const blocked = ticketSingleBlocked(entries);
+
+        const publishing = entries.some(entry => entry.bet.status === "draft");
+
+        go.disabled = !ticketStake || blocked || ticketBusy;
+
+        go.textContent = blocked
+            ? "Déjà misé sur ce pari"
+            : !ticketStake
+                ? "Choisis ta mise"
+                : (entries.length > 1
+                    ? "🔗 Miser le combiné · " + formatMoney(ticketStake)
+                    : "🎟️ Miser " + formatMoney(ticketStake)) + (publishing ? " et publier" : "");
+
+    }
+
+}
+
+
+async function placeTicket() {
+
+    const ticket = document.getElementById("bet-ticket");
+
+    const entries = ticketEntries();
+
+    const errorElement = ticket?.querySelector("[data-ticket-error]");
+
+    if (!ticket || entries.length === 0 || ticketBusy) {
+        return;
+    }
+
+    const showError = text => {
+
+        if (errorElement) {
+            errorElement.textContent = text;
+        }
+
+    };
+
+    showError("");
+
+    const stake = ticketStake;
+
+    const combo = entries.length > 1;
+
+
+    if (!stake || stake <= 0) {
+
+        showError("Entre un montant valide.");
+
+        return;
+
+    }
+
+    if (!Number.isInteger(stake)) {
+
+        showError("La mise doit être un montant rond (sans centimes).");
+
+        return;
+
+    }
+
+    if (stake < STAKE_MIN || stake > STAKE_MAX) {
+
+        showError("La mise doit être comprise entre " + formatMoney(STAKE_MIN) + " et " + formatMoney(STAKE_MAX) + ".");
+
+        return;
+
+    }
+
+    const maxNow = ticketMaxStake(entries);
+
+    if (stake > maxNow) {
+
+        showError("Mise max en ce moment" + (combo ? " pour ce combiné" : "") + " : " + formatMoney(maxNow) + " (elle baisse avec le temps).");
+
+        return;
+
+    }
+
+    if (ticketSingleBlocked(entries)) {
+
+        showError("Tu as déjà misé sur ce pari (1 seule mise par pari).");
+
+        return;
+
+    }
+
+    const closed = entries.find(entry => isBetClosed(entry.bet) || isBlockedTarget(entry.bet));
+
+    if (closed) {
+
+        showError("Tu ne peux plus miser sur « " + closed.bet.question + " ».");
+
+        return;
+
+    }
+
+
+    ticketBusy = true;
+
+    updateTicketLive();
+
+    try {
+
+        // Solde et mise (ou combiné) calculés côté PostgreSQL.
+        const { error } = combo
+            ? await supabaseClient.rpc("place_combo", {
+                p_choice_ids: entries.map(entry => entry.choice.id),
+                p_stake: stake
+            })
+            : await supabaseClient.rpc("place_bet", {
+                p_choice_id: entries[0].choice.id,
+                p_stake: stake
+            });
+
+        if (error) {
+            throw error;
+        }
+
+        ticketLegs = [];
+
+        ticketStake = 0;
+
+        ticketOpen = false;
+
+        ticketBusy = false;
+
+        renderTicket();
+
+        syncTicketHighlights();
+
+
+        // La mise part du solde vers le perroquet (comme une mise simple).
+        flyBills("stake");
+
+        await loadCurrentProfile();
+
+        await displayBets({ quiet: true });
+
+        await displayLeaderboard();
+
+        await displayMyBets();
+
+        await refreshMissions();
+
+    } catch (error) {
+
+        console.error(error);
+
+        ticketBusy = false;
+
+        updateTicketLive();
+
+        showError(error.message || "Impossible de placer la mise.");
+
+    }
+
+}
+
+
+/* ----- Mes combinés ----- */
+
+async function loadMyCombos() {
+
+    if (!currentUser || !currentGroup) {
+
+        myCombos = [];
+
+        return myCombos;
+
+    }
+
+    const { data, error } = await supabaseClient
+        .from("combos")
+        .select(`
+            id,
+            stake,
+            odds,
+            potential_win,
+            created_at,
+            claimed_at,
+            claimed_amount,
+            combo_legs (
+                bet_id,
+                choice_id,
+                odds,
+                bets (
+                    id,
+                    question,
+                    status,
+                    winner_choice_id,
+                    author_id,
+                    resolved_at,
+                    bet_contests ( status, ends_at ),
+                    bet_choices!bet_choices_bet_id_fkey ( id, label )
+                )
+            )
+        `)
+        .eq("user_id", currentUser.id)
+        .eq("group_id", currentGroup.id)
+        .order("created_at", { ascending: false });
+
+    if (error) {
+
+        console.error("Combinés indisponibles (combines.sql lancé ?)", error);
+
+        myCombos = [];
+
+        return myCombos;
+
+    }
+
+    myCombos = data || [];
+
+    return myCombos;
+
+}
+
+
+/*
+    État d'un combiné : open (en attente), lost, won, refunded (tous ses paris annulés).
+    Un pari annulé après contestation sort du combiné (cote 1).
+    Même calcul côté base : combo_state().
+*/
+
+function comboState(combo) {
+
+    let lost = 0;
+
+    let pending = 0;
+
+    let won = 0;
+
+    let product = 1;
+
+    (combo.combo_legs || []).forEach(leg => {
+
+        const status = leg.bets?.status;
+
+        if (status === "resolved") {
+
+            if (leg.bets.winner_choice_id === leg.choice_id) {
+
+                won++;
+
+                product *= Number(leg.odds);
+
+            } else {
+
+                lost++;
+
+            }
+
+        } else if (status !== "cancelled") {
+
+            pending++;
+
+        }
+
+    });
+
+    if (lost > 0) {
+        return { status: "lost", payout: 0 };
+    }
+
+    if (pending > 0) {
+        return { status: "open", payout: 0 };
+    }
+
+    if (won === 0) {
+        return { status: "refunded", payout: Number(combo.stake) };
+    }
+
+    return {
+        status: "won",
+        payout: Math.round(Number(combo.stake) * comboOdds(product, won) * 100) / 100
+    };
+
+}
+
+// Pari du combiné en cours de contestation (le gain est bloqué), ou null.
+function comboContestedBet(combo) {
+
+    return (combo.combo_legs || [])
+        .map(leg => leg.bets)
+        .find(bet => betContest(bet)?.status === "open") || null;
+
+}
+
+function comboLegLabel(leg) {
+
+    return (leg.bets?.bet_choices || []).find(choice => choice.id === leg.choice_id)?.label || "—";
+
+}
+
+// Combinés terminés pas encore soldés : gain à récupérer ou mise à perdre.
+function claimableCombos() {
+
+    return myCombos
+        .filter(combo => !combo.claimed_at)
+        .map(combo => ({ combo, state: comboState(combo) }))
+        .filter(item => item.state.status !== "open");
+
+}
+
+function combosSignature() {
+
+    return myCombos
+        .map(combo => combo.id + ":" + (combo.claimed_at ? 1 : 0) + ":" + comboState(combo).status)
+        .join(",");
+
+}
+
+
+// Carte « Combiné gagné » à récupérer (page principale).
+function renderComboClaimCard({ combo, state }) {
+
+    const card =
+        document.createElement("div");
+
+    card.dataset.betId = "combo-" + combo.id;
+
+    const legs = combo.combo_legs || [];
+
+    const legsHtml = `
+        <p class="claim-card-note combo-claim-legs">
+            ${legs.map(leg => `${leg.bets?.status === "cancelled" ? "↺" : "✓"} ${escapeHtml(comboLegLabel(leg))}`).join(" · ")}
+        </p>
+    `;
+
+    const contested = comboContestedBet(combo);
+
+    if (contested) {
+
+        card.className = "bet-card claim-card claim-card--combo claim-card--frozen";
+
+        card.innerHTML = `
+
+            <div class="claim-card-top">
+                <span class="claim-card-badge">⚖️ Contestation en cours</span>
+                <span class="claim-card-result">🔗 Combiné · ${legs.length} paris</span>
+            </div>
+
+            <h3>${escapeHtml(contested.question)}</h3>
+
+            ${legsHtml}
+
+            <button class="claim-card-button">
+                🔒 Gain bloqué pendant le vote · fin ${timeLeftLabel(betContest(contested).ends_at)}
+            </button>
+
+        `;
+
+        card.addEventListener("click", async () => {
+
+            await refreshContests();
+
+            openContestView(contested.id);
+
+        });
+
+        return card;
+
+    }
+
+    // Combiné perdu : on donne sa mise d'un clic, comme pour un pari perdu.
+    if (state.status === "lost") {
+
+        const lostLeg = legs.find(leg =>
+            leg.bets?.status === "resolved" && leg.bets.winner_choice_id !== leg.choice_id
+        );
+
+        card.className = "bet-card claim-card claim-card--combo claim-card--lose";
+
+        card.innerHTML = `
+
+            <div class="claim-card-top">
+                <span class="claim-card-badge">🔗 Combiné perdu</span>
+                <span class="claim-card-result">Cote <b>× ${formatOdds(combo.odds)}</b></span>
+            </div>
+
+            <h3>Combiné · ${legs.length} paris</h3>
+
+            <p class="claim-card-note combo-claim-legs">
+                ${legs.map(leg => {
+
+                    const bet = leg.bets || {};
+
+                    const mark =
+                        bet.status === "cancelled" ? "↺"
+                        : bet.status !== "resolved" ? "⏳"
+                        : bet.winner_choice_id === leg.choice_id ? "✓"
+                        : "✗";
+
+                    return `${mark} ${escapeHtml(comboLegLabel(leg))}`;
+
+                }).join(" · ")}
+            </p>
+
+            ${lostLeg ? `<p class="claim-card-note">Perdu sur « ${escapeHtml(lostLeg.bets.question)} »</p>` : ""}
+
+            <button class="claim-card-button">
+                Perdre la mise (${formatMoney(combo.stake)})
+            </button>
+
+        `;
+
+        card.addEventListener("click", () => claimBet(combo.id, false, card, "claim_combo"));
+
+        return card;
+
+    }
+
+    const refunded = state.status === "refunded";
+
+    card.className = "bet-card claim-card claim-card--combo claim-card--win";
+
+    card.innerHTML = `
+
+        <div class="claim-card-top">
+            <span class="claim-card-badge">${refunded ? "↺ Combiné remboursé" : "🔗 Combiné gagné"}</span>
+            <span class="claim-card-result">Cote <b>× ${formatOdds(refunded ? 1 : state.payout / Number(combo.stake))}</b></span>
+        </div>
+
+        <h3>Combiné · ${legs.length} paris</h3>
+
+        ${legsHtml}
+
+        <button class="claim-card-button">
+            💰 Récupérer ${formatMoney(state.payout)}
+        </button>
+
+    `;
+
+    card.addEventListener("click", () => claimBet(combo.id, true, card, "claim_combo"));
+
+    return card;
+
+}
+
+
+// Combinés dépliés dans l'Historique (ils le restent quand la liste se recharge).
+const openComboRows = new Set();
+
+function comboLegResult(leg) {
+
+    const bet = leg.bets || {};
+
+    return bet.status === "cancelled" ? "cancelled"
+        : bet.status !== "resolved" ? "open"
+        : bet.winner_choice_id === leg.choice_id ? "win"
+        : "lose";
+
+}
+
+/*
+    Ligne d'un combiné dans l'Historique : un parcours de pastilles reliées
+    jusqu'au 🏆 (✓ gagné, ✗ perdu, ↺ annulé, pastille qui pulse = en attente).
+    Un clic déplie la liste des paris.
+*/
+
+function renderComboRow(row, contestButtonShown) {
+
+    const { combo, state, result } = row;
+
+    // Paris terminés d'abord, puis ceux en attente : le parcours avance de gauche à droite.
+    const legs = [...(combo.combo_legs || [])].sort((x, y) =>
+        (comboLegResult(x) === "open") - (comboLegResult(y) === "open") ||
+        String(x.bet_id).localeCompare(String(y.bet_id))
+    );
+
+    const results = legs.map(comboLegResult);
+
+    const counted = results.filter(item => item !== "cancelled").length;
+
+    const wonCount = results.filter(item => item === "win").length;
+
+    const item = document.createElement("div");
+
+    item.className =
+        "my-bet-item my-bet-row my-bet-row--combo my-bet-row--" + result +
+        (result === "win" ? " my-bet-won" : "") +
+        (result === "lose" ? " my-bet-lost" : "") +
+        (openComboRows.has(combo.id) ? " open" : "");
+
+    item.dataset.result = result;
+
+    item.dataset.combo = "1";
+
+    const icon =
+        result === "win" ? "✓"
+        : result === "lose" ? "✗"
+        : result === "cancelled" ? "↺"
+        : "🔗";
+
+    const won = combo.claimed_at ? Number(combo.claimed_amount) : state.payout;
+
+    const amount =
+        result === "win" ? "+" + formatMoney(won)
+        : result === "lose" ? "−" + formatMoney(combo.stake)
+        : result === "cancelled" ? formatMoney(combo.stake) + " rendus"
+        : formatMoney(combo.potential_win);
+
+    const mark = legResult =>
+        legResult === "win" ? "✓"
+        : legResult === "lose" ? "✗"
+        : legResult === "cancelled" ? "↺"
+        : "";
+
+
+    // Parcours : pastille, trait, pastille… jusqu'au 🏆 (💥 si perdu).
+    const steps = legs.map((leg, index) => {
+
+        const legResult = results[index];
+
+        const previous = results[index - 1];
+
+        const line = index === 0
+            ? ""
+            : `<span class="combo-step-line${previous === "win" ? " done" : previous === "lose" ? " lose" : ""}"></span>`;
+
+        return line + `
+            <span
+                class="combo-step combo-step--${legResult}"
+                data-tip="${escapeHtml(comboLegLabel(leg) + " · " + (leg.bets?.question || ""))}"
+            >${mark(legResult)}</span>
+        `;
+
+    }).join("");
+
+    const lastResult = results[results.length - 1];
+
+
+    // Détail des paris (déplié au clic), avec « Contester » si possible.
+    let contestable = false;
+
+    const detail = legs.map((leg, index) => {
+
+        const bet = leg.bets || {};
+
+        const legResult = results[index];
+
+        const contest = betContest(bet);
+
+        let contestHtml =
+            contest?.status === "open" ? `<span class="contest-tag">⚖️ Vote en cours</span>`
+            : contest?.status === "upheld" ? `<span class="contest-tag">⚖️ Contestation rejetée</span>`
+            : contest?.status === "annulled" ? `<span class="contest-tag">⚖️ Annulé après vote</span>`
+            : "";
+
+        if (!contestHtml && canContest(bet) && !contestButtonShown.has(bet.id)) {
+
+            contestButtonShown.add(bet.id);
+
+            contestable = true;
+
+            contestHtml = `<button type="button" class="contest-button" data-contest-bet="${bet.id}">⚖️ Contester</button>`;
+
+        }
+
+        return `
+            <li class="combo-leg combo-leg--${legResult}">
+                <span class="combo-leg-dot">${mark(legResult) || "⏳"}</span>
+                <span class="combo-leg-text"><b>${escapeHtml(comboLegLabel(leg))}</b> · ${escapeHtml(bet.question || "")}</span>
+                <span class="combo-leg-odds">${formatOdds(leg.odds)}</span>
+                ${contestHtml}
+            </li>
+        `;
+
+    }).join("");
+
+
+    item.innerHTML = `
+
+        <span class="my-bet-dot">${icon}</span>
+
+        <div class="my-bet-text">
+
+            <h3>🔗 Combiné · ${legs.length} paris <span class="combo-chevron">▼</span></h3>
+
+            <p>
+                <b class="combo-progress">${wonCount}/${counted}</b> gagnés
+                · cote × ${formatOdds(combo.odds)}
+                · mise ${formatMoney(combo.stake)}
+                ${contestable ? " · <span class=\"combo-contest-hint\">⚖️ contestable</span>" : ""}
+            </p>
+
+            <div class="combo-steps">
+                ${steps}
+                <span class="combo-step-line${result === "win" ? " done" : lastResult === "lose" ? " lose" : ""}"></span>
+                <span class="combo-step-goal">${result === "lose" ? "💥" : "🏆"}</span>
+            </div>
+
+        </div>
+
+        <span class="my-bet-amount">${amount}</span>
+
+        <div class="combo-detail">
+            <div>
+                <ul class="combo-legs">${detail}</ul>
+            </div>
+        </div>
+
+    `;
+
+    item.addEventListener("click", () => {
+
+        item.classList.toggle("open");
+
+        if (item.classList.contains("open")) {
+            openComboRows.add(combo.id);
+        } else {
+            openComboRows.delete(combo.id);
+        }
+
+    });
+
+    item.querySelectorAll(".contest-button").forEach(button => {
+
+        button.addEventListener("click", event => {
+
+            // Le clic ne replie pas la ligne.
+            event.stopPropagation();
+
+            const bet = legs.find(leg => leg.bet_id === button.dataset.contestBet)?.bets;
+
+            const winner = (bet?.bet_choices || []).find(choice => choice.id === bet.winner_choice_id);
+
+            openContestForm(bet, winner?.label);
+
+        });
+
+    });
+
+    return item;
+
+}
+
+
+
+/* =========================================================
    7. MES PARIS
 ========================================================= */
 
@@ -5732,10 +7158,30 @@ async function displayMyBets({ cascade = false } = {}) {
         const created = createdData || [];
 
 
+        // Mes combinés (filtre « Combinés », et avec les mises dans les autres filtres).
+        const comboRows =
+            (await loadMyCombos()).map(combo => {
+
+                const state = comboState(combo);
+
+                return {
+                    combo,
+                    state,
+                    created_at: combo.created_at,
+                    result:
+                        state.status === "won" ? "win"
+                        : state.status === "lost" ? "lose"
+                        : state.status === "refunded" ? "cancelled"
+                        : "open"
+                };
+
+            });
+
+
         container.innerHTML = "";
 
 
-        if ((!data || data.length === 0) && created.length === 0 && groupContests.length === 0) {
+        if ((!data || data.length === 0) && created.length === 0 && comboRows.length === 0 && groupContests.length === 0) {
 
             container.innerHTML = `
                 <div class="empty-state">
@@ -5765,15 +7211,22 @@ async function displayMyBets({ cascade = false } = {}) {
         const countOf = result =>
             result === "creation"
                 ? created.length
-                : stakes.filter(s => result === "all" || s.result === result).length;
+                : result === "combo"
+                    ? comboRows.length
+                    : stakes.filter(s => result === "all" || s.result === result).length +
+                      comboRows.filter(row => result === "all" || row.result === result).length;
 
         const totalStaked =
-            stakes.reduce((sum, s) => sum + Number(s.stake), 0);
+            stakes.reduce((sum, s) => sum + Number(s.stake), 0) +
+            comboRows.reduce((sum, row) => sum + Number(row.combo.stake), 0);
 
         const totalWon =
             stakes
                 .filter(s => s.result === "win")
-                .reduce((sum, s) => sum + Number(s.potential_win), 0);
+                .reduce((sum, s) => sum + Number(s.potential_win), 0) +
+            comboRows
+                .filter(row => row.result === "win")
+                .reduce((sum, row) => sum + (row.combo.claimed_at ? Number(row.combo.claimed_amount) : row.state.payout), 0);
 
 
         /*
@@ -5811,6 +7264,7 @@ async function displayMyBets({ cascade = false } = {}) {
                     ["open", "En cours"],
                     ["win", "Gagnés"],
                     ["lose", "Perdus"],
+                    ["combo", "Combinés"],
                     ["creation", "Mes créations"]
                 ].map(([key, label]) => `
                     <button
@@ -5842,8 +7296,19 @@ async function displayMyBets({ cascade = false } = {}) {
         });
 
 
-        stakes.forEach(
+        // Mises et combinés mêlés, du plus récent au plus ancien.
+        [...stakes, ...comboRows]
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+            .forEach(
             stake => {
+
+                if (stake.combo) {
+
+                    rows.appendChild(renderComboRow(stake, contestButtonShown));
+
+                    return;
+
+                }
 
                 const bet =
                     stake.bets;
@@ -5940,6 +7405,9 @@ async function displayMyBets({ cascade = false } = {}) {
 
             const cancelled = bet.status === "cancelled";
 
+            // Brouillon : pas encore publié, il faut miser dessus.
+            const draft = bet.status === "draft";
+
             const contest = betContest(bet);
 
             const winner = choices.find(choice => choice.id === bet.winner_choice_id);
@@ -5959,7 +7427,7 @@ async function displayMyBets({ cascade = false } = {}) {
 
             item.innerHTML = `
 
-                <span class="my-bet-dot">${cancelled ? "↺" : done ? "✓" : "⏳"}</span>
+                <span class="my-bet-dot">${cancelled ? "↺" : done ? "✓" : draft ? "📝" : "⏳"}</span>
 
                 <div class="my-bet-text">
 
@@ -5967,7 +7435,7 @@ async function displayMyBets({ cascade = false } = {}) {
 
                     <p>
                         ${choices.map(choice => escapeHtml(choice.label) + " " + Number(choice.odds).toFixed(2)).join(" · ")}
-                        ${cancelled ? "" : done && winner ? " · 🏆 " + escapeHtml(winner.label) : (done ? "" : " · en cours")}
+                        ${cancelled ? "" : done && winner ? " · 🏆 " + escapeHtml(winner.label) : done ? "" : draft ? " · brouillon, mise dessus pour le publier" : " · en cours"}
                     </p>
 
                     ${cancelled
@@ -6003,7 +7471,9 @@ async function displayMyBets({ cascade = false } = {}) {
                 .forEach(row => row.classList.toggle(
                     "hidden",
                     // « Tous » montre les mises ; les créations n'apparaissent qu'avec leur filtre.
-                    myBetsFilter === "all"
+                    myBetsFilter === "combo"
+                        ? row.dataset.combo !== "1"
+                        : myBetsFilter === "all"
                         ? row.dataset.result === "creation"
                         : row.dataset.result !== myBetsFilter
                 ));
@@ -6993,6 +8463,11 @@ async function openStakesModal(bet, card) {
     // Liste des parieurs sous le contenu de la carte.
     const stakes = bet.stakes || [];
 
+    // Mises en combiné sur ce pari (voir combines.sql).
+    const comboLegs = (bet.combo_legs || [])
+        .filter(leg => leg.combos)
+        .sort((x, y) => new Date(x.combos.created_at || 0) - new Date(y.combos.created_at || 0));
+
     const more = document.createElement("div");
 
     more.className = "stakes-pop-more";
@@ -7001,7 +8476,7 @@ async function openStakesModal(bet, card) {
         <h3 class="stakes-pop-title">Détail des parieurs</h3>
 
         <div class="stakes-pop-list">
-            ${stakes.length === 0
+            ${stakes.length === 0 && comboLegs.length === 0
                 ? `<div class="empty-state">Aucune mise pour le moment.</div>`
                 : groupStakesByPlayer(stakes).map(group => {
 
@@ -7025,6 +8500,29 @@ async function openStakesModal(bet, card) {
                                 <span>💰 ${amounts} €</span>
                                 <span>🎲 ${Number(choice?.odds || 0).toFixed(2)}</span>
                                 <span>🏆 ${formatMoney(totalWin)}</span>
+                            </div>
+                        </div>
+                    `;
+
+                }).join("") + comboLegs.map(leg => {
+
+                    const combo = leg.combos;
+
+                    const choice = bet.bet_choices.find(item => item.id === leg.choice_id);
+
+                    const count = (combo.combo_legs || []).length;
+
+                    return `
+                        <div class="stake-row stake-row--combo">
+                            <div class="stake-row-header">
+                                <strong>${styledName(combo.profiles)}</strong>
+                                <span class="stake-choice-badge">${escapeHtml(choice?.label || "Choix supprimé")}</span>
+                                <span class="stake-combo-badge">🔗 Combiné · ${count} paris</span>
+                            </div>
+                            <div class="stake-row-details">
+                                <span>💰 ${Number(combo.stake).toLocaleString("fr-FR")} €</span>
+                                <span>🎲 ${Number(choice?.odds || 0).toFixed(2)} · combiné × ${Number(combo.odds).toFixed(2)}</span>
+                                <span>🏆 ${formatMoney(combo.potential_win)}</span>
                             </div>
                         </div>
                     `;
@@ -7110,11 +8608,8 @@ async function openStakesModal(bet, card) {
 
             if (choice) {
 
-                // La carte se replie en douceur sous la fenêtre de mise qui s'ouvre
-                // (au lieu de disparaître d'un coup).
-                closeStakesPanel();
-
-                openBetModal(bet, choice);
+                // La cote rejoint le ticket (le panneau reste ouvert).
+                toggleTicketLeg(bet, choice);
 
             }
 
@@ -7124,8 +8619,23 @@ async function openStakesModal(bet, card) {
 
     pop.querySelector(".stakes-pop-close").addEventListener("click", closeStakesPanel);
 
+    // Pastille « En attente d'un parieur » : pas encore validable, elle fait « non ».
+    pop.querySelector("[data-validate-wait]")?.addEventListener("click", event => {
+
+        event.stopPropagation();
+
+        const fab = event.currentTarget;
+
+        fab.classList.remove("validate-fab-no");
+
+        void fab.offsetWidth;
+
+        fab.classList.add("validate-fab-no");
+
+    });
+
     // Pastille « Valider » : la carte se replie et passe en mode validation.
-    pop.querySelector(".validate-fab")?.addEventListener("click", event => {
+    pop.querySelector("[data-validate-toggle]")?.addEventListener("click", event => {
 
         event.stopPropagation();
 
@@ -7619,7 +9129,8 @@ async function createBet() {
     try {
 
         /*
-            Création du pari.
+            Création du pari, en brouillon : il sera publié
+            quand le créateur aura misé dessus (brouillon-createur.sql).
         */
 
         const {
@@ -7634,7 +9145,7 @@ async function createBet() {
                 author_id:
                     currentUser.id,
 
-                status: "open",
+                status: "draft",
 
                 deadline_at:
                     deadlineAt,
@@ -7695,16 +9206,15 @@ async function createBet() {
 
             /*
                 Si les choix échouent,
-                on supprime le pari.
+                on supprime le brouillon.
             */
 
-            await supabaseClient
-                .from("bets")
-                .delete()
-                .eq(
-                    "id",
-                    bet.id
-                );
+            await supabaseClient.rpc(
+                "delete_draft_bet",
+                {
+                    p_bet_id: bet.id
+                }
+            );
 
 
             throw choicesError;
@@ -7728,13 +9238,20 @@ async function createBet() {
 
 
         /*
-            On ferme la fenêtre : le nouveau pari arrive dans la liste.
+            On ferme la fenêtre : le brouillon arrive en haut de la liste,
+            il reste à miser dessus pour le publier.
         */
 
         closeCreateModal();
 
 
         await displayBets({ quiet: true });
+
+        document
+            .querySelector(`.bet-card-draft[data-draft-id="${bet.id}"]`)
+            ?.scrollIntoView({ behavior: "smooth", block: "center" });
+
+        await displayMyBets();
 
         await displayMyCreatedBets();
 
@@ -10521,27 +12038,6 @@ async function initAppPage() {
             );
 
         });
-
-
-    /*
-        Bouton créer un pari
-        dans l'en-tête.
-    */
-
-    const createHeaderButton =
-        document.getElementById(
-            "create-bet-header-button"
-        );
-
-
-    if (createHeaderButton) {
-
-        createHeaderButton.addEventListener(
-            "click",
-            openCreateModal
-        );
-
-    }
 
 
     /*

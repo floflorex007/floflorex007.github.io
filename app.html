@@ -420,27 +420,9 @@
             class="app-page"
         >
 
-            <div class="page-header">
-
-                <div>
-
-                    <h1>
-                        Paris disponibles
-                    </h1>
-
-                    <p>
-                        Découvre les paris créés par les utilisateurs.
-                    </p>
-
-                </div>
-
-
-                <button
-                    class="primary-button"
-                    id="create-bet-header-button"
-                >
-                    + Créer un pari
-                </button>
+            <!-- Téléphone seulement : bouton du classement
+                 (le bouton « Créer un pari » est une carte en tête de liste, voir app.js) -->
+            <div class="page-header bets-page-header">
 
 
                 <!-- Téléphone seulement : ouvre le classement en fenêtre -->
@@ -456,6 +438,9 @@
 
 
             <div class="bets-layout">
+
+                <!-- Colonne de gauche : classement puis ticket de mise -->
+                <div class="left-column">
 
                 <aside
                     id="leaderboard-sidebar"
@@ -482,6 +467,16 @@
                 </aside>
 
 
+                <!-- Ticket : une cote = mise simple, 2 à 4 cotes = combiné
+                     (contenu dessiné par renderTicket dans app.js) -->
+                <aside
+                    id="bet-ticket"
+                    class="bet-ticket"
+                ></aside>
+
+                </div>
+
+
                 <div
                     id="bets-container"
                     class="bets-list"
@@ -489,21 +484,6 @@
 
 
                 <div class="right-column">
-
-                    <aside
-                        id="admin-message-sidebar"
-                        class="admin-message-sidebar hidden"
-                    >
-
-                        <div class="leaderboard-header">
-                            <span>📢</span>
-                            <span>Message</span>
-                        </div>
-
-                        <div id="admin-message-content"></div>
-
-                    </aside>
-
 
                     <aside
                         id="level-sidebar"
@@ -541,6 +521,21 @@
                         >
                             ⭐ Débloquer le niveau 2
                         </button>
+
+                    </aside>
+
+
+                    <aside
+                        id="admin-message-sidebar"
+                        class="admin-message-sidebar hidden"
+                    >
+
+                        <div class="leaderboard-header">
+                            <span>📢</span>
+                            <span>Message</span>
+                        </div>
+
+                        <div id="admin-message-content"></div>
 
                     </aside>
 
@@ -1079,6 +1074,11 @@
                         >
                             Créer le pari
                         </button>
+
+
+                        <p class="create-hint create-footer-hint">
+                            Il sera publié quand tu auras misé dessus.
+                        </p>
 
                     </div>
 

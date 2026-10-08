@@ -4,9 +4,9 @@
 -- À lancer dans le SQL Editor (« Run and enable RLS »),
 -- ou par Claude via le terminal. À lancer après contestations.sql.
 --
--- Le créateur ne mise pas sur son pari (createur-sans-mise.sql) :
+-- Le créateur peut miser sur son pari (createur-peut-miser.sql) ;
 -- à la validation, il gagne 10 % des mises perdues (arrondi
--- à l'euro, ses propres anciennes mises exclues). La commission
+-- à l'euro, ses propres mises exclues). La commission
 -- se récupère avec une carte jaune sur la page des paris
 -- (claim_commission), bloquée pendant une contestation comme les
 -- gains. Si une contestation annule la validation, une commission

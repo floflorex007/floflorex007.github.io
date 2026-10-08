@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Combinés dans l'Historique (propositions)</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body.demo { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; margin: 0; display: block; min-height: 0; }
+.demo h1 { font-size: 26px; margin: 0 0 6px; }
+.demo .sub { color: #858a98; margin: 0 0 16px; max-width: 820px; font-size: 14px; line-height: 1.5; }
+.demo .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; position: sticky; top: 0; background: #0f1117; padding: 10px 0; z-index: 30; align-items: center; }
+.demo .tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; font: inherit; }
+.demo .tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.demo .pick { margin-left: auto; background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; padding: 10px 16px; border-radius: 12px; cursor: pointer; font: inherit; font-weight: 900; }
+.demo .desc { color: #aaaeba; font-size: 14px; max-width: 760px; margin-bottom: 18px; line-height: 1.5; }
+.demo .desc b { color: #e6e8ee; }
+.opts { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 16px; font-size: 14px; color: #c9ccd6; }
+.opts label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+.frame { max-width: 760px; display: flex; flex-direction: column; gap: 14px; transition: max-width .3s; }
+.frame.phone { max-width: 380px; }
+.copied { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1c202c; border: 1px solid #63d69f; padding: 12px 18px; border-radius: 14px; font-weight: 700; z-index: 99; max-width: calc(100% - 32px); }
+
+/* ---------- Commun aux combinés ---------- */
+.my-bet-row.combo { cursor: pointer; flex-wrap: wrap; border-color: rgba(200, 107, 255, .35); }
+.my-bet-row.combo.my-bet-row--win { border-color: rgba(99, 214, 159, .45); }
+.my-bet-row.combo.my-bet-row--lose { border-color: rgba(255, 107, 107, .3); }
+.combo .my-bet-dot.cdot { background: rgba(200, 107, 255, .15); color: #e3b8ff; }
+.combo.my-bet-row--win .my-bet-dot.cdot { background: rgba(99, 214, 159, .15); color: #63d69f; }
+.combo.my-bet-row--lose .my-bet-dot.cdot { background: rgba(255, 107, 107, .12); color: #ff8a8a; }
+.combo .sub2 { color: #858a98; font-size: 11px; margin-top: 2px; }
+.combo .sub2 b { color: #c9ccd6; }
+.combo-detail { flex-basis: 100%; display: grid; grid-template-rows: 0fr; transition: grid-template-rows .3s ease; }
+.combo.open .combo-detail { grid-template-rows: 1fr; }
+.combo-detail > div { overflow: hidden; }
+.combo-detail ul { list-style: none; margin: 10px 0 0 42px; padding: 8px 0 0; border-top: 1px dashed #343846; display: flex; flex-direction: column; gap: 5px; }
+.combo-detail li { display: flex; gap: 8px; font-size: 12px; color: #aaaeba; align-items: baseline; }
+.combo-detail li b { color: #e6e8ee; }
+.combo-detail li .o { margin-left: auto; color: #c86bff; font-weight: 800; }
+.mk { width: 14px; text-align: center; font-weight: 900; }
+.mk.win { color: #63d69f; } .mk.lose { color: #ff6b6b; } .mk.open { color: #a59fff; } .mk.cancel { color: #858a98; }
+.chev { color: #737887; font-size: 11px; transition: transform .3s; }
+.combo.open .chev { transform: rotate(180deg); }
+
+/* ---------- A : barre segmentée ---------- */
+.segbar { display: flex; gap: 4px; margin-top: 7px; max-width: 320px; }
+.segbar i { flex: 1; height: 8px; border-radius: 99px; background: #2c3040; position: relative; overflow: hidden; }
+.segbar i.win { background: #63d69f; }
+.segbar i.lose { background: #ff6b6b; }
+.segbar i.cancel { background: repeating-linear-gradient(45deg, #3a3e4c 0 4px, #2c3040 4px 8px); }
+.segbar i.open::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(200,107,255,.55), transparent); animation: shim 1.6s infinite; }
+@keyframes shim { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+.segbar i.pop { animation: segpop .5s ease; }
+@keyframes segpop { 40% { transform: scaleY(1.8); } }
+
+/* ---------- B : pastilles reliées ---------- */
+.steps { display: flex; align-items: center; margin-top: 7px; max-width: 320px; }
+.steps .st { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 900; flex-shrink: 0; background: #23262f; color: #737887; border: 2px solid #343846; position: relative; }
+.steps .st.win { background: #63d69f; color: #0b1f15; border-color: #63d69f; }
+.steps .st.lose { background: #ff6b6b; color: #2a0b0b; border-color: #ff6b6b; }
+.steps .st.cancel { background: #14161e; border-style: dashed; }
+.steps .st.open { border-color: #c86bff; color: #c86bff; animation: pulse 1.8s infinite; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 5px rgba(200,107,255,.18); } }
+.steps .ln { flex: 1; height: 3px; background: #2c3040; min-width: 14px; }
+.steps .ln.done { background: #63d69f; }
+.steps .ln.lose { background: #ff6b6b; }
+.steps .goal { margin-left: 6px; font-size: 14px; }
+.steps .st[data-tip]:hover::after { content: attr(data-tip); position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%); background: #0b0c10; border: 1px solid #343846; padding: 4px 8px; border-radius: 8px; white-space: nowrap; font-size: 11px; font-weight: 600; color: #e6e8ee; z-index: 5; }
+
+/* ---------- C : jauge du gain ---------- */
+.gain { margin-top: 7px; max-width: 360px; }
+.gain .track { height: 10px; background: #23262f; border-radius: 99px; overflow: hidden; position: relative; }
+.gain .fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #8b5cf6, #c86bff); transition: width .8s cubic-bezier(.2,.8,.2,1); }
+.my-bet-row--win .gain .fill { background: linear-gradient(90deg, #2fa36f, #63d69f); }
+.my-bet-row--lose .gain .fill { background: #ff6b6b; opacity: .6; }
+.gain .ticks { position: absolute; inset: 0; display: flex; }
+.gain .ticks span { flex: 1; border-right: 2px solid #14161e; }
+.gain .ticks span:last-child { border: none; }
+.gain .lbl { display: flex; justify-content: space-between; font-size: 11px; color: #858a98; margin-top: 4px; }
+.gain .lbl b { color: #e6e8ee; }
+
+/* ---------- D : anneau ---------- */
+.ring { width: 38px; height: 38px; flex-shrink: 0; position: relative; }
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring .c { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; font-weight: 900; color: #e3b8ff; }
+.my-bet-row--win .ring .c { color: #63d69f; }
+.my-bet-row--lose .ring .c { color: #ff8a8a; }
+.mini-legs { display: flex; gap: 6px; margin-top: 3px; font-size: 11px; }
+.mini-legs span { padding: 1px 7px; border-radius: 99px; background: #23262f; color: #aaaeba; }
+.mini-legs span.win { background: rgba(99,214,159,.15); color: #63d69f; }
+.mini-legs span.lose { background: rgba(255,107,107,.15); color: #ff8a8a; }
+.mini-legs span.cancel { text-decoration: line-through; opacity: .6; }
+</style>
+</head>
+<body class="demo">
+
+<h1>Combinés dans l'Historique</h1>
+<p class="sub">
+    Une jauge montre où en est chaque combiné, sans tout détailler. <b>Clique sur une ligne de combiné</b> pour déplier la liste de ses paris.
+    Les lignes grises sont des mises simples, pour comparer. Le bouton « Faire avancer » valide le prochain pari en attente.
+</p>
+
+<div class="tabs">
+    <button class="tab active" data-v="A">A · Barre en segments</button>
+    <button class="tab" data-v="B">B · Pastilles reliées</button>
+    <button class="tab" data-v="C">C · Jauge du gain</button>
+    <button class="tab" data-v="D">D · Anneau compact</button>
+    <button class="pick" id="choose">Je choisis celle-ci</button>
+</div>
+
+<p class="desc" id="desc"></p>
+
+<div class="opts">
+    <label><input type="checkbox" id="o-phone"> Largeur téléphone</label>
+    <button class="my-bets-filter" id="advance">⏩ Faire avancer</button>
+    <button class="my-bets-filter" id="reset">↺ Recommencer</button>
+</div>
+
+<div class="frame" id="frame">
+    <div class="my-bets-filters">
+        <button class="my-bets-filter">Tous<span>7</span></button>
+        <button class="my-bets-filter">En cours<span>3</span></button>
+        <button class="my-bets-filter">Gagnés<span>2</span></button>
+        <button class="my-bets-filter">Perdus<span>1</span></button>
+        <button class="my-bets-filter active">Combinés<span>4</span></button>
+    </div>
+    <div class="my-bets-rows" id="rows"></div>
+</div>
+
+<script>
+const DESCS = {
+    A: "<b>Une barre coupée en autant de morceaux que de paris.</b> Vert = gagné, rouge = perdu, violet qui scintille = en attente, hachuré = annulé. On voit d'un coup d'œil « 2 sur 3 ». Sous le titre : la cote et la mise ; à droite le gain visé.",
+    B: "<b>Les paris sont des pastilles reliées par un trait, comme un parcours</b> jusqu'au 🏆. Le trait se colore en vert au fur et à mesure ; la pastille en attente pulse. Survole une pastille pour voir le pari (sur ordinateur).",
+    C: "<b>La jauge montre le gain, pas les paris :</b> elle se remplit avec la cote déjà gagnée (×2,25 acquis sur ×6,08). Plus parlant côté argent : « 225 € acquis sur 608 € ». Les petits traits marquent chaque pari.",
+    D: "<b>Le rond à gauche devient un anneau</b> qui se remplit (2/3), et la ligne garde la même hauteur qu'une mise simple. En dessous, les choix en petites pastilles colorées (Oui ✓, Non…). Le plus discret."
+};
+
+const START = [
+    { id: "c1", stake: 100, legs: [["Oui", "Thomas en retard demain ?", 1.80, "win"], ["Non", "Le PSG gagne ce week-end ?", 2.25, "open"], ["Oui", "Il pleut vendredi midi ?", 1.50, "open"]] },
+    { id: "c2", stake: 50, legs: [["Léa", "Qui gagne le baby-foot ?", 1.65, "win"], ["Oui", "Café réparé lundi ?", 3.40, "win"]] },
+    { id: "c3", stake: 200, legs: [["Oui", "Réunion finie avant 17h ?", 2.10, "win"], ["Non", "Sam ramène des croissants ?", 1.90, "lose"], ["Oui", "Livraison avant midi ?", 1.70, "open"]] },
+    { id: "c4", stake: 80, legs: [["Oui", "Pizza ce midi ?", 1.40, "open"], ["Non", "Max à l'heure ?", 2.60, "open"], ["Oui", "Il neige mardi ?", 4.10, "cancel"], ["Oui", "Match nul samedi ?", 3.20, "open"]] }
+];
+const SIMPLES = [
+    { q: "Le PSG gagne ce week-end ?", sub: "Non · 2,25 · mise 40 €", res: "open", amt: "90 €" },
+    { q: "Qui gagne le baby-foot ?", sub: "Léa · 1,65 · mise 100 €", res: "win", amt: "+165 €" }
+];
+
+let version = "A";
+let combos = JSON.parse(JSON.stringify(START));
+const openSet = new Set();
+let popped = null;
+
+const fmt = n => Number(n).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money = n => Math.round(n).toLocaleString("fr-FR") + " €";
+const MK = { win: "✓", lose: "✗", open: "⏳", cancel: "↺" };
+
+function boost(n) { return 0.05 * Math.max(n - 2, 0); }
+function comboInfo(c) {
+    const live = c.legs.filter(l => l[3] !== "cancel");
+    const total = Math.min(100, live.reduce((t, l) => t * l[2], 1) * (1 + boost(c.legs.length)));
+    const wonLegs = live.filter(l => l[3] === "win");
+    const got = wonLegs.reduce((t, l) => t * l[2], 1);
+    const lost = c.legs.some(l => l[3] === "lose");
+    const pending = c.legs.some(l => l[3] === "open");
+    const status = lost ? "lose" : pending ? "open" : "win";
+    return { total, got, done: wonLegs.length, count: live.length, status };
+}
+
+function detailHtml(c) {
+    return `<div class="combo-detail"><div><ul>${c.legs.map(l => `<li><span class="mk ${l[3]}">${MK[l[3]]}</span><span><b>${l[0]}</b> · ${l[1]}</span><span class="o">${fmt(l[2])}</span></li>`).join("")}</ul></div></div>`;
+}
+
+function amountHtml(c, info) {
+    return info.status === "win" ? "+" + money(c.stake * info.total)
+        : info.status === "lose" ? "−" + money(c.stake)
+        : money(c.stake * info.total);
+}
+
+function gaugeHtml(c, info) {
+    if (version === "A") {
+        return `<div class="segbar">${c.legs.map((l, i) => `<i class="${l[3]}${popped === c.id + i ? " pop" : ""}"></i>`).join("")}</div>`;
+    }
+    if (version === "B") {
+        let html = "";
+        c.legs.forEach((l, i) => {
+            if (i) {
+                const prev = c.legs[i - 1][3];
+                html += `<span class="ln ${prev === "lose" ? "lose" : prev === "win" ? "done" : ""}"></span>`;
+            }
+            html += `<span class="st ${l[3]}" data-tip="${l[0]} · ${l[1]}">${l[3] === "open" ? "" : MK[l[3]]}</span>`;
+        });
+        return `<div class="steps">${html}<span class="ln ${info.status === "win" ? "done" : ""}"></span><span class="goal">${info.status === "lose" ? "💥" : "🏆"}</span></div>`;
+    }
+    if (version === "C") {
+        const pct = info.status === "lose" ? 100 : info.status === "win" ? 100 : Math.log(info.got) / Math.log(info.total) * 100;
+        const label = info.status === "lose"
+            ? `<span>Perdu sur un pari</span><span><b>−${money(c.stake)}</b></span>`
+            : info.status === "win"
+                ? `<span>Tous les paris gagnés</span><span><b>${money(c.stake * info.total)}</b></span>`
+                : `<span><b>${money(c.stake * info.got)}</b> acquis · ×${fmt(info.got)}</span><span>objectif <b>${money(c.stake * info.total)}</b></span>`;
+        return `<div class="gain"><div class="track"><div class="fill" style="width:${Math.max(3, pct)}%"></div><div class="ticks">${info.count > 1 ? Array.from({ length: info.count }, () => "<span></span>").join("") : ""}</div></div><div class="lbl">${label}</div></div>`;
+    }
+    return `<div class="mini-legs">${c.legs.map(l => `<span class="${l[3]}">${l[0]}${l[3] === "win" ? " ✓" : l[3] === "lose" ? " ✗" : ""}</span>`).join("")}</div>`;
+}
+
+function ringHtml(c, info) {
+    const r = 16, len = 2 * Math.PI * r, n = c.legs.length, gap = 3;
+    const seg = len / n;
+    const colors = { win: "#63d69f", lose: "#ff6b6b", open: "#3a3e4c", cancel: "#2c3040" };
+    const arcs = c.legs.map((l, i) => `<circle cx="19" cy="19" r="${r}" fill="none" stroke="${colors[l[3]]}" stroke-width="4" stroke-dasharray="${seg - gap} ${len - seg + gap}" stroke-dashoffset="${-i * seg}" stroke-linecap="round"/>`).join("");
+    const center = info.status === "win" ? "✓" : info.status === "lose" ? "✗" : `${info.done}/${info.count}`;
+    return `<span class="ring"><svg viewBox="0 0 38 38">${arcs}</svg><span class="c">${center}</span></span>`;
+}
+
+function render() {
+    const rows = document.getElementById("rows");
+    const html = [];
+    combos.forEach((c, idx) => {
+        const info = comboInfo(c);
+        const result = info.status;
+        const dot = version === "D" ? ringHtml(c, info) : `<span class="my-bet-dot cdot">${result === "win" ? "✓" : result === "lose" ? "✗" : "🔗"}</span>`;
+        const title = version === "D"
+            ? `🔗 Combiné · ${c.legs.length} paris`
+            : `🔗 Combiné · ${c.legs.length} paris <span class="chev">▼</span>`;
+        const sub = version === "C"
+            ? `cote ×${fmt(info.total)} · mise ${money(c.stake)}`
+            : version === "D"
+                ? ""
+                : `<b>${info.done}/${info.count}</b> gagnés · cote ×${fmt(info.total)} · mise ${money(c.stake)}`;
+        html.push(`
+            <div class="my-bet-item my-bet-row combo my-bet-row--${result}${openSet.has(c.id) ? " open" : ""}" data-id="${c.id}">
+                ${dot}
+                <div class="my-bet-text">
+                    <h3>${title}</h3>
+                    ${sub ? `<div class="sub2">${sub}</div>` : ""}
+                    ${gaugeHtml(c, info)}
+                </div>
+                <span class="my-bet-amount">${amountHtml(c, info)}</span>
+                ${detailHtml(c)}
+            </div>`);
+        if (idx < SIMPLES.length) {
+            const s = SIMPLES[idx];
+            html.push(`<div class="my-bet-item my-bet-row my-bet-row--${s.res}"><span class="my-bet-dot">${s.res === "win" ? "✓" : "⏳"}</span><div class="my-bet-text"><h3>${s.q}</h3><p>${s.sub}</p></div><span class="my-bet-amount">${s.amt}</span></div>`);
+        }
+    });
+    rows.innerHTML = html.join("");
+    rows.querySelectorAll(".combo").forEach(row => row.addEventListener("click", () => {
+        const id = row.dataset.id;
+        openSet.has(id) ? openSet.delete(id) : openSet.add(id);
+        row.classList.toggle("open");
+    }));
+    document.getElementById("desc").innerHTML = DESCS[version];
+    popped = null;
+}
+
+document.getElementById("advance").onclick = () => {
+    for (const c of combos) {
+        if (comboInfo(c).status !== "open") continue;
+        const i = c.legs.findIndex(l => l[3] === "open");
+        c.legs[i][3] = Math.random() < 0.75 ? "win" : "lose";
+        popped = c.id + i;
+        render();
+        return;
+    }
+};
+document.getElementById("reset").onclick = () => { combos = JSON.parse(JSON.stringify(START)); render(); };
+document.getElementById("o-phone").onchange = e => document.getElementById("frame").classList.toggle("phone", e.target.checked);
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === t));
+    version = t.dataset.v;
+    render();
+});
+
+document.getElementById("choose").onclick = () => {
+    const text = `Historique des combinés : je choisis la version ${version}`;
+    navigator.clipboard && navigator.clipboard.writeText(text).catch(() => {});
+    const t = document.createElement("div");
+    t.className = "copied";
+    t.textContent = "✅ Copié : " + text;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+};
+
+render();
+</script>
+</body>
+</html>

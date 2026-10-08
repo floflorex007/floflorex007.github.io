@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Transition brouillon → pari publié (propositions)</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body.demo { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; margin: 0; display: block; min-height: 0; }
+.demo h1 { font-size: 26px; margin: 0 0 6px; }
+.demo .sub { color: #858a98; margin: 0 0 16px; max-width: 800px; font-size: 14px; line-height: 1.5; }
+.demo .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; position: sticky; top: 0; background: #0f1117; padding: 10px 0; z-index: 30; align-items: center; }
+.demo .tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; font: inherit; }
+.demo .tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.demo .play { background: #f5c451; border: none; color: #3a2a00; font-weight: 900; padding: 10px 16px; border-radius: 12px; cursor: pointer; font: inherit; font-weight: 900; }
+.demo .pick { margin-left: auto; background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; font-weight: 900; padding: 10px 16px; border-radius: 12px; cursor: pointer; font: inherit; font-weight: 900; }
+.demo .desc { color: #aaaeba; font-size: 14px; max-width: 760px; margin-bottom: 20px; line-height: 1.5; min-height: 63px; }
+.demo .desc b { color: #e6e8ee; }
+
+/* Scène : la carte brouillon et la carte publiée l'une sur l'autre */
+.scene { position: relative; max-width: 480px; perspective: 1400px; }
+.scene .bet-card { position: relative; cursor: default; }
+.scene .layer { position: absolute; inset: 0; }
+.scene .layer > .bet-card { height: 100%; box-sizing: border-box; }
+.scene .under { position: relative; }
+.other { max-width: 480px; margin-top: 16px; opacity: .55; }
+.other .bet-card { cursor: default; }
+
+/* A : tampon */
+.stamp { position: absolute; left: 50%; top: 46%; z-index: 6; pointer-events: none; transform: translate(-50%, -50%) rotate(-12deg); border: 4px solid #63d69f; color: #63d69f; font-weight: 900; font-size: 34px; letter-spacing: 4px; padding: 6px 18px; border-radius: 12px; background: rgba(15, 17, 23, .55); text-shadow: 0 0 18px rgba(99, 214, 159, .5); box-shadow: 0 0 24px rgba(99, 214, 159, .35), inset 0 0 18px rgba(99, 214, 159, .2); opacity: 0; }
+
+/* B : retournement */
+.flip { position: relative; transform-style: preserve-3d; }
+.flip .face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.flip .back { position: absolute; inset: 0; transform: rotateY(180deg); }
+.flip .back > .bet-card { height: 100%; box-sizing: border-box; }
+
+/* C : bordure qui se trace */
+.trace { position: absolute; inset: -1px; z-index: 5; pointer-events: none; overflow: visible; }
+.trace rect { fill: none; stroke: #8f88ff; stroke-width: 2.5; filter: drop-shadow(0 0 6px rgba(108, 99, 255, .9)); }
+
+/* D : envol */
+.spark { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: #f5c451; box-shadow: 0 0 10px #f5c451; pointer-events: none; z-index: 7; }
+.toast-pub { position: absolute; left: 50%; top: -14px; transform: translateX(-50%); z-index: 8; background: #1c202c; border: 1px solid #63d69f; color: #e6e8ee; font-size: 13px; font-weight: 800; padding: 6px 12px; border-radius: 999px; white-space: nowrap; opacity: 0; box-shadow: 0 8px 20px rgba(0,0,0,.4); }
+
+.copied { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1c202c; border: 1px solid #63d69f; padding: 12px 18px; border-radius: 14px; font-weight: 700; z-index: 50; }
+</style>
+</head>
+<body class="demo">
+
+<h1>Brouillon → pari publié</h1>
+<p class="sub">
+    Ce qui se passe sur la carte juste après « Miser 50 € et publier » (la fenêtre de mise vient de se fermer).
+    Choisis une version, clique « ▶ Rejouer » autant que tu veux, puis « Je choisis celle-ci ».
+</p>
+
+<div class="tabs">
+    <button class="tab active" data-v="A">A · Tampon « Publié »</button>
+    <button class="tab" data-v="B">B · Retournement</button>
+    <button class="tab" data-v="C">C · Bordure qui se trace</button>
+    <button class="tab" data-v="D">D · Envol</button>
+    <button class="play" id="play">▶ Rejouer</button>
+    <button class="pick" id="choose">Je choisis celle-ci</button>
+</div>
+
+<p class="desc" id="desc"></p>
+
+<div class="scene" id="scene"></div>
+
+<div class="other">
+    <div class="bet-card">
+        <div class="bet-card-header"><span>🏆</span><span class="bet-author">Créé par <b>Yann</b></span></div>
+        <div class="bet-question-row"><span class="bet-question-icon">🎲</span><h3>Le PSG gagne ce week-end ?</h3><span class="bet-deadline">Sam. 18:00</span></div>
+        <div class="bet-choices">
+            <div class="bet-choice-wrapper"><div class="bet-choice-button"><span>Oui</span><strong>1.50</strong></div><div class="choice-bar-track"><div class="choice-bar-fill" style="width:70%"></div></div><div class="choice-pct">70%</div></div>
+            <div class="bet-choice-wrapper"><div class="bet-choice-button"><span>Non</span><strong>3.00</strong></div><div class="choice-bar-track"><div class="choice-bar-fill" style="width:30%"></div></div><div class="choice-pct">30%</div></div>
+        </div>
+    </div>
+</div>
+
+<script>
+const DESCS = {
+    A: "<b>Un tampon vert « PUBLIÉ » frappe la carte</b> (petite secousse). Puis le jaune s'en va sur place : rayures et pointillés s'effacent, la carte prend son aspect normal avec la pastille NEW, et la barre de ta cote se remplit avec ta mise.",
+    B: "<b>La carte se retourne comme une carte à jouer.</b> Recto : le brouillon jaune. Verso : le pari publié, avec ta mise sur la cote choisie. Un petit rebond à l'arrivée.",
+    C: "<b>Un trait violet lumineux fait le tour de la carte</b> en remplaçant les pointillés jaunes. Une fois le tour bouclé, la carte devient normale d'un coup doux, l'étiquette « Brouillon » s'envole et la pastille NEW apparaît.",
+    D: "<b>La carte jaune s'envole vers le haut</b> en lâchant des étincelles dorées (elle part chez tout le monde). Une bulle « 🚀 Publié pour tout le monde » passe, puis la carte publiée retombe à sa place avec le reflet des nouvelles cartes."
+};
+
+const QUESTION = "Est-ce que Thomas arrivera en retard demain ?";
+
+function draftHtml() {
+    return `<div class="bet-card bet-card-draft">
+        <div class="bet-card-header"><span>🏆</span><span class="bet-author">Créé par <b>Toi</b></span><span class="draft-tag">Brouillon · visible par toi seul</span></div>
+        <div class="bet-question-row"><span class="bet-question-icon">🎲</span><h3>${QUESTION}</h3><span class="bet-deadline">Demain 20:00</span></div>
+        <div class="bet-choices">
+            <div class="bet-choice-wrapper"><div class="bet-choice-button"><span>Oui</span><strong>1.80</strong></div><div class="choice-bar-track"><div class="choice-bar-fill" style="width:0%"></div></div><div class="choice-pct">0%</div></div>
+            <div class="bet-choice-wrapper"><div class="bet-choice-button"><span>Non</span><strong>2.25</strong></div><div class="choice-bar-track"><div class="choice-bar-fill" style="width:0%"></div></div><div class="choice-pct">0%</div></div>
+        </div>
+        <div class="draft-banner">👆 Mise sur ton pari pour le publier</div>
+        <div class="bet-footer"><span class="draft-delete">🗑 Supprimer le brouillon</span><div class="bet-total-footer"><span>Solde misé</span><strong>0 €</strong></div></div>
+    </div>`;
+}
+
+function publishedHtml(fill = 100) {
+    return `<div class="bet-card bet-card-new">
+        <span class="bet-new-badge">NEW</span>
+        <div class="bet-card-header"><span>🏆</span><span class="bet-author">Créé par <b>Toi</b></span></div>
+        <div class="bet-question-row"><span class="bet-question-icon">🎲</span><h3>${QUESTION}</h3><span class="bet-deadline">Demain 20:00</span></div>
+        <div class="bet-choices">
+            <div class="bet-choice-wrapper"><span class="choice-badge">1</span><div class="bet-choice-button bet-choice-picked"><span>Oui</span><strong>1.80</strong></div><div class="choice-bar-track"><div class="choice-bar-fill" style="width:${fill}%"></div></div><div class="choice-pct">100%</div></div>
+            <div class="bet-choice-wrapper"><div class="bet-choice-button"><span>Non</span><strong>2.25</strong></div><div class="choice-bar-track"><div class="choice-bar-fill" style="width:0%"></div></div><div class="choice-pct">0%</div></div>
+        </div>
+        <div class="draft-banner" style="visibility:hidden">👆 Mise sur ton pari pour le publier</div>
+        <div class="bet-footer"><span></span><div class="bet-total-footer"><span>Solde misé</span><strong>50 €</strong></div></div>
+    </div>`;
+}
+
+/*
+    Les deux cartes ont la même hauteur (la ligne « Mise sur ton pari »
+    reste invisible sur la carte publiée), pour que la démo ne saute pas.
+    Dans le site, la carte publiée est juste un peu plus courte.
+*/
+
+let version = "A";
+let running = [];
+
+function track(anim) { running.push(anim); return anim; }
+
+function stopAll() {
+    running.forEach(a => { try { a.cancel(); } catch (e) {} });
+    running = [];
+    document.querySelectorAll(".spark").forEach(s => s.remove());
+}
+
+const scene = document.getElementById("scene");
+
+function fillBar(card, delay) {
+    const fill = card.querySelector(".bet-choice-picked")?.closest(".bet-choice-wrapper").querySelector(".choice-bar-fill");
+    if (fill) track(fill.animate([{ width: "0%" }, { width: "100%" }], { duration: 700, delay, easing: "cubic-bezier(.2,.8,.2,1)", fill: "backwards" }));
+    const badge = card.querySelector(".choice-badge");
+    if (badge) track(badge.animate([{ transform: "scale(0)" }, { transform: "scale(1.3)", offset: .7 }, { transform: "scale(1)" }], { duration: 400, delay: delay + 200, fill: "backwards" }));
+    const nb = card.querySelector(".bet-new-badge");
+    if (nb) track(nb.animate([{ transform: "scale(0)", opacity: 0 }, { transform: "scale(1.25)", opacity: 1, offset: .7 }, { transform: "scale(1)", opacity: 1 }], { duration: 450, delay: delay + 100, fill: "backwards" }));
+}
+
+/* ---------- A : tampon ---------- */
+function playA() {
+    scene.innerHTML = `<div class="under">${publishedHtml()}</div><div class="layer">${draftHtml()}</div><div class="stamp">PUBLIÉ</div>`;
+    const draft = scene.querySelector(".layer");
+    const stamp = scene.querySelector(".stamp");
+    const pub = scene.querySelector(".under .bet-card");
+    track(stamp.animate([
+        { opacity: 0, transform: "translate(-50%,-50%) rotate(-12deg) scale(2.4)" },
+        { opacity: 1, transform: "translate(-50%,-50%) rotate(-12deg) scale(.92)", offset: .55 },
+        { opacity: 1, transform: "translate(-50%,-50%) rotate(-12deg) scale(1)", offset: .7 },
+        { opacity: 1, transform: "translate(-50%,-50%) rotate(-12deg) scale(1)", offset: .85 },
+        { opacity: 0, transform: "translate(-50%,-50%) rotate(-12deg) scale(1.05)" }
+    ], { duration: 1500, delay: 250, easing: "ease-out", fill: "both" }));
+    track(scene.animate([
+        { transform: "none" }, { transform: "translate(-3px, 2px) rotate(-.4deg)" }, { transform: "translate(3px,-1px) rotate(.3deg)" }, { transform: "none" }
+    ], { duration: 260, delay: 250 + 1500 * .55 }));
+    track(draft.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 600, delay: 1350, easing: "ease-in-out", fill: "both" }));
+    track(pub.animate([{ boxShadow: "0 0 0 2px rgba(99,214,159,.8), 0 0 40px rgba(99,214,159,.45)" }, { boxShadow: "0 0 30px rgba(108,99,255,.3)" }], { duration: 1200, delay: 1500 }));
+    fillBar(pub, 1700);
+}
+
+/* ---------- B : retournement ---------- */
+function playB() {
+    scene.innerHTML = `<div class="flip"><div class="face front">${draftHtml()}</div><div class="face back">${publishedHtml()}</div></div>`;
+    const flip = scene.querySelector(".flip");
+    track(flip.animate([
+        { transform: "rotateY(0deg) scale(1)" },
+        { transform: "rotateY(90deg) scale(.94)", offset: .45 },
+        { transform: "rotateY(185deg) scale(1.02)", offset: .8 },
+        { transform: "rotateY(180deg) scale(1)" }
+    ], { duration: 1100, delay: 300, easing: "cubic-bezier(.45,0,.25,1)", fill: "both" }));
+    fillBar(scene.querySelector(".back .bet-card"), 1250);
+}
+
+/* ---------- C : bordure qui se trace ---------- */
+function playC() {
+    scene.innerHTML = `<div class="under">${publishedHtml()}</div><div class="layer">${draftHtml()}</div>`;
+    const layer = scene.querySelector(".layer");
+    const draftCard = layer.querySelector(".bet-card");
+    const pub = scene.querySelector(".under .bet-card");
+    const w = scene.offsetWidth + 2, h = scene.offsetHeight + 2;
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", "trace");
+    svg.setAttribute("width", w);
+    svg.setAttribute("height", h);
+    svg.innerHTML = `<rect x="1" y="1" width="${w - 2}" height="${h - 2}" rx="18" ry="18"/>`;
+    scene.appendChild(svg);
+    const rect = svg.querySelector("rect");
+    const len = rect.getTotalLength();
+    rect.style.strokeDasharray = len;
+    track(rect.animate([{ strokeDashoffset: len }, { strokeDashoffset: 0 }], { duration: 1100, delay: 250, easing: "cubic-bezier(.5,0,.3,1)", fill: "both" }));
+    track(svg.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 500, delay: 1450, fill: "both" }));
+    track(draftCard.animate([{ borderColor: "#f5c451" }, { borderColor: "transparent" }], { duration: 900, delay: 250, fill: "both" }));
+    const tag = draftCard.querySelector(".draft-tag");
+    track(tag.animate([{ transform: "none", opacity: 1 }, { transform: "translate(30px,-26px) rotate(14deg)", opacity: 0 }], { duration: 500, delay: 1300, easing: "ease-in", fill: "both" }));
+    track(layer.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 450, delay: 1350, fill: "both" }));
+    fillBar(pub, 1500);
+}
+
+/* ---------- D : envol ---------- */
+function playD() {
+    scene.innerHTML = `<div class="under">${publishedHtml()}</div><div class="layer">${draftHtml()}</div><div class="toast-pub">🚀 Publié pour tout le monde</div>`;
+    const layer = scene.querySelector(".layer");
+    const pub = scene.querySelector(".under .bet-card");
+    const toast = scene.querySelector(".toast-pub");
+    track(layer.animate([
+        { transform: "none", opacity: 1, filter: "brightness(1)" },
+        { transform: "translateY(8px) scale(.98)", opacity: 1, filter: "brightness(1)", offset: .2 },
+        { transform: "translateY(-220px) scale(.7)", opacity: 0, filter: "brightness(1.8)" }
+    ], { duration: 900, delay: 200, easing: "cubic-bezier(.5,0,.75,0)", fill: "both" }));
+    for (let i = 0; i < 18; i++) {
+        const s = document.createElement("div");
+        s.className = "spark";
+        s.style.left = (10 + Math.random() * 80) + "%";
+        s.style.top = (40 + Math.random() * 50) + "%";
+        scene.appendChild(s);
+        const a = track(s.animate([
+            { transform: "translate(0,0) scale(1)", opacity: 0 },
+            { opacity: 1, offset: .2 },
+            { transform: `translate(${(Math.random() - .5) * 120}px, ${-80 - Math.random() * 160}px) scale(.2)`, opacity: 0 }
+        ], { duration: 900 + Math.random() * 400, delay: 450 + Math.random() * 300, easing: "ease-out", fill: "both" }));
+        a.finished.then(() => s.remove()).catch(() => s.remove());
+    }
+    track(toast.animate([
+        { opacity: 0, transform: "translate(-50%, 10px)" },
+        { opacity: 1, transform: "translate(-50%, 0)", offset: .2 },
+        { opacity: 1, transform: "translate(-50%, 0)", offset: .8 },
+        { opacity: 0, transform: "translate(-50%, -10px)" }
+    ], { duration: 1500, delay: 900, fill: "both" }));
+    // Retombée avec le dévoilement et le reflet des nouvelles cartes du site.
+    const M = 40;
+    track(pub.animate([
+        { opacity: 0, clipPath: `inset(-${M}px calc(100% + ${M}px) -${M}px -${M}px)`, transform: "translateY(-14px)" },
+        { opacity: 1, clipPath: `inset(-${M}px -${M}px -${M}px -${M}px)`, transform: "none" }
+    ], { duration: 1000, delay: 1350, easing: "cubic-bezier(.2,.8,.2,1)", fill: "backwards" }));
+    const shine = document.createElement("div");
+    shine.className = "bet-live-shine";
+    shine.innerHTML = "<i></i>";
+    pub.appendChild(shine);
+    track(shine.firstElementChild.animate([{ left: "-45%" }, { left: "115%" }], { duration: 1100, delay: 1800, easing: "ease-in-out", fill: "both" }));
+    fillBar(pub, 2000);
+}
+
+const PLAYS = { A: playA, B: playB, C: playC, D: playD };
+
+function play() {
+    stopAll();
+    document.getElementById("desc").innerHTML = DESCS[version];
+    PLAYS[version]();
+}
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === t));
+    version = t.dataset.v;
+    play();
+});
+
+document.getElementById("play").onclick = play;
+
+document.getElementById("choose").onclick = () => {
+    const text = "Transition brouillon → publié : je choisis la version " + version;
+    navigator.clipboard && navigator.clipboard.writeText(text).catch(() => {});
+    const t = document.createElement("div");
+    t.className = "copied";
+    t.textContent = "✅ Copié : « " + text + " »";
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2600);
+};
+
+play();
+</script>
+</body>
+</html>

@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Pastille « Valider » en attente (propositions)</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body.demo { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; margin: 0; display: block; min-height: 0; }
+.demo h1 { font-size: 26px; margin: 0 0 6px; }
+.demo .sub { color: #858a98; margin: 0 0 16px; max-width: 820px; font-size: 14px; line-height: 1.5; }
+.demo .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; position: sticky; top: 0; background: #0f1117; padding: 10px 0; z-index: 30; align-items: center; }
+.demo .tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; font: inherit; }
+.demo .tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.demo .pick { margin-left: auto; background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; padding: 10px 16px; border-radius: 12px; cursor: pointer; font: inherit; font-weight: 900; }
+.demo .desc { color: #aaaeba; font-size: 14px; max-width: 760px; margin-bottom: 22px; line-height: 1.5; }
+.demo .desc b { color: #e6e8ee; }
+
+.layout { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; }
+.cards { flex: 1 1 400px; max-width: 480px; display: flex; flex-direction: column; gap: 34px; padding-top: 18px; }
+.cap { color: #737887; font-size: 12px; margin: -26px 0 -20px 4px; }
+.cards .bet-card { position: relative; cursor: default; }
+
+/* Paramètres */
+.params { flex: 0 1 320px; background: #14161e; border: 1px solid #23262f; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 14px; position: sticky; top: 76px; }
+.params h3 { margin: 0; font-size: 15px; }
+.prm label { display: block; font-size: 12px; font-weight: 800; color: #aaaeba; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .4px; }
+.prm input[type=text], .prm select { width: 100%; box-sizing: border-box; background: #101219; border: 1px solid #343846; color: #e6e8ee; border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 14px; }
+.swatches, .icons, .seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.sw { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
+.sw.on { border-color: white; }
+.ic, .sg { background: #23262f; border: 1px solid #343846; color: #e6e8ee; border-radius: 10px; padding: 6px 10px; cursor: pointer; font: inherit; font-size: 14px; }
+.ic.on, .sg.on { border-color: #6c63ff; background: rgba(108, 99, 255, .2); }
+.prm .chk { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #c9ccd6; cursor: pointer; text-transform: none; letter-spacing: 0; font-weight: 500; margin: 0; }
+.hintp { color: #737887; font-size: 12px; line-height: 1.5; }
+
+/* Pastille en attente (la vraie .validate-fab, recolorée par variables) */
+.validate-fab.wait { background: var(--wb); color: var(--wi); box-shadow: 0 6px 18px var(--wg); }
+.validate-fab.wait.outline { background: #14161e; color: var(--wc); border: 2px dashed var(--wc); box-shadow: none; }
+.validate-fab.wait.pulse { animation: wait-pulse 1.8s ease-in-out infinite; }
+@keyframes wait-pulse { 50% { box-shadow: 0 0 0 6px transparent, 0 6px 18px var(--wg); filter: brightness(1.15); } }
+.validate-fab.wait.no { animation: wait-no .45s ease; }
+@keyframes wait-no { 20% { transform: translateX(calc(-50% - 6px)); } 40% { transform: translateX(calc(-50% + 6px)); } 60% { transform: translateX(calc(-50% - 4px)); } 80% { transform: translateX(calc(-50% + 3px)); } }
+.bet-card:hover .validate-fab, .validate-fab.force-open { max-width: 220px; padding: 0 12px 0 8px; }
+.bet-card:hover .validate-fab span, .validate-fab.force-open span { opacity: 1; }
+.validate-fab.ready { background: linear-gradient(135deg, #2fa36f, #63d69f); }
+
+/* Explications au clic */
+.wbubble { position: absolute; top: 24px; left: 50%; transform: translateX(-50%); z-index: 6; width: max-content; max-width: 280px; background: #1c202c; border: 1px solid var(--wc); color: #e6e8ee; font-size: 13px; line-height: 1.45; padding: 10px 12px; border-radius: 12px; box-shadow: 0 12px 30px rgba(0,0,0,.5); text-align: center; animation: wpop .25s ease-out; }
+.wbubble::before { content: ""; position: absolute; top: -6px; left: 50%; width: 10px; height: 10px; background: #1c202c; border-left: 1px solid var(--wc); border-top: 1px solid var(--wc); transform: translateX(-50%) rotate(45deg); }
+@keyframes wpop { from { opacity: 0; transform: translate(-50%, -6px) scale(.95); } }
+.wbanner { margin: 0 0 14px; padding: 10px 12px; border-radius: 12px; font-size: 13px; font-weight: 700; color: var(--wc); background: color-mix(in srgb, var(--wc) 12%, transparent); border: 1px solid color-mix(in srgb, var(--wc) 45%, transparent); animation: wdown .3s ease-out; }
+@keyframes wdown { from { opacity: 0; transform: translateY(-8px); } }
+.wtoast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 60; background: #1c202c; border: 1px solid var(--wc); color: #e6e8ee; padding: 12px 18px; border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.5); font-size: 14px; font-weight: 700; max-width: calc(100% - 32px); animation: wup .3s ease-out; }
+@keyframes wup { from { opacity: 0; transform: translate(-50%, 12px); } }
+.copied { position: fixed; left: 50%; bottom: 80px; transform: translateX(-50%); background: #1c202c; border: 1px solid #63d69f; padding: 12px 18px; border-radius: 14px; font-weight: 700; z-index: 70; max-width: calc(100% - 32px); }
+@media (max-width: 760px) { .params { position: static; } .demo .pick { margin-left: 0; } }
+</style>
+</head>
+<body class="demo">
+
+<h1>Pastille « Valider » en attente</h1>
+<p class="sub">
+    Tant que personne d'autre n'a misé, la pastille reste sur la carte mais change de couleur, et un clic explique qu'il faut attendre.
+    Passe la souris sur la carte pour déplier la pastille, clique dessus. Règle les paramètres à droite, puis « Je choisis celle-ci » (tes réglages sont copiés avec).
+</p>
+
+<div class="tabs">
+    <button class="tab active" data-v="A">A · Gris + bulle</button>
+    <button class="tab" data-v="B">B · Ambre + bandeau</button>
+    <button class="tab" data-v="C">C · Contour + secousse</button>
+    <button class="tab" data-v="D">D · Bleu qui respire + toast</button>
+    <button class="pick" id="choose">Je choisis celle-ci</button>
+</div>
+
+<p class="desc" id="desc"></p>
+
+<div class="layout">
+
+    <div class="cards">
+        <div id="card-wait"></div>
+        <p class="cap">↑ Personne d'autre n'a misé : pas encore validable</p>
+        <div id="card-ready"></div>
+        <p class="cap">↑ Pour comparer : un autre joueur a misé, la pastille verte habituelle</p>
+    </div>
+
+    <div class="params" id="params">
+        <h3>⚙️ Paramètres</h3>
+
+        <div class="prm"><label>Couleur</label><div class="swatches" id="p-color"></div></div>
+
+        <div class="prm"><label>Style</label><div class="seg" id="p-style"></div></div>
+
+        <div class="prm"><label>Icône</label><div class="icons" id="p-icon"></div></div>
+
+        <div class="prm"><label>Texte de la pastille</label><input type="text" id="p-label"></div>
+
+        <div class="prm"><label>Au clic</label><div class="seg" id="p-click"></div></div>
+
+        <div class="prm"><label>Message d'explication</label><input type="text" id="p-msg"></div>
+
+        <div class="prm">
+            <label class="chk"><input type="checkbox" id="p-pulse"> La pastille respire doucement</label>
+            <label class="chk" style="margin-top:8px"><input type="checkbox" id="p-shake"> Petite secousse « non » au clic</label>
+            <label class="chk" style="margin-top:8px"><input type="checkbox" id="p-open"> Toujours dépliée (pas besoin de survoler)</label>
+        </div>
+
+        <p class="hintp">Sur téléphone il n'y a pas de survol : la pastille reste repliée (juste l'icône) et le clic montre l'explication.</p>
+    </div>
+
+</div>
+
+<script>
+const COLORS = {
+    gris:   { c: "#9a9eaa", b: "linear-gradient(135deg, #5b5f6e, #8a8e9c)", i: "#14161e", g: "rgba(154,158,170,.3)" },
+    ambre:  { c: "#f5a524", b: "linear-gradient(135deg, #d9860b, #f5c451)", i: "#3a2a00", g: "rgba(245,165,36,.4)" },
+    bleu:   { c: "#5cb8ff", b: "linear-gradient(135deg, #2f7fd6, #5cb8ff)", i: "#06213d", g: "rgba(92,184,255,.4)" },
+    violet: { c: "#a59fff", b: "linear-gradient(135deg, #6c63ff, #a59fff)", i: "#ffffff", g: "rgba(108,99,255,.4)" },
+    rouge:  { c: "#ff7b7b", b: "linear-gradient(135deg, #d94848, #ff8a8a)", i: "#2b0606", g: "rgba(255,107,107,.4)" },
+    vertpale: { c: "#7fbf9f", b: "linear-gradient(135deg, #3d6e57, #6f9d86)", i: "#0b1f15", g: "rgba(99,214,159,.18)" }
+};
+const STYLES = { plein: "Pleine", contour: "Contour pointillé" };
+const ICONS = ["⏳", "🔒", "✓", "⌛", "👀", "🕐"];
+const CLICKS = { bulle: "Bulle sous la pastille", bandeau: "Bandeau dans la carte", toast: "Message en bas de l'écran", rien: "Rien (juste la secousse)" };
+
+const PRESETS = {
+    A: { color: "gris", style: "plein", icon: "⏳", label: "En attente", click: "bulle", msg: "Attends qu'un autre joueur mise sur ton pari pour pouvoir le valider.", pulse: false, shake: false, open: false },
+    B: { color: "ambre", style: "plein", icon: "🔒", label: "Pas encore validable", click: "bandeau", msg: "🔒 Pas encore validable : il faut qu'au moins un autre joueur mise sur ton pari.", pulse: false, shake: true, open: false },
+    C: { color: "vertpale", style: "contour", icon: "✓", label: "En attente d'un parieur", click: "rien", msg: "Il faut qu'un autre joueur mise avant de valider.", pulse: false, shake: true, open: false },
+    D: { color: "bleu", style: "plein", icon: "⌛", label: "0 / 1 parieur", click: "toast", msg: "⌛ Ton pari sera validable dès qu'un autre joueur aura misé dessus.", pulse: true, shake: false, open: false }
+};
+
+const DESCS = {
+    A: "<b>Pastille grise ⏳ « En attente ».</b> Au clic, une petite bulle s'ouvre juste sous la pastille avec l'explication, et se ferme toute seule.",
+    B: "<b>Pastille ambre 🔒 « Pas encore validable ».</b> Au clic, elle fait « non » de la tête et un bandeau ambre glisse en haut de la carte avec l'explication.",
+    C: "<b>Même pastille verte, mais vide (contour pointillé, vert pâle).</b> On reconnaît le bouton Valider, « pas encore rempli ». Au clic, secousse « non » ; le texte déplié suffit à expliquer.",
+    D: "<b>Pastille bleue ⌛ qui respire, avec un compteur « 0 / 1 parieur ».</b> Au clic, un message apparaît en bas de l'écran."
+};
+
+let version = "A";
+let p = { ...PRESETS.A };
+let hideTimer = null;
+
+const QUESTION = "Est-ce que Thomas arrivera en retard demain ?";
+
+function cardHtml(ready) {
+    return `<div class="bet-card bet-card-new">
+        ${ready
+            ? `<button type="button" class="validate-fab ready">✓<span>Valider</span></button>`
+            : `<button type="button" class="validate-fab wait" id="wfab">${p.icon}<span>${p.label}</span></button>`}
+        <div class="bet-card-header"><span>🏆</span><span class="bet-author">Créé par <b>Toi</b></span></div>
+        <div class="wslot"></div>
+        <div class="bet-question-row"><span class="bet-question-icon">🎲</span><h3>${QUESTION}</h3><span class="bet-deadline">Demain 20:00</span></div>
+        <div class="bet-choices">
+            <div class="bet-choice-wrapper"><span class="choice-badge">${ready ? 2 : 1}</span><div class="bet-choice-button bet-choice-picked"><span>Oui</span><strong>1.80</strong></div><div class="choice-bar-track"><div class="choice-bar-fill" style="width:${ready ? 64 : 100}%"></div></div><div class="choice-pct">${ready ? 64 : 100}%</div></div>
+            <div class="bet-choice-wrapper"><div class="bet-choice-button"><span>Non</span><strong>2.25</strong></div><div class="choice-bar-track"><div class="choice-bar-fill" style="width:${ready ? 36 : 0}%"></div></div><div class="choice-pct">${ready ? 36 : 0}%</div></div>
+        </div>
+        <div class="bet-footer"><span></span><div class="bet-total-footer"><span>Solde misé</span><strong>${ready ? "78 €" : "50 €"}</strong></div></div>
+    </div>`;
+}
+
+function applyVars() {
+    const col = COLORS[p.color];
+    const root = document.documentElement.style;
+    root.setProperty("--wc", col.c);
+    root.setProperty("--wb", col.b);
+    root.setProperty("--wi", col.i);
+    root.setProperty("--wg", col.g);
+}
+
+function render() {
+    applyVars();
+    document.getElementById("desc").innerHTML = DESCS[version];
+    document.getElementById("card-wait").innerHTML = cardHtml(false);
+    document.getElementById("card-ready").innerHTML = cardHtml(true);
+    const fab = document.getElementById("wfab");
+    fab.classList.toggle("outline", p.style === "contour");
+    fab.classList.toggle("pulse", p.pulse);
+    fab.classList.toggle("force-open", p.open);
+    fab.onclick = onClick;
+    renderParams();
+}
+
+function onClick(event) {
+    event.stopPropagation();
+    const fab = event.currentTarget;
+    const card = fab.closest(".bet-card");
+    if (p.shake) {
+        fab.classList.remove("no");
+        void fab.offsetWidth;
+        fab.classList.add("no");
+    }
+    clearTimeout(hideTimer);
+    document.querySelectorAll(".wbubble, .wtoast").forEach(e => e.remove());
+    if (p.click === "bulle") {
+        const b = document.createElement("div");
+        b.className = "wbubble";
+        b.textContent = p.msg;
+        card.appendChild(b);
+        hideTimer = setTimeout(() => b.remove(), 3200);
+    } else if (p.click === "bandeau") {
+        const slot = card.querySelector(".wslot");
+        slot.innerHTML = `<div class="wbanner">${escapeHtml(p.msg)}</div>`;
+        hideTimer = setTimeout(() => { slot.innerHTML = ""; }, 4000);
+    } else if (p.click === "toast") {
+        const t = document.createElement("div");
+        t.className = "wtoast";
+        t.textContent = p.msg;
+        document.body.appendChild(t);
+        hideTimer = setTimeout(() => t.remove(), 3200);
+    }
+}
+
+function escapeHtml(s) { return s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
+
+function renderParams() {
+    document.getElementById("p-color").innerHTML = Object.entries(COLORS).map(([k, v]) =>
+        `<div class="sw${p.color === k ? " on" : ""}" title="${k}" data-k="${k}" style="background:${v.b}"></div>`).join("");
+    document.getElementById("p-style").innerHTML = Object.entries(STYLES).map(([k, v]) =>
+        `<button class="sg${p.style === k ? " on" : ""}" data-k="${k}">${v}</button>`).join("");
+    document.getElementById("p-icon").innerHTML = ICONS.map(i =>
+        `<button class="ic${p.icon === i ? " on" : ""}" data-k="${i}">${i}</button>`).join("");
+    document.getElementById("p-click").innerHTML = Object.entries(CLICKS).map(([k, v]) =>
+        `<button class="sg${p.click === k ? " on" : ""}" data-k="${k}">${v}</button>`).join("");
+    const label = document.getElementById("p-label");
+    if (document.activeElement !== label) label.value = p.label;
+    const msg = document.getElementById("p-msg");
+    if (document.activeElement !== msg) msg.value = p.msg;
+    document.getElementById("p-pulse").checked = p.pulse;
+    document.getElementById("p-shake").checked = p.shake;
+    document.getElementById("p-open").checked = p.open;
+}
+
+function bindParams() {
+    const pickIn = (id, key) => document.getElementById(id).addEventListener("click", e => {
+        const k = e.target.closest("[data-k]")?.dataset.k;
+        if (k) { p[key] = k; render(); }
+    });
+    pickIn("p-color", "color");
+    pickIn("p-style", "style");
+    pickIn("p-icon", "icon");
+    pickIn("p-click", "click");
+    document.getElementById("p-label").addEventListener("input", e => { p.label = e.target.value; render(); });
+    document.getElementById("p-msg").addEventListener("input", e => { p.msg = e.target.value; });
+    ["pulse", "shake", "open"].forEach(k => document.getElementById("p-" + k).addEventListener("change", e => { p[k] = e.target.checked; render(); }));
+}
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === t));
+    version = t.dataset.v;
+    p = { ...PRESETS[version] };
+    render();
+});
+
+document.getElementById("choose").onclick = () => {
+    const text = `Pastille en attente : version ${version} — couleur ${p.color}, style ${STYLES[p.style].toLowerCase()}, icône ${p.icon}, texte « ${p.label} », au clic : ${CLICKS[p.click].toLowerCase()}, message « ${p.msg} »${p.pulse ? ", respire" : ""}${p.shake ? ", secousse" : ""}${p.open ? ", toujours dépliée" : ""}`;
+    navigator.clipboard && navigator.clipboard.writeText(text).catch(() => {});
+    const t = document.createElement("div");
+    t.className = "copied";
+    t.textContent = "✅ Copié : " + text;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3500);
+};
+
+bindParams();
+render();
+</script>
+</body>
+</html>

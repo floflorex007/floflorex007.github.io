@@ -172,18 +172,6 @@ input {
     font-weight: 700;
 }
 
-/* Pari que j'ai créé : je ne peux pas miser dessus. */
-.bet-own-footer {
-    color: #9a9eaa;
-    font-size: 13px;
-    font-weight: 700;
-}
-
-.bet-choice-own,
-.bet-choice-own:hover {
-    cursor: not-allowed;
-}
-
 .bet-card.bet-card-locked,
 .modal-content.bet-card-locked {
     background: linear-gradient(180deg, #1a1c22 0%, #141519 100%);
@@ -193,6 +181,10 @@ input {
 
 .bet-card.bet-card-locked {
     filter: grayscale(0.6);
+}
+
+/* Contenu atténué comme avant, mais le fond de la carte reste opaque. */
+.bet-card.bet-card-locked > * {
     opacity: 0.75;
 }
 
@@ -5218,6 +5210,10 @@ body.app-loading .enjeu-cadre {
     opacity: 0.75;
 }
 
+.bet-card.bet-card-locked > .validate-fab {
+    opacity: 1;
+}
+
 /* Mode validation sur une carte grisée : couleurs d'une carte normale. */
 .bet-card.validating.bet-card-locked:has(.validate-fab) > *:not(.validate-fab) {
     filter: none;
@@ -6480,7 +6476,10 @@ body.parrot-phenix #parrot {
    - perroquet plus petit, posé au-dessus des onglets.
 ========================================================= */
 
-/* Bouton « + », trait du menu du bas et petite jauge d'XP : téléphone seulement. */
+/* Bouton « + », trait du menu du bas, petite jauge d'XP et cloche des notifications : téléphone seulement. */
+.phone-bell,
+.phone-bell-peek,
+.phone-bell-panel,
 .nav-create-button,
 .nav-indicator,
 .xp-mini,
@@ -6837,9 +6836,15 @@ body.parrot-phenix #parrot {
         box-shadow: 0 0 8px #f5c451;
     }
 
-    /* Le bouton « + » du menu remplace celui sous le titre. */
-    .page-header #create-bet-header-button {
+    /* Le bouton « + » du menu remplace la carte « Créer un pari ». */
+    .bets-list .bet-create-card {
         display: none;
+    }
+
+    /* Il ne reste que le bouton « 🏆 Classement », à droite. */
+    .bets-page-header {
+        display: flex;
+        justify-content: flex-end;
     }
 
 
@@ -7007,6 +7012,147 @@ body.parrot-phenix #parrot {
     body:has(.modal:not(.hidden)) .activity-feed,
     body:has(.stakes-panel:not(.hidden)) .activity-feed,
     body.leaderboard-open .activity-feed {
+        display: none;
+    }
+
+
+    /* ----- Notifications : cloche repliée à gauche (phoneNotify dans animations.js) ----- */
+
+    .phone-bell {
+        display: grid;
+        place-items: center;
+        position: fixed;
+        left: 12px;
+        bottom: calc(var(--phone-tabbar) + var(--phone-safe-bottom) + 12px);
+        z-index: 2000;
+        width: 42px;
+        height: 42px;
+        padding: 0;
+        border: 1px solid #2c3040;
+        border-radius: 50%;
+        background: #1c202c;
+        font-size: 19px;
+        line-height: 1;
+        cursor: pointer;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .phone-bell.ring {
+        animation: phone-bell-ring 0.6s ease;
+    }
+
+    @keyframes phone-bell-ring {
+        20% { transform: rotate(-16deg); }
+        40% { transform: rotate(14deg); }
+        60% { transform: rotate(-8deg); }
+        80% { transform: rotate(5deg); }
+    }
+
+    .phone-bell-count {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        display: grid;
+        place-items: center;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        box-sizing: border-box;
+        border-radius: 9px;
+        background: #ff5c5c;
+        color: white;
+        font-size: 11px;
+        font-weight: 800;
+    }
+
+    /* Aperçu d'une ligne : il s'arrête avant le perroquet. */
+    .phone-bell-peek {
+        display: block;
+        position: fixed;
+        left: 62px;
+        bottom: calc(var(--phone-tabbar) + var(--phone-safe-bottom) + 18px);
+        z-index: 2000;
+        max-width: max(120px, calc(100vw - 62px - 150px));
+        box-sizing: border-box;
+        padding: 6px 9px;
+        border: 1px solid #2c3040;
+        border-radius: 10px;
+        background: #1c202c;
+        color: #c9ccd6;
+        font-size: 11px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        pointer-events: none;
+    }
+
+    .phone-bell-panel {
+        display: block;
+        position: fixed;
+        left: 10px;
+        right: 10px;
+        /* Juste au-dessus de la cloche, qui reste visible pour refermer. */
+        bottom: calc(var(--phone-tabbar) + var(--phone-safe-bottom) + 62px);
+        z-index: 2001;
+        max-height: 50vh;
+        overflow-y: auto;
+        padding: 10px;
+        border: 1px solid #2c3040;
+        border-radius: 16px;
+        background: #14161e;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+    }
+
+    .phone-bell-peek.hidden,
+    .phone-bell-panel.hidden,
+    .phone-bell-count.hidden {
+        display: none;
+    }
+
+    .phone-bell-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 2px 4px 8px;
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    .phone-bell-close {
+        border: none;
+        background: none;
+        color: #858a98;
+        font: inherit;
+        cursor: pointer;
+    }
+
+    .phone-bell-row {
+        display: flex;
+        gap: 8px;
+        padding: 8px 4px;
+        border-top: 1px solid #23262f;
+        font-size: 12px;
+        color: #aaaeba;
+        line-height: 1.35;
+    }
+
+    .phone-bell-row strong {
+        color: white;
+    }
+
+    .phone-bell-row.clickable {
+        cursor: pointer;
+    }
+
+    .phone-bell-icon {
+        flex-shrink: 0;
+    }
+
+    /* Une fenêtre ouverte : la cloche s'efface pour ne pas cacher ses boutons. */
+    body:has(.modal:not(.hidden)) :is(.phone-bell, .phone-bell-peek, .phone-bell-panel),
+    body:has(.stakes-panel:not(.hidden)) :is(.phone-bell, .phone-bell-peek, .phone-bell-panel),
+    body.leaderboard-open :is(.phone-bell, .phone-bell-peek, .phone-bell-panel) {
         display: none;
     }
 
@@ -7786,4 +7932,819 @@ body.parrot-phenix #parrot {
 .welcome-request .welcome-link {
     display: block;
     margin: 10px auto 0;
+}
+
+
+/* =========================================================
+   Brouillon : le créateur mise pour publier son pari
+   (renderDraftCard dans app.js)
+========================================================= */
+
+.create-footer-hint {
+    text-align: center;
+    margin-top: 8px;
+}
+
+.bet-card.bet-card-draft {
+    border: 1px dashed #f5c451;
+    background:
+        repeating-linear-gradient(135deg, rgba(245, 196, 81, 0.05) 0 12px, transparent 12px 24px),
+        linear-gradient(180deg, #1c202c 0%, #14161e 100%);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), 0 0 24px rgba(245, 196, 81, 0.08);
+}
+
+.draft-tag {
+    margin-left: auto;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    background: #f5c451;
+    color: #3a2a00;
+    padding: 3px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.bet-card-draft .bet-choice-button:not(:disabled) {
+    border-color: #f5c451;
+    animation: draft-pulse 1.4s infinite;
+}
+
+@keyframes draft-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(245, 196, 81, 0.5); }
+    50% { box-shadow: 0 0 0 5px rgba(245, 196, 81, 0); }
+}
+
+.draft-banner {
+    margin-top: 12px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #f5c451;
+}
+
+.draft-banner--closed {
+    color: #ff8a8a;
+}
+
+.draft-delete {
+    background: none;
+    border: none;
+    color: #858a98;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 0;
+}
+
+.draft-delete:hover {
+    color: #ff8a8a;
+}
+
+
+/* Pastille « Valider » en attente : personne d'autre n'a misé (data-validate-wait dans app.js). */
+.validate-fab.validate-fab-wait {
+    background: #14161e;
+    color: #7fbf9f;
+    border: 2px dashed #7fbf9f;
+    box-shadow: none;
+}
+
+.validate-fab.validate-fab-wait.near {
+    max-width: 260px;
+}
+
+.validate-fab.validate-fab-no {
+    animation: validate-fab-no 0.45s ease;
+}
+
+@keyframes validate-fab-no {
+    20% { transform: translateX(calc(-50% - 6px)); }
+    40% { transform: translateX(calc(-50% + 6px)); }
+    60% { transform: translateX(calc(-50% - 4px)); }
+    80% { transform: translateX(calc(-50% + 3px)); }
+}
+
+
+/* =========================================================
+   Page des paris sans titre : carte « Créer un pari » en tête
+   de liste (renderCreateBetCard dans app.js)
+========================================================= */
+
+/* Sur ordinateur, l'en-tête ne contient plus que le bouton « Classement »
+   du téléphone : il disparaît, et les cartes sont à 22 px sous la barre. */
+.bets-page-header {
+    display: none;
+}
+
+@media (min-width: 801px) {
+
+    #bets-page {
+        margin-top: -18px;
+    }
+
+}
+
+.bets-list .bet-create-card {
+    width: 100%;
+    max-width: 480px;
+    margin-left: max(0px, calc((100% - 480px) / 4));
+    margin-right: auto;
+}
+
+.bet-create-card {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 22px;
+    border: 2px dashed #3a3f55;
+    border-radius: 18px;
+    background: rgba(108, 99, 255, 0.04);
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s, transform 0.2s;
+}
+
+.bet-create-card:hover,
+.bet-create-card:focus-visible {
+    border-color: #6c63ff;
+    background: rgba(108, 99, 255, 0.1);
+    transform: translateY(-2px);
+    outline: none;
+}
+
+.bet-create-card b {
+    display: block;
+    font-size: 16px;
+}
+
+.bet-create-card small {
+    color: #858a98;
+    font-size: 13px;
+}
+
+/* Le « + » est dessiné avec deux traits : parfaitement centré dans le carré. */
+.bet-create-plus {
+    position: relative;
+    flex-shrink: 0;
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #6c63ff, #8b5cf6);
+    box-shadow: 0 8px 20px rgba(108, 99, 255, 0.35);
+}
+
+.bet-create-plus::before,
+.bet-create-plus::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 18px;
+    height: 3px;
+    border-radius: 2px;
+    background: #fff;
+    transform: translate(-50%, -50%);
+}
+
+.bet-create-plus::after {
+    transform: translate(-50%, -50%) rotate(90deg);
+}
+
+
+
+/* ================================
+   TICKET : MISE SIMPLE OU COMBINÉ
+   (sous le classement, voir renderTicket dans app.js)
+================================ */
+
+.left-column {
+    width: 320px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    position: sticky;
+    top: 24px;
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+
+.left-column::-webkit-scrollbar {
+    display: none;
+}
+
+.left-column .leaderboard-sidebar {
+    position: static;
+    width: 100%;
+}
+
+.bet-ticket {
+    background: linear-gradient(180deg, #1c202c 0%, #14161e 100%);
+    border: 1px solid #2c3040;
+    border-radius: 18px;
+    padding: 18px;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.bet-ticket.live {
+    border-color: #c86bff;
+    box-shadow: 0 0 24px rgba(200, 107, 255, 0.15);
+}
+
+.ticket-header {
+    margin-bottom: 10px;
+}
+
+.t-kind {
+    font-size: 11px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #23262f;
+    color: #aaaeba;
+    white-space: nowrap;
+}
+
+.t-kind.combo {
+    background: #c86bff;
+    color: white;
+}
+
+.ticket-clear,
+.ticket-close {
+    margin-left: auto;
+    border: none;
+    background: none;
+    color: #858a98;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+}
+
+.ticket-clear:hover {
+    color: white;
+}
+
+.ticket-close {
+    display: none;
+}
+
+.ticket-empty {
+    margin: 0;
+    color: #858a98;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.ticket-leg {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    padding: 8px 0;
+    border-top: 1px solid #23262f;
+    font-size: 12px;
+    animation: ticket-leg-in 0.25s ease-out;
+}
+
+@keyframes ticket-leg-in {
+    from {
+        opacity: 0;
+        transform: translateX(-8px);
+    }
+}
+
+.ticket-leg-text {
+    flex: 1;
+    min-width: 0;
+    color: #aaaeba;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.ticket-leg-text b {
+    display: block;
+    color: white;
+}
+
+.ticket-leg-odds {
+    color: #c86bff;
+    font-weight: 900;
+}
+
+.ticket-leg-remove {
+    border: none;
+    background: none;
+    color: #737887;
+    cursor: pointer;
+    padding: 0 2px;
+    font-size: 12px;
+}
+
+.ticket-leg-remove:hover {
+    color: #ff6b6b;
+}
+
+.ticket-sum {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 8px;
+    padding-top: 10px;
+    border-top: 1px dashed #343846;
+    font-size: 13px;
+    color: #c9ccd6;
+}
+
+.ticket-odds {
+    font-size: 22px;
+    font-weight: 900;
+    color: #c86bff;
+    display: inline-block;
+}
+
+.ticket-odds.bump,
+.ticket-bar-odds.bump {
+    animation: ticket-bump 0.35s ease;
+}
+
+@keyframes ticket-bump {
+    40% {
+        transform: scale(1.25);
+    }
+}
+
+.ticket-boost {
+    margin: 2px 0 0;
+    font-size: 11px;
+    color: #f5c451;
+    font-weight: 800;
+    text-align: right;
+}
+
+.ticket-note {
+    margin: 8px 0 0;
+    font-size: 11px;
+    color: #858a98;
+    line-height: 1.4;
+}
+
+.ticket-stake {
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 10px;
+    background: #101219;
+    border: 1px solid #343846;
+    border-radius: 10px;
+    padding: 9px 10px;
+    color: white;
+    font-family: inherit;
+    font-weight: 800;
+    font-size: 16px;
+}
+
+.ticket-stake:focus {
+    outline: none;
+    border-color: #c86bff;
+}
+
+.ticket-chips {
+    display: flex;
+    gap: 5px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+}
+
+.ticket-chips button {
+    background: #23262f;
+    border: 1px solid #343846;
+    color: #e6e8ee;
+    border-radius: 999px;
+    padding: 4px 9px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.ticket-chips button:hover {
+    border-color: #c86bff;
+}
+
+.ticket-chips .ticket-chip-max {
+    border-color: rgba(255, 140, 66, 0.5);
+    color: #ffb27a;
+}
+
+.ticket-win {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+    padding: 9px 11px;
+    background: rgba(99, 214, 159, 0.08);
+    border: 1px solid rgba(99, 214, 159, 0.3);
+    border-radius: 10px;
+    font-size: 13px;
+}
+
+.ticket-win strong {
+    color: #63d69f;
+}
+
+.ticket-go {
+    width: 100%;
+    margin-top: 10px;
+}
+
+body.ticket-combo .ticket-go:not(:disabled) {
+    background: linear-gradient(135deg, #8b5cf6, #c86bff);
+    box-shadow: 0 8px 22px rgba(200, 107, 255, 0.35);
+}
+
+.ticket-rules {
+    margin: 8px 0 0;
+    font-size: 11px;
+    color: #737887;
+    line-height: 1.4;
+}
+
+.bet-ticket .error-message:empty {
+    display: none;
+}
+
+/* Barre repliée : téléphone seulement */
+.ticket-bar {
+    display: none;
+}
+
+/* Cote dans le ticket : entourée de violet, avec 🎟️ (ou 🔗 en combiné). */
+.bet-choice-button.in-ticket {
+    position: relative;
+    background: #2a2850;
+    border-color: #c86bff;
+    box-shadow: 0 0 0 1px #c86bff, 0 0 16px rgba(200, 107, 255, 0.45);
+}
+
+.bet-choice-button.in-ticket::after {
+    content: "🎟️";
+    position: absolute;
+    top: -9px;
+    left: -7px;
+    width: 22px;
+    height: 22px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: #c86bff;
+    font-size: 12px;
+}
+
+body.ticket-combo .bet-choice-button.in-ticket::after {
+    content: "🔗";
+}
+
+/* Combinés : carte à récupérer et Historique */
+.claim-card--combo .combo-claim-legs {
+    overflow-wrap: anywhere;
+}
+
+.claim-card--combo:not(.claim-card--frozen) {
+    border-color: #c86bff;
+}
+
+.combo-legs {
+    list-style: none;
+    margin: 4px 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.combo-leg {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #aaaeba;
+}
+
+.combo-leg b {
+    color: #e6e8ee;
+}
+
+.combo-leg-dot {
+    width: 16px;
+    text-align: center;
+    font-weight: 900;
+}
+
+.combo-leg--win .combo-leg-dot {
+    color: #63d69f;
+}
+
+.combo-leg--lose .combo-leg-dot {
+    color: #ff6b6b;
+}
+
+.combo-leg--cancelled {
+    text-decoration: line-through;
+    opacity: 0.7;
+}
+
+/* Téléphone : le ticket devient une barre au-dessus du menu du bas,
+   qui se déplie en touchant. Caché tant qu'il est vide. */
+@media (max-width: 800px) {
+
+    .left-column {
+        display: contents;
+    }
+
+    .bet-ticket {
+        display: none;
+    }
+
+    body.ticket-has-legs .bet-ticket {
+        display: block;
+        position: fixed;
+        z-index: 95;
+        left: var(--tabbar-side);
+        right: var(--tabbar-side);
+        bottom: calc(var(--phone-tabbar) + var(--phone-safe-bottom) + 8px);
+        max-height: calc(100dvh - var(--phone-tabbar) - 90px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding: 0;
+        background: #14161e;
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(200, 107, 255, 0.2);
+        animation: ticket-up 0.3s ease-out;
+    }
+
+    @keyframes ticket-up {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+    }
+
+    .ticket-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 13px 16px;
+        border: none;
+        background: none;
+        color: white;
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .ticket-bar-odds {
+        margin-left: auto;
+        color: #c86bff;
+        font-size: 16px;
+        display: inline-block;
+    }
+
+    .ticket-bar-arrow {
+        color: #858a98;
+        font-size: 12px;
+    }
+
+    .ticket-body {
+        display: none;
+        padding: 16px;
+    }
+
+    .bet-ticket.open .ticket-bar {
+        display: none;
+    }
+
+    .bet-ticket.open .ticket-body {
+        display: block;
+    }
+
+    .ticket-close {
+        display: block;
+        font-size: 14px;
+    }
+
+    .ticket-clear + .ticket-close {
+        margin-left: 14px;
+    }
+
+    /* Le bas de la liste reste visible au-dessus de la barre du ticket. */
+    body.ticket-has-legs .bets-list {
+        padding-bottom: 60px;
+    }
+
+}
+
+/* Détail des parieurs : mise placée dans un combiné */
+.stake-row--combo .stake-row-header {
+    flex-wrap: wrap;
+}
+
+.stake-combo-badge {
+    background: rgba(200, 107, 255, 0.15);
+    color: #e3b8ff;
+    border: 1px solid rgba(200, 107, 255, 0.45);
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.ticket-note-draft {
+    color: #f5c451;
+}
+
+
+/* ================================
+   HISTORIQUE : LIGNE D'UN COMBINÉ
+   Parcours de pastilles reliées jusqu'au 🏆, détail déplié au clic
+   (voir renderComboRow dans app.js)
+================================ */
+
+.my-bet-row--combo {
+    flex-wrap: wrap;
+    cursor: pointer;
+    border-color: rgba(200, 107, 255, 0.35);
+}
+
+.my-bet-row--combo.my-bet-row--win {
+    border-color: rgba(99, 214, 159, 0.45);
+}
+
+.my-bet-row--combo.my-bet-row--lose {
+    border-color: rgba(255, 107, 107, 0.3);
+}
+
+.my-bet-row--combo.my-bet-row--open .my-bet-dot {
+    background: rgba(200, 107, 255, 0.15);
+    color: #e3b8ff;
+}
+
+.my-bet-row--combo .combo-progress {
+    color: #c9ccd6;
+}
+
+.combo-contest-hint {
+    color: #f5c451;
+}
+
+.combo-chevron {
+    display: inline-block;
+    margin-left: 4px;
+    color: #737887;
+    font-size: 11px;
+    transition: transform 0.3s ease;
+}
+
+.my-bet-row--combo.open .combo-chevron {
+    transform: rotate(180deg);
+}
+
+/* Parcours */
+.combo-steps {
+    display: flex;
+    align-items: center;
+    max-width: 320px;
+    margin-top: 7px;
+}
+
+.combo-step {
+    position: relative;
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    box-sizing: border-box;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: #23262f;
+    border: 2px solid #343846;
+    color: #737887;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.combo-step--win {
+    background: #63d69f;
+    border-color: #63d69f;
+    color: #0b1f15;
+}
+
+.combo-step--lose {
+    background: #ff6b6b;
+    border-color: #ff6b6b;
+    color: #2a0b0b;
+}
+
+.combo-step--cancelled {
+    background: #14161e;
+    border-style: dashed;
+}
+
+.combo-step--open {
+    border-color: #c86bff;
+    animation: combo-step-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes combo-step-pulse {
+    50% {
+        box-shadow: 0 0 0 5px rgba(200, 107, 255, 0.18);
+    }
+}
+
+/* Survol (ordinateur) : le pari de la pastille. */
+.combo-step:hover::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: 130%;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 4px 8px;
+    border: 1px solid #343846;
+    border-radius: 8px;
+    background: #0b0c10;
+    color: #e6e8ee;
+    font-size: 11px;
+    font-weight: 600;
+    pointer-events: none;
+}
+
+.combo-step-line {
+    flex: 1;
+    min-width: 14px;
+    height: 3px;
+    background: #2c3040;
+}
+
+.combo-step-line.done {
+    background: #63d69f;
+}
+
+.combo-step-line.lose {
+    background: #ff6b6b;
+}
+
+.combo-step-goal {
+    margin-left: 6px;
+    font-size: 14px;
+}
+
+/* Détail déplié */
+.combo-detail {
+    flex-basis: 100%;
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.3s ease;
+}
+
+.my-bet-row--combo.open .combo-detail {
+    grid-template-rows: 1fr;
+}
+
+.combo-detail > div {
+    overflow: hidden;
+}
+
+.combo-detail .combo-legs {
+    margin: 10px 0 0 42px;
+    padding-top: 8px;
+    border-top: 1px dashed #343846;
+    gap: 5px;
+}
+
+.combo-leg-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.combo-leg-odds {
+    color: #c86bff;
+    font-weight: 800;
+}
+
+@media (max-width: 500px) {
+
+    .combo-detail .combo-legs {
+        margin-left: 0;
+    }
+
 }
