@@ -85,7 +85,9 @@ function animateNumber(element, from, to, duration = 900, format = formatMoney) 
 
     const step = now => {
 
-        const progress = Math.min(1, (now - start) / duration);
+        // L'heure de l'image peut précéder « start » : jamais en dessous de 0
+        // (sinon le chiffre partait brièvement dans le négatif).
+        const progress = Math.max(0, Math.min(1, (now - start) / duration));
 
         const eased = 1 - Math.pow(1 - progress, 3);
 
@@ -2064,9 +2066,10 @@ function cascadeIn(root) {
 
     };
 
-    // Titres, filtres de la boutique et cartes, dans l'ordre de la page.
+    // Titres, filtres (boutique, Historique), contestations, cartes et messages
+    // « rien pour le moment », dans l'ordre de la page.
     root
-        .querySelectorAll(".page-header, .shop-filters, .missions-title, .bet-card, .my-bet-item, .mission-card")
+        .querySelectorAll(".page-header, .shop-filters, .missions-title, .contests-block, .my-bets-summary, .my-bets-filters, .bet-card, .my-bet-item, .mission-card, .empty-state")
         .forEach(play);
 
     // Colonnes latérales (top parieurs, message, XP, coffre) : elles arrivent
@@ -2184,7 +2187,8 @@ function setupPointerEffects() {
 const TOAST_TYPES = {
     stake:  { icon: "💸", color: "#6c63ff" },
     create: { icon: "🆕", color: "#3fa9f5" },
-    error:  { icon: "⚠️", color: "#ff6b81" }
+    error:  { icon: "⚠️", color: "#ff6b81" },
+    contest: { icon: "⚖️", color: "#f5c451" }
 };
 
 const TOAST_LIFE = 9000;
@@ -2462,6 +2466,810 @@ async function pollActivity() {
 
 
 /* =========================================================
+   11 BIS. FIN D'UNE CONTESTATION : LA BALANCE DU JURY
+      Choisie dans demo-fin-contestation.html (proposition B).
+      Chaque joueur voit une fois le verdict : une notification
+      s'ouvre en fiche, les voix tombent dans la balance, puis
+      le détail de ce qui change pour lui et les billets.
+      Le créateur sanctionné reçoit un carton rouge.
+========================================================= */
+
+// Verdicts plus vieux que ça : on ne les montre plus.
+const VERDICT_MAX_AGE_MS = 3 * 24 * 3600 * 1000;
+
+let verdictQueue = [];
+
+let verdictPlaying = false;
+
+
+const verdictWait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+const verdictRnd = (a, b) => a + Math.random() * (b - a);
+
+function verdictSigned(value) {
+
+    return (value > 0 ? "+" : value < 0 ? "−" : "") + formatMoney(Math.abs(value));
+
+}
+
+function verdictCenter(element) {
+
+    const rect = element.getBoundingClientRect();
+
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+
+}
+
+
+/*
+    Appelée par refreshContests : met en file les verdicts
+    pas encore vus par ce joueur (mémorisés dans le navigateur).
+*/
+
+function checkContestResults(contests) {
+
+    if (!currentUser) {
+        return;
+    }
+
+    const seen = readStorage("seen-contests") || [];
+
+    const fresh = (contests || []).filter(contest =>
+        contest.status !== "open" &&
+        contest.settled_at &&
+        Date.now() - new Date(contest.settled_at) < VERDICT_MAX_AGE_MS &&
+        !seen.includes(contest.bet_id) &&
+        !verdictQueue.some(other => other.bet_id === contest.bet_id)
+    );
+
+    if (fresh.length === 0) {
+        return;
+    }
+
+    verdictQueue.push(...fresh);
+
+    playVerdicts();
+
+}
+
+function markVerdictSeen(betId) {
+
+    const seen = readStorage("seen-contests") || [];
+
+    writeStorage("seen-contests", [...seen.filter(id => id !== betId), betId].slice(-100));
+
+}
+
+
+/*
+    Ce que le verdict change pour moi.
+    delta : variation du solde ; unlock : gains débloqués à récupérer.
+*/
+
+function verdictCase(contest) {
+
+    const annul = contest.status === "annulled";
+
+    const stake = Number(contest.my_stake) || 0;
+
+    const win = Number(contest.my_win) || 0;
+
+    const taken = Number(contest.my_win_taken) || 0;
+
+    const penalty = Number(contest.penalty) || 0;
+
+    const choice = escapeHtml(contest.my_choice_label || "—");
+
+    const result = {
+        annul,
+        author: contest.my_role === "author",
+        lines: [],
+        delta: 0,
+        unlock: 0,
+        who: "",
+        expl: ""
+    };
+
+
+    // Ce que devient ma mise (le créateur peut aussi avoir misé sur son pari).
+    let stakeText = "";
+
+    if (stake > 0) {
+
+        result.who = `Tu avais misé ${formatMoney(stake)} sur « ${choice} » : ${win > 0 ? "gagné" : "perdu"}.`;
+
+        if (annul) {
+
+            if (taken > 0) {
+                stakeText = "le gain que tu avais touché est repris, mais ta mise t'est rendue.";
+                result.lines.push({ text: "Gain repris", value: taken, kind: "minus" });
+            } else if (win > 0) {
+                stakeText = "ton gain bloqué disparaît, mais ta mise t'est rendue.";
+                result.lines.push({ text: "Gain bloqué", value: win, kind: "strike" });
+            } else {
+                stakeText = "ton pari perdu est effacé, tu récupères ta mise.";
+            }
+
+            result.lines.push({ text: "Mise rendue", value: stake, kind: "plus" });
+            result.delta += stake - taken;
+
+        } else if (win > 0) {
+
+            stakeText = contest.my_claimed
+                ? "tes gains sont débloqués."
+                : "tes gains sont débloqués, récupère-les sur la carte du pari.";
+            result.lines.push({ text: "Gain débloqué", value: win, kind: "unlock" });
+            result.unlock = contest.my_claimed ? 0 : win;
+
+        } else {
+
+            stakeText = "ta mise reste perdue.";
+            result.lines.push({ text: "Mise perdue", value: stake, kind: "info" });
+
+        }
+
+    }
+
+
+    if (result.author) {
+
+        result.who = `Tu as créé ce pari et validé « ${escapeHtml(contest.winner_label || "—")} ».` +
+            (stake > 0 ? " " + result.who : "");
+
+        if (annul) {
+            result.expl = "Le jury estime que tu as mal validé : tu paies une amende de 10 % du total misé. " +
+                (stakeText ? "Pour ta mise, " + stakeText : "Tout le monde est remboursé.");
+            result.lines.push({ text: "Total misé sur le pari", value: Number(contest.total_staked) || 0, kind: "info" });
+            result.lines.push({ text: "Amende (10 %)", value: penalty, kind: "minus" });
+            result.delta -= penalty;
+        } else {
+            result.expl = "Le jury confirme ta validation : tu ne paies pas d'amende." +
+                (stakeText ? " Pour ta mise, " + stakeText : "");
+            if (stake === 0) {
+                result.lines.push({ text: "Amende", value: 0, kind: "info" });
+            }
+        }
+
+        return result;
+
+    }
+
+
+    if (stake > 0) {
+
+        const head = annul
+            ? (contest.opened_by_me ? "Ta contestation est acceptée : " : "Le jury a annulé la validation : ")
+            : (contest.opened_by_me ? "Ta contestation est rejetée : " : "Le jury a gardé la validation : ");
+
+        result.expl = head + stakeText;
+
+        return result;
+
+    }
+
+
+    result.who = contest.my_role === "juror"
+        ? "Tu faisais partie du jury (tu n'avais pas misé)."
+        : "Tu n'avais pas misé sur ce pari.";
+
+    result.expl = (annul
+        ? "La validation est annulée et tout le monde est remboursé. Ton solde ne change pas"
+        : "La validation est maintenue. Ton solde ne change pas") +
+        (contest.my_vote !== null && contest.my_vote !== undefined ? " : merci d'avoir voté !" : ".");
+
+    return result;
+
+}
+
+
+// Joue les verdicts en attente, l'un après l'autre.
+async function playVerdicts() {
+
+    if (verdictPlaying) {
+        return;
+    }
+
+    verdictPlaying = true;
+
+
+    // Le solde en base est déjà à jour : on repart d'avant les verdicts.
+    const { data } = await supabaseClient
+        .from("group_members")
+        .select("balance")
+        .eq("group_id", currentGroup?.id)
+        .eq("user_id", currentUser.id)
+        .maybeSingle();
+
+    const realBalance = Number(data?.balance ?? currentProfile?.balance ?? 0);
+
+    let shown = realBalance - verdictQueue.reduce((sum, contest) => sum + verdictCase(contest).delta, 0);
+
+
+    while (verdictQueue.length > 0) {
+
+        const contest = verdictQueue[0];
+
+        const info = verdictCase(contest);
+
+        try {
+            await showVerdict(contest, info, shown);
+        } catch (error) {
+            console.error("Verdict :", error);
+            document.querySelectorAll(".verdict-overlay, .verdict-wrap, .verdict-toast, .verdict-red").forEach(el => el.remove());
+        }
+
+        shown += info.delta;
+
+        markVerdictSeen(contest.bet_id);
+
+        verdictQueue.shift();
+
+    }
+
+
+    if (currentProfile) {
+        currentProfile.balance = realBalance;
+    }
+
+    updateBalance();
+
+    verdictPlaying = false;
+
+    // Cartes, historique et solde à jour (les gains débloqués apparaissent).
+    if (typeof refreshAfterContest === "function") {
+        await refreshAfterContest();
+    }
+
+}
+
+
+/* ----- Effets ----- */
+
+function verdictBurst(point, color, count = 14, distance = 70) {
+
+    for (let i = 0; i < count; i++) {
+
+        const dot = document.createElement("div");
+
+        dot.className = "verdict-spark";
+        dot.style.background = color;
+        document.body.appendChild(dot);
+
+        const angle = verdictRnd(0, Math.PI * 2);
+        const radius = verdictRnd(distance * 0.4, distance);
+
+        dot.animate(
+            [
+                { transform: `translate(${point.x}px, ${point.y}px) scale(1)`, opacity: 1 },
+                { transform: `translate(${point.x + Math.cos(angle) * radius}px, ${point.y + Math.sin(angle) * radius}px) scale(.2)`, opacity: 0 }
+            ],
+            { duration: verdictRnd(450, 750), easing: "cubic-bezier(.2, .8, .3, 1)", fill: "forwards" }
+        ).onfinish = () => dot.remove();
+
+    }
+
+    const ring = document.createElement("div");
+
+    ring.className = "verdict-ring";
+    ring.style.borderColor = color;
+    document.body.appendChild(ring);
+
+    ring.animate(
+        [
+            { transform: `translate(${point.x}px, ${point.y}px) scale(1)`, opacity: 0.9 },
+            { transform: `translate(${point.x}px, ${point.y}px) scale(9)`, opacity: 0 }
+        ],
+        { duration: 600, easing: "ease-out", fill: "forwards" }
+    ).onfinish = () => ring.remove();
+
+}
+
+function verdictPop(point, text, kind) {
+
+    const pop = document.createElement("div");
+
+    pop.className = "verdict-pop verdict-pop--" + kind;
+    pop.textContent = text;
+    pop.style.left = point.x + "px";
+    pop.style.top = point.y + "px";
+    document.body.appendChild(pop);
+
+    pop.animate(
+        [
+            { transform: "translate(-50%, -50%) scale(.4)", opacity: 0 },
+            { transform: "translate(-50%, -90%) scale(1.15)", opacity: 1, offset: 0.25 },
+            { transform: "translate(-50%, -160%) scale(1)", opacity: 0 }
+        ],
+        { duration: 1700, easing: "ease-out", fill: "forwards" }
+    ).onfinish = () => pop.remove();
+
+}
+
+function verdictShake(element, power = 10, duration = 450) {
+
+    const frames = [];
+
+    for (let i = 0; i <= 8; i++) {
+        frames.push({ translate: i === 8 ? "0 0" : `${verdictRnd(-power, power)}px ${verdictRnd(-power, power)}px` });
+    }
+
+    element.animate(frames, { duration });
+
+}
+
+// Où arrivent les billets : le solde s'il est visible, sinon le haut de l'écran.
+function verdictBalancePoint() {
+
+    const balance = document.getElementById("balance");
+
+    const rect = balance?.getBoundingClientRect();
+
+    if (!rect || rect.width === 0) {
+        return { x: window.innerWidth - 60, y: 30 };
+    }
+
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+
+}
+
+
+// Billets : du total vers le solde (gain) ou du solde vers le bas (perte, brûlés pour une amende).
+async function verdictMoney(info, from, shown) {
+
+    if (!info.delta) {
+        return;
+    }
+
+    const balanceEl = document.getElementById("balance");
+
+    const target = verdictBalancePoint();
+
+    const count = Math.min(12, Math.max(5, Math.round(Math.abs(info.delta) / 20)));
+
+    const part = info.delta / count;
+
+    const burn = info.author && info.annul;
+
+    let current = shown;
+
+
+    if (info.delta > 0) {
+
+        for (let i = 0; i < count; i++) {
+
+            setTimeout(() => {
+
+                const bill = document.createElement("div");
+
+                bill.className = "verdict-bill";
+                document.body.appendChild(bill);
+
+                const lift = verdictRnd(-160, -90);
+                const spin = verdictRnd(360, 720);
+                const side = verdictRnd(-40, 40);
+                const frames = [];
+
+                for (let k = 0; k <= 16; k++) {
+                    const t = k / 16;
+                    frames.push({
+                        transform: `translate(${from.x + side * Math.sin(t * Math.PI) + (target.x - from.x) * t}px, ${from.y + (target.y - from.y) * t + lift * 4 * t * (1 - t)}px) rotate(${spin * t}deg) scale(${1 - t * 0.5})`
+                    });
+                }
+
+                bill.animate(frames, { duration: 950, easing: "ease-in-out", fill: "forwards" }).onfinish = () => {
+                    bill.remove();
+                    animateNumber(balanceEl, current, current + part, 200, formatBalance);
+                    current += part;
+                    bump(balanceEl);
+                };
+
+            }, i * 90);
+
+        }
+
+        await verdictWait(count * 90 + 1000);
+
+        verdictPop({ x: target.x - 20, y: target.y + 34 }, verdictSigned(info.delta), "plus");
+
+        verdictBurst(target, "#3ddc97", 12, 50);
+
+        return;
+
+    }
+
+
+    if (burn) {
+
+        const vignette = document.createElement("div");
+
+        vignette.className = "verdict-vignette";
+        document.body.appendChild(vignette);
+
+        vignette.animate(
+            [{ opacity: 0 }, { opacity: 1 }, { opacity: 0.35 }, { opacity: 1 }, { opacity: 0 }],
+            { duration: count * 130 + 1500, fill: "forwards" }
+        ).onfinish = () => vignette.remove();
+
+    }
+
+    for (let i = 0; i < count; i++) {
+
+        setTimeout(() => {
+
+            animateNumber(balanceEl, current, current + part, 200, formatBalance);
+            current += part;
+            bump(balanceEl);
+
+            const bill = document.createElement("div");
+
+            bill.className = "verdict-bill verdict-bill--lost" + (burn ? " verdict-bill--burn" : "");
+            document.body.appendChild(bill);
+
+            const end = { x: target.x + verdictRnd(-160, 40), y: window.innerHeight + 40 };
+            const sway = verdictRnd(20, 45);
+            const phase = verdictRnd(0, Math.PI * 2);
+            const frames = [];
+
+            for (let k = 0; k <= 20; k++) {
+                const t = k / 20;
+                const wave = Math.sin(phase + t * Math.PI * 4);
+                frames.push({
+                    transform: `translate(${target.x + (end.x - target.x) * t + wave * sway * (1 - t)}px, ${target.y + (end.y - target.y) * (t * t * 0.6 + t * 0.4)}px) rotate(${wave * 40}deg) scale(.9)`,
+                    opacity: t > 0.85 ? (1 - t) * 6.6 : 1,
+                    filter: burn ? `brightness(${1 - t * 0.8}) sepia(${t})` : "none"
+                });
+            }
+
+            bill.animate(frames, { duration: 1500, easing: "linear", fill: "forwards" }).onfinish = () => {
+                bill.remove();
+                if (typeof Parrot !== "undefined") {
+                    Parrot.hit();
+                }
+            };
+
+        }, i * 130);
+
+    }
+
+    await verdictWait(count * 130 + 400);
+
+    verdictPop({ x: target.x - 20, y: target.y + 34 }, verdictSigned(info.delta), "minus");
+
+    await verdictWait(1200);
+
+}
+
+
+// Validation maintenue pour un gagnant : le cadenas s'ouvre.
+async function verdictUnlock(info, from) {
+
+    const lock = document.createElement("div");
+
+    lock.className = "verdict-lock";
+    lock.textContent = "🔒";
+    lock.style.left = from.x + "px";
+    lock.style.top = from.y + "px";
+    document.body.appendChild(lock);
+
+    lock.animate(
+        [{ transform: "translate(-50%, -50%) scale(0)" }, { transform: "translate(-50%, -50%) scale(1.2)" }, { transform: "translate(-50%, -50%) scale(1)" }],
+        { duration: 350, fill: "forwards" }
+    );
+
+    await verdictWait(450);
+
+    lock.animate([{ rotate: "0deg" }, { rotate: "-14deg" }, { rotate: "14deg" }, { rotate: "-8deg" }, { rotate: "0deg" }], { duration: 450 });
+
+    await verdictWait(500);
+
+    lock.textContent = "🔓";
+
+    verdictBurst(from, "#f5c451", 18, 80);
+
+    verdictPop({ x: from.x, y: from.y - 30 }, formatMoney(info.unlock) + " à récupérer", "gold");
+
+    await verdictWait(900);
+
+    lock.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: "forwards" }).onfinish = () => lock.remove();
+
+}
+
+
+/* ----- La fiche ----- */
+
+function verdictLineAmount(line) {
+
+    if (line.kind === "plus") return "+" + formatMoney(line.value);
+    if (line.kind === "minus") return "−" + formatMoney(line.value);
+    if (line.kind === "unlock") return "🔓 " + formatMoney(line.value);
+
+    return formatMoney(line.value);
+
+}
+
+function verdictTotalHtml(info) {
+
+    if (info.unlock) {
+        return `<span>À récupérer</span><b class="verdict-gold">${formatMoney(info.unlock)}</b>`;
+    }
+
+    const kind = info.delta > 0 ? "plus" : info.delta < 0 ? "minus" : "zero";
+
+    return `<span>Ton solde</span><b class="verdict-${kind}">${verdictSigned(info.delta)}</b>`;
+
+}
+
+function verdictCardHtml(contest, info) {
+
+    const showTotal = info.lines.length > 0;
+
+    return `
+        <div class="verdict-head">⚖️ VOTE TERMINÉ</div>
+
+        <div class="verdict-scale">
+            <div class="verdict-post"></div>
+            <div class="verdict-base"></div>
+            <div class="verdict-beam">
+                <div class="verdict-pan verdict-pan--left">
+                    <div class="verdict-pan-in">
+                        <div class="verdict-strings"></div>
+                        <div class="verdict-coins"></div>
+                        <div class="verdict-dish"></div>
+                        <div class="verdict-label verdict-label--annul">ANNULER</div>
+                    </div>
+                </div>
+                <div class="verdict-pan verdict-pan--right">
+                    <div class="verdict-pan-in">
+                        <div class="verdict-strings"></div>
+                        <div class="verdict-coins"></div>
+                        <div class="verdict-dish"></div>
+                        <div class="verdict-label verdict-label--keep">GARDER</div>
+                    </div>
+                </div>
+            </div>
+            <div class="verdict-pivot"></div>
+        </div>
+
+        <div class="verdict-result">${info.annul ? "Validation annulée" : "Validation maintenue"}${!info.annul && Number(contest.votes_annul) > 0 && contest.votes_annul === contest.votes_keep ? " (égalité)" : ""}</div>
+
+        <div class="verdict-question">« ${escapeHtml(contest.question)} »</div>
+
+        <div class="verdict-who">${info.who}</div>
+
+        <div class="verdict-expl">${info.expl}</div>
+
+        ${info.lines.map(line => `
+            <div class="verdict-line verdict-line--${line.kind}">
+                <span>${line.text}</span>
+                <b>${verdictLineAmount(line)}</b>
+            </div>
+        `).join("")}
+
+        ${showTotal ? `<div class="verdict-total">${verdictTotalHtml(info)}</div>` : ""}
+
+        <button type="button" class="verdict-ok">Compris</button>
+    `;
+
+}
+
+
+// Un verdict complet ; se termine quand le joueur clique « Compris ».
+async function showVerdict(contest, info, shown) {
+
+    const color = info.annul ? (info.lines.length === 0 ? "#f5c451" : "#ff5c7a") : "#3ddc97";
+
+    const balanceEl = document.getElementById("balance");
+
+    if (balanceEl && info.delta && !currentProfile?.is_admin) {
+        balanceEl.textContent = formatBalance(shown);
+    }
+
+
+    // 1. La notification arrive en bas.
+    const toast = document.createElement("div");
+
+    toast.className = "verdict-toast";
+    toast.innerHTML = `
+        <span class="verdict-toast-icon">⚖️</span>
+        <span>Vote terminé sur « ${escapeHtml(contest.question)} »<small>Voir le résultat →</small></span>
+    `;
+    document.body.appendChild(toast);
+
+    toast.animate(
+        [{ transform: "translateY(40px)", opacity: 0 }, { transform: "none", opacity: 1 }],
+        { duration: 450, easing: "cubic-bezier(.2, .8, .2, 1)", fill: "forwards" }
+    );
+
+    await verdictWait(1400);
+
+
+    // 2. Elle s'ouvre en fiche au centre.
+    const from = toast.getBoundingClientRect();
+
+    const overlay = document.createElement("div");
+
+    overlay.className = "verdict-overlay";
+    document.body.appendChild(overlay);
+
+    overlay.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 350, fill: "forwards" });
+
+    const wrap = document.createElement("div");
+
+    wrap.className = "verdict-wrap";
+    wrap.style.setProperty("--verdict-color", color);
+    wrap.innerHTML = `<div class="verdict-card">${verdictCardHtml(contest, info)}</div>`;
+    document.body.appendChild(wrap);
+
+    const card = wrap.firstElementChild;
+
+    const to = card.getBoundingClientRect();
+
+    card.animate(
+        [
+            { transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${from.width / to.width}, ${from.height / to.height})`, transformOrigin: "0 0", opacity: 0.6 },
+            { transform: "none", transformOrigin: "0 0", opacity: 1 }
+        ],
+        { duration: 550, easing: "cubic-bezier(.2, .8, .2, 1)" }
+    );
+
+    toast.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: "forwards" }).onfinish = () => toast.remove();
+
+    await verdictWait(700);
+
+
+    // 3. Les voix tombent dans les plateaux, la balance penche.
+    const beam = card.querySelector(".verdict-beam");
+
+    const pans = card.querySelectorAll(".verdict-pan-in");
+
+    const votes = [Number(contest.votes_annul) || 0, Number(contest.votes_keep) || 0];
+
+    const order = [];
+
+    for (let i = 0; i < Math.max(votes[0], votes[1]); i++) {
+        if (i < votes[0]) order.push("annul");
+        if (i < votes[1]) order.push("keep");
+    }
+
+    let angle = 0, annul = 0, keep = 0;
+
+    for (const side of order) {
+
+        const coin = document.createElement("div");
+
+        coin.className = "verdict-coin verdict-coin--" + side;
+        coin.textContent = "✓";
+        pans[side === "annul" ? 0 : 1].querySelector(".verdict-coins").appendChild(coin);
+
+        coin.animate(
+            [{ transform: "translateY(-70px)", opacity: 0 }, { transform: "translateY(0)", opacity: 1 }],
+            { duration: 380, easing: "cubic-bezier(.5, 0, .8, .5)" }
+        );
+
+        await verdictWait(380);
+
+        side === "annul" ? annul++ : keep++;
+
+        const next = Math.max(-16, Math.min(16, (keep - annul) * 8));
+
+        const timing = { duration: 700, easing: "cubic-bezier(.3, 1.7, .5, 1)", fill: "forwards" };
+
+        beam.animate([{ transform: `rotate(${angle}deg)` }, { transform: `rotate(${next}deg)` }], timing);
+
+        pans.forEach(pan => pan.animate([{ transform: `rotate(${-angle}deg)` }, { transform: `rotate(${-next}deg)` }], timing));
+
+        angle = next;
+
+        await verdictWait(450);
+
+    }
+
+    card.querySelector(".verdict-result").animate(
+        [{ opacity: 0, transform: "scale(1.6)" }, { opacity: 1, transform: "none" }],
+        { duration: 350, fill: "forwards" }
+    );
+
+    await verdictWait(500);
+
+
+    // 4. Le détail, ligne par ligne.
+    for (const line of card.querySelectorAll(".verdict-line")) {
+
+        line.animate([{ opacity: 0, transform: "translateX(-14px)" }, { opacity: 1, transform: "none" }], { duration: 300, fill: "forwards" });
+
+        await verdictWait(380);
+
+    }
+
+    const total = card.querySelector(".verdict-total");
+
+    if (total) {
+
+        total.animate(
+            [{ opacity: 0, transform: "scale(.8)" }, { opacity: 1, transform: "scale(1.06)" }, { opacity: 1, transform: "none" }],
+            { duration: 420, fill: "forwards" }
+        );
+
+        await verdictWait(450);
+
+    }
+
+
+    // 5. Le créateur sanctionné : carton rouge, puis il se range en coin.
+    if (info.author && info.annul && info.delta < 0) {
+
+        const red = document.createElement("div");
+
+        red.className = "verdict-red";
+        red.innerHTML = `<small>AMENDE</small><b>${verdictSigned(info.delta)}</b>`;
+        document.body.appendChild(red);
+
+        const hit = verdictCenter(total);
+
+        const slam = { x: Math.min(hit.x + 30, window.innerWidth - 110), y: hit.y - 150 };
+
+        red.animate(
+            [
+                { transform: `translate(${slam.x + 10}px, -180px) rotate(-40deg)` },
+                { transform: `translate(${slam.x}px, ${slam.y}px) rotate(12deg)`, offset: 0.8 },
+                { transform: `translate(${slam.x}px, ${slam.y}px) rotate(8deg)` }
+            ],
+            { duration: 650, easing: "cubic-bezier(.5, 0, .7, 1)", fill: "forwards" }
+        );
+
+        await verdictWait(520);
+
+        verdictShake(card, 12, 450);
+
+        verdictBurst({ x: slam.x + 48, y: slam.y + 66 }, "#ff5c7a", 22, 110);
+
+        await verdictWait(700);
+
+        const corner = card.getBoundingClientRect();
+
+        red.animate(
+            [
+                { transform: `translate(${slam.x}px, ${slam.y}px) rotate(8deg) scale(1)` },
+                { transform: `translate(${corner.right - 62}px, ${corner.top - 50}px) rotate(14deg) scale(.55)` }
+            ],
+            { duration: 450, easing: "cubic-bezier(.2, .8, .2, 1)", fill: "forwards" }
+        );
+
+        await verdictWait(450);
+
+    }
+
+
+    // 6. L'argent bouge.
+    const amount = total ? verdictCenter(total.querySelector("b")) : verdictCenter(card);
+
+    if (info.unlock) {
+        await verdictUnlock(info, amount);
+    } else {
+        await verdictMoney(info, amount, shown);
+    }
+
+
+    // 7. « Compris » ferme la fiche.
+    const ok = card.querySelector(".verdict-ok");
+
+    ok.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, fill: "forwards" });
+
+    await new Promise(resolve => ok.addEventListener("click", resolve, { once: true }));
+
+    const closing = [overlay, wrap, document.querySelector(".verdict-red")].filter(Boolean);
+
+    closing.forEach(el => el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: "forwards" }));
+
+    await verdictWait(300);
+
+    closing.forEach(el => el.remove());
+
+}
+
+
+
+/* =========================================================
    12. INITIALISATION
 ========================================================= */
 
@@ -2510,6 +3318,9 @@ async function initAnimations() {
         await checkNewResults();
 
         await displayLeaderboard();
+
+        // Termine les votes échus et montre les verdicts arrivés entre-temps.
+        await refreshContests();
 
     }, FEED_INTERVAL_MS);
 

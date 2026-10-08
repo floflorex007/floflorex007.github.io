@@ -28,6 +28,13 @@
          NAVBAR
     ========================================== -->
 
+    <!-- Téléphone seulement : fond sombre derrière la fenêtre du classement -->
+    <div
+        id="leaderboard-backdrop"
+        class="leaderboard-backdrop"
+    ></div>
+
+
     <header class="navbar">
 
         <div class="logo">
@@ -74,6 +81,16 @@
                 Historique
             </button>
 
+            <!-- Téléphone seulement : bouton rond « + » (créer un pari) -->
+            <button
+                type="button"
+                id="nav-create-button"
+                class="nav-create-button"
+                aria-label="Créer un pari"
+            >
+                +
+            </button>
+
 
             <button
                 class="nav-button"
@@ -99,6 +116,12 @@
                 Message
             </button>
 
+            <!-- Téléphone seulement : trait qui glisse sous l'onglet actif -->
+            <span
+                class="nav-indicator"
+                aria-hidden="true"
+            ></span>
+
         </nav>
 
 
@@ -113,6 +136,24 @@
                 <span class="streak-flame">🔥</span>
                 <strong id="streak-count">0</strong>
             </div>
+
+            <!-- Téléphone seulement : petite jauge d'XP (ouvre la fenêtre du niveau) -->
+            <button
+                type="button"
+                id="xp-mini"
+                class="xp-mini"
+                aria-label="Ton niveau"
+            >
+                <span
+                    id="xp-mini-label"
+                    class="xp-mini-label"
+                >
+                    Niv. 1
+                </span>
+                <span class="xp-mini-bar">
+                    <span id="xp-mini-fill"></span>
+                </span>
+            </button>
 
 
             <div class="balance">
@@ -382,6 +423,16 @@
                     + Créer un pari
                 </button>
 
+
+                <!-- Téléphone seulement : ouvre le classement en fenêtre -->
+                <button
+                    type="button"
+                    id="leaderboard-open-button"
+                    class="leaderboard-open-button"
+                >
+                    🏆 Classement
+                </button>
+
             </div>
 
 
@@ -395,6 +446,16 @@
                     <div class="leaderboard-header">
                         <span>🏆</span>
                         <span>Top Parieurs</span>
+
+                        <!-- Téléphone seulement : ferme la fenêtre du classement -->
+                        <button
+                            type="button"
+                            id="leaderboard-close-button"
+                            class="leaderboard-close-button"
+                            aria-label="Fermer"
+                        >
+                            ×
+                        </button>
                     </div>
 
                     <div id="leaderboard-list"></div>
@@ -819,6 +880,7 @@
                                         id="odds-one"
                                         class="duel-value"
                                         min="1.01"
+                                        max="20"
                                         step="any"
                                         placeholder="1.80"
                                         required
@@ -847,6 +909,7 @@
                                             id="odds-two"
                                             class="duel-value"
                                             min="1.01"
+                                            max="20"
                                             step="0.01"
                                             placeholder="auto"
                                             readonly
@@ -863,7 +926,13 @@
 
                             <p class="create-hint">
                                 La cote du choix 2 se calcule toute seule.
+                                Cote maximum : 20.
                             </p>
+
+                            <p
+                                id="odds-error"
+                                class="create-error hidden"
+                            ></p>
 
                         </div>
 
@@ -1239,19 +1308,14 @@
                     </div>
 
                     <div class="bet-quick bet-quick-bank">
-                        <button type="button" data-stake="half">½ Bank</button>
-                        <button type="button" data-stake="all" class="bet-quick-allin">🔥 All in</button>
+                        <button type="button" data-stake="half">½ Max</button>
+                        <button type="button" data-stake="max" class="bet-quick-allin">🔥 Max <b id="bet-max-value">5 000 €</b></button>
                     </div>
 
-                    <p
-                        id="bet-allin-note"
-                        class="bet-allin-note hidden"
-                    >
-                        ⚠️ Faux all in : ton solde dépasse la mise maximum, on mise donc le maximum du pari (5 000 €).
-                    </p>
-
                     <p class="bet-rules">
-                        Mise de <strong>10 €</strong> à <strong>5 000 €</strong> · montant rond · 3 mises max par pari
+                        Mise de <strong>10 €</strong> à <strong id="bet-rules-max">5 000 €</strong> · montant rond · 1 seule mise par pari
+                        <br>
+                        La mise max baisse avec le temps, jusqu'à 10 € juste avant la fermeture.
                     </p>
 
                     <p
@@ -1692,6 +1756,32 @@
 
     </div>
 
+
+
+    <!-- =========================================
+         MODAL : CONTESTATION D'UN PARI VALIDÉ
+         (contester, voir le vote, voter)
+    ========================================== -->
+
+    <div
+        id="contest-modal"
+        class="modal hidden"
+    >
+
+        <div class="modal-content contest-modal-content">
+
+            <button
+                id="close-contest-modal"
+                class="close-modal"
+            >
+                ×
+            </button>
+
+            <div id="contest-modal-body"></div>
+
+        </div>
+
+    </div>
 
 
     <!-- =========================================

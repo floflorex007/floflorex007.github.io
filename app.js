@@ -113,6 +113,40 @@ function formatDeadline(value) {
 
 
 
+/*
+    Échéance affichée sur les cartes : l'heure seule si c'est
+    aujourd'hui (« 14:30 »), sinon la date et l'heure (« 09/10 à 14:30 »).
+*/
+
+function formatCardDeadline(value) {
+
+    if (!value) {
+
+        return null;
+
+    }
+
+    const date =
+        new Date(value);
+
+    if (date.toDateString() !== new Date().toDateString()) {
+
+        return formatDeadline(value);
+
+    }
+
+    return date.toLocaleTimeString(
+        "fr-FR",
+        {
+            hour: "2-digit",
+            minute: "2-digit"
+        }
+    );
+
+}
+
+
+
 /* =========================================================
    4. AUTHENTIFICATION
 ========================================================= */
@@ -1635,6 +1669,11 @@ const PARROT_GAP = 12;             // marge sous la colonne de droite
 
 const PARROT_MIN_WIDTH = 130;
 
+// Version téléphone (même seuil que le bloc « VERSION TÉLÉPHONE » de style.css).
+const PHONE_LAYOUT = window.matchMedia("(max-width: 800px)");
+
+const PHONE_PARROT_SCALE = 0.34;   // 350 → 119 px, 450 → 153 px
+
 function parrotWidthLimit(wanted) {
 
     const parrotElement = document.getElementById("parrot");
@@ -1675,6 +1714,20 @@ function applyParrotWidth(seconds) {
 
     if (!parrotElement) {
         return;
+    }
+
+    // Téléphone : petit perroquet (il grandit quand même avec l'argent en jeu),
+    // posé au-dessus des onglets, sans contrainte de colonne.
+    if (PHONE_LAYOUT.matches) {
+
+        parrotElement.style.transitionDuration = seconds + "s";
+
+        parrotElement.style.width = Math.round(parrotWidthFor(parrotLastTotal) * PHONE_PARROT_SCALE) + "px";
+
+        parrotElement.classList.remove("parrot-squeezed");
+
+        return;
+
     }
 
     const wanted = Math.min(
@@ -2651,7 +2704,8 @@ async function getBets() {
             bet_choices!bet_choices_bet_id_fkey (*),
             profiles!bets_author_id_fkey ( username, gold_frame_until, name_color_until, cosmetics ),
             target:profiles!bets_target_user_id_fkey ( username, gold_frame_until, name_color_until, cosmetics ),
-            stakes ( id, user_id, choice_id, stake, potential_win, claimed_at, created_at, profiles!stakes_user_id_fkey ( username, gold_frame_until, name_color_until, cosmetics ) )
+            stakes ( id, user_id, choice_id, stake, potential_win, claimed_at, created_at, profiles!stakes_user_id_fkey ( username, gold_frame_until, name_color_until, cosmetics ) ),
+            bet_contests ( status, ends_at )
         `)
         .eq("group_id", currentGroup?.id)
         .order("created_at", { ascending: false });
@@ -2689,6 +2743,17 @@ function isCreatedToday(createdAt) {
 
     return new Date(createdAt).toDateString() ===
         new Date().toDateString();
+
+}
+
+
+
+function isMyOwnBet(bet) {
+
+    return Boolean(
+        currentUser &&
+        bet.author_id === currentUser.id
+    );
 
 }
 
@@ -2816,6 +2881,11 @@ function renderBetSummaryHtml(
         isBlockedTarget(bet);
 
 
+    // Le créateur ne mise pas sur son propre pari (aussi vérifié côté base).
+    const isOwnBet =
+        isMyOwnBet(bet);
+
+
     const myChoiceIds =
         (bet.stakes || [])
             .filter(
@@ -2829,7 +2899,7 @@ function renderBetSummaryHtml(
 
 
     const deadlineLabel =
-        formatDeadline(bet.deadline_at) ||
+        formatCardDeadline(bet.deadline_at) ||
         "—";
 
 
@@ -2932,9 +3002,9 @@ function renderBetSummaryHtml(
                             }
 
                             <${tag}
-                                class="bet-choice-button${onFire ? " odds-fire" : ""}${!validating && (isClosed || isTargetBlocked) ? " bet-choice-closed" : ""}${myChoiceIds.includes(choice.id) ? " bet-choice-picked" : ""}${interactive ? "" : " bet-choice-readonly"}${validating ? " bet-choice-validate" : ""}${validating && cardValidation?.pick === choice.id ? " validate-selected" : ""}"
+                                class="bet-choice-button${onFire ? " odds-fire" : ""}${!validating && (isClosed || isTargetBlocked) ? " bet-choice-closed" : ""}${!validating && isOwnBet && !isClosed && !isTargetBlocked ? " bet-choice-own" : ""}${myChoiceIds.includes(choice.id) ? " bet-choice-picked" : ""}${interactive ? "" : " bet-choice-readonly"}${validating ? " bet-choice-validate" : ""}${validating && cardValidation?.pick === choice.id ? " validate-selected" : ""}"
                                 ${interactive
-                                    ? `data-bet-id="${bet.id}" data-choice-id="${choice.id}" ${!validating && (isClosed || isTargetBlocked) ? "disabled" : ""}`
+                                    ? `data-bet-id="${bet.id}" data-choice-id="${choice.id}" ${!validating && (isClosed || isTargetBlocked || isOwnBet) ? "disabled" : ""}${!validating && isOwnBet ? ' title="Tu ne peux pas miser sur ton propre pari"' : ""}`
                                     : ""
                                 }
                             >
@@ -3008,6 +3078,42 @@ function renderClaimCard(bet) {
 
     const card =
         document.createElement("div");
+
+
+    // Contestation en cours : gains bloqués, la carte ouvre le vote.
+    if (betContest(bet)?.status === "open") {
+
+        card.className = "bet-card claim-card claim-card--frozen";
+
+        card.dataset.betId = bet.id;
+
+        card.innerHTML = `
+
+            <div class="claim-card-top">
+                <span class="claim-card-badge">⚖️ Contestation en cours</span>
+                <span class="claim-card-result">Résultat validé : <b>${escapeHtml(winner?.label || "—")}</b></span>
+            </div>
+
+            <h3>${escapeHtml(bet.question)}</h3>
+
+            <button class="claim-card-button">
+                🔒 Gains bloqués pendant le vote · fin ${timeLeftLabel(betContest(bet).ends_at)}
+            </button>
+
+        `;
+
+        card.addEventListener("click", async () => {
+
+            await refreshContests();
+
+            openContestView(bet.id);
+
+        });
+
+        return card;
+
+    }
+
 
     card.className =
         "bet-card claim-card " + (won ? "claim-card--win" : "claim-card--lose");
@@ -3204,7 +3310,13 @@ function setupValidateFabProximity() {
 
     let waiting = false;
 
-    document.addEventListener("mousemove", event => {
+    // Seule une vraie souris déplie la pastille : au doigt (téléphone), le toucher
+    // passe directement la carte en validation, sans étape « Valider » dépliée.
+    document.addEventListener("pointermove", event => {
+
+        if (event.pointerType !== "mouse") {
+            return;
+        }
 
         validatePointer = { x: event.clientX, y: event.clientY };
 
@@ -3231,6 +3343,30 @@ function setupValidateFabProximity() {
         updateValidateFabs();
 
     });
+
+
+    // Téléphone : pas de souris, le dernier toucher reste la « position » du
+    // pointeur et la pastille restait dépliée sur « Valider ». Elle redevient
+    // ronde dès qu'on touche ailleurs que sur sa carte ou qu'on fait défiler.
+    const releaseOnPhone = event => {
+
+        if (!PHONE_LAYOUT.matches || !validatePointer) {
+            return;
+        }
+
+        if (event.type === "touchstart" && event.target.closest?.(".bet-card")?.querySelector(".validate-fab.near")) {
+            return;
+        }
+
+        validatePointer = null;
+
+        updateValidateFabs();
+
+    };
+
+    document.addEventListener("touchstart", releaseOnPhone, { passive: true });
+
+    window.addEventListener("scroll", releaseOnPhone, { passive: true });
 
 }
 
@@ -3825,6 +3961,11 @@ async function displayBets({ quiet = false, force = false } = {}) {
                             : ""
                         }
 
+                        ${mine && !validating && !bet.target_user_id
+                            ? `<span class="bet-own-footer">✋ Ton pari : tu ne peux pas miser</span>`
+                            : ""
+                        }
+
                         <div class="bet-total-footer">
                             <span>Solde misé</span>
                             <strong>${formatMoney(totalStaked)}</strong>
@@ -4193,8 +4334,6 @@ function openBetModal(
         "stake-input"
     ).value = "";
 
-    document.getElementById("bet-allin-note")?.classList.add("hidden");
-
 
     const potentialWinElement =
         document.getElementById("potential-win");
@@ -4207,14 +4346,27 @@ function openBetModal(
     updateBetGauge(0, 0);
 
 
+    // Pari créé par moi ou déjà misé : on le dit tout de suite.
     document.getElementById(
         "modal-error"
-    ).textContent = "";
+    ).textContent =
+        isMyOwnBet(bet)
+            ? "Tu ne peux pas miser sur ton propre pari."
+            : myStakesOn(bet) >= STAKES_PER_BET
+                ? "Tu as déjà misé sur ce pari (1 seule mise par pari)."
+                : "";
 
 
     document
         .getElementById("bet-modal")
         .classList.remove("hidden");
+
+    // La mise max baisse avec le temps : affichage mis à jour chaque seconde.
+    refreshBetMax();
+
+    clearInterval(betMaxTimer);
+
+    betMaxTimer = setInterval(refreshBetMax, 1000);
 
 }
 
@@ -4264,24 +4416,114 @@ function updatePotentialWin() {
 
 
 /*
-    Jauge de gain de la fenêtre de mise : elle se remplit avec le gain
-    (pleine à 500 €), un message motive vers le palier suivant,
+    Jauge de la fenêtre de mise : elle se remplit avec la mise, et elle est
+    pleine à la mise la plus haute possible en ce moment (celle du bouton
+    « Max » : mise max du moment, ou le solde s'il est plus petit).
+    Un message motive vers le palier de gain suivant,
     et le bouton affiche le montant misé.
 */
-
-const BET_GAUGE_FULL = 500;
 
 // Mise minimum et maximum par mise (aussi vérifiées côté base, voir mise-min-max.sql).
 const STAKE_MIN = 10;
 
 const STAKE_MAX = 5000;
 
+// Nombre de mises par pari et par joueur (aussi vérifié côté base, voir limite-une-mise.sql).
+const STAKES_PER_BET = 1;
+
+
+/*
+    Mise max qui baisse avec le temps (aussi vérifiée côté base : bet_max_stake(),
+    voir mise-max-decroissante.sql) :
+    5 000 € pendant la 1re minute du pari, puis baisse linéaire jusqu'à 10 €
+    pendant la dernière minute avant la fermeture des mises.
+*/
+
+function myStakesOn(bet) {
+
+    return (bet?.stakes || []).filter(
+        s => s.user_id === currentUser?.id
+    ).length;
+
+}
+
+function betMaxStake(bet, now = Date.now()) {
+
+    if (!bet?.created_at || !bet?.deadline_at) {
+        return STAKE_MAX;
+    }
+
+    const created = new Date(bet.created_at).getTime();
+
+    const closeAt = new Date(bet.deadline_at).getTime() - betCloseMs(bet.created_at, bet.deadline_at);
+
+    const start = created + 60000;
+
+    const end = closeAt - 60000;
+
+    if (now <= start) {
+        return STAKE_MAX;
+    }
+
+    if (now >= end) {
+        return STAKE_MIN;
+    }
+
+    const ratio = (now - start) / (end - start);
+
+    return Math.max(STAKE_MIN, Math.floor(STAKE_MAX - (STAKE_MAX - STAKE_MIN) * ratio));
+
+}
+
+let betMaxTimer = null;
+
+// Bouton « Max » et règle de la fenêtre de mise : mis à jour chaque seconde.
+function refreshBetMax() {
+
+    const modal = document.getElementById("bet-modal");
+
+    if (!currentBet || modal.classList.contains("hidden")) {
+
+        clearInterval(betMaxTimer);
+
+        betMaxTimer = null;
+
+        return;
+
+    }
+
+    const max = formatMoney(betMaxStake(currentBet));
+
+    document.getElementById("bet-max-value").textContent = max;
+
+    document.getElementById("bet-rules-max").textContent = max;
+
+    // La mise max baisse : la jauge (pleine à la mise max) suit.
+    const stake = Number(document.getElementById("stake-input").value) || 0;
+
+    updateBetGauge(stake, stake * Number(currentChoice?.odds || 0));
+
+}
+
 const BET_GAIN_GOALS = [50, 100, 200, 500, 1000];
+
+// Mise la plus haute possible maintenant (= ce que met le bouton « Max »).
+function maxPossibleStake() {
+
+    const maxNow = betMaxStake(currentBet);
+
+    const balance = Math.floor(Number(currentProfile?.balance) || 0);
+
+    return balance > 0 ? Math.min(maxNow, balance) : maxNow;
+
+}
 
 function updateBetGauge(stake, gain) {
 
+    const maxPossible = maxPossibleStake();
+
     const percent =
-        Math.min(100, gain / BET_GAUGE_FULL * 100);
+        Math.min(100, stake / maxPossible * 100);
 
     document.getElementById("bet-gauge-fill").style.height =
         percent + "%";
@@ -4299,6 +4541,10 @@ function updateBetGauge(stake, gain) {
     if (!stake) {
 
         tip.textContent = "💡 Choisis une mise pour voir ton gain.";
+
+    } else if (stake >= maxPossible) {
+
+        tip.textContent = "🔥 Mise max ! Gros coup en vue !";
 
     } else if (nextGoal && currentChoice) {
 
@@ -4360,6 +4606,16 @@ async function placeBet() {
     errorElement.textContent = "";
 
 
+    if (currentBet && isMyOwnBet(currentBet)) {
+
+        errorElement.textContent =
+            "Tu ne peux pas miser sur ton propre pari.";
+
+        return;
+
+    }
+
+
     if (currentBet && isBlockedTarget(currentBet)) {
 
         errorElement.textContent =
@@ -4410,16 +4666,24 @@ async function placeBet() {
     }
 
 
-    // Limite : 3 mises par pari et par joueur (aussi vérifiée côté base).
-    const myStakesCount =
-        (currentBet?.stakes || []).filter(
-            s => s.user_id === currentUser?.id
-        ).length;
+    // Mise max du moment (elle baisse avec le temps).
+    const maxNow = betMaxStake(currentBet);
 
-    if (myStakesCount >= 3) {
+    if (stake > maxNow) {
 
         errorElement.textContent =
-            "Tu as déjà placé 3 mises sur ce pari (maximum).";
+            "Mise max en ce moment : " + formatMoney(maxNow) + " (elle baisse avec le temps).";
+
+        return;
+
+    }
+
+
+    // Limite : 1 seule mise par pari et par joueur (aussi vérifiée côté base).
+    if (myStakesOn(currentBet) >= STAKES_PER_BET) {
+
+        errorElement.textContent =
+            "Tu as déjà misé sur ce pari (1 seule mise par pari).";
 
         return;
 
@@ -4527,26 +4791,49 @@ async function placeBet() {
 let myBetsFilter = "all";
 
 
-async function displayMyBets() {
+// Dernière version affichée de l'Historique (pour ne pas le redessiner pour rien).
+let myBetsHtml = null;
 
-    const container =
+async function displayMyBets({ cascade = false } = {}) {
+
+    const shown =
         document.getElementById(
             "my-bets-container"
         );
 
 
-    if (!container || !currentUser) {
+    if (!shown || !currentUser) {
 
         return;
 
     }
 
 
-    container.innerHTML =
-        "<p>Chargement...</p>";
+    if (!shown.firstElementChild) {
+
+        shown.innerHTML =
+            "<p>Chargement...</p>";
+
+    }
+
+
+    /*
+        La liste est préparée hors de la page puis échangée d'un coup,
+        seulement si elle a changé : plus de « Chargement... » qui coupait
+        l'arrivée en cascade des lignes à l'ouverture de l'onglet.
+    */
+
+    const container =
+        document.createElement("div");
+
+    container.className =
+        "my-bets-content";
 
 
     try {
+
+        // Contestations du groupe (et fin des votes arrivés à leur terme).
+        await refreshContests();
 
         const {
             data,
@@ -4565,7 +4852,11 @@ async function displayMyBets() {
                     question,
                     status,
                     winner_choice_id,
-                    group_id
+                    group_id,
+                    author_id,
+                    resolved_at,
+                    bet_contests ( status ),
+                    bet_choices!bet_choices_bet_id_fkey ( id, label )
                 ),
                 bet_choices (
                     id,
@@ -4606,7 +4897,8 @@ async function displayMyBets() {
                 created_at,
                 winner_choice_id,
                 bet_choices!bet_choices_bet_id_fkey ( id, label, odds ),
-                stakes ( stake )
+                stakes ( stake ),
+                bet_contests ( status, penalty )
             `)
             .eq("author_id", currentUser.id)
             .eq("group_id", currentGroup?.id)
@@ -4624,7 +4916,7 @@ async function displayMyBets() {
         container.innerHTML = "";
 
 
-        if ((!data || data.length === 0) && created.length === 0) {
+        if ((!data || data.length === 0) && created.length === 0 && groupContests.length === 0) {
 
             container.innerHTML = `
                 <div class="empty-state">
@@ -4645,7 +4937,8 @@ async function displayMyBets() {
             (data || []).map(stake => ({
                 ...stake,
                 result:
-                    stake.bets.status !== "resolved" ? "open"
+                    stake.bets.status === "cancelled" ? "cancelled"
+                    : stake.bets.status !== "resolved" ? "open"
                     : stake.bets.winner_choice_id === stake.bet_choices.id ? "win"
                     : "lose"
             }));
@@ -4669,6 +4962,8 @@ async function displayMyBets() {
         */
 
         container.innerHTML = `
+
+            ${renderContestsBlock()}
 
             <div class="my-bets-summary">
 
@@ -4718,6 +5013,15 @@ async function displayMyBets() {
         const rows =
             container.querySelector(".my-bets-rows");
 
+        // Un seul bouton « Contester » par pari (même avec plusieurs mises).
+        const contestButtonShown = new Set();
+
+        container.querySelectorAll("[data-contest-id]").forEach(row => {
+
+            row.addEventListener("click", () => openContestView(row.dataset.contestId));
+
+        });
+
 
         stakes.forEach(
             stake => {
@@ -4744,12 +5048,30 @@ async function displayMyBets() {
                 const icon =
                     stake.result === "win" ? "✓"
                     : stake.result === "lose" ? "✗"
+                    : stake.result === "cancelled" ? "↺"
                     : "⏳";
 
                 const amount =
                     stake.result === "win" ? "+" + formatMoney(stake.potential_win)
                     : stake.result === "lose" ? "−" + formatMoney(stake.stake)
+                    : stake.result === "cancelled" ? formatMoney(stake.stake) + " rendus"
                     : formatMoney(stake.potential_win);
+
+
+                // Contester (une seule fois par pari, pendant 24 h après la validation).
+                const contest = betContest(bet);
+
+                const contestHtml =
+                    contest?.status === "open" ? `<span class="contest-tag">⚖️ Vote en cours</span>`
+                    : contest?.status === "upheld" ? `<span class="contest-tag">⚖️ Contestation rejetée</span>`
+                    : contest?.status === "annulled" ? `<span class="contest-tag">⚖️ Annulé après vote</span>`
+                    : canContest(bet) && !contestButtonShown.has(bet.id)
+                        ? `<button type="button" class="contest-button" data-contest-bet="${bet.id}">⚖️ Contester</button>`
+                    : "";
+
+                if (contestHtml.includes("contest-button")) {
+                    contestButtonShown.add(bet.id);
+                }
 
 
                 item.innerHTML = `
@@ -4766,11 +5088,23 @@ async function displayMyBets() {
                             · mise ${formatMoney(stake.stake)}
                         </p>
 
+                        ${contestHtml}
+
                     </div>
 
                     <span class="my-bet-amount">${amount}</span>
 
                 `;
+
+
+                item.querySelector(".contest-button")?.addEventListener("click", () => {
+
+                    const winner = (bet.bet_choices || [])
+                        .find(other => other.id === bet.winner_choice_id);
+
+                    openContestForm(bet, winner?.label);
+
+                });
 
 
                 rows.appendChild(item);
@@ -4784,6 +5118,10 @@ async function displayMyBets() {
             const choices = bet.bet_choices || [];
 
             const done = bet.status === "resolved";
+
+            const cancelled = bet.status === "cancelled";
+
+            const contest = betContest(bet);
 
             const winner = choices.find(choice => choice.id === bet.winner_choice_id);
 
@@ -4802,7 +5140,7 @@ async function displayMyBets() {
 
             item.innerHTML = `
 
-                <span class="my-bet-dot">${done ? "✓" : "⏳"}</span>
+                <span class="my-bet-dot">${cancelled ? "↺" : done ? "✓" : "⏳"}</span>
 
                 <div class="my-bet-text">
 
@@ -4810,8 +5148,15 @@ async function displayMyBets() {
 
                     <p>
                         ${choices.map(choice => escapeHtml(choice.label) + " " + Number(choice.odds).toFixed(2)).join(" · ")}
-                        ${done && winner ? " · 🏆 " + escapeHtml(winner.label) : (done ? "" : " · en cours")}
+                        ${cancelled ? "" : done && winner ? " · 🏆 " + escapeHtml(winner.label) : (done ? "" : " · en cours")}
                     </p>
+
+                    ${cancelled
+                        ? `<span class="contest-tag">⚖️ Validation annulée après vote${contest?.penalty > 0 ? " · amende −" + formatMoney(contest.penalty) : ""}</span>`
+                        : contest?.status === "open" ? `<span class="contest-tag">⚖️ Contesté · vote en cours</span>`
+                        : contest?.status === "upheld" ? `<span class="contest-tag">⚖️ Contestation rejetée</span>`
+                        : ""
+                    }
 
                 </div>
 
@@ -4875,7 +5220,406 @@ async function displayMyBets() {
             </p>
         `;
 
+    } finally {
+
+        // Rien n'a changé : on garde les lignes affichées (et leur animation en cours).
+        const unchanged =
+            container.innerHTML === myBetsHtml &&
+            shown.firstElementChild?.classList.contains("my-bets-content");
+
+        if (!unchanged) {
+
+            myBetsHtml =
+                container.innerHTML;
+
+            shown.replaceChildren(container);
+
+            if (cascade && typeof cascadeIn === "function") {
+
+                cascadeIn(container);
+
+            }
+
+        }
+
     }
+
+}
+
+
+
+/* =========================================================
+   CONTESTATIONS (voir contestations.sql)
+   Un joueur qui a misé peut contester un pari validé pendant 24 h.
+   Le jury (membres qui n'ont pas misé, sans le créateur) vote 24 h :
+   validation annulée = tout le monde remboursé, amende de 10 % pour le créateur.
+========================================================= */
+
+const CONTEST_WINDOW_MS = 24 * 3600 * 1000;
+
+let groupContests = [];
+
+// Contestation d'un pari (objet ou tableau selon la jointure Supabase).
+function betContest(bet) {
+
+    const contest = bet?.bet_contests;
+
+    return Array.isArray(contest) ? contest[0] || null : contest || null;
+
+}
+
+function canContest(bet) {
+
+    return Boolean(
+        bet &&
+        bet.status === "resolved" &&
+        bet.author_id !== currentUser?.id &&
+        bet.resolved_at &&
+        Date.now() - new Date(bet.resolved_at) < CONTEST_WINDOW_MS &&
+        !betContest(bet)
+    );
+
+}
+
+// « dans 13 h » / « dans 25 min »
+function timeLeftLabel(date) {
+
+    const ms = new Date(date) - Date.now();
+
+    if (ms <= 0) {
+        return "terminé";
+    }
+
+    const minutes = Math.ceil(ms / 60000);
+
+    return minutes >= 60
+        ? "dans " + Math.floor(minutes / 60) + " h"
+        : "dans " + minutes + " min";
+
+}
+
+// Charge les contestations du groupe (termine au passage les votes échus)
+// et met une pastille sur l'onglet Historique s'il y a un vote qui m'attend.
+async function refreshContests() {
+
+    if (!currentGroup) {
+        return [];
+    }
+
+    const { data, error } = await supabaseClient.rpc("group_contests", {
+        p_group: currentGroup.id
+    });
+
+    if (error) {
+
+        console.error("Contestations indisponibles (contestations.sql lancé ?)", error);
+
+        groupContests = [];
+
+        return groupContests;
+
+    }
+
+    groupContests = data || [];
+
+    const waitingVote = groupContests.some(
+        contest => contest.status === "open" && contest.my_role === "juror" && contest.my_vote === null
+    );
+
+    document
+        .querySelector('.nav-button[data-page="my-bets-page"]')
+        ?.classList.toggle("has-reward", waitingVote);
+
+    // Votes terminés pas encore vus : animation de la balance (animations.js).
+    if (typeof checkContestResults === "function") {
+        checkContestResults(groupContests);
+    }
+
+    return groupContests;
+
+}
+
+function contestStatusLabel(contest) {
+
+    if (contest.status === "annulled") {
+        return "❌ Validation annulée · tout le monde remboursé";
+    }
+
+    if (contest.status === "upheld") {
+        return "✅ Validation maintenue";
+    }
+
+    return "⚖️ Vote en cours · " + (contest.votes_annul + contest.votes_keep) + " / " + contest.jury_size +
+        " votes · fin " + timeLeftLabel(contest.ends_at);
+
+}
+
+// Bloc « Contestations » en haut de l'Historique.
+function renderContestsBlock() {
+
+    if (groupContests.length === 0) {
+        return "";
+    }
+
+    return `
+        <div class="contests-block">
+
+            <h2 class="contests-title">⚖️ Contestations</h2>
+
+            ${groupContests.map(contest => {
+
+                const mustVote =
+                    contest.status === "open" && contest.my_role === "juror" && contest.my_vote === null;
+
+                return `
+                    <button
+                        type="button"
+                        class="contest-row contest-row--${contest.status}${mustVote ? " contest-row--vote" : ""}"
+                        data-contest-id="${contest.bet_id}"
+                    >
+                        <span class="contest-row-text">
+                            <b>${escapeHtml(contest.question)}</b>
+                            <small>${contestStatusLabel(contest)}</small>
+                        </span>
+                        <span class="contest-row-action">${mustVote ? "Voter" : "Voir"}</span>
+                    </button>
+                `;
+
+            }).join("")}
+
+        </div>
+    `;
+
+}
+
+
+/* ----- Fenêtre de contestation ----- */
+
+function contestModalBody() {
+
+    return document.getElementById("contest-modal-body");
+
+}
+
+function showContestModal() {
+
+    document.getElementById("contest-modal").classList.remove("hidden");
+
+}
+
+// Contester : petite explication + raison facultative.
+function openContestForm(bet, winnerLabel) {
+
+    contestModalBody().innerHTML = `
+
+        <h2>⚖️ Contester ce pari</h2>
+
+        <p class="contest-question">${escapeHtml(bet.question)}</p>
+
+        <p class="contest-line">Résultat validé : <b>${escapeHtml(winnerLabel || "—")}</b></p>
+
+        <ul class="contest-rules">
+            <li>Les membres qui <b>n'ont pas misé</b> sur ce pari votent pendant 24 h.</li>
+            <li>Pendant le vote, les gains de ce pari sont bloqués.</li>
+            <li>Validation annulée : tout le monde récupère sa mise, et le créateur paie une amende de 10 % du total misé.</li>
+            <li>Un pari ne peut être contesté qu'une seule fois.</li>
+        </ul>
+
+        <label for="contest-reason">Pourquoi ? (facultatif)</label>
+
+        <textarea
+            id="contest-reason"
+            maxlength="200"
+            rows="2"
+            placeholder="Ex : le match s'est fini 2-1, pas 1-1."
+        ></textarea>
+
+        <p id="contest-error" class="error-message"></p>
+
+        <button type="button" id="contest-confirm" class="primary-button contest-confirm">
+            ⚖️ Contester et lancer le vote
+        </button>
+
+    `;
+
+    document.getElementById("contest-confirm").addEventListener("click", async event => {
+
+        const button = event.currentTarget;
+
+        button.disabled = true;
+
+        const { error } = await supabaseClient.rpc("open_contest", {
+            p_bet_id: bet.id,
+            p_reason: document.getElementById("contest-reason").value
+        });
+
+        if (error) {
+
+            document.getElementById("contest-error").textContent = error.message;
+
+            button.disabled = false;
+
+            return;
+
+        }
+
+        await refreshAfterContest();
+
+        openContestView(bet.id);
+
+    });
+
+    showContestModal();
+
+}
+
+// Voir une contestation (et voter si je fais partie du jury).
+function openContestView(betId) {
+
+    const contest = groupContests.find(item => item.bet_id === betId);
+
+    if (!contest) {
+        return;
+    }
+
+    const votes = contest.votes_annul + contest.votes_keep;
+
+    const annulPct = contest.jury_size ? contest.votes_annul / contest.jury_size * 100 : 0;
+
+    const keepPct = contest.jury_size ? contest.votes_keep / contest.jury_size * 100 : 0;
+
+    const canVote =
+        contest.status === "open" && contest.my_role === "juror" && contest.my_vote === null;
+
+    const roleNote =
+        contest.status !== "open" ? ""
+        : contest.my_role === "juror" && contest.my_vote !== null
+            ? `Tu as voté : <b>${contest.my_vote ? "annuler la validation" : "garder la validation"}</b>.`
+        : contest.my_role === "author" ? "C'est ton pari : tu ne votes pas."
+        : contest.my_role === "bettor" ? "Tu as misé sur ce pari : tu ne votes pas (jury neutre)."
+        : "";
+
+    const result =
+        contest.status === "annulled"
+            ? `<p class="contest-result contest-result--annulled">❌ Validation annulée : tout le monde a récupéré sa mise.
+               ${contest.penalty > 0 ? `Amende de <b>${formatMoney(contest.penalty)}</b> pour ${escapeHtml(contest.author_name || "le créateur")}.` : ""}</p>`
+        : contest.status === "upheld"
+            ? `<p class="contest-result contest-result--upheld">✅ Validation maintenue : les gains sont débloqués.</p>`
+        : "";
+
+    contestModalBody().innerHTML = `
+
+        <h2>⚖️ Contestation</h2>
+
+        <p class="contest-question">${escapeHtml(contest.question)}</p>
+
+        <p class="contest-line">Résultat validé par ${escapeHtml(contest.author_name || "—")} : <b>${escapeHtml(contest.winner_label || "—")}</b></p>
+
+        <p class="contest-line">Contesté par <b>${escapeHtml(contest.opened_by_name || "—")}</b>${contest.reason ? ` : « ${escapeHtml(contest.reason)} »` : ""}</p>
+
+        ${result}
+
+        <div class="contest-votes">
+
+            <div class="contest-votes-bar">
+                <span class="contest-votes-annul" style="width:${annulPct}%"></span>
+                <span class="contest-votes-keep" style="width:${keepPct}%"></span>
+            </div>
+
+            <div class="contest-votes-legend">
+                <span>❌ Annuler : <b>${contest.votes_annul}</b></span>
+                <span>${votes} / ${contest.jury_size} votes</span>
+                <span>✅ Garder : <b>${contest.votes_keep}</b></span>
+            </div>
+
+            ${contest.status === "open"
+                ? `<p class="contest-hint">Fin du vote ${timeLeftLabel(contest.ends_at)}, ou dès qu'une majorité du jury (${Math.floor(contest.jury_size / 2) + 1} votes) est atteinte.</p>`
+                : ""
+            }
+
+        </div>
+
+        ${roleNote ? `<p class="contest-hint">${roleNote}</p>` : ""}
+
+        ${canVote
+            ? `
+                <div class="contest-vote-buttons">
+                    <button type="button" class="contest-vote contest-vote--annul" data-annul="true">❌ Annuler la validation</button>
+                    <button type="button" class="contest-vote contest-vote--keep" data-annul="false">✅ Garder la validation</button>
+                </div>
+            `
+            : ""
+        }
+
+        <p id="contest-error" class="error-message"></p>
+
+    `;
+
+    contestModalBody().querySelectorAll(".contest-vote").forEach(button => {
+
+        button.addEventListener("click", async () => {
+
+            contestModalBody().querySelectorAll(".contest-vote").forEach(other => other.disabled = true);
+
+            const { data, error } = await supabaseClient.rpc("vote_contest", {
+                p_bet_id: betId,
+                p_annul: button.dataset.annul === "true"
+            });
+
+            if (error) {
+
+                document.getElementById("contest-error").textContent = error.message;
+
+                contestModalBody().querySelectorAll(".contest-vote").forEach(other => other.disabled = false);
+
+                return;
+
+            }
+
+            // Mon vote a terminé le vote : la fenêtre se ferme et le verdict
+            // s'affiche avec la balance (lancé par refreshContests).
+            if (data === "annulled" || data === "upheld") {
+
+                document.getElementById("contest-modal").classList.add("hidden");
+
+                await refreshAfterContest();
+
+                return;
+
+            }
+
+            await refreshAfterContest();
+
+            openContestView(betId);
+
+        });
+
+    });
+
+    showContestModal();
+
+}
+
+// Après une contestation ou un vote : contestations, soldes, paris et historique à jour.
+async function refreshAfterContest() {
+
+    await refreshContests();
+
+    await loadCurrentProfile();
+
+    await displayBets({ quiet: true, force: true });
+
+    await displayMyBets();
+
+}
+
+function setupContestModal() {
+
+    const modal = document.getElementById("contest-modal");
+
+    document
+        .getElementById("close-contest-modal")
+        ?.addEventListener("click", () => modal.classList.add("hidden"));
 
 }
 
@@ -5816,7 +6560,12 @@ function openCreateModal() {
 
     document.getElementById("create-modal").classList.remove("hidden");
 
-    setTimeout(() => document.getElementById("bet-question")?.focus(), 120);
+    // Sur téléphone, pas de curseur automatique : le clavier cacherait la fenêtre.
+    if (!PHONE_LAYOUT.matches) {
+
+        setTimeout(() => document.getElementById("bet-question")?.focus(), 120);
+
+    }
 
 }
 
@@ -5980,6 +6729,24 @@ async function createBet() {
         !oddsTwo ||
         oddsTwo <= 0
     ) {
+
+        return;
+
+    }
+
+
+    // Cotes limitées à 20 (les deux choix).
+    const oddsMessage = oddsProblem(oddsOne, oddsTwo);
+
+    if (oddsMessage) {
+
+        const oddsError = document.getElementById("odds-error");
+
+        oddsError.textContent = oddsMessage;
+
+        oddsError.classList.remove("hidden");
+
+        oddsError.scrollIntoView({ behavior: "smooth", block: "center" });
 
         return;
 
@@ -6280,6 +7047,40 @@ function resetDeadlinePicker() {
 }
 
 
+
+/*
+    Cotes autorisées : de 1,01 à 20 (vérifié aussi par Supabase, voir securite-paris.sql).
+    La cote 2 étant calculée depuis la cote 1, la cote 1 doit rester entre 1,06 et 20
+    (en dessous de 1,06, la cote 2 dépasserait 20).
+*/
+
+const ODDS_MIN = 1.01;
+
+const ODDS_MAX = 20;
+
+function oddsProblem(oddsOne, oddsTwo) {
+
+    if (!oddsOne || !oddsTwo) {
+        return "";
+    }
+
+    if (oddsOne > ODDS_MAX) {
+        return "Cote trop haute : 20 maximum.";
+    }
+
+    if (oddsOne < ODDS_MIN || oddsTwo > ODDS_MAX) {
+        return "Cote trop basse : avec " + formatOdds(oddsOne) + ", le choix 2 dépasserait 20. Mets au moins 1,06.";
+    }
+
+    return "";
+
+}
+
+function formatOdds(value) {
+
+    return Number(value).toFixed(2).replace(".", ",");
+
+}
 
 function calculerCoteComplementaire(cote) {
 
@@ -7453,7 +8254,7 @@ function setupXpModal() {
     const open = event => {
 
         // Le bouton « Débloquer le niveau » garde son propre rôle.
-        if (event.target.closest("#level-up-button")) {
+        if (event?.target.closest("#level-up-button")) {
             return;
         }
 
@@ -7482,6 +8283,71 @@ function setupXpModal() {
     document
         .getElementById("close-xp-modal")
         .addEventListener("click", () => modal.classList.add("hidden"));
+
+    setupXpMini(open);
+
+}
+
+
+/*
+    Téléphone : la carte « Ton niveau » est remplacée par une petite jauge
+    dans la barre du haut. Elle recopie la carte (qui reste la seule mise à
+    jour par animations.js) et l'ouvre au toucher, comme la flamme.
+    Niveau à débloquer : la jauge brille et le toucher le débloque.
+*/
+
+function setupXpMini(openXpModal) {
+
+    const mini = document.getElementById("xp-mini");
+
+    const card = document.getElementById("level-sidebar");
+
+    if (!mini || !card) {
+        return;
+    }
+
+    const levelUpButton = document.getElementById("level-up-button");
+
+    const sync = () => {
+
+        const label = document.getElementById("level-sidebar-label").textContent.trim();
+
+        document.getElementById("xp-mini-label").textContent =
+            label.replace("Niveau", "Niv.");
+
+        document.getElementById("xp-mini-fill").style.width =
+            document.getElementById("level-sidebar-fill").style.width || "0%";
+
+        mini.classList.toggle(
+            "pending",
+            Boolean(levelUpButton && !levelUpButton.classList.contains("hidden"))
+        );
+
+    };
+
+    new MutationObserver(sync).observe(card, {
+        subtree: true,
+        childList: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: ["style", "class"]
+    });
+
+    sync();
+
+    mini.addEventListener("click", () => {
+
+        if (mini.classList.contains("pending") && typeof claimNextLevel === "function") {
+
+            claimNextLevel();
+
+            return;
+
+        }
+
+        openXpModal();
+
+    });
 
 }
 
@@ -7923,6 +8789,13 @@ function showPage(pageId, skipCascade = false) {
             "hidden"
         );
 
+        // Téléphone : chaque changement d'onglet repart du haut de la page.
+        if (PHONE_LAYOUT.matches) {
+
+            window.scrollTo({ top: 0, behavior: "instant" });
+
+        }
+
         if (!skipCascade) {
 
             cascadeIn(page);
@@ -7938,6 +8811,14 @@ function showPage(pageId, skipCascade = false) {
         if (pageId === "bets-page") {
 
             displayLeaderboard();
+
+        }
+
+
+        // Historique : contestations et votes à jour (redessiné seulement si ça a changé).
+        if (pageId === "my-bets-page") {
+
+            displayMyBets({ cascade: !skipCascade });
 
         }
 
@@ -7992,7 +8873,125 @@ function showPage(pageId, skipCascade = false) {
 
         });
 
+
+    moveNavIndicator();
+
+    // Changer d'onglet ferme la fenêtre du classement (téléphone).
+    document.body.classList.remove("leaderboard-open");
+
 }
+
+
+/*
+    Téléphone : le trait lumineux du menu du bas glisse
+    au-dessus de l'onglet actif (caché sur le Profil).
+*/
+
+function moveNavIndicator() {
+
+    const indicator = document.querySelector(".nav-indicator");
+
+    if (!indicator || !PHONE_LAYOUT.matches) {
+        return;
+    }
+
+    const tab = document.querySelector("nav .nav-button.active");
+
+    if (!tab || tab.offsetWidth === 0) {
+
+        indicator.style.opacity = "0";
+
+        return;
+
+    }
+
+    const width = tab.offsetWidth * 0.5;
+
+    indicator.style.width = width + "px";
+
+    indicator.style.left = (tab.offsetLeft + (tab.offsetWidth - width) / 2) + "px";
+
+    indicator.style.opacity = "1";
+
+    // Première pose sans glissement, ensuite il glisse d'un onglet à l'autre.
+    if (!indicator.classList.contains("ready")) {
+
+        requestAnimationFrame(() => indicator.classList.add("ready"));
+
+    }
+
+}
+
+/*
+    Téléphone : le classement « Top Parieurs » s'ouvre en fenêtre
+    avec le bouton « 🏆 Classement » (le CSS ne le montre que sur téléphone).
+*/
+
+function setupLeaderboardPopup() {
+
+    const close = () => document.body.classList.remove("leaderboard-open");
+
+    document
+        .getElementById("leaderboard-open-button")
+        ?.addEventListener("click", () => document.body.classList.add("leaderboard-open"));
+
+    document
+        .getElementById("leaderboard-close-button")
+        ?.addEventListener("click", close);
+
+    document
+        .getElementById("leaderboard-backdrop")
+        ?.addEventListener("click", close);
+
+    document.addEventListener("keydown", event => {
+        if (event.key === "Escape") {
+            close();
+        }
+    });
+
+}
+
+function setupPhoneNav() {
+
+    const nav = document.querySelector(".navbar nav");
+
+    if (!nav) {
+        return;
+    }
+
+    // Bouton rond « + » : créer un pari.
+    document
+        .getElementById("nav-create-button")
+        ?.addEventListener("click", openCreateModal);
+
+    // Petit rebond de l'icône touchée.
+    nav.querySelectorAll(".nav-button").forEach(button => {
+
+        button.addEventListener("click", () => {
+
+            button.classList.remove("nav-pop");
+
+            void button.offsetWidth;
+
+            button.classList.add("nav-pop");
+
+        });
+
+    });
+
+    // Le trait se replace si le menu change de taille (onglet admin, rotation…).
+    if (typeof ResizeObserver !== "undefined") {
+
+        new ResizeObserver(moveNavIndicator).observe(nav);
+
+    }
+
+    PHONE_LAYOUT.addEventListener?.("change", moveNavIndicator);
+
+    moveNavIndicator();
+
+}
+
 
 
 
@@ -8507,6 +9506,12 @@ async function initAppPage() {
 
         setupCreateModal();
 
+        setupPhoneNav();
+
+        setupLeaderboardPopup();
+
+        setupContestModal();
+
         setupParrotFit();
 
         await checkGroupRemovals();
@@ -8723,6 +9728,15 @@ async function initAppPage() {
                 oddsTwoInput.value =
                     cote ? cote.toFixed(2) : "";
 
+                // Cote max 20 : message tout de suite sous les cotes.
+                const problem = oddsProblem(Number(oddsOneInput.value), cote);
+
+                const oddsError = document.getElementById("odds-error");
+
+                oddsError.textContent = problem;
+
+                oddsError.classList.toggle("hidden", !problem);
+
             }
         );
 
@@ -8804,16 +9818,10 @@ async function initAppPage() {
     }
 
 
-    stakeInput.addEventListener("input", () => {
-
-        document.getElementById("bet-allin-note")?.classList.add("hidden");
-
-    });
-
-
     /*
-        Mises rapides (50 €, 100 €, 200 €), moitié du solde et tout le solde.
-        Les mises sont des montants ronds : on arrondit à l'euro inférieur.
+        Mises rapides (50 €, 100 €, 200 €), moitié du max et mise max du moment
+        (sans dépasser le solde). Les mises sont des montants ronds : on arrondit
+        à l'euro inférieur.
     */
 
     document
@@ -8822,20 +9830,13 @@ async function initAppPage() {
 
             button.addEventListener("click", () => {
 
-                const balance = Math.floor(Number(currentProfile?.balance) || 0);
-
-                // All in : plafonné à la mise maximum (on le signale : « faux all in »).
-                const cappedAllIn =
-                    button.dataset.stake === "all" && balance > STAKE_MAX;
+                // Même maximum que la jauge : mise max du moment, ou le solde s'il est plus petit.
+                const maxPossible = maxPossibleStake();
 
                 stakeInput.value =
-                    button.dataset.stake === "half" ? Math.min(STAKE_MAX, Math.floor(balance / 2))
-                    : button.dataset.stake === "all" ? Math.min(STAKE_MAX, balance)
+                    button.dataset.stake === "half" ? Math.min(maxPossible, Math.max(STAKE_MIN, Math.floor(maxPossible / 2)))
+                    : button.dataset.stake === "max" ? maxPossible
                     : button.dataset.stake;
-
-                document
-                    .getElementById("bet-allin-note")
-                    .classList.toggle("hidden", !cappedAllIn);
 
                 updatePotentialWin();
 

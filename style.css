@@ -172,6 +172,18 @@ input {
     font-weight: 700;
 }
 
+/* Pari que j'ai créé : je ne peux pas miser dessus. */
+.bet-own-footer {
+    color: #9a9eaa;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.bet-choice-own,
+.bet-choice-own:hover {
+    cursor: not-allowed;
+}
+
 .bet-card.bet-card-locked,
 .modal-content.bet-card-locked {
     background: linear-gradient(180deg, #1a1c22 0%, #141519 100%);
@@ -774,6 +786,11 @@ input {
     display: flex;
     flex-direction: column;
     gap: 12px;
+}
+
+/* Enveloppe de la liste préparée hors de la page (displayMyBets) : sans effet sur la mise en page. */
+.my-bets-content {
+    display: contents;
 }
 
 .my-bet {
@@ -2312,6 +2329,11 @@ input {
     color: #ff6b6b;
     font-size: 13px;
     font-weight: 600;
+}
+
+/* Dans une fenêtre, le gris des paragraphes (.modal-content p) passait devant. */
+.modal-content p.create-error {
+    color: #ff6b6b;
 }
 
 
@@ -5683,6 +5705,12 @@ body.parrot-phenix #parrot {
 .bet-quick button.bet-quick-allin {
     border-color: rgba(255, 106, 0, 0.5);
     color: #ffb36b;
+    white-space: nowrap;
+}
+
+/* Mise max du moment, dans le bouton « Max » (elle baisse avec le temps). */
+#bet-max-value {
+    font-variant-numeric: tabular-nums;
 }
 
 .bet-quick button.bet-quick-allin:hover {
@@ -6004,4 +6032,1393 @@ body.parrot-phenix #parrot {
 
 .admin-balance-message.error {
     color: #ff8a8a;
+}
+
+
+/* =========================================================
+   CONTESTATIONS (Historique, fenêtre de vote, carte bloquée)
+========================================================= */
+
+/* ----- Bloc en haut de l'Historique ----- */
+
+.contests-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 22px;
+}
+
+.contests-title {
+    font-size: 16px;
+    margin-bottom: 4px;
+}
+
+.contest-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #2c3040;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #1c202c 0%, #14161e 100%);
+    color: #e6e8ee;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.contest-row:hover {
+    border-color: #f5c451;
+}
+
+.contest-row-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.contest-row-text b {
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.contest-row-text small {
+    color: #858a98;
+    font-size: 12px;
+}
+
+.contest-row-action {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: #23262f;
+    color: #aaaeba;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+/* Vote qui m'attend : en doré. */
+.contest-row--vote {
+    border-color: rgba(245, 196, 81, 0.6);
+    box-shadow: 0 0 16px rgba(245, 196, 81, 0.15);
+}
+
+.contest-row--vote .contest-row-action {
+    background: #f5c451;
+    color: #1b1505;
+}
+
+.contest-row--annulled .contest-row-text small {
+    color: #ff8a8a;
+}
+
+.contest-row--upheld .contest-row-text small {
+    color: #63d69f;
+}
+
+
+/* ----- Bouton « Contester » et étiquettes dans les lignes ----- */
+
+.contest-button {
+    align-self: flex-start;
+    margin-top: 6px;
+    padding: 5px 10px;
+    border: 1px solid rgba(245, 196, 81, 0.45);
+    border-radius: 999px;
+    background: rgba(245, 196, 81, 0.08);
+    color: #f5c451;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.contest-button:hover {
+    background: rgba(245, 196, 81, 0.18);
+}
+
+.contest-tag {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: rgba(245, 196, 81, 0.1);
+    color: #f5c451;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.my-bet-row--cancelled .my-bet-amount {
+    color: #aaaeba;
+}
+
+
+/* ----- Fenêtre ----- */
+
+.contest-modal-content {
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.contest-modal-content h2 {
+    margin-bottom: 12px;
+}
+
+.modal-content .contest-question {
+    color: white;
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.modal-content .contest-line {
+    font-size: 14px;
+    margin-bottom: 6px;
+}
+
+.contest-line b {
+    color: white;
+}
+
+.contest-rules {
+    margin: 14px 0 4px 18px;
+    color: #aaaeba;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.contest-rules b {
+    color: white;
+}
+
+.modal-content .contest-confirm {
+    background: linear-gradient(135deg, #d9a521, #f5c451);
+    color: #1b1505;
+}
+
+.modal-content .contest-result {
+    margin: 12px 0;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.modal-content .contest-result--annulled {
+    background: rgba(255, 107, 107, 0.1);
+    color: #ff9a9a;
+}
+
+.modal-content .contest-result--upheld {
+    background: rgba(99, 214, 159, 0.1);
+    color: #8fe6bb;
+}
+
+.contest-votes {
+    margin-top: 16px;
+}
+
+.contest-votes-bar {
+    display: flex;
+    justify-content: space-between;
+    height: 10px;
+    border-radius: 999px;
+    background: #262a38;
+    overflow: hidden;
+}
+
+.contest-votes-annul {
+    background: linear-gradient(90deg, #ff6b6b, #ff8a8a);
+    transition: width 0.4s;
+}
+
+.contest-votes-keep {
+    background: linear-gradient(90deg, #4fc58f, #63d69f);
+    transition: width 0.4s;
+}
+
+.contest-votes-legend {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 8px;
+    color: #858a98;
+    font-size: 12px;
+}
+
+.contest-votes-legend b {
+    color: white;
+}
+
+.modal-content .contest-hint {
+    margin-top: 10px;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.contest-vote-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.contest-vote {
+    padding: 13px 10px;
+    border-radius: 12px;
+    font-family: inherit;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform 0.15s, filter 0.15s;
+}
+
+.contest-vote:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.1);
+}
+
+.contest-vote:disabled {
+    opacity: 0.5;
+    cursor: default;
+    transform: none;
+}
+
+.contest-vote--annul {
+    border: 1px solid rgba(255, 107, 107, 0.5);
+    background: rgba(255, 107, 107, 0.12);
+    color: #ff9a9a;
+}
+
+.contest-vote--keep {
+    border: 1px solid rgba(99, 214, 159, 0.5);
+    background: rgba(99, 214, 159, 0.12);
+    color: #8fe6bb;
+}
+
+
+/* ----- Carte « Récupérer » bloquée pendant le vote ----- */
+
+.claim-card.claim-card--frozen {
+    border-color: rgba(245, 196, 81, 0.55);
+    cursor: pointer;
+}
+
+.claim-card--frozen .claim-card-badge {
+    color: #f5c451;
+}
+
+.claim-card--frozen .claim-card-button {
+    background: #23262f;
+    color: #f5c451;
+}
+
+
+/* =========================================================
+   VERSION TÉLÉPHONE
+   Tout ce bloc ne s'applique qu'aux petits écrans (800 px et moins) :
+   l'affichage ordinateur ne change pas.
+   - barre du haut compacte et toujours visible (groupe, série, solde, points, profil) ;
+   - menu flottant en bas de l'écran (trait glissant, bouton « + » au centre) ;
+   - fenêtres qui montent du bas de l'écran ;
+   - perroquet plus petit, posé au-dessus des onglets.
+========================================================= */
+
+/* Bouton « + », trait du menu du bas et petite jauge d'XP : téléphone seulement. */
+.nav-create-button,
+.nav-indicator,
+.xp-mini,
+.leaderboard-open-button,
+.leaderboard-close-button,
+.leaderboard-backdrop {
+    display: none;
+}
+
+@keyframes xp-mini-glow {
+    50% { box-shadow: 0 0 12px rgba(200, 107, 255, 0.8); }
+}
+
+@keyframes nav-pop {
+    40% { transform: scale(1.3); }
+}
+
+@media (max-width: 800px) {
+
+    /* Menu du bas flottant : 12 px du bord, 67 px de haut. */
+    :root {
+        --tabbar-gap: 12px;
+        --tabbar-side: 12px;
+        --tabbar-height: 67px;
+        --phone-tabbar: calc(var(--tabbar-gap) + var(--tabbar-height));
+        --phone-safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    /* Pas de place réservée à la barre de défilement sur téléphone,
+       et rien ne doit faire défiler la page sur le côté. */
+    html {
+        scrollbar-gutter: auto;
+    }
+
+    body {
+        overflow-x: clip;
+        padding-bottom: calc(var(--phone-tabbar) + var(--phone-safe-bottom));
+    }
+
+    /* Pas de carré bleu du navigateur quand on touche une carte, un bouton… */
+    * {
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Page de bienvenue : pas d'onglets, donc pas de place à leur réserver. */
+    body.no-group {
+        padding-bottom: 0;
+    }
+
+
+    /* ----- Barre du haut ----- */
+
+    .navbar {
+        position: sticky;
+        top: 0;
+        z-index: 90;
+        height: auto;
+        flex-wrap: nowrap;
+        gap: 8px;
+        padding: 8px 10px;
+        padding-top: calc(8px + env(safe-area-inset-top, 0px));
+    }
+
+    .navbar .logo {
+        display: none;
+    }
+
+    .group-switcher {
+        flex: 0 1 auto;
+        min-width: 0;
+    }
+
+    /* Groupe : sans l'icône 👥, pour laisser plus de place au nom. */
+    .group-switcher-button {
+        max-width: 100%;
+        gap: 5px;
+        padding: 7px 10px;
+        font-size: 0;
+    }
+
+    .group-switcher-button span {
+        font-size: 13px;
+    }
+
+    .group-switcher-button::after {
+        content: "▾";
+        font-size: 11px;
+    }
+
+    /* Le menu des groupes prend toute la largeur sous la barre. */
+    .group-menu {
+        position: fixed;
+        top: calc(56px + env(safe-area-inset-top, 0px));
+        left: 8px;
+        right: 8px;
+        min-width: 0;
+        max-height: calc(100dvh - 140px);
+        overflow-y: auto;
+    }
+
+    .user-area {
+        flex-shrink: 0;
+        margin-left: auto;
+        gap: 8px;
+    }
+
+    .balance {
+        text-align: right;
+    }
+
+    .balance span {
+        display: none;
+    }
+
+    .balance strong {
+        font-size: 14px;
+        white-space: nowrap;
+    }
+
+    .streak-flame {
+        font-size: min(var(--flame-size, 18px), 17px);
+        line-height: 1;
+    }
+
+    /* Série : même contour que la jauge d'XP, en orange. */
+    .streak-widget {
+        height: 30px;
+        padding: 0 8px 0 6px;
+        border: 1px solid rgba(255, 159, 67, 0.35);
+        border-radius: 9px;
+        background: rgba(255, 106, 0, 0.1);
+        font-size: 14px;
+    }
+
+    /* Petite jauge d'XP à la place de la carte « Ton niveau ». */
+    #level-sidebar {
+        display: none;
+    }
+
+    .xp-mini {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+        order: -1;              /* à gauche de la flamme */
+        justify-content: center;
+        height: 30px;
+        width: 46px;
+        padding: 4px 5px;
+        border: 1px solid rgba(200, 107, 255, 0.3);
+        border-radius: 9px;
+        background: rgba(108, 99, 255, 0.1);
+        cursor: pointer;
+        font-family: inherit;
+    }
+
+    .xp-mini-label {
+        color: #c86bff;
+        font-size: 10px;
+        font-weight: 800;
+        line-height: 1;
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    .xp-mini-bar {
+        display: block;
+        height: 4px;
+        border-radius: 999px;
+        background: #262a38;
+        overflow: hidden;
+    }
+
+    #xp-mini-fill {
+        display: block;
+        height: 100%;
+        width: 0;
+        background: linear-gradient(90deg, #6c63ff, #c86bff);
+        transition: width 0.8s ease-out;
+    }
+
+    /* Niveau à débloquer : la jauge brille, un toucher le débloque. */
+    .xp-mini.pending {
+        border-color: #c86bff;
+        animation: xp-mini-glow 1.4s ease-in-out infinite;
+    }
+
+    .xp-mini.pending .xp-mini-label::before {
+        content: "⭐ ";
+    }
+
+    /* Profil : seulement l'icône. */
+    .profile-nav-button {
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        border-radius: 50%;
+        font-size: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .profile-nav-button::before {
+        content: "👤";
+        font-size: 17px;
+    }
+
+
+    /* ----- Menu du bas : « Trait glissant », flottant, bouton « + » au centre ----- */
+
+    .navbar nav {
+        position: fixed;
+        left: var(--tabbar-side);
+        right: var(--tabbar-side);
+        bottom: calc(var(--tabbar-gap) + var(--phone-safe-bottom));
+        z-index: 90;
+        width: auto;
+        height: var(--tabbar-height);
+        order: 0;
+        flex: none;
+        display: flex;
+        align-items: stretch;
+        gap: 2px;
+        overflow: visible;
+        padding: 6px 4px;
+        border-radius: 24px;
+        background: rgba(15, 17, 23, 0.45);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        border: 1px solid #23262f;
+        box-shadow: 0 20px 60px rgba(108, 99, 255, 0.14);
+    }
+
+    .navbar nav .nav-button {
+        position: relative;
+        flex: 1 1 0;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        padding: 6px 2px;
+        border-radius: 17px;
+        background: none;
+        color: #858a98;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: -0.2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        -webkit-tap-highlight-color: transparent;
+        transition: color 0.2s;
+    }
+
+    .navbar nav .nav-button:hover,
+    .navbar nav .nav-button.active {
+        background: none;
+    }
+
+    .navbar nav .nav-button.active {
+        color: white;
+    }
+
+    .navbar nav .nav-button::before {
+        font-size: 20px;
+        line-height: 1;
+        transition: transform 0.25s;
+    }
+
+    .navbar nav .nav-button.active::before {
+        transform: translateY(-1px);
+    }
+
+    .navbar nav .nav-button[data-page="bets-page"]::before { content: "🎲"; }
+    .navbar nav .nav-button[data-page="my-bets-page"]::before { content: "📜"; }
+    .navbar nav .nav-button[data-page="missions-page"]::before { content: "🎯"; }
+    .navbar nav .nav-button[data-page="shop-page"]::before { content: "🛍️"; }
+    .navbar nav .nav-button[data-page="admin-page"]::before { content: "📢"; }
+
+    /* Petit rebond au toucher. */
+    .navbar nav .nav-button:active::before {
+        transform: scale(0.82);
+    }
+
+    .navbar nav .nav-button.nav-pop::before {
+        animation: nav-pop 0.35s ease-out;
+    }
+
+    /* Trait lumineux qui glisse au-dessus de l'onglet actif (placé par app.js). */
+    .nav-indicator {
+        display: block;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 0;
+        height: 3px;
+        border-radius: 3px;
+        background: #6c63ff;
+        box-shadow: 0 0 10px #6c63ff;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .nav-indicator.ready {
+        transition: left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), width 0.3s, opacity 0.2s;
+    }
+
+    /* Bouton rond « + » au centre : créer un pari. */
+    .nav-create-button {
+        display: flex;
+        flex: 0 0 54px;
+        align-self: center;
+        align-items: center;
+        justify-content: center;
+        width: 54px;
+        height: 54px;
+        margin: 0 2px;
+        padding: 0 0 3px;
+        border-radius: 50%;
+        border: 4px solid #0f1117;
+        background: linear-gradient(135deg, #6c63ff, #8b5cf6);
+        color: white;
+        font-size: 28px;
+        font-weight: 300;
+        line-height: 1;
+        transform: translateY(-22px);
+        box-shadow: 0 8px 20px rgba(108, 99, 255, 0.5);
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        transition: transform 0.15s;
+    }
+
+    .nav-create-button:active {
+        transform: translateY(-22px) scale(0.92);
+    }
+
+    /* Récompense dispo sur Missions : un simple point doré lumineux. */
+    .navbar nav .nav-button.has-reward {
+        background: none;
+        box-shadow: none;
+        animation: none;
+        overflow: visible;
+    }
+
+    .navbar nav .nav-button.has-reward::after {
+        top: 6px;
+        right: auto;
+        left: calc(50% + 8px);
+        width: 8px;
+        height: 8px;
+        box-shadow: 0 0 8px #f5c451;
+    }
+
+    /* Le bouton « + » du menu remplace celui sous le titre. */
+    .page-header #create-bet-header-button {
+        display: none;
+    }
+
+
+    /* ----- Pages ----- */
+
+    /* Sur tablette, le contenu reste centré au lieu de s'étirer. */
+    .main-container {
+        max-width: 680px;
+        padding: 18px 12px 150px;
+    }
+
+    .page-header {
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 18px;
+    }
+
+    .page-header h1 {
+        font-size: 24px;
+        margin-bottom: 4px;
+    }
+
+    .page-header p {
+        font-size: 13px;
+    }
+
+    /* ----- Page des paris : les cartes d'abord, puis le niveau, puis le classement ----- */
+
+    .bets-layout {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 18px;
+    }
+
+    .bets-list {
+        order: 1;
+        gap: 22px;
+    }
+
+    .right-column {
+        order: 2;
+        width: 100%;
+        position: static;
+    }
+
+    /* Classement : plus dans la page, mais dans une fenêtre
+       ouverte par le bouton « 🏆 Classement » (app.js : setupLeaderboardPopup). */
+    .leaderboard-sidebar {
+        display: none;
+    }
+
+    body.leaderboard-open .leaderboard-sidebar {
+        display: block;
+        position: fixed;
+        z-index: 101;
+        inset: 0;
+        width: auto;
+        max-width: 460px;
+        height: fit-content;
+        max-height: calc(100dvh - 40px);
+        margin: auto 12px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+    }
+
+    @media (min-width: 485px) {
+        body.leaderboard-open .leaderboard-sidebar {
+            margin: auto;
+        }
+    }
+
+    body.leaderboard-open .leaderboard-backdrop {
+        display: block;
+        position: fixed;
+        z-index: 100;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+    }
+
+    .leaderboard-close-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        margin-left: auto;
+        border: none;
+        background: none;
+        color: #858a98;
+        font-size: 26px;
+        line-height: 1;
+        cursor: pointer;
+    }
+
+    /* Bouton « 🏆 Classement » à côté du titre de la page des paris. */
+    .page-header > div:first-child {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .leaderboard-open-button {
+        display: block;
+        flex-shrink: 0;
+        padding: 8px 12px;
+        border: 1px solid rgba(245, 196, 81, 0.4);
+        border-radius: 999px;
+        background: rgba(245, 196, 81, 0.1);
+        color: #f5c451;
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        white-space: nowrap;
+        cursor: pointer;
+    }
+
+    .bets-list .bet-card {
+        max-width: none;
+        margin-left: 0;
+    }
+
+
+    /* ----- Perroquet : plus petit, posé au-dessus des onglets ----- */
+
+    .parrot {
+        right: 4px;
+        bottom: calc(var(--phone-tabbar) + var(--phone-safe-bottom) - 16px);
+        z-index: 60;
+    }
+
+    /* Toucher le perroquet : pas de carré bleu, pas de sélection,
+       pas de zoom quand on tape vite plusieurs fois. */
+    .parrot,
+    .parrot * {
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: manipulation;
+        outline: none;
+    }
+
+
+    /* ----- Fil d'activité : au-dessus des onglets ----- */
+
+    .activity-feed {
+        left: 8px;
+        /* + 30 px : au-dessus du bouton « + » qui dépasse du menu. */
+        bottom: calc(var(--phone-tabbar) + var(--phone-safe-bottom) + 30px);
+        width: min(440px, calc(100vw - 16px));
+    }
+
+    .activity-toast {
+        padding: 8px 10px;
+        font-size: 12px;
+    }
+
+    /* Deux notifications au plus à l'écran. */
+    .activity-slot:nth-last-child(n + 3) {
+        visibility: hidden;
+    }
+
+    /* Pendant qu'une fenêtre est ouverte, le fil ne cache pas ses boutons. */
+    body:has(.modal:not(.hidden)) .activity-feed,
+    body:has(.stakes-panel:not(.hidden)) .activity-feed,
+    body.leaderboard-open .activity-feed {
+        display: none;
+    }
+
+
+    /* ----- Fenêtres : elles montent du bas de l'écran ----- */
+
+    .modal {
+        align-items: flex-end;
+        padding: 0;
+    }
+
+    .modal .modal-content {
+        max-width: 600px;
+        max-height: calc(100dvh - 20px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        border-radius: 20px 20px 0 0;
+        border-bottom: none;
+        padding: 24px 16px calc(20px + var(--phone-safe-bottom));
+    }
+
+    /* La fenêtre de mise s'ouvre au centre de l'écran. */
+    #bet-modal {
+        align-items: center;
+        padding: 12px;
+    }
+
+    #bet-modal .modal-content {
+        max-height: calc(100dvh - 24px);
+        border-radius: 22px;
+        border-bottom: 1px solid #343846;
+        padding-bottom: 20px;
+    }
+
+    .close-modal {
+        top: 8px;
+        right: 10px;
+        width: 40px;
+        height: 40px;
+    }
+
+    .stakes-panel-backdrop {
+        z-index: 96;
+    }
+
+
+    /* ----- Créer un pari : contenu centré ----- */
+
+    /* L'icône de chaque section passe à côté de son titre au lieu d'occuper
+       une colonne à gauche : les champs prennent toute la largeur, bien centrés. */
+    .create-modal-content .create-card--sections {
+        padding: 4px;
+    }
+
+    .create-modal-content .create-section {
+        position: relative;
+        padding: 16px 12px;
+    }
+
+    .create-modal-content .create-section-icon {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+        font-size: 16px;
+    }
+
+    .create-modal-content .create-section-body > label:first-child {
+        display: flex;
+        align-items: center;
+        min-height: 24px;
+        padding-left: 42px;
+    }
+
+    .create-modal-intro {
+        margin-bottom: 14px;
+    }
+
+
+    /* ----- Profil ----- */
+
+    .profile-card {
+        max-width: none;
+    }
+
+    .profile-form input {
+        min-width: 0;
+    }
+
+    /* La déconnexion reste accessible depuis la page Profil. */
+    #profile-page .logout-button {
+        display: inline-block;
+    }
+
+    /* Derrière les fenêtres (z-index 100) : elle restait par-dessus la
+       fenêtre de confirmation. Toujours devant le menu et le perroquet. */
+    .delete-account-area {
+        bottom: calc(var(--phone-tabbar) + var(--phone-safe-bottom) + 12px);
+        z-index: 95;
+    }
+
+}
+
+/* Très petits téléphones : textes du menu du bas un peu plus petits. */
+@media (max-width: 360px) {
+
+    .navbar nav .nav-button {
+        font-size: 9.5px;
+        letter-spacing: -0.3px;
+    }
+
+    .navbar nav .nav-button::before {
+        font-size: 18px;
+    }
+
+}
+
+
+
+
+/* =========================================================
+   FIN D'UNE CONTESTATION : LA BALANCE DU JURY
+   (animations.js, section 11 bis ; maquette demo-fin-contestation.html)
+========================================================= */
+
+.verdict-toast {
+    position: fixed;
+    left: 16px;
+    bottom: calc(16px + var(--phone-tabbar, 0px) + var(--phone-safe-bottom, 0px));
+    width: min(340px, calc(100vw - 32px));
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    border: 1px solid #f5c451;
+    border-left: 5px solid #f5c451;
+    border-radius: 12px;
+    background: #1a1d27;
+    color: #e6e8ee;
+    font-size: 13px;
+    z-index: 5003;
+    pointer-events: none;
+}
+
+.verdict-toast-icon {
+    font-size: 22px;
+}
+
+.verdict-toast small {
+    display: block;
+    margin-top: 2px;
+    color: #f5c451;
+    font-weight: 800;
+}
+
+.verdict-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 5000;
+    background: radial-gradient(ellipse at center, rgba(20, 16, 40, .8), rgba(4, 5, 10, .9));
+    backdrop-filter: blur(3px);
+    opacity: 0;
+}
+
+.verdict-wrap {
+    position: fixed;
+    inset: 0;
+    z-index: 5001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    overflow-y: auto;
+}
+
+.verdict-card {
+    position: relative;
+    width: min(390px, 100%);
+    margin: auto;
+    padding: 14px 16px 16px;
+    border: 1px solid var(--verdict-color);
+    border-radius: 18px;
+    background: #171a24;
+    color: #e6e8ee;
+    box-shadow: 0 0 40px color-mix(in srgb, var(--verdict-color) 30%, transparent);
+}
+
+.verdict-head {
+    margin-bottom: 4px;
+    color: var(--verdict-color);
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 2px;
+}
+
+.verdict-result {
+    margin-bottom: 8px;
+    color: var(--verdict-color);
+    font-size: 18px;
+    font-weight: 900;
+    text-align: center;
+    opacity: 0;
+}
+
+.verdict-question {
+    margin-bottom: 4px;
+    font-size: 16px;
+    font-weight: 900;
+}
+
+.verdict-who {
+    margin-bottom: 8px;
+    color: #9ea3b0;
+    font-size: 12px;
+}
+
+.verdict-expl {
+    margin-bottom: 10px;
+    color: #c9ccd6;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.verdict-line {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 6px 0;
+    border-top: 1px dashed #2f3445;
+    font-size: 14px;
+    opacity: 0;
+}
+
+.verdict-line b,
+.verdict-total b {
+    font-variant-numeric: tabular-nums;
+}
+
+.verdict-line--plus b,
+.verdict-plus {
+    color: #3ddc97;
+}
+
+.verdict-line--minus b,
+.verdict-minus {
+    color: #ff5c7a;
+}
+
+.verdict-line--strike b {
+    color: #858a98;
+    text-decoration: line-through;
+}
+
+.verdict-line--info b,
+.verdict-zero {
+    color: #9ea3b0;
+}
+
+.verdict-line--unlock b,
+.verdict-gold {
+    color: #f5c451;
+}
+
+.verdict-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 6px;
+    padding-top: 8px;
+    border-top: 2px solid #2f3445;
+    font-weight: 900;
+    opacity: 0;
+}
+
+.verdict-total b {
+    font-size: 26px;
+}
+
+.verdict-ok {
+    width: 100%;
+    margin-top: 12px;
+    padding: 10px;
+    border: none;
+    border-radius: 12px;
+    background: var(--verdict-color);
+    color: #0b0c12;
+    font: inherit;
+    font-weight: 900;
+    cursor: pointer;
+    opacity: 0;
+}
+
+
+/* ----- La balance ----- */
+
+.verdict-scale {
+    position: relative;
+    width: 250px;
+    height: 132px;
+    margin: 22px auto 6px;
+}
+
+.verdict-post {
+    position: absolute;
+    left: 50%;
+    top: 16px;
+    width: 6px;
+    height: 100px;
+    margin-left: -3px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #8f6d26, #f5c451, #8f6d26);
+}
+
+.verdict-base {
+    position: absolute;
+    left: 50%;
+    bottom: 8px;
+    width: 80px;
+    height: 12px;
+    margin-left: -40px;
+    border-radius: 50%;
+    background: #8f6d26;
+}
+
+.verdict-pivot {
+    position: absolute;
+    left: 50%;
+    top: 8px;
+    width: 16px;
+    height: 16px;
+    margin-left: -8px;
+    border-radius: 50%;
+    background: #f5c451;
+}
+
+.verdict-beam {
+    position: absolute;
+    left: 25px;
+    right: 25px;
+    top: 14px;
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(180deg, #ffe08a, #b88a2c);
+}
+
+.verdict-pan {
+    position: absolute;
+    top: 3px;
+    width: 0;
+    height: 0;
+}
+
+.verdict-pan--left {
+    left: 0;
+}
+
+.verdict-pan--right {
+    right: 0;
+}
+
+.verdict-pan-in {
+    position: absolute;
+    left: -42px;
+    top: 0;
+    width: 84px;
+    height: 78px;
+    transform-origin: 42px 0;
+}
+
+.verdict-strings {
+    position: absolute;
+    left: 6px;
+    right: 6px;
+    top: 0;
+    height: 44px;
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+    background:
+        linear-gradient(to bottom right, transparent calc(50% - 1px), #c9a24a 50%, transparent calc(50% + 1px)) left / 50% 100% no-repeat,
+        linear-gradient(to bottom left, transparent calc(50% - 1px), #c9a24a 50%, transparent calc(50% + 1px)) right / 50% 100% no-repeat;
+}
+
+.verdict-dish {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 42px;
+    height: 14px;
+    border-radius: 0 0 42px 42px;
+    background: linear-gradient(180deg, #ffe08a, #b88a2c);
+}
+
+.verdict-coins {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 18px;
+    height: 24px;
+    display: flex;
+    flex-wrap: wrap-reverse;
+    justify-content: center;
+    align-content: flex-start;
+    gap: 2px;
+}
+
+.verdict-coin {
+    width: 18px;
+    height: 18px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    color: #0b0c12;
+    font-size: 10px;
+    font-weight: 900;
+}
+
+.verdict-coin--annul {
+    background: #ff5c7a;
+}
+
+.verdict-coin--keep {
+    background: #3ddc97;
+}
+
+.verdict-label {
+    position: absolute;
+    left: -10px;
+    right: -10px;
+    top: 60px;
+    font-size: 11px;
+    font-weight: 900;
+    text-align: center;
+}
+
+.verdict-label--annul {
+    color: #ff8da1;
+}
+
+.verdict-label--keep {
+    color: #6ee7b3;
+}
+
+
+/* ----- Carton rouge du créateur ----- */
+
+.verdict-red {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 96px;
+    height: 132px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid #ffd2d8;
+    border-radius: 10px;
+    background: linear-gradient(160deg, #ff4d5e, #c3122a);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
+    color: white;
+    font-weight: 900;
+    z-index: 5004;
+    pointer-events: none;
+}
+
+.verdict-red small {
+    font-size: 11px;
+    letter-spacing: 2px;
+}
+
+.verdict-red b {
+    margin-top: 4px;
+    font-size: 24px;
+}
+
+
+/* ----- Billets, étincelles, montants ----- */
+
+.verdict-bill {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 56px;
+    height: 26px;
+    margin: -13px 0 0 -28px;
+    background: url("assets/perroquet/win-bill2.png") center / contain no-repeat;
+    z-index: 5005;
+    pointer-events: none;
+    will-change: transform, opacity;
+}
+
+.verdict-bill--lost {
+    filter: hue-rotate(-90deg) saturate(1.6);
+}
+
+.verdict-bill--burn::after {
+    content: "🔥";
+    position: absolute;
+    left: 50%;
+    top: -16px;
+    transform: translateX(-50%);
+    font-size: 20px;
+}
+
+.verdict-vignette {
+    position: fixed;
+    inset: 0;
+    z-index: 5002;
+    box-shadow: inset 0 0 120px 40px rgba(255, 40, 70, .75);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.verdict-spark,
+.verdict-ring {
+    position: fixed;
+    left: 0;
+    top: 0;
+    border-radius: 50%;
+    z-index: 5005;
+    pointer-events: none;
+}
+
+.verdict-spark {
+    width: 7px;
+    height: 7px;
+    margin: -3px;
+}
+
+.verdict-ring {
+    width: 20px;
+    height: 20px;
+    margin: -10px;
+    border: 3px solid;
+}
+
+.verdict-pop {
+    position: fixed;
+    z-index: 5006;
+    font-size: 22px;
+    font-weight: 900;
+    white-space: nowrap;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, .6);
+    pointer-events: none;
+}
+
+.verdict-pop--plus {
+    color: #3ddc97;
+}
+
+.verdict-pop--minus {
+    color: #ff5c7a;
+}
+
+.verdict-pop--gold {
+    color: #f5c451;
+}
+
+.verdict-lock {
+    position: fixed;
+    z-index: 5005;
+    font-size: 44px;
+    pointer-events: none;
 }

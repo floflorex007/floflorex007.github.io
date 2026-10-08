@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Fin d'une contestation (maquette)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 80px; overflow-x: hidden; }
+button { font: inherit; cursor: pointer; color: inherit; }
+h1 { font-size: 26px; margin-bottom: 6px; }
+.sub { color: #858a98; margin-bottom: 18px; max-width: 900px; font-size: 14px; line-height: 1.5; }
+.tabs { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.tab { background: #1a1d27; border: 1px solid #2c3040; border-radius: 12px; padding: 10px 16px; font-weight: 800; }
+.tab.on { background: #6c63ff; border-color: #6c63ff; }
+.desc { color: #b9bdc9; font-size: 14px; margin-bottom: 18px; max-width: 900px; line-height: 1.5; min-height: 42px; }
+.layout { display: grid; grid-template-columns: minmax(0, 860px) 340px; gap: 24px; align-items: start; }
+@media (max-width: 1250px) { .layout { grid-template-columns: 1fr; } }
+
+/* ----- Scène : faux site ----- */
+.stage { position: relative; height: 580px; border-radius: 20px; overflow: hidden; border: 1px solid #2c3040; background: #0f1117; margin: 0 auto; width: 100%; }
+.stage.phone { max-width: 390px; height: 700px; }
+.inner { position: absolute; inset: 0; }
+.fake { position: absolute; inset: 0; padding: 70px 20px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-content: start; }
+.phone .fake { grid-template-columns: 1fr; }
+.fake .top { position: absolute; left: 0; right: 0; top: 0; height: 52px; background: #14161e; border-bottom: 1px solid #2c3040; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; font-weight: 900; letter-spacing: 1px; }
+.bal { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.1; }
+.bal span { font-size: 10px; color: #858a98; letter-spacing: 1px; font-weight: 700; }
+.bal strong { font-size: 18px; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.fake .card { background: linear-gradient(180deg, #1c202c, #14161e); border: 1px solid #2c3040; border-radius: 16px; height: 120px; padding: 14px; font-weight: 700; font-size: 14px; color: #b9bdc9; position: relative; }
+.fake .card.glow { border-color: #f5c451; box-shadow: 0 0 22px rgba(245, 196, 81, .45); }
+.fk-claim { position: absolute; left: 14px; right: 14px; bottom: 14px; padding: 9px; border-radius: 10px; text-align: center; font-weight: 900; color: #1b1405; background: linear-gradient(135deg, #f5c451, #ffe08a); opacity: 0; }
+.parrot { position: absolute; left: 10px; bottom: 6px; width: 120px; z-index: 2; transform-origin: 50% 100%; }
+
+/* ----- Calque des animations ----- */
+.layer { position: absolute; inset: 0; z-index: 10; pointer-events: none; }
+.layer button { pointer-events: auto; }
+.ov-bg { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(20, 16, 40, .8), rgba(4, 5, 10, .9)); backdrop-filter: blur(3px); opacity: 0; }
+.vignette { position: absolute; inset: 0; opacity: 0; box-shadow: inset 0 0 120px 40px rgba(255, 40, 70, .75); }
+
+.bill { position: absolute; left: 0; top: 0; width: 46px; height: 28px; margin: -14px 0 0 -23px; background: url("assets/perroquet/win-bill2.png") center / contain no-repeat; z-index: 40; }
+.bill.red { filter: hue-rotate(-90deg) saturate(1.6); }
+.bill.burn::after { content: "🔥"; position: absolute; left: 50%; top: -16px; transform: translateX(-50%); font-size: 20px; }
+.pop { position: absolute; z-index: 45; font-weight: 900; font-size: 22px; white-space: nowrap; transform: translate(-50%, -50%); text-shadow: 0 2px 10px rgba(0, 0, 0, .6); }
+.pop.plus { color: #3ddc97; }
+.pop.minus { color: #ff5c7a; }
+.pop.gold { color: #f5c451; }
+.spark { position: absolute; left: 0; top: 0; width: 7px; height: 7px; margin: -3px; border-radius: 50%; z-index: 41; }
+.ring { position: absolute; left: 0; top: 0; width: 20px; height: 20px; margin: -10px; border-radius: 50%; border: 3px solid; z-index: 39; }
+.lock { position: absolute; z-index: 42; font-size: 44px; transform: translate(-50%, -50%); }
+
+/* Carte du verdict (A et B) */
+.vcard { position: relative; width: min(390px, calc(100% - 32px)); background: #171a24; border: 1px solid var(--vc); border-radius: 18px; padding: 14px 16px 16px;
+    box-shadow: 0 0 40px color-mix(in srgb, var(--vc) 30%, transparent); }
+.vc-head { font-size: 11px; font-weight: 900; letter-spacing: 2px; color: var(--vc); margin-bottom: 4px; }
+.vc-q { font-weight: 900; font-size: 16px; margin-bottom: 4px; }
+.vc-who { font-size: 12px; color: #9ea3b0; margin-bottom: 8px; }
+.vc-votes { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+.vc-votes span { font-size: 12px; font-weight: 800; padding: 3px 8px; border-radius: 999px; background: #232736; }
+.vc-votes .r { color: #ff8da1; }
+.vc-votes .g { color: #6ee7b3; }
+.vc-expl { font-size: 13px; color: #c9ccd6; line-height: 1.45; margin-bottom: 10px; }
+.ln { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-top: 1px dashed #2f3445; font-size: 14px; opacity: 0; }
+.ln b { font-variant-numeric: tabular-nums; }
+.k-plus b { color: #3ddc97; }
+.k-minus b { color: #ff5c7a; }
+.k-strike b { color: #858a98; text-decoration: line-through; }
+.k-info b { color: #9ea3b0; }
+.k-unlock b { color: #f5c451; }
+.total { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; padding-top: 8px; border-top: 2px solid #2f3445; font-weight: 900; opacity: 0; }
+.total b { font-size: 26px; font-variant-numeric: tabular-nums; }
+.ok { margin-top: 12px; width: 100%; border: none; border-radius: 12px; padding: 10px; font-weight: 900; background: var(--vc); color: #0b0c12; opacity: 0; }
+
+/* ----- A : le marteau du juge ----- */
+.a-col { position: absolute; left: 0; right: 0; top: 14px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.a-judge { position: relative; width: 230px; height: 112px; }
+.a-block { position: absolute; left: 36px; bottom: 4px; width: 92px; height: 20px; border-radius: 6px; background: linear-gradient(180deg, #a86b34, #6b3f1c); box-shadow: 0 6px 0 #3e2410; }
+.a-gavel { position: absolute; left: 44px; top: 46px; width: 178px; height: 30px; transform-origin: 168px 15px; }
+.a-head { position: absolute; left: 0; top: -9px; width: 46px; height: 48px; border-radius: 8px; background: linear-gradient(90deg, #6b3f1c, #b77a40 50%, #6b3f1c); }
+.a-head::before, .a-head::after { content: ""; position: absolute; left: 0; right: 0; height: 6px; background: #f5c451; }
+.a-head::before { top: 6px; } .a-head::after { bottom: 6px; }
+.a-handle { position: absolute; left: 44px; top: 10px; width: 132px; height: 10px; border-radius: 6px; background: linear-gradient(180deg, #c08a52, #7a4a22); }
+.stamp { font: 900 34px/1 system-ui, sans-serif; letter-spacing: 5px; padding: 6px 18px; border: 5px solid currentColor; border-radius: 10px; color: var(--vc);
+    transform: rotate(-8deg); opacity: 0; background: rgba(0, 0, 0, .35); white-space: nowrap; }
+.a-stampzone { height: 62px; display: grid; place-items: center; }
+
+/* ----- B : la balance du jury ----- */
+.b-toast { position: absolute; left: 16px; bottom: 16px; width: min(320px, calc(100% - 32px)); display: flex; gap: 10px; align-items: center; background: #1a1d27; border: 1px solid #f5c451;
+    border-left: 5px solid #f5c451; border-radius: 12px; padding: 10px 12px; font-size: 13px; z-index: 20; }
+.b-toast .i { font-size: 22px; }
+.b-toast small { display: block; color: #f5c451; font-weight: 800; margin-top: 2px; }
+.b-wrap { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(390px, calc(100% - 32px)); }
+.b-wrap .vcard { width: 100%; }
+.b-scale { position: relative; width: 250px; height: 132px; margin: 22px auto 6px; }
+.b-post { position: absolute; left: 50%; top: 16px; width: 6px; height: 100px; margin-left: -3px; background: linear-gradient(90deg, #8f6d26, #f5c451, #8f6d26); border-radius: 3px; }
+.b-base { position: absolute; left: 50%; bottom: 8px; width: 80px; height: 12px; margin-left: -40px; border-radius: 50%; background: #8f6d26; }
+.b-top { position: absolute; left: 50%; top: 8px; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; background: #f5c451; z-index: 2; }
+.b-beam { position: absolute; left: 25px; right: 25px; top: 14px; height: 6px; border-radius: 3px; background: linear-gradient(180deg, #ffe08a, #b88a2c); }
+.b-pan { position: absolute; top: 3px; width: 0; height: 0; }
+.b-pan.l { left: 0; } .b-pan.r { right: 0; }
+.b-pan-in { position: absolute; left: -42px; top: 0; width: 84px; height: 78px; transform-origin: 42px 0; }
+.b-strings { position: absolute; left: 6px; right: 6px; top: 0; height: 44px; border-left: 1px solid #c9a24a; border-right: 1px solid #c9a24a; clip-path: polygon(50% 0, 100% 100%, 0 100%); background:
+    linear-gradient(to bottom right, transparent calc(50% - 1px), #c9a24a 50%, transparent calc(50% + 1px)) left / 50% 100% no-repeat,
+    linear-gradient(to bottom left, transparent calc(50% - 1px), #c9a24a 50%, transparent calc(50% + 1px)) right / 50% 100% no-repeat; }
+.b-dish { position: absolute; left: 0; right: 0; top: 42px; height: 14px; border-radius: 0 0 42px 42px; background: linear-gradient(180deg, #ffe08a, #b88a2c); }
+.b-coins { position: absolute; left: 0; right: 0; top: 18px; height: 24px; display: flex; justify-content: center; align-items: flex-end; gap: 2px; }
+.coin { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 900; color: #0b0c12; }
+.coin.r { background: #ff5c7a; } .coin.g { background: #3ddc97; }
+.b-lab { position: absolute; left: -10px; right: -10px; top: 60px; text-align: center; font-size: 11px; font-weight: 900; }
+.b-lab.r { color: #ff8da1; } .b-lab.g { color: #6ee7b3; }
+.b-verdict { text-align: center; font-weight: 900; font-size: 18px; color: var(--vc); margin-bottom: 8px; opacity: 0; }
+.b-red { position: absolute; width: 96px; height: 132px; border-radius: 10px; background: linear-gradient(160deg, #ff4d5e, #c3122a); border: 3px solid #ffd2d8; z-index: 30;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-weight: 900; box-shadow: 0 10px 30px rgba(0, 0, 0, .5); }
+.b-red small { font-size: 11px; letter-spacing: 2px; }
+.b-red b { font-size: 24px; margin-top: 4px; }
+
+/* ----- C : le ticket ----- */
+.c-printer { position: absolute; top: 20px; left: 50%; width: 290px; height: 28px; margin-left: -145px; border-radius: 10px; background: linear-gradient(180deg, #3a3f52, #232736); z-index: 3; opacity: 0; }
+.c-printer::after { content: ""; position: absolute; left: 22px; right: 22px; bottom: 6px; height: 4px; border-radius: 2px; background: #07080c; }
+.c-printer i { position: absolute; right: 12px; top: 8px; width: 7px; height: 7px; border-radius: 50%; background: #3ddc97; box-shadow: 0 0 8px #3ddc97; }
+.c-out { position: absolute; top: 42px; left: 50%; width: 260px; margin-left: -130px; height: 560px; overflow: hidden; }
+.phone .c-out { height: 640px; }
+.paper { position: relative; background: #f7f3e8; color: #23252d; font: 13px/1.45 ui-monospace, Consolas, monospace; padding: 14px 14px 18px; transform: translateY(-100%); }
+.paper.pv { background: #fff1b8; }
+.paper::after { content: ""; position: absolute; left: 0; right: 0; bottom: -9px; height: 10px;
+    background: linear-gradient(135deg, #f7f3e8 33%, transparent 33%) 0 0 / 12px 10px repeat-x, linear-gradient(225deg, #f7f3e8 33%, transparent 33%) 0 0 / 12px 10px repeat-x; }
+.paper.pv::after { background: linear-gradient(135deg, #fff1b8 33%, transparent 33%) 0 0 / 12px 10px repeat-x, linear-gradient(225deg, #fff1b8 33%, transparent 33%) 0 0 / 12px 10px repeat-x; }
+.p-c { text-align: center; }
+.p-h { font-weight: 900; letter-spacing: 2px; }
+.p-sep { border-top: 1px dashed #8a8c94; margin: 7px 0; }
+.p-row { display: flex; justify-content: space-between; gap: 8px; }
+.p-row b { white-space: nowrap; }
+.p-tot { display: flex; justify-content: space-between; font-weight: 900; font-size: 18px; }
+.p-small { font-size: 11px; color: #5c5f6a; margin-top: 6px; }
+.p-ok { display: block; width: 100%; margin-top: 10px; padding: 8px; border: 2px dashed #23252d; border-radius: 8px; background: transparent; color: #23252d; font-weight: 900; font-family: inherit; pointer-events: auto; }
+.c-stamp { position: absolute; right: 6px; top: 8px; font: 900 24px/1 system-ui, sans-serif; letter-spacing: 3px; padding: 4px 10px; border: 4px solid currentColor; border-radius: 8px; transform: rotate(-14deg); opacity: 0; mix-blend-mode: multiply; }
+
+/* ----- Panneau ----- */
+.panel { background: #161922; border: 1px solid #2c3040; border-radius: 18px; padding: 16px; }
+.panel h3 { font-size: 15px; margin: 4px 0 10px; }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.btns button { background: #1f2330; border: 1px solid #343846; border-radius: 9px; padding: 6px 10px; font-size: 12px; font-weight: 700; text-align: left; }
+.btns button.on { background: #6c63ff; border-color: #6c63ff; }
+.play { width: 100%; background: linear-gradient(135deg, #5b4fe0, #8c82ff); border: none; border-radius: 12px; padding: 12px; font-weight: 900; margin-bottom: 14px; }
+.copy { width: 100%; margin-top: 6px; background: linear-gradient(135deg, #2fa36f, #63d69f); color: #0b1f15; border: none; border-radius: 10px; padding: 10px; font-weight: 900; }
+textarea { width: 100%; height: 70px; margin-top: 10px; background: #101219; color: #9ea3b0; border: 1px solid #343846; border-radius: 10px; padding: 8px; font: 11px ui-monospace, monospace; }
+.note { font-size: 12px; color: #858a98; line-height: 1.45; }
+</style>
+</head>
+<body>
+
+<h1>⚖️ Fin d'une contestation</h1>
+<p class="sub">
+    Maquette avant de coder : ce que chaque joueur voit quand le vote du jury se termine. Il y a 3 styles, et chacun gère tous les cas.
+    Choisis un cas à droite (perdant remboursé, créateur avec amende…), clique « ▶ Rejouer », puis « Je choisis celle-ci ».
+</p>
+
+<div class="tabs" id="tabs">
+    <button class="tab on" data-v="a">A · Le marteau du juge</button>
+    <button class="tab" data-v="b">B · La balance du jury</button>
+    <button class="tab" data-v="c">C · Le ticket du verdict</button>
+</div>
+<p class="desc" id="desc"></p>
+
+<div class="layout">
+    <div class="stage" id="stage">
+        <div class="inner" id="inner">
+            <div class="fake">
+                <div class="top">BETLAB<div class="bal"><span>SOLDE</span><strong id="bal">1 250 €</strong></div></div>
+                <div class="card" id="bet-card">Jules est pas là demain ?<div class="fk-claim" id="claim">Récupérer 250 €</div></div>
+                <div class="card">Qui posera en premier une Question à Fred ?</div>
+                <div class="card">Maxime Blanchard passe au BE jeudi</div>
+                <div class="card">Nicolas JEAN à un t-shirt…</div>
+            </div>
+            <img class="parrot" id="parrot" src="assets/perroquet/win-main.png" alt="">
+            <div class="layer" id="layer"></div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <button class="play" id="play">▶ Rejouer</button>
+        <h3>👤 Qui reçoit le résultat ?</h3>
+        <div class="btns" id="scenarios"></div>
+        <h3>🖥️ Écran</h3>
+        <div class="btns" id="screens">
+            <button data-s="pc" class="on">Ordinateur</button>
+            <button data-s="phone">📱 Téléphone</button>
+        </div>
+        <p class="note">Rappel des règles : annulé = chacun retrouve sa mise (un gain déjà récupéré est repris, le solde peut passer en négatif) et le créateur paie une amende de 10 % du total misé. Maintenu = les gains sont débloqués.</p>
+        <button class="copy" id="copy">✅ Je choisis celle-ci</button>
+        <textarea id="out" readonly></textarea>
+    </div>
+</div>
+
+<script>
+const DESCS = {
+    a: "Plein écran. Le marteau du juge frappe (l'écran tremble), le tampon « ANNULÉ » ou « MAINTENU » tombe, puis une fiche explique ce qui change pour toi, ligne par ligne. Les billets vont vers ton solde ou en sortent. Pour le créateur, c'est un tampon « AMENDE » rouge : l'écran rougit et les billets brûlent en quittant son solde.",
+    b: "Plus doux. Une notification dorée arrive en bas, puis s'ouvre en fiche au centre. Une balance montre le vote : les voix tombent une par une dans les plateaux « Annuler » et « Garder », et la balance penche. Ensuite viennent le détail et les billets. Le créateur reçoit un carton rouge « −60 € » façon arbitre.",
+    c: "Façon ticket de caisse. Un ticket sort d'une imprimante avec le vote, le détail et le total, puis un tampon (REMBOURSÉ, REPRIS, MAINTENU…). Les billets partent du total vers ton solde, ou de ton solde vers le ticket. Le créateur reçoit un « avis de contravention » jaune."
+};
+
+// Les cas possibles. annul : validation annulée ; votes : [annuler, garder].
+const SC = {
+    loser: {
+        btn: "😀 Perdant remboursé", annul: true, votes: [2, 0],
+        who: "Tu avais misé 100 € sur « Non » : perdu.",
+        expl: "Le jury a annulé la validation. Ton pari perdu est effacé : tu récupères ta mise.",
+        lines: [{ t: "Mise rendue", v: 100, k: "plus" }], delta: 100, stampC: "REMBOURSÉ"
+    },
+    paid: {
+        btn: "😬 Gagnant déjà payé", annul: true, votes: [2, 0],
+        who: "Tu avais misé 100 € sur « Oui » et récupéré 250 €.",
+        expl: "Le jury a annulé la validation. Le gain que tu avais touché est repris, mais ta mise t'est rendue.",
+        lines: [{ t: "Gain repris", v: 250, k: "minus" }, { t: "Mise rendue", v: 100, k: "plus" }], delta: -150, stampC: "REPRIS"
+    },
+    frozen: {
+        btn: "🔒 Gagnant pas encore payé", annul: true, votes: [2, 0],
+        who: "Tu avais misé 100 € sur « Oui » (gain de 250 € bloqué pendant le vote).",
+        expl: "Le jury a annulé la validation. Ton gain bloqué disparaît, mais ta mise t'est rendue.",
+        lines: [{ t: "Gain bloqué", v: 250, k: "strike" }, { t: "Mise rendue", v: 100, k: "plus" }], delta: 100, stampC: "REMBOURSÉ"
+    },
+    author: {
+        btn: "🟥 Créateur (amende)", annul: true, author: true, votes: [2, 0],
+        who: "Tu as créé ce pari et validé « Oui ».",
+        expl: "Le jury estime que tu as mal validé. Tout le monde est remboursé et tu paies une amende de 10 % du total misé.",
+        lines: [{ t: "Total misé sur le pari", v: 600, k: "info" }, { t: "Amende (10 %)", v: 60, k: "minus" }], delta: -60, stampC: "AMENDE"
+    },
+    keepWin: {
+        btn: "✅ Maintenu · gagnant", annul: false, votes: [0, 2],
+        who: "Tu avais misé 100 € sur « Oui » : gagné.",
+        expl: "Le jury a gardé la validation. Tes gains sont débloqués : récupère-les sur la carte du pari.",
+        lines: [{ t: "Gain débloqué", v: 250, k: "unlock" }], delta: 0, unlock: 250, stampC: "DÉBLOQUÉ"
+    },
+    keepLoser: {
+        btn: "❌ Maintenu · contestataire", annul: false, votes: [0, 2],
+        who: "Tu avais contesté (misé 100 € sur « Non »).",
+        expl: "Le jury a gardé la validation : ta contestation est rejetée et ta mise reste perdue.",
+        lines: [{ t: "Mise perdue", v: 100, k: "info" }], delta: 0, stampC: "REJETÉE"
+    },
+    keepAuthor: {
+        btn: "😎 Maintenu · créateur", annul: false, author: true, votes: [0, 2],
+        who: "Tu as créé ce pari et validé « Oui ».",
+        expl: "Le jury confirme ta validation : tu ne paies pas d'amende.",
+        lines: [{ t: "Amende", v: 0, k: "info" }], delta: 0, stampC: "MAINTENU"
+    },
+    juror: {
+        btn: "🗳️ Juré", annul: true, juror: true, votes: [2, 0],
+        who: "Tu faisais partie du jury (tu n'avais pas misé).",
+        expl: "La validation est annulée et tout le monde est remboursé. Ton solde ne change pas : merci d'avoir voté !",
+        lines: [], delta: 0, stampC: "ANNULÉ"
+    }
+};
+
+// Test : ?end=1 saute à la fin de chaque animation (captures d'écran).
+if (new URLSearchParams(location.search).get("end")) {
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (...args) {
+        const anim = animate.apply(this, args);
+        if (anim.effect.getTiming().iterations !== Infinity) anim.finish();
+        return anim;
+    };
+}
+
+const START_BALANCE = 1250;
+const $ = s => document.querySelector(s);
+const stage = $("#stage"), inner = $("#inner"), layer = $("#layer"), balEl = $("#bal"), parrotEl = $("#parrot");
+const rnd = (a, b) => a + Math.random() * (b - a);
+const money = v => Math.round(v).toLocaleString("fr-FR") + " €";
+const signed = v => (v > 0 ? "+" : v < 0 ? "−" : "") + money(Math.abs(v));
+
+let variant = "a", scen = "loser", balance = START_BALANCE, run = 0;
+
+class Stop {}
+function wait(ms, token) {
+    return new Promise((ok, ko) => setTimeout(() => token === run ? ok() : ko(new Stop()), ms));
+}
+function mk(cls, html = "", parent = layer, tag = "div") {
+    const el = document.createElement(tag);
+    el.className = cls;
+    el.innerHTML = html;
+    parent.appendChild(el);
+    return el;
+}
+function pt(node) {
+    const s = stage.getBoundingClientRect(), r = node.getBoundingClientRect();
+    return { x: r.left - s.left + r.width / 2, y: r.top - s.top + r.height / 2 };
+}
+function place(el, p) { el.style.left = p.x + "px"; el.style.top = p.y + "px"; }
+
+function colorOf(s) { return s.annul ? (s.juror ? "#f5c451" : "#ff5c7a") : "#3ddc97"; }
+function stampOf(s) { return s.author && s.annul ? "AMENDE" : s.annul ? "ANNULÉ" : "MAINTENU"; }
+function lineAmount(l) {
+    if (l.k === "plus") return "+" + money(l.v);
+    if (l.k === "minus") return "−" + money(l.v);
+    if (l.k === "unlock") return "🔓 " + money(l.v);
+    return money(l.v);
+}
+function totalHtml(s) {
+    if (s.unlock) return `<span>À récupérer</span><b style="color:#f5c451">${money(s.unlock)}</b>`;
+    const c = s.delta > 0 ? "#3ddc97" : s.delta < 0 ? "#ff5c7a" : "#9ea3b0";
+    return `<span>Ton solde</span><b style="color:${c}">${signed(s.delta)}</b>`;
+}
+
+/* ----- Effets communs ----- */
+
+function showBalance(v) { balEl.textContent = money(v); balEl.style.color = v < 0 ? "#ff5c7a" : ""; }
+
+function countBalance(from, to, ms) {
+    const t0 = performance.now();
+    const tick = now => {
+        const t = Math.min(1, (now - t0) / ms);
+        showBalance(from + (to - from) * (1 - Math.pow(1 - t, 3)));
+        if (t < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+}
+function bumpBalance(color) {
+    balEl.animate([{ transform: "scale(1)" }, { transform: "scale(1.25)", color }, { transform: "scale(1)" }], { duration: 260 });
+}
+function shake(power = 8, ms = 420) {
+    const f = [];
+    for (let i = 0; i <= 8; i++) f.push({ transform: `translate(${i === 8 ? 0 : rnd(-power, power)}px, ${i === 8 ? 0 : rnd(-power, power)}px)` });
+    inner.animate(f, { duration: ms });
+}
+function burst(p, color, n = 14, dist = 70) {
+    for (let i = 0; i < n; i++) {
+        const d = mk("spark");
+        d.style.background = color;
+        const a = rnd(0, Math.PI * 2), r = rnd(dist * .4, dist);
+        d.animate([
+            { transform: `translate(${p.x}px, ${p.y}px) scale(1)`, opacity: 1 },
+            { transform: `translate(${p.x + Math.cos(a) * r}px, ${p.y + Math.sin(a) * r}px) scale(.2)`, opacity: 0 }
+        ], { duration: rnd(450, 750), easing: "cubic-bezier(.2,.8,.3,1)", fill: "forwards" }).onfinish = () => d.remove();
+    }
+    const ring = mk("ring");
+    ring.style.borderColor = color;
+    ring.animate([
+        { transform: `translate(${p.x}px, ${p.y}px) scale(1)`, opacity: .9 },
+        { transform: `translate(${p.x}px, ${p.y}px) scale(9)`, opacity: 0 }
+    ], { duration: 600, easing: "ease-out", fill: "forwards" }).onfinish = () => ring.remove();
+}
+function pop(p, text, cls) {
+    const el = mk("pop " + cls, text);
+    place(el, p);
+    el.animate([
+        { transform: "translate(-50%, -50%) scale(.4)", opacity: 0 },
+        { transform: "translate(-50%, -90%) scale(1.15)", opacity: 1, offset: .25 },
+        { transform: "translate(-50%, -160%) scale(1)", opacity: 0 }
+    ], { duration: 1700, easing: "ease-out", fill: "forwards" }).onfinish = () => el.remove();
+}
+function parrotReact(mood) {
+    parrotEl.src = mood === "win" ? "assets/perroquet/win-main.png" : "assets/perroquet/lose-main.png";
+    if (mood === "win") {
+        parrotEl.animate([{ transform: "translateY(0)" }, { transform: "translateY(-22px) scale(1.06)" }, { transform: "translateY(0)" }, { transform: "translateY(-12px)" }, { transform: "translateY(0)" }], { duration: 700 });
+    } else {
+        parrotEl.animate([{ transform: "translateX(0)" }, { transform: "translateX(-7px) rotate(-4deg)" }, { transform: "translateX(7px) rotate(4deg)" }, { transform: "translateX(0)" }], { duration: 260 });
+    }
+}
+
+// Billets : de « from » vers le solde (gain) ou du solde vers « into » / le bas (perte).
+async function moveMoney(s, from, token, { into = null } = {}) {
+
+    if (s.unlock) {
+        return unlockFx(from, s, token);
+    }
+
+    if (!s.delta) {
+        return;
+    }
+
+    const balP = pt(balEl);
+    const count = Math.min(12, Math.max(5, Math.round(Math.abs(s.delta) / 20)));
+    const per = s.delta / count;
+    const burn = s.author && s.annul;
+    let shown = balance;
+    balance += s.delta;
+
+    if (s.delta > 0) {
+
+        for (let i = 0; i < count; i++) {
+            setTimeout(() => {
+                const b = mk("bill");
+                const lift = rnd(-160, -90), spin = rnd(360, 720), side = rnd(-40, 40);
+                const f = [];
+                for (let k = 0; k <= 16; k++) {
+                    const t = k / 16;
+                    f.push({ transform: `translate(${from.x + side * Math.sin(t * Math.PI) + (balP.x - from.x) * t}px, ${from.y + (balP.y - from.y) * t + lift * 4 * t * (1 - t)}px) rotate(${spin * t}deg) scale(${1 - t * .5})` });
+                }
+                b.animate(f, { duration: 950, easing: "ease-in-out", fill: "forwards" }).onfinish = () => {
+                    b.remove();
+                    countBalance(shown, shown + per, 200);
+                    shown += per;
+                    bumpBalance("#3ddc97");
+                };
+            }, i * 90);
+        }
+        parrotReact("win");
+        await wait(count * 90 + 1000, token);
+        pop({ x: balP.x - 20, y: balP.y + 34 }, signed(s.delta), "plus");
+        burst(balP, "#3ddc97", 12, 50);
+
+    } else {
+
+        if (burn) {
+            const v = mk("vignette");
+            v.animate([{ opacity: 0 }, { opacity: 1 }, { opacity: .35 }, { opacity: 1 }, { opacity: 0 }], { duration: count * 130 + 1500, fill: "forwards" }).onfinish = () => v.remove();
+        }
+        for (let i = 0; i < count; i++) {
+            setTimeout(() => {
+                countBalance(shown, shown + per, 200);
+                shown += per;
+                bumpBalance("#ff5c7a");
+                const b = mk("bill red" + (burn ? " burn" : ""));
+                const end = into || { x: balP.x + rnd(-160, 40), y: stage.clientHeight + 40 };
+                const sway = rnd(20, 45), ph = rnd(0, 6.28);
+                const f = [];
+                for (let k = 0; k <= 20; k++) {
+                    const t = k / 20, w = Math.sin(ph + t * Math.PI * 4);
+                    f.push({
+                        transform: `translate(${balP.x + (end.x - balP.x) * t + w * sway * (1 - t)}px, ${balP.y + (end.y - balP.y) * (t * t * .6 + t * .4)}px) rotate(${w * 40}deg) scale(${into ? 1 - t * .6 : .9})`,
+                        opacity: into ? 1 : t > .85 ? (1 - t) * 6.6 : 1,
+                        filter: burn ? `brightness(${1 - t * .8}) sepia(${t})` : "none"
+                    });
+                }
+                b.animate(f, { duration: 1500, easing: "linear", fill: "forwards" }).onfinish = () => {
+                    b.remove();
+                    if (!into) parrotReact("lose");
+                };
+            }, i * 130);
+        }
+        if (burn) shake(5, 300);
+        await wait(count * 130 + 400, token);
+        pop({ x: balP.x - 20, y: balP.y + 34 }, signed(s.delta), "minus");
+        await wait(1200, token);
+    }
+}
+
+// Validation maintenue pour un gagnant : le cadenas s'ouvre, la carte du pari brille.
+async function unlockFx(from, s, token) {
+    const lock = mk("lock", "🔒");
+    place(lock, from);
+    lock.animate([{ transform: "translate(-50%, -50%) scale(0)" }, { transform: "translate(-50%, -50%) scale(1.2)" }, { transform: "translate(-50%, -50%) scale(1)" }], { duration: 350, fill: "forwards" });
+    await wait(450, token);
+    lock.animate([{ rotate: "0deg" }, { rotate: "-14deg" }, { rotate: "14deg" }, { rotate: "-8deg" }, { rotate: "0deg" }], { duration: 450 });
+    await wait(500, token);
+    lock.textContent = "🔓";
+    burst(from, "#f5c451", 18, 80);
+    parrotReact("win");
+    await wait(400, token);
+    const card = $("#bet-card"), target = pt(card);
+    lock.animate([
+        { transform: "translate(-50%, -50%) scale(1)", left: from.x + "px", top: from.y + "px", opacity: 1 },
+        { transform: "translate(-50%, -50%) scale(.5)", left: target.x + "px", top: target.y + "px", opacity: .2 }
+    ], { duration: 800, easing: "ease-in-out", fill: "forwards" }).onfinish = () => lock.remove();
+    await wait(800, token);
+    card.classList.add("glow");
+    $("#claim").animate([{ opacity: 0, transform: "scale(.6)" }, { opacity: 1, transform: "scale(1.08)" }, { opacity: 1, transform: "scale(1)" }], { duration: 450, fill: "forwards" });
+    burst(target, "#f5c451", 14, 60);
+    pop({ x: target.x, y: target.y - 20 }, money(s.unlock) + " à récupérer", "gold");
+}
+
+// Les lignes du détail apparaissent une à une, puis le total.
+async function revealLines(root, token) {
+    for (const el of root.querySelectorAll(".ln, .p-anim")) {
+        el.animate([{ opacity: 0, transform: "translateX(-14px)" }, { opacity: 1, transform: "none" }], { duration: 300, fill: "forwards" });
+        await wait(380, token);
+    }
+    const total = root.querySelector(".total, .p-tot");
+    if (total) {
+        total.animate([{ opacity: 0, transform: "scale(.8)" }, { opacity: 1, transform: "scale(1.06)" }, { opacity: 1, transform: "none" }], { duration: 420, fill: "forwards" });
+        await wait(450, token);
+    }
+}
+function showOk(root) {
+    const ok = root.querySelector(".ok, .p-ok");
+    ok?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, fill: "forwards" });
+    ok?.addEventListener("click", () => {
+        layer.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300 }).onfinish = () => { layer.innerHTML = ""; };
+    });
+}
+function overlayIn() {
+    const bg = mk("ov-bg");
+    bg.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 350, fill: "forwards" });
+    return bg;
+}
+function cardHtml(s, head, extra = "") {
+    return `
+        <div class="vc-head">${head}</div>
+        ${extra}
+        <div class="vc-q">« Jules est pas là demain ? »</div>
+        <div class="vc-who">${s.who}</div>
+        <div class="vc-votes"><span class="r">Annuler : ${s.votes[0]}</span><span class="g">Garder : ${s.votes[1]}</span><span>Jury : 2</span></div>
+        <div class="vc-expl">${s.expl}</div>
+        ${s.lines.map(l => `<div class="ln k-${l.k}"><span>${l.t}</span><b>${lineAmount(l)}</b></div>`).join("")}
+        ${s.juror ? "" : `<div class="total">${totalHtml(s)}</div>`}
+        <button class="ok">Compris</button>`;
+}
+
+/* ----- A : le marteau du juge ----- */
+
+async function playA(s, token) {
+    overlayIn();
+    const col = mk("a-col");
+    col.style.setProperty("--vc", colorOf(s));
+    col.innerHTML = `
+        <div class="a-judge"><div class="a-block"></div><div class="a-gavel"><div class="a-handle"></div><div class="a-head"></div></div></div>
+        <div class="a-stampzone"><div class="stamp">${stampOf(s)}</div></div>
+        <div class="vcard" style="opacity:0">${cardHtml(s, "⚖️ VOTE TERMINÉ")}</div>`;
+    const gavel = col.querySelector(".a-gavel"), block = col.querySelector(".a-block");
+    const stamp = col.querySelector(".stamp"), card = col.querySelector(".vcard");
+
+    col.querySelector(".a-judge").animate([{ opacity: 0, transform: "scale(.6)" }, { opacity: 1, transform: "none" }], { duration: 300, fill: "forwards" });
+    gavel.animate([{ transform: "rotate(0deg)" }, { transform: "rotate(48deg)" }], { duration: 450, easing: "ease-out", fill: "forwards" });
+    await wait(650, token);
+
+    // Deux petits coups puis le grand.
+    for (const big of [false, true]) {
+        gavel.animate([{ transform: "rotate(48deg)" }, { transform: "rotate(-4deg)" }, { transform: big ? "rotate(0deg)" : "rotate(40deg)" }],
+            { duration: big ? 260 : 380, easing: "cubic-bezier(.6,0,.9,.4)", fill: "forwards" });
+        await wait(180, token);
+        const p = pt(block);
+        burst({ x: p.x, y: p.y - 10 }, big ? colorOf(s) : "#c08a52", big ? 18 : 6, big ? 90 : 40);
+        shake(big ? 10 : 3, big ? 450 : 200);
+        await wait(big ? 300 : 330, token);
+    }
+
+    stamp.animate([
+        { opacity: 0, transform: "rotate(-8deg) scale(3)" },
+        { opacity: 1, transform: "rotate(-8deg) scale(.92)", offset: .7 },
+        { opacity: 1, transform: "rotate(-8deg) scale(1)" }
+    ], { duration: 380, easing: "ease-in", fill: "forwards" });
+    await wait(270, token);
+    shake(s.author && s.annul ? 12 : 6, 400);
+    if (s.author && s.annul) burst(pt(stamp), "#ff5c7a", 26, 130);
+    await wait(500, token);
+
+    card.animate([{ opacity: 0, transform: "translateY(30px)" }, { opacity: 1, transform: "none" }], { duration: 400, easing: "cubic-bezier(.2,.8,.2,1)", fill: "forwards" });
+    await wait(450, token);
+    await revealLines(card, token);
+    const total = card.querySelector(".total");
+    await moveMoney(s, total ? pt(total.querySelector("b")) : pt(card), token);
+    showOk(card);
+}
+
+/* ----- B : la balance du jury ----- */
+
+async function playB(s, token) {
+    const toast = mk("b-toast", `<span class="i">⚖️</span><span>Vote terminé sur « Jules est pas là demain ? »<small>Voir le résultat →</small></span>`);
+    toast.animate([{ transform: "translateY(40px)", opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 450, easing: "cubic-bezier(.2,.8,.2,1)", fill: "forwards" });
+    await wait(1400, token);
+
+    const from = toast.getBoundingClientRect();
+    overlayIn();
+    const wrap = mk("b-wrap");
+    wrap.style.setProperty("--vc", colorOf(s));
+    wrap.innerHTML = `<div class="vcard">${cardHtml(s, "⚖️ VOTE TERMINÉ", `
+        <div class="b-scale">
+            <div class="b-post"></div><div class="b-base"></div>
+            <div class="b-beam">
+                <div class="b-pan l"><div class="b-pan-in"><div class="b-strings"></div><div class="b-coins"></div><div class="b-dish"></div><div class="b-lab r">ANNULER</div></div></div>
+                <div class="b-pan r"><div class="b-pan-in"><div class="b-strings"></div><div class="b-coins"></div><div class="b-dish"></div><div class="b-lab g">GARDER</div></div></div>
+            </div>
+            <div class="b-top"></div>
+        </div>
+        <div class="b-verdict">${s.annul ? "Validation annulée" : "Validation maintenue"}</div>`)}</div>`;
+    const card = wrap.querySelector(".vcard");
+    card.querySelector(".vc-votes").remove();
+    const to = card.getBoundingClientRect();
+
+    // La notification s'ouvre en fiche.
+    card.animate([
+        { transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${from.width / to.width}, ${from.height / to.height})`, transformOrigin: "0 0", opacity: .6 },
+        { transform: "none", transformOrigin: "0 0", opacity: 1 }
+    ], { duration: 550, easing: "cubic-bezier(.2,.8,.2,1)" });
+    toast.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: "forwards" });
+    await wait(700, token);
+
+    // Les voix tombent dans les plateaux, la balance penche.
+    const beam = card.querySelector(".b-beam");
+    const pans = card.querySelectorAll(".b-pan-in");
+    let angle = 0, nA = 0, nK = 0;
+    const order = [];
+    for (let i = 0; i < Math.max(s.votes[0], s.votes[1]); i++) {
+        if (i < s.votes[0]) order.push("r");
+        if (i < s.votes[1]) order.push("g");
+    }
+    for (const side of order) {
+        const pan = side === "r" ? pans[0] : pans[1];
+        const coin = mk("coin " + side, "✓", pan.querySelector(".b-coins"));
+        coin.animate([{ transform: "translateY(-70px)", opacity: 0 }, { transform: "translateY(0)", opacity: 1 }], { duration: 380, easing: "cubic-bezier(.5,0,.8,.5)" });
+        await wait(380, token);
+        side === "r" ? nA++ : nK++;
+        const next = Math.max(-16, Math.min(16, (nK - nA) * 8));
+        const ease = { duration: 700, easing: "cubic-bezier(.3,1.7,.5,1)", fill: "forwards" };
+        beam.animate([{ transform: `rotate(${angle}deg)` }, { transform: `rotate(${next}deg)` }], ease);
+        pans.forEach(p => p.animate([{ transform: `rotate(${-angle}deg)` }, { transform: `rotate(${-next}deg)` }], ease));
+        angle = next;
+        await wait(450, token);
+    }
+    const verdict = card.querySelector(".b-verdict");
+    verdict.animate([{ opacity: 0, transform: "scale(1.6)" }, { opacity: 1, transform: "none" }], { duration: 350, fill: "forwards" });
+    await wait(500, token);
+
+    await revealLines(card, token);
+    const total = card.querySelector(".total");
+
+    if (s.author && s.annul) {
+        const red = mk("b-red", `<small>AMENDE</small><b>−${money(60)}</b>`);
+        const tp = pt(total);
+        red.animate([
+            { transform: `translate(${tp.x + 40}px, -180px) rotate(-40deg)` },
+            { transform: `translate(${tp.x + 30}px, ${tp.y - 150}px) rotate(12deg)`, offset: .8 },
+            { transform: `translate(${tp.x + 30}px, ${tp.y - 150}px) rotate(8deg)` }
+        ], { duration: 650, easing: "cubic-bezier(.5,0,.7,1)", fill: "forwards" });
+        await wait(520, token);
+        shake(12, 450);
+        burst({ x: tp.x + 78, y: tp.y - 84 }, "#ff5c7a", 22, 110);
+        await wait(700, token);
+
+        // Le carton se range en coin de la fiche pour laisser lire le détail.
+        const st = stage.getBoundingClientRect(), cr = card.getBoundingClientRect();
+        red.animate([
+            { transform: `translate(${tp.x + 30}px, ${tp.y - 150}px) rotate(8deg) scale(1)` },
+            { transform: `translate(${cr.right - st.left - 62}px, ${cr.top - st.top - 50}px) rotate(14deg) scale(.55)` }
+        ], { duration: 450, easing: "cubic-bezier(.2,.8,.2,1)", fill: "forwards" });
+        await wait(450, token);
+    }
+    await moveMoney(s, total ? pt(total.querySelector("b")) : pt(card), token);
+    showOk(card);
+}
+
+/* ----- C : le ticket du verdict ----- */
+
+async function playC(s, token) {
+    overlayIn();
+    const pv = s.author && s.annul;
+    const printer = mk("c-printer", "<i></i>");
+    printer.animate([{ opacity: 0, transform: "translateY(-20px)" }, { opacity: 1, transform: "none" }], { duration: 300, fill: "forwards" });
+    const out = mk("c-out");
+    const paper = mk("paper" + (pv ? " pv" : ""), `
+        <div class="p-c p-h">${pv ? "AVIS DE CONTRAVENTION" : "BETLAB · VERDICT"}</div>
+        <div class="p-c">${pv ? "Validation erronée" : "Vote du jury terminé"}</div>
+        <div class="p-sep"></div>
+        <div>« Jules est pas là demain ? »</div>
+        <div>Validé : Oui</div>
+        <div class="p-sep"></div>
+        <div class="p-row"><span>Pour annuler</span><b>${"■".repeat(s.votes[0]) || "·"} ${s.votes[0]}</b></div>
+        <div class="p-row"><span>Pour garder</span><b>${"■".repeat(s.votes[1]) || "·"} ${s.votes[1]}</b></div>
+        <div class="p-row"><span>Résultat</span><b>${s.annul ? "ANNULÉ" : "MAINTENU"}</b></div>
+        <div class="p-sep"></div>
+        <div class="p-small" style="margin:0 0 4px">${s.who}</div>
+        ${s.lines.map(l => `<div class="p-row p-anim" style="opacity:0"><span>${l.t}</span><b ${l.k === "strike" ? 'style="text-decoration:line-through"' : ""}>${lineAmount(l).replace("🔓 ", "")}</b></div>`).join("")}
+        ${s.juror ? "" : `<div class="p-sep"></div><div class="p-tot" style="opacity:0">${s.unlock ? `<span>À RÉCUPÉRER</span><span>${money(s.unlock)}</span>` : `<span>TOTAL</span><span>${signed(s.delta)}</span>`}</div>`}
+        <div class="p-small">${s.expl}</div>
+        <button class="p-ok" style="opacity:0">Compris</button>
+        <div class="c-stamp" style="color:${pv ? "#d0152f" : s.annul ? (s.juror ? "#b8860b" : "#d0152f") : "#14935d"}">${s.stampC}</div>`, out);
+
+    await wait(350, token);
+
+    // Impression par à-coups.
+    printer.animate([{ transform: "translateX(0)" }, { transform: "translateX(-1px)" }, { transform: "translateX(1px)" }], { duration: 90, iterations: 16 });
+    paper.animate([{ transform: "translateY(-100%)" }, { transform: "translateY(0)" }], { duration: 1500, easing: "steps(14)", fill: "forwards" });
+    await wait(1600, token);
+
+    await revealLines(paper, token);
+
+    const stamp = paper.querySelector(".c-stamp");
+    stamp.animate([
+        { opacity: 0, transform: "rotate(-14deg) scale(2.6)" },
+        { opacity: .9, transform: "rotate(-14deg) scale(.95)", offset: .75 },
+        { opacity: .9, transform: "rotate(-14deg) scale(1)" }
+    ], { duration: 320, easing: "ease-in", fill: "forwards" });
+    await wait(240, token);
+    shake(pv ? 12 : 5, 380);
+    if (pv) burst(pt(stamp), "#ff5c7a", 22, 110);
+    await wait(500, token);
+
+    const tot = paper.querySelector(".p-tot");
+    const p = tot ? pt(tot.lastElementChild) : pt(paper);
+    await moveMoney(s, p, token, { into: s.delta < 0 ? p : null });
+    showOk(paper);
+}
+
+/* ----- Pilotage ----- */
+
+function reset() {
+    run++;
+    layer.getAnimations({ subtree: true }).forEach(a => a.cancel());
+    layer.innerHTML = "";
+    layer.style.opacity = "";
+    balance = START_BALANCE;
+    showBalance(balance);
+    parrotEl.src = "assets/perroquet/win-main.png";
+    $("#bet-card").classList.remove("glow");
+    $("#claim").getAnimations().forEach(a => a.cancel());
+}
+async function play() {
+    reset();
+    const token = run;
+    const s = SC[scen];
+    try {
+        await wait(250, token);
+        await ({ a: playA, b: playB, c: playC })[variant](s, token);
+    } catch (e) {
+        if (!(e instanceof Stop)) console.error(e);
+    }
+}
+
+$("#scenarios").innerHTML = Object.entries(SC).map(([k, s]) => `<button data-k="${k}" class="${k === scen ? "on" : ""}">${s.btn}</button>`).join("");
+$("#scenarios").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    scen = b.dataset.k;
+    document.querySelectorAll("#scenarios button").forEach(x => x.classList.toggle("on", x === b));
+    play();
+});
+$("#screens").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    stage.classList.toggle("phone", b.dataset.s === "phone");
+    document.querySelectorAll("#screens button").forEach(x => x.classList.toggle("on", x === b));
+    play();
+});
+$("#tabs").addEventListener("click", e => {
+    const b = e.target.closest(".tab"); if (!b) return;
+    variant = b.dataset.v;
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t === b));
+    $("#desc").textContent = DESCS[variant];
+    play();
+});
+$("#play").addEventListener("click", play);
+$("#copy").addEventListener("click", async () => {
+    const name = document.querySelector(".tab.on").textContent;
+    const text = `Je choisis : ${name} (fin d'une contestation)`;
+    $("#out").value = text;
+    try { await navigator.clipboard.writeText(text); } catch (e) { $("#out").select(); document.execCommand("copy"); }
+    $("#copy").textContent = "✅ Copié ! Colle-le moi";
+});
+
+// Liens directs : ?v=b&s=author&phone=1
+const params = new URLSearchParams(location.search);
+if (params.get("v")) document.querySelector(`.tab[data-v="${params.get("v")}"]`)?.click();
+if (params.get("s")) document.querySelector(`#scenarios [data-k="${params.get("s")}"]`)?.click();
+if (params.get("phone")) document.querySelector('#screens [data-s="phone"]')?.click();
+
+$("#desc").textContent = DESCS[variant];
+play();
+</script>
+</body>
+</html>
