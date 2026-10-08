@@ -3399,7 +3399,7 @@ async function getBets() {
             stakes ( id, user_id, choice_id, stake, potential_win, claimed_at, created_at, profiles!stakes_user_id_fkey ( username, gold_frame_until, name_color_until, cosmetics ) ),
             bet_contests ( status, ends_at ),
             bet_commissions ( user_id, amount, claimed_at, reversed_at ),
-            combo_legs ( choice_id, combos ( user_id, stake, odds, potential_win, created_at, profiles ( username, gold_frame_until, name_color_until, cosmetics ), combo_legs ( bet_id ) ) )
+            combo_legs ( choice_id, combos ( user_id, stake, odds, potential_win, created_at, profiles ( username, gold_frame_until, name_color_until, cosmetics ), combo_legs ( bet_id, choice_id, odds, bets ( status, winner_choice_id ) ) ) )
         `)
         .eq("group_id", currentGroup?.id)
         .order("created_at", { ascending: false });
@@ -4326,22 +4326,85 @@ function validationBilanHtml(bet, winnerChoiceId) {
         </div>
     `).join("");
 
+
+    /*
+        Combinés qui contiennent ce pari : état du combiné si ce choix gagne
+        (gagné, toujours en course, ou perdu). Ceux déjà perdus sur un autre
+        pari ne changent pas et ne sont pas listés.
+    */
+    const comboWins = [];
+
+    const comboLoses = [];
+
+    (bet.combo_legs || []).filter(leg => leg.combos).forEach(leg => {
+
+        const combo = leg.combos;
+
+        const otherLegs = (combo.combo_legs || []).filter(item => item.bet_id !== bet.id);
+
+        if (comboState({ stake: combo.stake, combo_legs: otherLegs }).status === "lost") {
+            return;
+        }
+
+        const after = comboState({
+            stake: combo.stake,
+            combo_legs: [
+                ...otherLegs,
+                {
+                    choice_id: leg.choice_id,
+                    odds: (combo.combo_legs || []).find(item => item.bet_id === bet.id)?.odds || 1,
+                    bets: { status: "resolved", winner_choice_id: winnerChoiceId }
+                }
+            ]
+        });
+
+        // Une seule ligne, comme les mises simples : 🔗 devant le pseudo (légende sous les colonnes).
+        const name = `<span class="validate-combo-tag" title="En combiné">🔗</span>${styledName(combo.profiles)}`;
+
+        if (after.status === "lost") {
+
+            comboLoses.push(`
+                <div class="validate-line validate-line--combo">
+                    <span>${name}</span>
+                    <span class="validate-lose">−${formatMoney(combo.stake)}</span>
+                </div>
+            `);
+
+        } else {
+
+            comboWins.push(`
+                <div class="validate-line validate-line--combo">
+                    <span>${name}</span>
+                    ${after.status === "open"
+                        ? `<span class="validate-combo-next" title="Ce pari passe, le combiné continue">✓ suite</span>`
+                        : `<span class="validate-win">+${formatMoney(after.payout)}</span>`}
+                </div>
+            `);
+
+        }
+
+    });
+
     return `
         <div class="validate-bilan">
 
             <div class="validate-cols">
 
                 <div class="validate-col validate-col-win">
-                    <h4>🏆 Gagnants (${winners.length})</h4>
-                    ${winnerLines || `<small>Personne</small>`}
+                    <h4>🏆 Gagnants (${winners.length + comboWins.length})</h4>
+                    ${winnerLines + comboWins.join("") || `<small>Personne</small>`}
                 </div>
 
                 <div class="validate-col validate-col-lose">
-                    <h4>✗ Perdants (${losers.length})</h4>
-                    ${loserLines || `<small>Personne</small>`}
+                    <h4>✗ Perdants (${losers.length + comboLoses.length})</h4>
+                    ${loserLines + comboLoses.join("") || `<small>Personne</small>`}
                 </div>
 
             </div>
+
+            ${comboWins.length + comboLoses.length
+                ? `<p class="validate-combo-legend">🔗 en combiné · « ✓ suite » : ce pari passe, le combiné attend ses autres paris</p>`
+                : ""}
 
             ${commissionLineHtml(creatorCommission(bet, winnerChoiceId))}
 
@@ -6042,13 +6105,29 @@ function ticketSingleBlocked(entries = ticketEntries()) {
 }
 
 
+// Combiné identique déjà placé (mêmes paris, mêmes choix) : refusé, comme côté base.
+function ticketDuplicate(entries = ticketEntries()) {
+
+    if (entries.length < 2) {
+        return false;
+    }
+
+    const key = entries.map(entry => entry.choice.id).sort().join(",");
+
+    return myCombos.some(combo =>
+        (combo.combo_legs || []).map(leg => leg.choice_id).sort().join(",") === key
+    );
+
+}
+
+
 function toggleTicketLeg(bet, choice) {
 
     bet = ticketBet(bet);
 
     if (isBlockedTarget(bet)) {
 
-        alertToast("Tu es concerné(e) par ce pari, tu ne peux pas parier.");
+        ticketAlert("Tu es concerné(e) par ce pari, tu ne peux pas parier.");
 
         return;
 
@@ -6056,7 +6135,7 @@ function toggleTicketLeg(bet, choice) {
 
     if (isBetClosed(bet)) {
 
-        alertToast("Les mises sont closes sur ce pari (échéance trop proche).");
+        ticketAlert("Les mises sont closes sur ce pari (échéance trop proche).");
 
         return;
 
@@ -6079,7 +6158,7 @@ function toggleTicketLeg(bet, choice) {
 
     } else {
 
-        alertToast(COMBO_MAX_LEGS + " paris maximum dans un combiné.");
+        ticketAlert("⚠️ " + COMBO_MAX_LEGS + " paris maximum dans un combiné");
 
         return;
 
@@ -6088,6 +6167,55 @@ function toggleTicketLeg(bet, choice) {
     renderTicket({ bump: true });
 
     syncTicketHighlights();
+
+}
+
+
+/*
+    Message du ticket, bien visible dans le ticket lui-même (même replié
+    sur téléphone, où il cache la cloche des notifications) : bandeau
+    orange et petite secousse. Ticket vide : notification habituelle.
+*/
+
+let ticketAlertTimer = null;
+
+function ticketAlert(text) {
+
+    const ticket = document.getElementById("bet-ticket");
+
+    if (!ticket || ticketLegs.length === 0) {
+
+        alertToast(text);
+
+        return;
+
+    }
+
+    ticket.querySelector(".ticket-alert")?.remove();
+
+    const alert = document.createElement("div");
+
+    alert.className = "ticket-alert";
+
+    alert.textContent = text;
+
+    ticket.prepend(alert);
+
+    ticket.classList.remove("shake");
+
+    void ticket.offsetWidth;
+
+    ticket.classList.add("shake");
+
+    clearTimeout(ticketAlertTimer);
+
+    ticketAlertTimer = setTimeout(() => {
+
+        alert.classList.add("leaving");
+
+        setTimeout(() => alert.remove(), 300);
+
+    }, 2800);
 
 }
 
@@ -6226,7 +6354,9 @@ function renderTicket({ bump = false } = {}) {
 
                 ${boost ? `<p class="ticket-boost">⚡ Boost +${Math.round(boost * 100)} % inclus${odds >= COMBO_MAX_ODDS ? " · cote max " + COMBO_MAX_ODDS : ""}</p>` : ""}
 
-                ${ticketSingleBlocked(entries)
+                ${ticketDuplicate(entries)
+                    ? `<p class="ticket-note ticket-note-duplicate">Tu as déjà fait ce combiné (mêmes paris, mêmes choix). Change un choix ou un pari.</p>`
+                    : ticketSingleBlocked(entries)
                     ? `<p class="ticket-note">Tu as déjà misé sur ce pari (1 seule mise par pari). Ajoute un 2e pari pour faire un combiné.</p>`
                     : count === 1 ? `<p class="ticket-note">Ajoute une cote d'un autre pari pour faire un combiné.</p>` : ""}
 
@@ -6387,13 +6517,17 @@ function updateTicketLive() {
 
     if (go) {
 
-        const blocked = ticketSingleBlocked(entries);
+        const duplicate = ticketDuplicate(entries);
+
+        const blocked = ticketSingleBlocked(entries) || duplicate;
 
         const publishing = entries.some(entry => entry.bet.status === "draft");
 
         go.disabled = !ticketStake || blocked || ticketBusy;
 
-        go.textContent = blocked
+        go.textContent = duplicate
+            ? "Combiné déjà joué"
+            : blocked
             ? "Déjà misé sur ce pari"
             : !ticketStake
                 ? "Choisis ta mise"
@@ -6470,6 +6604,14 @@ async function placeTicket() {
     if (ticketSingleBlocked(entries)) {
 
         showError("Tu as déjà misé sur ce pari (1 seule mise par pari).");
+
+        return;
+
+    }
+
+    if (ticketDuplicate(entries)) {
+
+        showError("Tu as déjà fait ce combiné (mêmes paris, mêmes choix).");
 
         return;
 

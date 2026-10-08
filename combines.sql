@@ -12,7 +12,8 @@
 --   - mise ronde de 10 € à 5 000 €, et au plus la plus petite
 --     mise max du moment parmi les paris choisis ;
 --   - un combiné ne compte pas dans « 1 mise par pari », et
---     ses propres paris sont autorisés ;
+--     ses propres paris sont autorisés ; mais on ne peut pas refaire
+--     un combiné identique (mêmes paris, mêmes choix) ;
 --   - tout ou rien : perdu dès qu'un pari est perdu ; un pari
 --     annulé après contestation sort du combiné (cote 1) ;
 --   - un brouillon de son propre pari peut entrer dans un combiné :
@@ -245,6 +246,18 @@ begin
 
     if v_balance < p_stake then
         raise exception 'Solde insuffisant';
+    end if;
+
+    -- Pas deux fois le même combiné (mêmes choix). Vérifié après le verrou
+    -- du solde : deux envois simultanés ne passent pas tous les deux.
+    if exists (
+        select 1 from combos c
+        where c.user_id = v_user
+          and c.group_id = v_group
+          and (select array_agg(l.choice_id order by l.choice_id) from combo_legs l where l.combo_id = c.id)
+              = (select array_agg(x order by x) from unnest(p_choice_ids) x)
+    ) then
+        raise exception 'Tu as déjà fait ce combiné (mêmes paris, mêmes choix).';
     end if;
 
 

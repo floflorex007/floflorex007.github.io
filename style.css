@@ -8381,9 +8381,19 @@ body.ticket-combo .ticket-go:not(:disabled) {
     display: none;
 }
 
-/* Cote dans le ticket : entourée de violet, avec 🎟️ (ou 🔗 en combiné). */
-.bet-choice-button.in-ticket {
+/* Cote dans le ticket : entourée de violet, avec 🎟️ (ou 🔗 en combiné).
+   Passe devant le contour bleu d'une cote déjà misée (même au survol, qui
+   reste actif après un toucher sur téléphone) et devant la cote enflammée. */
+.bet-choice-button.in-ticket,
+.bet-choice-button.in-ticket:hover,
+.bet-choice-button.bet-choice-picked.in-ticket,
+.bet-choice-button.bet-choice-picked.in-ticket:hover,
+.bet-choice-button.odds-fire.in-ticket,
+.bet-choice-button.odds-fire.in-ticket:hover {
     position: relative;
+    opacity: 1;
+    filter: none;
+    animation: none;
     background: #2a2850;
     border-color: #c86bff;
     box-shadow: 0 0 0 1px #c86bff, 0 0 16px rgba(200, 107, 255, 0.45);
@@ -8747,4 +8757,116 @@ body.ticket-combo .bet-choice-button.in-ticket::after {
         margin-left: 0;
     }
 
+}
+
+
+/* Message du ticket (ticketAlert dans app.js) : bandeau orange en haut,
+   visible même quand le ticket est replié sur téléphone. */
+.ticket-alert {
+    margin: -4px 0 12px;
+    padding: 9px 12px;
+    border: 1px solid rgba(255, 140, 66, 0.6);
+    border-radius: 12px;
+    background: rgba(255, 140, 66, 0.15);
+    color: #ffb27a;
+    font-size: 13px;
+    font-weight: 800;
+    text-align: center;
+    animation: ticket-alert-in 0.25s ease-out;
+    transition: opacity 0.3s ease;
+}
+
+.ticket-alert.leaving {
+    opacity: 0;
+}
+
+@keyframes ticket-alert-in {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+}
+
+.bet-ticket.shake {
+    animation: ticket-shake 0.45s ease;
+}
+
+@keyframes ticket-shake {
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(5px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(2px); }
+}
+
+@media (max-width: 800px) {
+
+    /* Pas de décalage hérité de l'arrivée en cascade : sinon le ticket
+       s'affichait en place puis repartait d'en bas. */
+    body.ticket-has-legs .bet-ticket {
+        animation-delay: 0s !important;
+    }
+
+    body.ticket-has-legs .bet-ticket.shake {
+        animation: ticket-shake 0.45s ease;
+    }
+
+    .ticket-alert {
+        margin: 8px 8px 0;
+    }
+
+    /* La cloche des notifications passe derrière le ticket. */
+    body.ticket-has-legs .phone-bell,
+    body.ticket-has-legs .phone-bell-peek {
+        z-index: 94;
+    }
+
+}
+
+/* Bilan de validation : joueurs en combiné, sur une seule ligne
+   (pseudo coupé par « … » si la colonne est étroite, sur téléphone). */
+.validate-line.validate-line--combo {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.validate-line--combo > span:first-child {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.validate-combo-tag {
+    margin-right: 3px;
+    font-size: 12px;
+}
+
+.validate-combo-next {
+    flex-shrink: 0;
+    margin-left: auto;
+    color: #c86bff;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.validate-combo-legend {
+    margin: 8px 0 0;
+    color: #858a98;
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+/* Ticket : combiné identique déjà joué */
+.ticket-note-duplicate {
+    color: #ffb27a;
+    font-weight: 700;
+}
+
+/* Les deux colonnes du bilan gardent la même largeur : un long pseudo
+   est coupé au lieu de pousser la colonne des perdants hors de la carte. */
+.validate-cols {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
