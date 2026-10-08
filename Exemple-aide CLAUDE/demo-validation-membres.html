@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Validation des nouveaux membres (maquette)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 80px; overflow-x: hidden; }
+button { font: inherit; cursor: pointer; color: inherit; }
+h1 { font-size: 26px; margin-bottom: 6px; }
+h2.part { font-size: 18px; margin: 30px 0 8px; }
+.sub { color: #858a98; margin-bottom: 18px; max-width: 900px; font-size: 14px; line-height: 1.5; }
+.tabs { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.tab { background: #1a1d27; border: 1px solid #2c3040; border-radius: 12px; padding: 10px 16px; font-weight: 800; }
+.tab.on { background: #6c63ff; border-color: #6c63ff; }
+.desc { color: #b9bdc9; font-size: 14px; margin-bottom: 18px; max-width: 900px; line-height: 1.5; min-height: 42px; }
+.layout { display: grid; grid-template-columns: minmax(0, 860px) 320px; gap: 24px; align-items: start; }
+@media (max-width: 1250px) { .layout { grid-template-columns: 1fr; } }
+
+.stage { position: relative; height: 560px; border-radius: 20px; overflow: hidden; border: 1px solid #2c3040; background: #0f1117; margin: 0 auto; width: 100%; }
+.stage.phone { max-width: 390px; height: 700px; }
+
+/* Faux site */
+.top { position: absolute; left: 0; right: 0; top: 0; height: 52px; background: #14161e; border-bottom: 1px solid #2c3040; display: flex; align-items: center; gap: 14px; padding: 0 16px; font-weight: 900; letter-spacing: 1px; z-index: 2; }
+.top .logo span { color: #6c63ff; }
+.gbtn { position: relative; background: #1f2330; border: 1px solid #343846; border-radius: 10px; padding: 6px 10px; font-size: 13px; font-weight: 800; letter-spacing: 0; }
+.dot { position: absolute; top: -7px; right: -7px; min-width: 19px; height: 19px; padding: 0 5px; border-radius: 999px; background: #ff4d6d; color: white; font-size: 11px; font-weight: 900; display: grid; place-items: center; box-shadow: 0 0 0 3px #14161e; }
+.dot.pulse { animation: dotPulse 1.4s ease-in-out infinite; }
+@keyframes dotPulse { 50% { transform: scale(1.18); } }
+.bal { margin-left: auto; font-size: 15px; letter-spacing: 0; }
+.list { position: absolute; inset: 52px 0 0; padding: 20px; overflow: auto; display: flex; flex-direction: column; gap: 16px; align-items: center; }
+.card { width: 100%; max-width: 440px; background: linear-gradient(180deg, #1c202c, #14161e); border: 1px solid #2c3040; border-radius: 16px; padding: 14px 16px; font-size: 14px; color: #b9bdc9; font-weight: 700; min-height: 96px; flex-shrink: 0; }
+
+/* B : carte de demande */
+.req-card { width: 100%; max-width: 440px; border: 1px solid #6c63ff; border-radius: 16px; padding: 14px 16px; background: linear-gradient(180deg, #1e1d35, #15151f); box-shadow: 0 0 24px rgba(108, 99, 255, .25); flex-shrink: 0; animation: reqPulse 1.8s ease-in-out infinite; }
+@keyframes reqPulse { 50% { box-shadow: 0 0 40px 4px rgba(108, 99, 255, .45); border-color: #9d97ff; } }
+.req-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.badge { font-size: 11px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; background: rgba(108, 99, 255, .18); color: #b9b5ff; }
+.when { color: #858a98; font-size: 12px; }
+.req-name { font-size: 16px; font-weight: 900; margin-bottom: 4px; }
+.req-name small { color: #858a98; font-weight: 600; font-size: 12px; }
+.req-btns { display: flex; gap: 8px; margin-top: 12px; }
+.ok, .no { flex: 1; border: none; border-radius: 12px; padding: 11px; font-weight: 900; }
+.ok { background: linear-gradient(135deg, #2fa36f, #63d69f); color: #0b1f15; }
+.no { background: #2a2d38; color: #ff8a8a; }
+
+/* Fenêtre (A et C) */
+.backdrop { position: absolute; inset: 0; background: rgba(5, 6, 10, .65); backdrop-filter: blur(2px); z-index: 5; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.modal { width: 100%; max-width: 420px; background: #171a24; border: 1px solid #2c3040; border-radius: 18px; padding: 18px; max-height: calc(100% - 32px); overflow: auto; position: relative; }
+.modal h3 { font-size: 18px; margin-bottom: 4px; }
+.modal .x { position: absolute; top: 10px; right: 12px; background: none; border: none; font-size: 22px; color: #858a98; }
+.sect { font-size: 11px; font-weight: 900; letter-spacing: 1.5px; color: #858a98; margin: 16px 0 8px; display: flex; align-items: center; gap: 8px; }
+.sect .dot { position: static; box-shadow: none; }
+.row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: #0f1117; margin-bottom: 8px; }
+.row .who { flex: 1; min-width: 0; }
+.row .who b { display: block; }
+.row .who small { color: #858a98; font-size: 12px; }
+.row.pending { border: 1px solid rgba(108, 99, 255, .5); background: rgba(108, 99, 255, .08); }
+.mini { border: none; border-radius: 10px; padding: 7px 10px; font-weight: 900; font-size: 12px; white-space: nowrap; }
+.mini.ok { flex: none; }
+.mini.no { flex: none; }
+.member-bal { color: #9ea3b0; font-size: 13px; font-weight: 700; }
+.c-head { text-align: center; }
+.c-head .big { font-size: 46px; margin-bottom: 6px; }
+.c-head p { color: #9ea3b0; font-size: 13px; margin-top: 4px; }
+.c-later { display: block; margin: 10px auto 0; background: none; border: none; color: #858a98; font-size: 13px; text-decoration: underline; }
+
+/* Notification */
+.toast { position: absolute; left: 16px; bottom: 16px; width: min(330px, calc(100% - 32px)); display: flex; gap: 10px; align-items: center; background: #1a1d27; border: 1px solid #2c3040; border-left: 5px solid var(--c, #6c63ff); border-radius: 12px; padding: 10px 12px; font-size: 13px; z-index: 9; }
+.toast .i { font-size: 20px; }
+
+/* Côté nouveau joueur */
+.welcome { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; background: radial-gradient(ellipse at top, #1b1840, #0f1117 60%); }
+.wcard { width: 100%; max-width: 400px; background: #171a24; border: 1px solid #2c3040; border-radius: 22px; padding: 26px 22px; text-align: center; }
+.wlogo { font-weight: 900; letter-spacing: 2px; font-size: 22px; margin-bottom: 8px; }
+.wlogo span { color: #6c63ff; }
+.wparrot { position: relative; width: 120px; height: 135px; margin: 0 auto 6px; }
+.wparrot img { position: absolute; left: 0; top: 0; width: 120px; }
+.wparrot .head { animation: headBob 2.4s ease-in-out infinite; transform-origin: 70% 40%; }
+@keyframes headBob { 50% { transform: rotate(-6deg); } }
+.wcard h2 { font-size: 20px; margin-bottom: 6px; }
+.wcard p { color: #9ea3b0; font-size: 14px; line-height: 1.45; }
+.wgroup { margin: 14px 0; padding: 12px; border-radius: 14px; background: #0f1117; border: 1px solid #2c3040; font-weight: 900; }
+.wgroup small { display: block; color: #858a98; font-weight: 600; margin-top: 2px; }
+.dots span { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #6c63ff; margin: 0 3px; animation: dotJump 1.2s ease-in-out infinite; }
+.dots span:nth-child(2) { animation-delay: .15s; } .dots span:nth-child(3) { animation-delay: .3s; }
+@keyframes dotJump { 30% { transform: translateY(-7px); opacity: 1; } 0%, 60%, 100% { opacity: .45; } }
+.wlink { margin-top: 14px; background: none; border: none; color: #858a98; text-decoration: underline; font-size: 13px; }
+.wstate { display: inline-block; margin-top: 10px; padding: 6px 12px; border-radius: 999px; font-weight: 800; font-size: 13px; }
+.wstate.wait { background: rgba(108, 99, 255, .15); color: #b9b5ff; }
+.wstate.refused { background: rgba(255, 107, 107, .12); color: #ff8a8a; }
+.wstate.accepted { background: rgba(99, 214, 159, .15); color: #63d69f; }
+.wbtn { margin-top: 14px; width: 100%; border: none; border-radius: 12px; padding: 12px; font-weight: 900; background: #6c63ff; color: white; }
+
+/* Panneau */
+.panel { background: #161922; border: 1px solid #2c3040; border-radius: 18px; padding: 16px; }
+.panel h3 { font-size: 15px; margin: 4px 0 10px; }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.btns button { background: #1f2330; border: 1px solid #343846; border-radius: 9px; padding: 6px 10px; font-size: 12px; font-weight: 700; }
+.btns button.on { background: #6c63ff; border-color: #6c63ff; }
+.play { width: 100%; background: linear-gradient(135deg, #5b4fe0, #8c82ff); border: none; border-radius: 12px; padding: 12px; font-weight: 900; margin-bottom: 14px; }
+.copy { width: 100%; margin-top: 6px; background: linear-gradient(135deg, #2fa36f, #63d69f); color: #0b1f15; border: none; border-radius: 10px; padding: 10px; font-weight: 900; }
+textarea { width: 100%; height: 60px; margin-top: 10px; background: #101219; color: #9ea3b0; border: 1px solid #343846; border-radius: 10px; padding: 8px; font: 11px ui-monospace, monospace; }
+.note { font-size: 12px; color: #858a98; line-height: 1.45; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+
+<h1>🙋 Validation des nouveaux membres</h1>
+<p class="sub">
+    Maquette avant de coder. Le code du groupe n'ouvre plus la porte directement : il envoie une <b>demande</b>.
+    Le créateur du groupe, ceux qui ont les pouvoirs ⭐ et l'admin l'acceptent ou la refusent.
+    Un faux compte ne peut donc plus entrer sans que tu le voies.
+</p>
+
+<h2 class="part">1. Côté créateur du groupe : 3 façons de voir les demandes</h2>
+
+<div class="tabs" id="tabs">
+    <button class="tab on" data-v="a">A · Dans la fenêtre du groupe</button>
+    <button class="tab" data-v="b">B · Carte sur la page des paris</button>
+    <button class="tab" data-v="c">C · Fenêtre qui s'ouvre toute seule</button>
+</div>
+<p class="desc" id="desc"></p>
+
+<div class="layout">
+    <div class="stage" id="stage"></div>
+
+    <div class="panel">
+        <button class="play" id="play">▶ Rejouer</button>
+        <h3>🙋 Demandes en attente</h3>
+        <div class="btns" id="counts">
+            <button data-n="1" class="on">1 demande</button>
+            <button data-n="2">2 demandes</button>
+        </div>
+        <h3>🖥️ Écran</h3>
+        <div class="btns" id="screens">
+            <button data-s="pc" class="on">Ordinateur</button>
+            <button data-s="phone">📱 Téléphone</button>
+        </div>
+        <p class="note">Clique « Accepter » ou « Refuser » pour voir la suite. Une notification arrive aussi quand une nouvelle demande tombe pendant que tu es sur le site.</p>
+        <button class="copy" id="copy">✅ Je choisis celle-ci</button>
+        <textarea id="out" readonly></textarea>
+    </div>
+</div>
+
+
+<h2 class="part">2. Côté nouveau joueur : l'attente (une seule version)</h2>
+<p class="sub">Après avoir tapé le code, il voit cet écran. Il s'ouvre tout seul sur le groupe dès que sa demande est acceptée (vérifié toutes les 20 s).</p>
+
+<div class="layout">
+    <div class="stage" id="stage2"></div>
+    <div class="panel">
+        <h3>État de la demande</h3>
+        <div class="btns" id="wstates">
+            <button data-w="wait" class="on">⏳ En attente</button>
+            <button data-w="accepted">✅ Acceptée</button>
+            <button data-w="refused">❌ Refusée</button>
+        </div>
+        <p class="note">Une demande refusée peut être refaite plus tard (pour corriger une erreur de clic), mais elle repasse par la validation.</p>
+    </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const DESCS = {
+    a: "Discret. Une pastille rouge apparaît sur le bouton 👥 du groupe en haut. En l'ouvrant, la fenêtre du groupe montre une section « Demandes en attente » au-dessus des membres, avec Accepter / Refuser.",
+    b: "Bien visible. Une carte violette qui pulse apparaît en haut de la page des paris, comme les cartes « Récupérer » : « 🙋 Kevin veut rejoindre le groupe », avec Accepter / Refuser directement dessus. La pastille sur 👥 est là aussi.",
+    c: "Impossible à rater. Dès que tu arrives sur le site (ou qu'une demande tombe), une petite fenêtre s'ouvre : « Nouvelle demande ». Tu peux répondre tout de suite ou cliquer « Plus tard » (la pastille sur 👥 reste)."
+};
+const PEOPLE = [
+    { name: "Kevin", when: "il y a 3 min" },
+    { name: "Balac2", when: "il y a 1 h" }
+];
+let variant = "a", count = 1, wstate = "wait";
+let pending = [];
+
+const stage = $("#stage");
+
+function topBar() {
+    return `
+        <div class="top">
+            <span class="logo"><span>BET</span>LAB</span>
+            <button class="gbtn" id="gbtn">👥 BetLab Bureau ▾${pending.length ? `<span class="dot pulse">${pending.length}</span>` : ""}</button>
+            <span class="bal">1 250 €</span>
+        </div>`;
+}
+
+function toast(text, color, onClick) {
+    const t = document.createElement("div");
+    if (onClick) { t.style.cursor = "pointer"; t.onclick = () => { t.remove(); onClick(); }; }
+    t.className = "toast";
+    t.style.setProperty("--c", color);
+    t.innerHTML = text;
+    stage.appendChild(t);
+    t.animate([{ transform: "translateY(40px)", opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 400, easing: "cubic-bezier(.2,.8,.2,1)" });
+    setTimeout(() => t.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: "forwards" }).onfinish = () => t.remove(), 3200);
+}
+
+function answer(i, ok, el) {
+    const p = pending[i];
+    el.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: ok ? "translateX(40px)" : "translateX(-40px)" }], { duration: 300, fill: "forwards" }).onfinish = () => {
+        pending = pending.filter(x => x !== p);
+        render(false);
+        toast(ok ? `<span class="i">✅</span><span><b>${p.name}</b> a rejoint le groupe (1 000 € de départ)</span>`
+                 : `<span class="i">❌</span><span>Demande de <b>${p.name}</b> refusée</span>`, ok ? "#63d69f" : "#ff6b81");
+    };
+}
+
+function rowsHtml() {
+    return pending.map((p, i) => `
+        <div class="row pending" data-i="${i}">
+            <div class="who"><b>🙋 ${p.name}</b><small>a demandé ${p.when}</small></div>
+            <button class="mini ok" data-ok="${i}">✓ Accepter</button>
+            <button class="mini no" data-no="${i}">✕</button>
+        </div>`).join("");
+}
+
+function wire(root) {
+    root.querySelectorAll("[data-ok]").forEach(b => b.onclick = () => answer(+b.dataset.ok, true, b.closest("[data-i]")));
+    root.querySelectorAll("[data-no]").forEach(b => b.onclick = () => answer(+b.dataset.no, false, b.closest("[data-i]")));
+}
+
+function groupModal() {
+    const bd = document.createElement("div");
+    bd.className = "backdrop";
+    bd.innerHTML = `
+        <div class="modal">
+            <button class="x">×</button>
+            <h3>BetLab Bureau</h3>
+            <p style="color:#858a98;font-size:13px">Code : <b style="color:#e6e8ee;letter-spacing:2px">K7Q2XM</b></p>
+            ${pending.length ? `<div class="sect">DEMANDES EN ATTENTE <span class="dot">${pending.length}</span></div>${rowsHtml()}` : ""}
+            <div class="sect">5 MEMBRES</div>
+            ${["Florian 👑", "Balac", "Yann", "jjjj", "test"].map((n, i) => `<div class="row"><div class="who"><b>${n}</b></div><span class="member-bal">${[3250, 2890, 1540, 980, 1000][i]} €</span></div>`).join("")}
+        </div>`;
+    bd.querySelector(".x").onclick = () => bd.remove();
+    bd.onclick = e => { if (e.target === bd) bd.remove(); };
+    stage.appendChild(bd);
+    bd.firstElementChild.animate([{ transform: "scale(.92)", opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 250, easing: "cubic-bezier(.2,.8,.2,1)" });
+    wire(bd);
+    // Après une réponse, la fenêtre se redessine.
+    bd.querySelectorAll("[data-ok],[data-no]").forEach(b => b.addEventListener("click", () => setTimeout(() => { bd.remove(); if (pending.length || true) groupModal(); bd.remove(); }, 330)));
+}
+
+function newRequestModal() {
+    if (!pending.length) return;
+    const p = pending[0];
+    const bd = document.createElement("div");
+    bd.className = "backdrop";
+    bd.innerHTML = `
+        <div class="modal">
+            <div class="c-head">
+                <div class="big">🙋</div>
+                <h3>Nouvelle demande</h3>
+                <p><b style="color:#e6e8ee">${p.name}</b> veut rejoindre <b style="color:#e6e8ee">BetLab Bureau</b><br>${p.when}${pending.length > 1 ? ` · ${pending.length - 1} autre${pending.length > 2 ? "s" : ""} en attente` : ""}</p>
+            </div>
+            <div class="req-btns" data-i="0">
+                <button class="ok" data-ok="0">✓ Accepter</button>
+                <button class="no" data-no="0">✕ Refuser</button>
+            </div>
+            <button class="c-later">Plus tard</button>
+        </div>`;
+    bd.querySelector(".c-later").onclick = () => bd.remove();
+    stage.appendChild(bd);
+    bd.firstElementChild.animate([{ transform: "translateY(30px) scale(.94)", opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 350, easing: "cubic-bezier(.2,.8,.2,1)" });
+    bd.querySelector("[data-ok]").onclick = () => { bd.remove(); answer(0, true, document.createElement("div")); setTimeout(newRequestModal, 900); };
+    bd.querySelector("[data-no]").onclick = () => { bd.remove(); answer(0, false, document.createElement("div")); setTimeout(newRequestModal, 900); };
+}
+
+function render(fresh) {
+    stage.innerHTML = topBar() + `<div class="list" id="list"></div>`;
+    const list = $("#list");
+    if (variant === "b") {
+        pending.forEach((p, i) => {
+            const c = document.createElement("div");
+            c.className = "req-card";
+            c.dataset.i = i;
+            c.innerHTML = `
+                <div class="req-top"><span class="badge">🙋 Demande pour rejoindre</span><span class="when">${p.when}</span></div>
+                <div class="req-name">${p.name} <small>veut rejoindre BetLab Bureau</small></div>
+                <div class="req-btns"><button class="ok" data-ok="${i}">✓ Accepter</button><button class="no" data-no="${i}">✕ Refuser</button></div>`;
+            list.appendChild(c);
+            if (fresh) c.animate([{ opacity: 0, transform: "translateY(-14px)" }, { opacity: 1, transform: "none" }], { duration: 400, delay: i * 120, fill: "backwards" });
+        });
+        wire(list);
+    }
+    ["Jules est pas là demain ?", "Pile ou face ?", "Gota passe dans le BE méca ce jeudi"].forEach(q => {
+        const c = document.createElement("div");
+        c.className = "card";
+        c.textContent = q;
+        list.appendChild(c);
+    });
+    $("#gbtn").onclick = groupModal;
+}
+
+function play() {
+    pending = PEOPLE.slice(0, count);
+    render(true);
+    if (variant === "a") {
+        setTimeout(() => toast(`<span class="i">🙋</span><span><b>${pending[0].name}</b> demande à rejoindre le groupe · <u>voir</u></span>`, "#6c63ff", groupModal), 600);
+    }
+    if (variant === "c") setTimeout(newRequestModal, 500);
+}
+
+$("#tabs").onclick = e => {
+    const b = e.target.closest(".tab"); if (!b) return;
+    variant = b.dataset.v;
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t === b));
+    $("#desc").textContent = DESCS[variant];
+    play();
+};
+$("#counts").onclick = e => {
+    const b = e.target.closest("button"); if (!b) return;
+    count = +b.dataset.n;
+    document.querySelectorAll("#counts button").forEach(x => x.classList.toggle("on", x === b));
+    play();
+};
+$("#screens").onclick = e => {
+    const b = e.target.closest("button"); if (!b) return;
+    document.querySelectorAll(".stage").forEach(s => s.classList.toggle("phone", b.dataset.s === "phone"));
+    document.querySelectorAll("#screens button").forEach(x => x.classList.toggle("on", x === b));
+    play(); renderWelcome();
+};
+$("#play").onclick = play;
+$("#copy").onclick = async () => {
+    const text = `Je choisis : ${document.querySelector(".tab.on").textContent} (validation des nouveaux membres)`;
+    $("#out").value = text;
+    try { await navigator.clipboard.writeText(text); } catch (e) { $("#out").select(); document.execCommand("copy"); }
+    $("#copy").textContent = "✅ Copié ! Colle-le moi";
+};
+
+
+/* ----- Côté nouveau joueur ----- */
+
+function renderWelcome() {
+    const s2 = $("#stage2");
+    const states = {
+        wait: `
+            <h2>Demande envoyée 📨</h2>
+            <p>Le créateur du groupe doit accepter ta demande.<br>Cette page s'ouvrira toute seule dès que c'est bon.</p>
+            <div class="wgroup">👥 BetLab Bureau<small>5 membres</small></div>
+            <div class="dots"><span></span><span></span><span></span></div>
+            <span class="wstate wait">⏳ En attente de validation</span><br>
+            <button class="wlink">Annuler la demande</button>`,
+        accepted: `
+            <h2>Bienvenue dans le groupe ! 🎉</h2>
+            <p>Ta demande a été acceptée. Tu reçois <b style="color:#e6e8ee">1 000 €</b> pour commencer.</p>
+            <div class="wgroup">👥 BetLab Bureau<small>6 membres</small></div>
+            <span class="wstate accepted">✅ Demande acceptée</span>
+            <button class="wbtn">Entrer →</button>`,
+        refused: `
+            <h2>Demande refusée</h2>
+            <p>Le créateur de <b style="color:#e6e8ee">BetLab Bureau</b> n'a pas accepté ta demande.<br>Vérifie avec lui, ou rejoins un autre groupe.</p>
+            <span class="wstate refused">❌ Demande refusée</span>
+            <button class="wbtn">🔑 Entrer un autre code</button>`
+    };
+    s2.innerHTML = `
+        <div class="welcome">
+            <div class="wcard">
+                <div class="wlogo"><span>BET</span>LAB</div>
+                <div class="wparrot"><img src="assets/perroquet/wait-body.png" alt=""><img class="head" src="assets/perroquet/wait-head.png" alt=""></div>
+                ${states[wstate]}
+            </div>
+        </div>`;
+    s2.querySelector(".wcard").animate([{ opacity: 0, transform: "translateY(10px)" }, { opacity: 1, transform: "none" }], { duration: 350 });
+}
+$("#wstates").onclick = e => {
+    const b = e.target.closest("button"); if (!b) return;
+    wstate = b.dataset.w;
+    document.querySelectorAll("#wstates button").forEach(x => x.classList.toggle("on", x === b));
+    renderWelcome();
+};
+
+$("#desc").textContent = DESCS[variant];
+play();
+renderWelcome();
+</script>
+</body>
+</html>

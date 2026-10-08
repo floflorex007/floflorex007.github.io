@@ -54,6 +54,10 @@
                 👥
                 <span id="group-switcher-name">Groupe</span>
                 ▾
+                <span
+                    id="group-requests-dot"
+                    class="group-requests-dot hidden"
+                ></span>
             </button>
 
             <div
@@ -355,6 +359,21 @@
                 >
                     ← Retour
                 </button>
+
+            </div>
+
+
+            <!-- Demande envoyée : attente de validation (voir demandes-adhesion.sql) -->
+
+            <div
+                class="welcome-panel hidden"
+                data-welcome-step="pending"
+            >
+
+                <div
+                    id="welcome-request"
+                    class="welcome-request"
+                ></div>
 
             </div>
 
@@ -1204,6 +1223,39 @@
 
             </div>
 
+
+            <div class="create-card">
+
+                <h3>
+                    Comptes
+                    <small id="admin-accounts-count"></small>
+                </h3>
+
+                <p class="resolve-info">
+                    Tous les comptes créés sur le site. Supprimer un compte est définitif :
+                    le joueur ne pourra plus se connecter et ses mises sont effacées.
+                    Le compte admin ne peut pas être supprimé.
+                </p>
+
+                <input
+                    type="search"
+                    id="admin-accounts-search"
+                    class="admin-balance-group"
+                    placeholder="Rechercher un pseudo..."
+                >
+
+                <div
+                    id="admin-accounts-list"
+                    class="admin-balance-list"
+                ></div>
+
+                <p
+                    id="admin-accounts-message"
+                    class="admin-balance-message"
+                ></p>
+
+            </div>
+
         </section>
 
     </main>
@@ -1922,6 +1974,13 @@
                     </button>
                 </div>
 
+            </div>
+
+
+            <!-- Code d'invitation : visible par tous les membres
+                 (les demandes passent par la validation, voir demandes-adhesion.sql) -->
+
+            <div class="group-code-section">
 
                 <label>
                     Code d'invitation
@@ -1955,8 +2014,16 @@
                 id="group-member-note"
                 class="group-member-note hidden"
             >
-                Pour inviter quelqu'un, demande le code au créateur du groupe.
+                Partage ce code pour inviter quelqu'un : le créateur du groupe validera sa demande.
             </p>
+
+
+            <!-- Demandes d'adhésion en attente (créateur, pouvoirs et admin) -->
+
+            <div
+                id="group-requests"
+                class="group-requests hidden"
+            ></div>
 
 
             <div class="group-members-header">

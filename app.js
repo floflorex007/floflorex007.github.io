@@ -370,6 +370,18 @@ async function loadCurrentProfile() {
     currentProfile = data;
 
 
+    // Admin : il entre (caché) dans tous les groupes, y compris les nouveaux.
+    if (currentProfile.is_admin) {
+
+        const { error: joinError } = await supabaseClient.rpc("admin_join_all_groups");
+
+        if (joinError) {
+            console.error("Admin : groupes indisponibles (admin-comptes.sql lancé ?)", joinError);
+        }
+
+    }
+
+
     // Le solde affiché est celui du groupe en cours.
     await loadMyGroups();
 
@@ -460,7 +472,8 @@ async function loadMyGroups() {
             gold_frame_until: member.gold_frame_until,
             name_color_until: member.name_color_until,
             isCreator: member.groups.created_by === currentUser.id,
-            isManager: member.is_manager || member.groups.created_by === currentUser.id
+            // L'admin a les pouvoirs dans tous les groupes (voir admin-comptes.sql).
+            isManager: member.is_manager || member.groups.created_by === currentUser.id || Boolean(currentProfile?.is_admin)
         }));
 
     const savedId = readSavedGroupId();
@@ -655,6 +668,13 @@ function showWelcome(canGoBack) {
 
     showWelcomeStep("choice");
 
+    // Sans groupe : une demande déjà envoyée reprend son écran d'attente.
+    if (!canGoBack) {
+
+        showJoinRequestScreen();
+
+    }
+
 }
 
 
@@ -680,6 +700,15 @@ function showWelcomeStep(step) {
     message.textContent = "";
 
     message.className = "welcome-message";
+
+    // L'écran d'attente a son propre texte.
+    document.getElementById("welcome-intro").classList.toggle("hidden", step === "pending");
+
+    if (step !== "pending") {
+
+        stopJoinRequestWatch();
+
+    }
 
     if (step === "join") {
 
@@ -855,7 +884,10 @@ async function submitWelcomeCode() {
 
     }
 
-    switchGroup(data.id);
+    // Le code envoie une demande : écran d'attente jusqu'à la validation.
+    welcomeJoining = false;
+
+    await showJoinRequestScreen(data.id);
 
 }
 
@@ -1257,15 +1289,23 @@ async function renderGroupModal() {
 
     document.getElementById("group-modal-title").textContent = group.name;
 
+    // Demandes d'adhésion en attente (section au-dessus des membres).
+    renderJoinRequestsSection();
+
+    refreshJoinRequests();
+
     document.getElementById("group-manage-section").classList.toggle("hidden", !manager);
 
     document.getElementById("group-member-note").classList.toggle("hidden", manager);
 
+    // Le code est visible par tous ; seuls le créateur et les ⭐ peuvent le changer.
+    document.getElementById("group-code").textContent = group.code;
+
+    document.getElementById("group-regenerate-code").classList.toggle("hidden", !manager);
+
     if (manager) {
 
         document.getElementById("group-rename-input").value = group.name;
-
-        document.getElementById("group-code").textContent = group.code;
 
     }
 
@@ -1393,6 +1433,398 @@ async function groupAction(rpcName, params) {
     await renderGroupModal();
 
     return data;
+
+}
+
+
+/* =========================================================
+   DEMANDES D'ADHÉSION (voir demandes-adhesion.sql)
+   Le code d'un groupe envoie une demande ; le créateur, ceux qui
+   ont les pouvoirs et l'admin l'acceptent ou la refusent dans la
+   fenêtre du groupe (pastille rouge sur le bouton 👥).
+   Maquette : demo-validation-membres.html (proposition A).
+========================================================= */
+
+const JOIN_REQUEST_POLL_MS = 20000;
+
+// Demandes en attente du groupe affiché (pour ceux qui peuvent répondre).
+let groupJoinRequests = [];
+
+// Demande suivie sur l'écran d'attente : { id, name, members }.
+let watchedJoinRequest = null;
+
+let joinRequestState = null;
+
+let joinRequestTimer = null;
+
+
+/* ----- Côté nouveau joueur : écran d'attente ----- */
+
+function startJoinRequestWatch() {
+
+    if (joinRequestTimer) {
+        return;
+    }
+
+    joinRequestTimer = setInterval(() => {
+
+        if (watchedJoinRequest) {
+            showJoinRequestScreen(watchedJoinRequest.id);
+        }
+
+    }, JOIN_REQUEST_POLL_MS);
+
+}
+
+function stopJoinRequestWatch() {
+
+    clearInterval(joinRequestTimer);
+
+    joinRequestTimer = null;
+
+}
+
+/*
+    Affiche l'état de ma demande (en attente, acceptée, refusée).
+    Sans groupId : ma demande la plus récente, s'il y en a une.
+*/
+
+async function showJoinRequestScreen(groupId = null) {
+
+    const { data, error } = await supabaseClient.rpc("my_join_requests");
+
+    if (error) {
+
+        console.error("Demandes d'adhésion indisponibles (demandes-adhesion.sql lancé ?)", error);
+
+        return;
+
+    }
+
+    const requests = data || [];
+
+    const request = groupId
+        ? requests.find(item => item.group_id === groupId)
+        : requests[0];
+
+    if (request) {
+
+        watchedJoinRequest = {
+            id: request.group_id,
+            name: request.group_name,
+            members: request.members
+        };
+
+    }
+
+    if (!watchedJoinRequest) {
+        return;
+    }
+
+    let state = request?.status;
+
+    // Plus de demande : acceptée si je suis membre, sinon annulée ailleurs.
+    if (!request) {
+
+        const { data: member } = await supabaseClient
+            .from("group_members")
+            .select("group_id")
+            .eq("group_id", watchedJoinRequest.id)
+            .eq("user_id", currentUser.id)
+            .maybeSingle();
+
+        if (!member) {
+
+            watchedJoinRequest = null;
+
+            joinRequestState = null;
+
+            showWelcomeStep("choice");
+
+            return;
+
+        }
+
+        state = "accepted";
+
+    }
+
+    // On ne redessine que si l'état change (les points d'attente continuent).
+    const panelHidden =
+        document.querySelector('[data-welcome-step="pending"]').classList.contains("hidden");
+
+    if (state !== joinRequestState || panelHidden) {
+
+        joinRequestState = state;
+
+        renderJoinRequest(state);
+
+        showWelcomeStep("pending");
+
+    }
+
+    if (state === "pending") {
+
+        startJoinRequestWatch();
+
+    } else {
+
+        stopJoinRequestWatch();
+
+    }
+
+}
+
+function renderJoinRequest(state) {
+
+    const box = document.getElementById("welcome-request");
+
+    const group = watchedJoinRequest;
+
+    const groupBox = `
+        <div class="welcome-request-group">
+            👥 ${escapeHtml(group.name)}
+            <small>${group.members} membre${group.members > 1 ? "s" : ""}</small>
+        </div>
+    `;
+
+    if (state === "accepted") {
+
+        box.innerHTML = `
+            <h3>Bienvenue dans le groupe ! 🎉</h3>
+            <p>Ta demande a été acceptée. Tu reçois <b>1 000 €</b> pour commencer.</p>
+            ${groupBox}
+            <span class="welcome-request-state accepted">✅ Demande acceptée</span>
+            <button type="button" class="welcome-green-button" data-request-enter>Entrer →</button>
+        `;
+
+    } else if (state === "refused") {
+
+        box.innerHTML = `
+            <h3>Demande refusée</h3>
+            <p>Le créateur de <b>${escapeHtml(group.name)}</b> n'a pas accepté ta demande. Vérifie avec lui, ou rejoins un autre groupe.</p>
+            <span class="welcome-request-state refused">❌ Demande refusée</span>
+            <button type="button" class="welcome-green-button" data-request-retry>🔑 Entrer un autre code</button>
+        `;
+
+    } else {
+
+        box.innerHTML = `
+            <h3>Demande envoyée 📨</h3>
+            <p>Le créateur du groupe doit accepter ta demande. Cette page s'ouvrira toute seule dès que c'est bon.</p>
+            ${groupBox}
+            <div class="welcome-request-dots"><span></span><span></span><span></span></div>
+            <span class="welcome-request-state pending">⏳ En attente de validation</span>
+            <button type="button" class="welcome-link" data-request-cancel>Annuler la demande</button>
+        `;
+
+    }
+
+    box.querySelector("[data-request-enter]")?.addEventListener("click", () => switchGroup(group.id));
+
+    // Refusée ou annulée : la demande est effacée, on revient au code / au choix.
+    const clear = async step => {
+
+        await supabaseClient.rpc("cancel_join_request", { p_group: group.id });
+
+        watchedJoinRequest = null;
+
+        joinRequestState = null;
+
+        showWelcomeStep(step);
+
+    };
+
+    box.querySelector("[data-request-retry]")?.addEventListener("click", () => clear("join"));
+
+    box.querySelector("[data-request-cancel]")?.addEventListener("click", () => clear("choice"));
+
+}
+
+
+/* ----- Côté créateur : pastille, notification, fenêtre du groupe ----- */
+
+function canAnswerJoinRequests() {
+
+    return Boolean(
+        currentGroup &&
+        (currentGroup.isManager || currentProfile?.is_admin)
+    );
+
+}
+
+async function refreshJoinRequests() {
+
+    const dot = document.getElementById("group-requests-dot");
+
+    if (!canAnswerJoinRequests()) {
+
+        groupJoinRequests = [];
+
+        dot?.classList.add("hidden");
+
+        return groupJoinRequests;
+
+    }
+
+    const { data, error } = await supabaseClient.rpc("group_join_requests_for", {
+        p_group: currentGroup.id
+    });
+
+    if (error) {
+
+        console.error("Demandes d'adhésion indisponibles (demandes-adhesion.sql lancé ?)", error);
+
+        return groupJoinRequests;
+
+    }
+
+    groupJoinRequests = data || [];
+
+    if (dot) {
+
+        dot.textContent = groupJoinRequests.length;
+
+        dot.classList.toggle("hidden", groupJoinRequests.length === 0);
+
+    }
+
+
+    // Nouvelle demande : une notification (une seule fois par demande).
+    const key = request => currentGroup.id + "|" + request.user_id + "|" + request.created_at;
+
+    const seen = readStorage("seen-join-requests") || [];
+
+    const fresh = groupJoinRequests.filter(request => !seen.includes(key(request)));
+
+    if (fresh.length > 0) {
+
+        writeStorage("seen-join-requests", [...seen, ...fresh.map(key)].slice(-100));
+
+        fresh.forEach((request, index) => setTimeout(() => alertToast(
+            `<strong>${escapeHtml(request.username)}</strong> demande à rejoindre le groupe · <u>voir</u>`,
+            { type: "join", at: request.created_at, onClick: openGroupModal }
+        ), index * 1500));
+
+    }
+
+
+    // Fenêtre du groupe ouverte : la section suit.
+    if (!document.getElementById("group-modal").classList.contains("hidden")) {
+
+        renderJoinRequestsSection();
+
+    }
+
+    return groupJoinRequests;
+
+}
+
+function renderJoinRequestsSection() {
+
+    const section = document.getElementById("group-requests");
+
+    if (!section) {
+        return;
+    }
+
+    if (!canAnswerJoinRequests() || groupJoinRequests.length === 0) {
+
+        section.classList.add("hidden");
+
+        section.innerHTML = "";
+
+        return;
+
+    }
+
+    section.classList.remove("hidden");
+
+    section.innerHTML = `
+        <div class="group-requests-header">
+            <span>Demandes en attente</span>
+            <span class="group-requests-count">${groupJoinRequests.length}</span>
+        </div>
+
+        ${groupJoinRequests.map(request => `
+            <div class="group-request-row" data-request-user="${request.user_id}">
+                <div class="group-request-who">
+                    <b>🙋 ${escapeHtml(request.username)}</b>
+                    <small>a demandé ${typeof toastTimeLabel === "function" ? toastTimeLabel(request.created_at) : ""}</small>
+                </div>
+                <button type="button" class="group-request-accept" data-request-answer="1">✓ Accepter</button>
+                <button type="button" class="group-request-refuse" data-request-answer="0" aria-label="Refuser" title="Refuser">✕</button>
+            </div>
+        `).join("")}
+    `;
+
+    section.querySelectorAll("[data-request-answer]").forEach(button => {
+
+        button.addEventListener("click", () => {
+
+            const row = button.closest("[data-request-user]");
+
+            const request = groupJoinRequests.find(item => item.user_id === row.dataset.requestUser);
+
+            answerJoinRequest(request, button.dataset.requestAnswer === "1", row);
+
+        });
+
+    });
+
+}
+
+async function answerJoinRequest(request, accept, row) {
+
+    if (!request) {
+        return;
+    }
+
+    row.querySelectorAll("button").forEach(button => button.disabled = true);
+
+    const { error } = await supabaseClient.rpc("answer_join_request", {
+        p_group: currentGroup.id,
+        p_user: request.user_id,
+        p_accept: accept
+    });
+
+    if (error) {
+
+        document.getElementById("group-modal-error").textContent = error.message || "Action impossible.";
+
+        row.querySelectorAll("button").forEach(button => button.disabled = false);
+
+        return;
+
+    }
+
+    // La ligne glisse hors de la liste, puis tout se met à jour.
+    await row.animate(
+        [
+            { opacity: 1, transform: "none" },
+            { opacity: 0, transform: accept ? "translateX(40px)" : "translateX(-40px)" }
+        ],
+        { duration: 300, easing: "ease-in", fill: "forwards" }
+    ).finished.catch(() => {});
+
+    alertToast(
+        accept
+            ? `<strong>${escapeHtml(request.username)}</strong> a rejoint le groupe`
+            : `Demande de <strong>${escapeHtml(request.username)}</strong> refusée`,
+        { type: accept ? "joined" : "error" }
+    );
+
+    await refreshJoinRequests();
+
+    renderJoinRequestsSection();
+
+    if (accept) {
+
+        await renderGroupModal();
+
+        displayLeaderboard();
+
+    }
 
 }
 
@@ -1656,6 +2088,9 @@ let parrotFirstSizing = true;
 
 let parrotSettleUntil = 0;
 
+// Réajustement de la taille du perroquet (posé par setupParrotFit).
+let parrotRefit = null;
+
 
 /*
     Taille adaptée à l'écran : le perroquet reste en bas à droite et ne
@@ -1708,6 +2143,62 @@ function parrotWidthLimit(wanted) {
 
 }
 
+/*
+    Largeur max à l'horizontale : le perroquet (ancré à droite) ne doit pas
+    déborder à gauche sur les cartes de la page affichée.
+    Paris : bord droit des cartes ; autres pages : bord droit du contenu.
+*/
+
+function parrotHorizontalLimit() {
+
+    const parrotElement = document.getElementById("parrot");
+
+    const page = [...document.querySelectorAll(".app-page")]
+        .find(element => !element.classList.contains("hidden"));
+
+    if (!parrotElement || !page) {
+
+        return Infinity;
+
+    }
+
+    let contentRight = 0;
+
+    if (page.id === "bets-page") {
+
+        page.querySelectorAll(".bets-list > *").forEach(element => {
+
+            const rect = element.getBoundingClientRect();
+
+            if (rect.width > 0) {
+
+                contentRight = Math.max(contentRight, rect.right);
+
+            }
+
+        });
+
+    } else {
+
+        const rect = page.getBoundingClientRect();
+
+        contentRight = rect.right - (parseFloat(getComputedStyle(page).paddingRight) || 0);
+
+    }
+
+    // Bord droit réel du perroquet (ancré à droite : ne dépend pas de sa largeur).
+    const parrotRight = parrotElement.getBoundingClientRect().right;
+
+    if (contentRight <= 0 || parrotRight <= 0) {
+
+        return Infinity;
+
+    }
+
+    return parrotRight - contentRight - PARROT_GAP;
+
+}
+
 function applyParrotWidth(seconds) {
 
     const parrotElement = document.getElementById("parrot");
@@ -1735,7 +2226,10 @@ function applyParrotWidth(seconds) {
         window.innerWidth * 0.42
     );
 
-    const limit = parrotWidthLimit(wanted);
+    const limit = Math.min(
+        parrotWidthLimit(wanted),
+        parrotHorizontalLimit()
+    );
 
     const width = Math.min(wanted, limit);
 
@@ -1783,7 +2277,19 @@ function setupParrotFit() {
 
         new ResizeObserver(refit).observe(column);
 
+        // Les cartes changent de largeur (ou arrivent) : place à droite recalculée.
+        const cards = document.getElementById("bets-container");
+
+        if (cards) {
+
+            new ResizeObserver(refit).observe(cards);
+
+        }
+
     }
+
+    // Changement d'onglet : le contenu n'a pas la même largeur selon la page.
+    parrotRefit = refit;
 
     refit();
 
@@ -2413,6 +2919,153 @@ async function createPopupMessage() {
 
 
 /*
+    Admin : tous les comptes créés, avec suppression directe
+    (voir admin-comptes.sql). Le compte admin ne peut pas être supprimé.
+*/
+
+let adminAccounts = [];
+
+async function displayAdminAccounts() {
+
+    const list = document.getElementById("admin-accounts-list");
+
+    if (!list) {
+        return;
+    }
+
+    const { data, error } = await supabaseClient.rpc("admin_list_accounts");
+
+    if (error) {
+
+        console.error(error);
+
+        list.innerHTML = `<p class="error-message">Impossible de charger les comptes (admin-comptes.sql lancé ?).</p>`;
+
+        return;
+
+    }
+
+    adminAccounts = data || [];
+
+    document.getElementById("admin-accounts-count").textContent = `(${adminAccounts.length})`;
+
+    renderAdminAccounts();
+
+}
+
+function renderAdminAccounts() {
+
+    const list = document.getElementById("admin-accounts-list");
+
+    const search = (document.getElementById("admin-accounts-search")?.value || "").trim().toLowerCase();
+
+    const accounts = adminAccounts.filter(
+        account => !search || (account.username || "").toLowerCase().includes(search)
+    );
+
+    if (accounts.length === 0) {
+
+        list.innerHTML = `<p class="resolve-info">Aucun compte trouvé.</p>`;
+
+        return;
+
+    }
+
+    list.innerHTML = accounts.map(account => {
+
+        const created = account.created_at
+            ? new Date(account.created_at).toLocaleDateString("fr-FR")
+            : "—";
+
+        const seen = account.last_sign_in_at
+            ? "connecté " + (typeof toastTimeLabel === "function" ? toastTimeLabel(account.last_sign_in_at) : "")
+            : "jamais connecté";
+
+        return `
+            <div class="admin-balance-row admin-account-row" data-account-id="${account.user_id}">
+                <div class="admin-account-main">
+                    <span class="admin-balance-name">
+                        ${escapeHtml(account.username || "—")}
+                        ${account.is_admin ? `<span class="admin-account-badge">Admin</span>` : ""}
+                    </span>
+                    <small>Créé le ${created} · ${seen}</small>
+                    <small>${account.group_names ? "👥 " + escapeHtml(account.group_names) : "Aucun groupe"}</small>
+                </div>
+                ${account.is_admin
+                    ? ""
+                    : `<button type="button" class="admin-account-delete" data-account-delete="${account.user_id}">Supprimer</button>`
+                }
+            </div>
+        `;
+
+    }).join("");
+
+    list.querySelectorAll("[data-account-delete]").forEach(button => {
+
+        button.addEventListener("click", () => adminDeleteAccount(button.dataset.accountDelete, button));
+
+    });
+
+}
+
+async function adminDeleteAccount(userId, button) {
+
+    const account = adminAccounts.find(item => item.user_id === userId);
+
+    const message = document.getElementById("admin-accounts-message");
+
+    if (!account) {
+        return;
+    }
+
+    if (!window.confirm(
+        `Supprimer définitivement le compte « ${account.username} » ?\n\n` +
+        "Il ne pourra plus se connecter et ses mises seront effacées. " +
+        "S'il a créé un groupe, un autre membre le reprend."
+    )) {
+        return;
+    }
+
+    button.disabled = true;
+
+    message.textContent = "";
+
+    const { error } = await supabaseClient.rpc("admin_delete_account", { p_user: userId });
+
+    if (error) {
+
+        button.disabled = false;
+
+        message.className = "admin-balance-message error";
+
+        message.textContent = error.message || "Suppression impossible.";
+
+        return;
+
+    }
+
+    message.className = "admin-balance-message success";
+
+    message.textContent = `Compte « ${account.username} » supprimé.`;
+
+    await displayAdminAccounts();
+
+    await displayAdminBalances();
+
+    displayLeaderboard();
+
+}
+
+function setupAdminAccounts() {
+
+    document
+        .getElementById("admin-accounts-search")
+        ?.addEventListener("input", renderAdminAccounts);
+
+}
+
+
+/*
     Admin : soldes de tous les joueurs, groupe par groupe (voir admin-soldes.sql).
 */
 
@@ -2705,7 +3358,8 @@ async function getBets() {
             profiles!bets_author_id_fkey ( username, gold_frame_until, name_color_until, cosmetics ),
             target:profiles!bets_target_user_id_fkey ( username, gold_frame_until, name_color_until, cosmetics ),
             stakes ( id, user_id, choice_id, stake, potential_win, claimed_at, created_at, profiles!stakes_user_id_fkey ( username, gold_frame_until, name_color_until, cosmetics ) ),
-            bet_contests ( status, ends_at )
+            bet_contests ( status, ends_at ),
+            bet_commissions ( user_id, amount, claimed_at, reversed_at )
         `)
         .eq("group_id", currentGroup?.id)
         .order("created_at", { ascending: false });
@@ -2990,7 +3644,8 @@ function renderBetSummaryHtml(
                         Number(choice.odds) >= 10 &&
                         !validating &&
                         !isClosed &&
-                        !isTargetBlocked;
+                        !isTargetBlocked &&
+                        !isOwnBet;
 
                     return `
 
@@ -3142,7 +3797,111 @@ function renderClaimCard(bet) {
 }
 
 
-async function claimBet(betId, won, card) {
+/*
+    Commission du créateur encore à récupérer sur ce pari
+    (0 s'il n'y en a pas). Voir commission-createur.sql.
+*/
+
+function myCommission(bet) {
+
+    const row = Array.isArray(bet.bet_commissions)
+        ? bet.bet_commissions[0]
+        : bet.bet_commissions;
+
+    return row &&
+        row.user_id === currentUser?.id &&
+        !row.claimed_at &&
+        !row.reversed_at
+        ? Number(row.amount)
+        : 0;
+
+}
+
+
+/*
+    Carte jaune « Ta commission » : le créateur récupère ses 10 %
+    des mises perdues, comme un gain. Bloquée pendant une contestation.
+*/
+
+function renderCommissionCard(bet) {
+
+    const amount =
+        myCommission(bet);
+
+    const winner =
+        (bet.bet_choices || []).find(c => c.id === bet.winner_choice_id);
+
+    const card =
+        document.createElement("div");
+
+    // Clé distincte de la carte « gagné / perdu » du même pari.
+    card.dataset.betId = "commission-" + bet.id;
+
+
+    if (betContest(bet)?.status === "open") {
+
+        card.className = "bet-card claim-card claim-card--commission claim-card--frozen";
+
+        card.innerHTML = `
+
+            <div class="claim-card-top">
+                <span class="claim-card-badge">💼 Commission bloquée</span>
+                <span class="claim-card-result">Résultat validé : <b>${escapeHtml(winner?.label || "—")}</b></span>
+            </div>
+
+            <h3>${escapeHtml(bet.question)}</h3>
+
+            <button class="claim-card-button">
+                🔒 Contestation en cours · fin ${timeLeftLabel(betContest(bet).ends_at)}
+            </button>
+
+        `;
+
+        card.addEventListener("click", async () => {
+
+            await refreshContests();
+
+            openContestView(bet.id);
+
+        });
+
+        return card;
+
+    }
+
+
+    card.className = "bet-card claim-card claim-card--commission";
+
+    card.innerHTML = `
+
+        <div class="claim-card-top">
+            <span class="claim-card-badge">💼 Ta commission</span>
+            <span class="claim-card-result">Résultat : <b>${escapeHtml(winner?.label || "—")}</b></span>
+        </div>
+
+        <h3>${escapeHtml(bet.question)}</h3>
+
+        <p class="claim-card-note">10 % des mises perdues sur ton pari</p>
+
+        <button class="claim-card-button">
+            💰 Récupérer ${formatMoney(amount)}
+        </button>
+
+    `;
+
+    card.addEventListener("click", () => claimBet(bet.id, true, card, "claim_commission"));
+
+    return card;
+
+}
+
+
+/*
+    rpcName : claim_bet (mes mises) ou claim_commission (ma commission
+    de créateur, jouée comme un gain).
+*/
+
+async function claimBet(betId, won, card, rpcName = "claim_bet") {
 
     if (card.classList.contains("claiming")) {
         return;
@@ -3156,7 +3915,7 @@ async function claimBet(betId, won, card) {
 
     const { data, error } =
         await supabaseClient.rpc(
-            "claim_bet",
+            rpcName,
             {
                 p_bet_id: betId
             }
@@ -3382,8 +4141,38 @@ function isMyOpenBet(bet) {
 }
 
 /*
+    Commission du créateur si ce choix gagne : 10 % des mises perdues,
+    arrondi à l'euro (ses propres anciennes mises ne comptent pas).
+    Même calcul côté base : resolve_bet dans commission-createur.sql.
+*/
+
+const CREATOR_COMMISSION_RATE = 0.10;
+
+function creatorCommission(bet, winnerChoiceId, stakes = bet.stakes || []) {
+
+    const lost = stakes
+        .filter(stake => stake.choice_id !== winnerChoiceId && stake.user_id !== bet.author_id)
+        .reduce((total, stake) => total + Number(stake.stake), 0);
+
+    return Math.round(lost * CREATOR_COMMISSION_RATE);
+
+}
+
+function commissionLineHtml(amount) {
+
+    return `
+        <div class="validate-commission">
+            <span>💼 Ta commission <small>10 % des mises perdues</small></span>
+            <b>+${formatMoney(amount)}</b>
+        </div>
+    `;
+
+}
+
+/*
     Bilan si ce choix gagne : une ligne par joueur et par choix,
-    gagnants avec leur gain, perdants avec leur mise perdue.
+    gagnants avec leur gain, perdants avec leur mise perdue,
+    puis la commission du créateur.
 */
 
 function validationBilanHtml(bet, winnerChoiceId) {
@@ -3427,6 +4216,8 @@ function validationBilanHtml(bet, winnerChoiceId) {
                 </div>
 
             </div>
+
+            ${commissionLineHtml(creatorCommission(bet, winnerChoiceId))}
 
             <p class="validate-error"></p>
 
@@ -3499,6 +4290,7 @@ async function confirmCardValidation(betId, button) {
 
 let betsSignature = null;
 
+
 let betsRefreshPending = false;
 
 let renderedBetIds = new Set();
@@ -3514,7 +4306,8 @@ function computeBetsSignature(bets) {
             (bet.bet_choices || []).length,
             (bet.stakes || []).length,
             (bet.stakes || []).reduce((sum, s) => sum + Number(s.stake), 0),
-            (bet.stakes || []).filter(s => s.claimed_at).length
+            (bet.stakes || []).filter(s => s.claimed_at).length,
+            myCommission(bet)
         ].join(":"))
         .join("|");
 
@@ -3778,9 +4571,34 @@ async function displayBets({ quiet = false, force = false } = {}) {
                     )
             );
 
+        // Paris validés où ma commission de créateur attend (cartes jaunes).
+        const commissionBets =
+            bets.filter(
+                bet =>
+                    bet.status === "resolved" &&
+                    myCommission(bet) > 0
+            );
+
         const previousClaimIds = renderedClaimIds;
 
-        renderedClaimIds = new Set(claimableBets.map(bet => bet.id));
+        renderedClaimIds = new Set([
+            ...claimableBets.map(bet => bet.id),
+            ...commissionBets.map(bet => "commission-" + bet.id)
+        ]);
+
+        commissionBets.forEach(bet => {
+
+            const commissionCard = renderCommissionCard(bet);
+
+            if (quiet && !previousClaimIds.has("commission-" + bet.id)) {
+
+                commissionCard.classList.add("claim-card-enter");
+
+            }
+
+            container.appendChild(commissionCard);
+
+        });
 
         claimableBets.forEach(bet => {
 
@@ -3798,7 +4616,7 @@ async function displayBets({ quiet = false, force = false } = {}) {
         });
 
 
-        if (openBets.length === 0 && claimableBets.length === 0) {
+        if (openBets.length === 0 && claimableBets.length === 0 && commissionBets.length === 0) {
 
             container.innerHTML = `
                 <div class="empty-state">
@@ -3835,7 +4653,8 @@ async function displayBets({ quiet = false, force = false } = {}) {
 
                 card.className =
                     "bet-card" +
-                    (isBlockedTarget(bet) || isBetClosed(bet) ? " bet-card-locked" : "") +
+                    // Grisée aussi pour le créateur : il ne peut pas miser sur son pari.
+                    (isBlockedTarget(bet) || isBetClosed(bet) || isMyOwnBet(bet) ? " bet-card-locked" : "") +
                     (isCreatedToday(bet.created_at) ? " bet-card-new" : "") +
                     (quiet && !previousIds.has(bet.id) ? " bet-card-live-in" : "");
 
@@ -5906,7 +6725,7 @@ async function openResolveModal(bet) {
     const { data: stakes, error } =
         await supabaseClient
             .from("stakes")
-            .select("choice_id, stake, potential_win, profiles!stakes_user_id_fkey ( username, gold_frame_until, name_color_until, cosmetics )")
+            .select("user_id, choice_id, stake, potential_win, profiles!stakes_user_id_fkey ( username, gold_frame_until, name_color_until, cosmetics )")
             .eq("bet_id", bet.id);
 
     if (error) {
@@ -6014,6 +6833,8 @@ function renderResolveStepTwo(bet, stakes, winner) {
         </p>
 
         <div class="resolve-list">${rows}</div>
+
+        ${commissionLineHtml(creatorCommission(bet, winner.id, stakes))}
 
         <div class="resolve-warning">⚠️ Cette action est définitive.</div>
 
@@ -6440,6 +7261,48 @@ async function closeStakesPanel(instant = false) {
         displayBets({ quiet: true, force: true });
 
     }
+
+}
+
+/*
+    Mode validation : un clic hors de la carte le quitte,
+    comme le bouton « ✕ Annuler » (même animation de sortie).
+    Les fenêtres et le détail des parieurs ne comptent pas comme « dehors ».
+*/
+
+function setupValidationOutsideClick() {
+
+    document.addEventListener("click", event => {
+
+        if (!cardValidation) {
+
+            return;
+
+        }
+
+        const target = event.target;
+
+        if (
+            !(target instanceof Element) ||
+            !target.isConnected ||
+            target.closest(".modal, #stakes-panel, #stakes-panel-backdrop, .verdict-overlay, .verdict-wrap, .activity-feed")
+        ) {
+
+            return;
+
+        }
+
+        if (target.closest(".bet-card")?.dataset.betId === cardValidation.betId) {
+
+            return;
+
+        }
+
+        document
+            .querySelector(`.bet-card[data-bet-id="${cardValidation.betId}"] [data-validate-toggle]`)
+            ?.click();
+
+    });
 
 }
 
@@ -8803,6 +9666,10 @@ function showPage(pageId, skipCascade = false) {
         }
 
 
+        // Le perroquet s'adapte à la largeur du contenu de la nouvelle page.
+        parrotRefit?.();
+
+
         /*
             Retour sur les paris : on recharge le classement
             pour jouer une éventuelle remontée.
@@ -9502,6 +10369,8 @@ async function initAppPage() {
 
         setupStakesPanel();
 
+        setupValidationOutsideClick();
+
         setupValidateFabProximity();
 
         setupCreateModal();
@@ -9550,6 +10419,8 @@ async function initAppPage() {
 
         }
 
+        refreshJoinRequests();
+
         setupBetsRealtime();
 
         await displayAdminMessage();
@@ -9572,6 +10443,10 @@ async function initAppPage() {
             await displayPopupHistory();
 
             await displayAdminBalances();
+
+            setupAdminAccounts();
+
+            await displayAdminAccounts();
 
         }
 

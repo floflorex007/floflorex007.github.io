@@ -2188,7 +2188,9 @@ const TOAST_TYPES = {
     stake:  { icon: "💸", color: "#6c63ff" },
     create: { icon: "🆕", color: "#3fa9f5" },
     error:  { icon: "⚠️", color: "#ff6b81" },
-    contest: { icon: "⚖️", color: "#f5c451" }
+    contest: { icon: "⚖️", color: "#f5c451" },
+    join: { icon: "🙋", color: "#6c63ff" },
+    joined: { icon: "✅", color: "#63d69f" }
 };
 
 const TOAST_LIFE = 9000;
@@ -2261,11 +2263,12 @@ function removeToast(toast) {
 
 
 /*
-    type : stake, create ou error (icône + couleur).
+    type : stake, create, error, contest, join, joined (icône + couleur).
     at : date de l'événement, pour « il y a… ».
+    onClick : action au clic (en plus de fermer la notification).
 */
 
-function alertToast(text, { type = "error", at = null } = {}) {
+function alertToast(text, { type = "error", at = null, onClick = null } = {}) {
 
     let stack =
         document.getElementById("activity-feed");
@@ -2345,8 +2348,20 @@ function alertToast(text, { type = "error", at = null } = {}) {
     slot.addEventListener("mouseenter", () => activityToasts.forEach(other => other.pause()));
     slot.addEventListener("mouseleave", () => activityToasts.forEach(other => other.resume()));
 
-    // Un clic ferme la notification.
-    slot.addEventListener("click", () => removeToast(toast));
+    // Un clic ferme la notification (et lance son action, s'il y en a une).
+    slot.addEventListener("click", () => {
+
+        removeToast(toast);
+
+        onClick?.();
+
+    });
+
+    if (onClick) {
+
+        slot.style.cursor = "pointer";
+
+    }
 
 
     activityToasts.unshift(toast);
@@ -2558,6 +2573,11 @@ function verdictCase(contest) {
 
     const penalty = Number(contest.penalty) || 0;
 
+    const commission = Number(contest.commission) || 0;
+
+    // Commission déjà récupérée (carte jaune) avant la fin du vote ?
+    const commissionClaimed = Boolean(contest.commission_claimed);
+
     const choice = escapeHtml(contest.my_choice_label || "—");
 
     const result = {
@@ -2617,15 +2637,31 @@ function verdictCase(contest) {
             (stake > 0 ? " " + result.who : "");
 
         if (annul) {
-            result.expl = "Le jury estime que tu as mal validé : tu paies une amende de 10 % du total misé. " +
+            result.expl = "Le jury estime que tu as mal validé : tu paies une amende de 10 % du total misé" +
+                (commission > 0 ? (commissionClaimed ? " et ta commission est reprise. " : " et tu perds ta commission. ") : ". ") +
                 (stakeText ? "Pour ta mise, " + stakeText : "Tout le monde est remboursé.");
             result.lines.push({ text: "Total misé sur le pari", value: Number(contest.total_staked) || 0, kind: "info" });
             result.lines.push({ text: "Amende (10 %)", value: penalty, kind: "minus" });
             result.delta -= penalty;
+
+            if (commission > 0 && commissionClaimed) {
+                result.lines.push({ text: "Commission reprise", value: commission, kind: "minus" });
+                result.delta -= commission;
+            } else if (commission > 0) {
+                result.lines.push({ text: "Commission annulée", value: commission, kind: "strike" });
+            }
         } else {
-            result.expl = "Le jury confirme ta validation : tu ne paies pas d'amende." +
+            result.expl = "Le jury confirme ta validation : tu ne paies pas d'amende" +
+                (commission > 0
+                    ? (commissionClaimed ? " et tu gardes ta commission." : " et ta commission est débloquée : récupère-la sur la carte jaune.")
+                    : ".") +
                 (stakeText ? " Pour ta mise, " + stakeText : "");
-            if (stake === 0) {
+            if (commission > 0 && commissionClaimed) {
+                result.lines.push({ text: "Commission gardée", value: commission, kind: "info" });
+            } else if (commission > 0) {
+                result.lines.push({ text: "Commission débloquée", value: commission, kind: "unlock" });
+                result.unlock += commission;
+            } else if (stake === 0) {
                 result.lines.push({ text: "Amende", value: 0, kind: "info" });
             }
         }
@@ -3321,6 +3357,9 @@ async function initAnimations() {
 
         // Termine les votes échus et montre les verdicts arrivés entre-temps.
         await refreshContests();
+
+        // Nouvelles demandes pour rejoindre le groupe (pastille + notification).
+        await refreshJoinRequests();
 
     }, FEED_INTERVAL_MS);
 
