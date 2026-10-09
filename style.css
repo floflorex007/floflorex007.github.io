@@ -2374,6 +2374,31 @@ input {
     color: #e0ddff;
 }
 
+/* 7e bouton « Autre » : ouvre le calendrier du navigateur. */
+.deadline-day-other {
+    position: relative;
+}
+
+.deadline-day-other b {
+    line-height: 1.2;
+}
+
+/* Champ date invisible : seul son calendrier s'affiche
+   (passe devant le style des champs du formulaire). */
+.create-card .deadline-day-other .deadline-other-input {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 0;
+    padding: 0;
+    border: 0;
+    margin: 0;
+    min-height: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
 .deadline-time-row {
     display: flex;
     align-items: center;
@@ -4769,6 +4794,11 @@ body.no-group #parrot {
     animation: xp-halo 2.8s ease-in-out;
 }
 
+/* Jauge de la barre du haut : halo plus discret (2 pulsations). */
+.xp-mini.xp-halo {
+    animation: xp-mini-glow 0.9s ease-in-out 2;
+}
+
 @keyframes xp-halo {
     0% {
         border-color: #2c3040;
@@ -5331,8 +5361,9 @@ body.app-loading .enjeu-cadre {
     color: #c86bff;
 }
 
+/* Même largeur que les cartes de paris (480 px). */
 .xp-modal-content {
-    max-width: 420px;
+    max-width: 480px;
 }
 
 .xp-modal-content h2 {
@@ -6509,6 +6540,219 @@ body.parrot-phenix #parrot {
     50% { box-shadow: 0 0 12px rgba(200, 107, 255, 0.8); }
 }
 
+/* Titre « Série » et « jours » de la flamme : ordinateur seulement. */
+.streak-label,
+.streak-unit {
+    display: none;
+}
+
+/* Ordinateur : série, solde et points en capsules assorties à la jauge d'XP
+   (version A de demo-capsules-barre.html), chacun dans sa couleur. */
+@media (min-width: 801px) {
+
+    .user-area {
+        gap: 10px;
+    }
+
+    .xp-mini,
+    .streak-widget,
+    .user-area .balance {
+        box-sizing: border-box;
+        height: 44px;
+    }
+
+    .streak-widget,
+    .user-area .balance {
+        --capsule: 255, 159, 67;
+        padding: 7px 12px;
+        border: 1px solid rgba(var(--capsule), 0.3);
+        border-radius: 12px;
+        background: rgba(var(--capsule), 0.08);
+        white-space: nowrap;
+        transition: border-color 0.2s, background 0.2s;
+    }
+
+    .user-area .balance {
+        --capsule: 99, 214, 159;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 6px;
+        text-align: left;
+    }
+
+    .user-area .points-balance {
+        --capsule: 245, 196, 81;
+    }
+
+    .user-area .balance span {
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    .user-area .balance strong {
+        font-size: 14px;
+        font-weight: 800;
+        line-height: 1;
+    }
+
+    /* Série : « Série » en haut, « 🔥 4 jours » dessous. */
+    .streak-widget {
+        display: grid;
+        grid-template-columns: auto auto auto;
+        align-content: center;
+        justify-content: start;
+        align-items: center;
+        column-gap: 4px;
+        row-gap: 6px;
+        font-size: 14px;
+        line-height: 1;
+    }
+
+    .streak-widget:hover {
+        border-color: #ff9f43;
+        background: rgba(255, 159, 67, 0.15);
+        filter: none;
+    }
+
+    .streak-label {
+        display: block;
+        grid-column: 1 / -1;
+        color: #858a98;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .streak-widget .streak-flame {
+        font-size: 14px;
+        line-height: 1;
+    }
+
+    .streak-unit {
+        display: inline;
+    }
+
+}
+
+/* Compte d'XP et « Débloquer » de la jauge : ordinateur seulement. */
+.xp-mini-xp,
+.xp-mini-unlock {
+    display: none;
+}
+
+/* Ordinateur : la jauge d'XP passe dans la barre du haut (capsule, version A
+   de demo-jauge-xp.html) et remplace la carte « Ton niveau ». */
+@media (min-width: 801px) {
+
+    #level-sidebar {
+        display: none;
+    }
+
+    .xp-mini {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 6px;
+        order: -1;              /* à gauche de la flamme */
+        width: 170px;
+        padding: 7px 12px;
+        border: 1px solid rgba(200, 107, 255, 0.3);
+        border-radius: 12px;
+        background: rgba(108, 99, 255, 0.1);
+        color: inherit;
+        cursor: pointer;
+        font-family: inherit;
+        transition: border-color 0.2s, background 0.2s;
+    }
+
+    .xp-mini:hover,
+    .xp-mini:focus-visible {
+        border-color: #c86bff;
+        background: rgba(108, 99, 255, 0.18);
+        outline: none;
+    }
+
+    .xp-mini-top {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+        line-height: 1;
+        white-space: nowrap;
+    }
+
+    .xp-mini-label,
+    .xp-mini-unlock {
+        color: #c86bff;
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    .xp-mini-xp {
+        display: inline;
+        color: #858a98;
+        font-size: 11px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .xp-mini-bar {
+        display: block;
+        height: 7px;
+        border-radius: 999px;
+        background: #262a38;
+        overflow: hidden;
+    }
+
+    #xp-mini-fill {
+        display: block;
+        height: 100%;
+        width: 0;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #6c63ff, #c86bff);
+        transition: width 0.8s ease-out;
+    }
+
+    /* Niveau à débloquer : capsule dorée qui brille, barre d'or qui défile,
+       un clic débloque le niveau. */
+    .xp-mini.pending {
+        border-color: #f5c451;
+        background: rgba(245, 196, 81, 0.08);
+        animation: xp-mini-ready 1.6s ease-in-out infinite;
+    }
+
+    .xp-mini.pending .xp-mini-label,
+    .xp-mini.pending .xp-mini-xp {
+        display: none;
+    }
+
+    .xp-mini.pending .xp-mini-unlock {
+        display: inline;
+        color: #f5c451;
+    }
+
+    .xp-mini.pending #xp-mini-fill {
+        width: 100% !important;
+        background: linear-gradient(90deg, #f5c451, #ffdf7e, #f5c451);
+        background-size: 200% 100%;
+        animation: xp-mini-gold 1.6s linear infinite;
+    }
+
+    @keyframes xp-mini-ready {
+        50% {
+            box-shadow: 0 0 16px rgba(245, 196, 81, 0.7), 0 0 0 4px rgba(245, 196, 81, 0.12);
+        }
+    }
+
+    @keyframes xp-mini-gold {
+        to {
+            background-position: -200% 0;
+        }
+    }
+
+}
+
 @keyframes nav-pop {
     40% { transform: scale(1.3); }
 }
@@ -6599,11 +6843,24 @@ body.parrot-phenix #parrot {
     .user-area {
         flex-shrink: 0;
         margin-left: auto;
-        gap: 8px;
+        gap: 6px;
     }
 
-    .balance {
+    /* Solde (vert) et points (jaune) : capsules comme la flamme et la jauge d'XP. */
+    .user-area .balance {
+        --capsule: 99, 214, 159;
+        display: flex;
+        align-items: center;
+        height: 30px;
+        padding: 0 8px;
+        border: 1px solid rgba(var(--capsule), 0.35);
+        border-radius: 9px;
+        background: rgba(var(--capsule), 0.1);
         text-align: right;
+    }
+
+    .user-area .points-balance {
+        --capsule: 245, 196, 81;
     }
 
     .balance span {
@@ -6611,7 +6868,7 @@ body.parrot-phenix #parrot {
     }
 
     .balance strong {
-        font-size: 14px;
+        font-size: 13px;
         white-space: nowrap;
     }
 
@@ -6643,13 +6900,22 @@ body.parrot-phenix #parrot {
         order: -1;              /* à gauche de la flamme */
         justify-content: center;
         height: 30px;
-        width: 46px;
-        padding: 4px 5px;
+        width: auto;
+        min-width: 46px;
+        padding: 4px 6px;
         border: 1px solid rgba(200, 107, 255, 0.3);
         border-radius: 9px;
         background: rgba(108, 99, 255, 0.1);
         cursor: pointer;
         font-family: inherit;
+    }
+
+    /* Ligne « Niv. X » à la hauteur de son texte (sinon elle écrasait la jauge). */
+    .xp-mini-top {
+        display: block;
+        font-size: 0;
+        line-height: 1;
+        text-align: center;
     }
 
     .xp-mini-label {
@@ -6663,6 +6929,7 @@ body.parrot-phenix #parrot {
 
     .xp-mini-bar {
         display: block;
+        flex-shrink: 0;
         height: 4px;
         border-radius: 999px;
         background: #262a38;
@@ -6681,10 +6948,6 @@ body.parrot-phenix #parrot {
     .xp-mini.pending {
         border-color: #c86bff;
         animation: xp-mini-glow 1.4s ease-in-out infinite;
-    }
-
-    .xp-mini.pending .xp-mini-label::before {
-        content: "⭐ ";
     }
 
     /* Profil : seulement l'icône. */
@@ -6857,10 +7120,22 @@ body.parrot-phenix #parrot {
         display: none;
     }
 
-    /* Il ne reste que le bouton « 🏆 Classement », à droite. */
+    /* Nombre de paris à gauche, bouton « 🏆 Classement » à droite. */
     .bets-page-header {
         display: flex;
-        justify-content: flex-end;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .bets-page-count {
+        color: #858a98;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    /* Le nombre est déjà dans l'en-tête : pas de doublon dans la liste. */
+    .bets-list .bets-count {
+        display: none;
     }
 
 
@@ -8046,13 +8321,14 @@ body.parrot-phenix #parrot {
    de liste (renderCreateBetCard dans app.js)
 ========================================================= */
 
-/* Sur ordinateur, l'en-tête ne contient plus que le bouton « Classement »
-   du téléphone : il disparaît, et les cartes sont à 22 px sous la barre. */
-.bets-page-header {
-    display: none;
-}
-
+/* Sur ordinateur, l'en-tête ne contient que des éléments du téléphone
+   (nombre de paris, bouton « Classement ») : il disparaît, et les cartes
+   sont à 22 px sous la barre. Sur téléphone, il reste affiché. */
 @media (min-width: 801px) {
+
+    .bets-page-header {
+        display: none;
+    }
 
     #bets-page {
         margin-top: -18px;
@@ -8065,6 +8341,27 @@ body.parrot-phenix #parrot {
     max-width: 480px;
     margin-left: max(0px, calc((100% - 480px) / 4));
     margin-right: auto;
+}
+
+/* Nombre de paris disponibles, sous la carte « Créer un pari ». */
+.bets-list .bets-count {
+    width: 100%;
+    max-width: 480px;
+    margin-left: max(0px, calc((100% - 480px) / 4));
+    margin-right: auto;
+    color: #858a98;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+}
+
+/* Collé à la carte « Créer un pari » (cachée sur téléphone). */
+@media (min-width: 801px) {
+
+    .bets-list .bets-count {
+        margin-top: -28px;
+    }
+
 }
 
 .bet-create-card {
@@ -8155,6 +8452,23 @@ body.parrot-phenix #parrot {
     width: 100%;
 }
 
+/* Ordinateur : le ticket reste entier (son bas était coupé) ;
+   c'est le classement qui rétrécit et défile si la place manque. */
+@media (min-width: 801px) {
+
+    .left-column .leaderboard-sidebar {
+        flex: 0 1 auto;
+        min-height: 120px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+    }
+
+    .left-column .bet-ticket {
+        flex-shrink: 0;
+    }
+
+}
+
 .bet-ticket {
     background: linear-gradient(180deg, #1c202c 0%, #14161e 100%);
     border: 1px solid #2c3040;
@@ -8166,6 +8480,29 @@ body.parrot-phenix #parrot {
 .bet-ticket.live {
     border-color: #c86bff;
     box-shadow: 0 0 24px rgba(200, 107, 255, 0.15);
+}
+
+/* Le ticket n'apparaît qu'une fois une cote choisie. */
+body:not(.ticket-has-legs) .bet-ticket {
+    display: none;
+}
+
+/* Apparition sur place (fondu + léger zoom), sans glisser.
+   Passe devant l'arrivée en cascade de la page. */
+body.ticket-has-legs .bet-ticket {
+    animation: ticket-pop 0.32s cubic-bezier(.2, .9, .3, 1.15);
+    animation-delay: 0s !important;
+}
+
+body.ticket-has-legs .bet-ticket.shake {
+    animation: ticket-shake 0.45s ease;
+}
+
+@keyframes ticket-pop {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
 }
 
 .ticket-header {
@@ -8415,22 +8752,17 @@ body.ticket-combo .ticket-go:not(:disabled) {
     box-shadow: 0 0 0 1px #c86bff, 0 0 16px rgba(200, 107, 255, 0.45);
 }
 
+/* Pastille violette (sans émoji) : la cote est dans le ticket. */
 .bet-choice-button.in-ticket::after {
-    content: "🎟️";
+    content: "";
     position: absolute;
-    top: -9px;
-    left: -7px;
-    width: 22px;
-    height: 22px;
-    display: grid;
-    place-items: center;
+    top: -6px;
+    left: -6px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
     background: #c86bff;
-    font-size: 12px;
-}
-
-body.ticket-combo .bet-choice-button.in-ticket::after {
-    content: "🔗";
+    box-shadow: 0 0 8px rgba(200, 107, 255, 0.6);
 }
 
 /* Combinés : carte à récupérer et Historique */
@@ -8508,14 +8840,7 @@ body.ticket-combo .bet-choice-button.in-ticket::after {
         padding: 0;
         background: #14161e;
         box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(200, 107, 255, 0.2);
-        animation: ticket-up 0.3s ease-out;
-    }
-
-    @keyframes ticket-up {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
+        transform-origin: center bottom;
     }
 
     .ticket-bar {
@@ -8898,4 +9223,2421 @@ body.ticket-combo .ticket-go.ticket-go--blocked {
     color: #ff9a7a;
     box-shadow: none;
     cursor: not-allowed;
+}
+
+
+
+/* =========================================================
+   PSEUDOS ANIMÉS DE LA BOUTIQUE ET PSEUDOS BÊTA-TESTEUR
+   (voir NAME_ANIMATIONS et BETA_TIERS dans app.js)
+========================================================= */
+
+.name-anim,
+.name-beta {
+    position: relative;
+    display: inline-block;
+    font-weight: 900;
+}
+
+/* Ruban chantier : rayures jaunes qui défilent */
+.anim-ruban_chantier {
+    background: repeating-linear-gradient(-45deg, #ffd34d 0 6px, #c98a12 6px 9px);
+    background-size: 25.5px 25.5px;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: name-tape 1.2s linear infinite;
+}
+
+@keyframes name-tape {
+    to { background-position: 25.5px 0; }
+}
+
+/* Néon animé : dégradé bleu-violet qui défile */
+.anim-neon_anime {
+    background: linear-gradient(90deg, #4be3ff, #c86bff, #4be3ff);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 0 5px rgba(140, 120, 255, 0.55));
+    animation: name-run 3s linear infinite;
+}
+
+@keyframes name-run {
+    to { background-position: -200% 0; }
+}
+
+/* Fiole qui bouillonne : vert labo avec des bulles qui montent */
+.anim-fiole {
+    color: #7dff9b;
+    text-shadow: 0 0 8px rgba(125, 255, 155, 0.55);
+}
+
+.anim-fiole i {
+    position: absolute;
+    bottom: 2px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    border: 1px solid #7dff9b;
+    opacity: 0;
+    pointer-events: none;
+    animation: name-bubble 2.2s ease-in infinite;
+}
+
+.anim-fiole i:nth-of-type(1) { left: 15%; }
+.anim-fiole i:nth-of-type(2) { left: 50%; width: 3px; height: 3px; animation-delay: 0.7s; }
+.anim-fiole i:nth-of-type(3) { left: 80%; animation-delay: 1.4s; }
+
+@keyframes name-bubble {
+    0% { transform: translateY(0); opacity: 0; }
+    20% { opacity: 0.9; }
+    100% { transform: translateY(-16px); opacity: 0; }
+}
+
+/* Scanner : un trait de lumière balaie le pseudo */
+.anim-scanner {
+    background: linear-gradient(90deg, #8f89e8 0 40%, #ffffff 50%, #8f89e8 60% 100%);
+    background-size: 250% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: name-scan 2.4s ease-in-out infinite;
+}
+
+@keyframes name-scan {
+    0% { background-position: 100% 0; }
+    100% { background-position: -50% 0; }
+}
+
+/* Bêta, palier 1 : Terminal (police de code, curseur qui clignote) */
+.beta-terminal {
+    font-family: Consolas, "Courier New", monospace;
+    color: #63f59a;
+    text-shadow: 0 0 6px rgba(99, 245, 154, 0.5);
+}
+
+.beta-terminal::before {
+    content: "> ";
+    opacity: 0.6;
+}
+
+.beta-terminal::after {
+    content: "_";
+    animation: name-blink 1s steps(1) infinite;
+}
+
+@keyframes name-blink {
+    50% { opacity: 0; }
+}
+
+/* Bêta, palier 2 : Glitch (décalage rouge / bleu de temps en temps) */
+.beta-glitch {
+    color: #f2f3f7;
+    animation: name-glitch 3s infinite;
+}
+
+@keyframes name-glitch {
+    0%, 86%, 100% { text-shadow: none; transform: none; }
+    88% { text-shadow: -2px 0 #ff4f7b, 2px 0 #3fd0ff; transform: translateX(1px); }
+    90% { text-shadow: 2px 0 #ff4f7b, -2px 0 #3fd0ff; transform: translateX(-1px) skewX(-8deg); }
+    92% { text-shadow: -1px 0 #ff4f7b, 1px 0 #3fd0ff; transform: none; }
+}
+
+
+
+/* =========================================================
+   ONGLET AIDE APP (BÊTA-TESTEURS)
+========================================================= */
+
+.beta-nav-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-left: 4px;
+    vertical-align: top;
+    border-radius: 50%;
+    background: #ff5c5c;
+    box-shadow: 0 0 8px #ff5c5c;
+}
+
+.beta-nav-dot.hidden {
+    display: none;
+}
+
+.beta-container {
+    max-width: 900px;
+}
+
+.beta-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.beta-card {
+    background: linear-gradient(180deg, #1c202c 0%, #14161e 100%);
+    border: 1px solid #2c3040;
+    border-radius: 16px;
+    padding: 16px;
+}
+
+.beta-card h3 {
+    margin: 0 0 4px;
+    font-size: 16px;
+}
+
+.beta-meta {
+    margin: 0 0 12px;
+    color: #737887;
+    font-size: 12px;
+}
+
+.beta-meta b {
+    color: #f5c451;
+}
+
+/* Titre de carte avec son gain bonus à droite */
+.beta-card h3.beta-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+/* Gain en plus si le bug est corrigé ou l'idée retenue (jaune, comme sur les boutons) */
+.beta-bonus {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(245, 196, 81, 0.12);
+    color: #ffdf7e;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.beta-empty {
+    margin: 0;
+    padding: 6px 0;
+    color: #737887;
+    font-size: 13px;
+}
+
+.beta-card .primary-button,
+.beta-card .secondary-button,
+.beta-requests .primary-button,
+.beta-requests .secondary-button {
+    padding: 9px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.beta-card .primary-button:disabled {
+    opacity: 0.4;
+    cursor: default;
+    transform: none;
+}
+
+/* Gain écrit sur le bouton (« Envoyer +10 🪙 ») */
+.beta-gain {
+    margin-left: 6px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.25);
+    color: #ffdf7e;
+    font-size: 12px;
+}
+
+.beta-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+    border: 1px solid #2c3040;
+    border-radius: 10px;
+    background: #0f1117;
+    color: #e6e8ee;
+    font: inherit;
+    font-size: 13px;
+    resize: vertical;
+}
+
+.beta-input:focus {
+    outline: none;
+    border-color: #6c63ff;
+}
+
+.beta-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+}
+
+.beta-idea-form,
+.beta-news-form {
+    display: flex;
+    gap: 8px;
+}
+
+.beta-news-form select {
+    max-width: 260px;
+}
+
+/* Sujets (bugs), type d'idée, type de nouveauté */
+.beta-topics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.beta-topic {
+    padding: 7px 12px;
+    border: 1px solid #2c3040;
+    border-radius: 999px;
+    background: #0f1117;
+    color: #aaaeba;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.beta-topic.on {
+    border-color: #6c63ff;
+    background: #6c63ff;
+    color: white;
+}
+
+/* Sous-onglets Idées / Bug */
+.beta-subnav {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #23262f;
+}
+
+.beta-subnav button {
+    padding: 8px 14px;
+    border: none;
+    border-radius: 10px;
+    background: none;
+    color: #858a98;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.beta-subnav button.on {
+    background: #1c202c;
+    color: white;
+}
+
+/* Listes de bugs et d'idées */
+.beta-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.beta-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid #23262f;
+    border-radius: 12px;
+    background: #0f1117;
+    font-size: 13px;
+}
+
+.beta-item--ok {
+    border-color: rgba(99, 214, 159, 0.35);
+}
+
+.beta-item--no {
+    opacity: 0.65;
+}
+
+.beta-item-icon {
+    font-size: 20px;
+}
+
+.beta-item-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.beta-item-text p {
+    margin: 3px 0 0;
+    color: #aaaeba;
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+
+.beta-item-side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+}
+
+.beta-item-buttons {
+    display: flex;
+    gap: 6px;
+}
+
+/* Admin : les boutons passent sous le texte, qui garde toute la largeur. */
+.beta-item:has(.beta-item-buttons) {
+    flex-wrap: wrap;
+}
+
+.beta-item:has(.beta-item-buttons) .beta-item-side {
+    flex-basis: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.beta-status {
+    font-size: 13px;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.beta-status--sent { color: #a59fff; }
+.beta-status--ok { color: #63d69f; }
+.beta-status--no { color: #858a98; }
+
+/* Bouton « j'aime » des idées */
+.beta-like {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    min-width: 50px;
+    padding: 6px;
+    border: 1px solid #2c3040;
+    border-radius: 12px;
+    background: #151821;
+    color: #aaaeba;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: transform 0.15s;
+}
+
+.beta-like-icon {
+    font-size: 20px;
+    line-height: 1;
+    filter: grayscale(1) opacity(0.6);
+    transition: filter 0.2s;
+}
+
+.beta-like:hover .beta-like-icon,
+.beta-like.on .beta-like-icon {
+    filter: none;
+}
+
+.beta-like.on {
+    border-color: #ff5c7a;
+    background: rgba(255, 92, 122, 0.14);
+    color: #ff5c7a;
+}
+
+.beta-like:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.beta-like.boom {
+    animation: beta-like-boom 0.45s ease;
+}
+
+@keyframes beta-like-boom {
+    35% { transform: scale(1.25); }
+    70% { transform: scale(0.95); }
+}
+
+.beta-like-burst {
+    position: fixed;
+    z-index: 200;
+    font-size: 14px;
+    pointer-events: none;
+}
+
+/* Admin : demandes d'accès */
+.beta-requests {
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    border: 1px solid rgba(255, 159, 67, 0.4);
+    border-radius: 14px;
+    background: rgba(255, 159, 67, 0.07);
+}
+
+.beta-request {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    font-size: 13px;
+}
+
+.beta-request > span {
+    flex: 1;
+    font-weight: 800;
+}
+
+.beta-news-admin {
+    margin-bottom: 16px;
+}
+
+/* Jauge des paliers (une seule, sobre) */
+.beta-progress {
+    margin-bottom: 14px;
+    padding: 12px 16px 10px;
+    border: 1px solid #2c3040;
+    border-radius: 14px;
+    background: #151821;
+}
+
+.beta-progress-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 8px;
+    color: #aaaeba;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.beta-progress-head b {
+    color: #e6e8ee;
+    font-size: 15px;
+}
+
+.beta-progress-track {
+    position: relative;
+    height: 8px;
+    border-radius: 99px;
+    background: #23262f;
+}
+
+.beta-progress-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    border-radius: inherit;
+    background: #7a74c4;
+    transition: width 0.6s ease;
+}
+
+.beta-progress-tick {
+    position: absolute;
+    top: -3px;
+    width: 2px;
+    height: 14px;
+    border-radius: 2px;
+    background: #4a4f60;
+    transform: translateX(-1px);
+}
+
+.beta-progress-tick.done {
+    background: #9a95d8;
+}
+
+.beta-progress-labels {
+    position: relative;
+    height: 44px;
+    margin-top: 6px;
+    color: #737887;
+    font-size: 11px;
+}
+
+.beta-progress-labels > span {
+    position: absolute;
+    transform: translateX(-50%);
+    text-align: center;
+    white-space: nowrap;
+}
+
+.beta-progress-labels > span:last-child {
+    transform: translateX(-100%);
+    text-align: right;
+}
+
+.beta-progress-labels b {
+    display: block;
+    color: #c9ccd6;
+    font-size: 13px;
+}
+
+.beta-progress-labels .done b {
+    color: #9a95d8;
+}
+
+.beta-tier-peek {
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.beta-tier-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 3px;
+    padding: 2px 8px;
+    border: 1px solid #343846;
+    border-radius: 999px;
+    background: #1c202c;
+}
+
+.beta-tier-peek:hover .beta-tier-pill {
+    border-color: #6c63ff;
+}
+
+.beta-tier-name {
+    font-size: 12px;
+}
+
+.beta-tier-eye {
+    font-size: 11px;
+}
+
+/* Aperçu d'un pseudo bêta (fenêtre de la boutique) */
+.beta-preview-title {
+    margin: 0;
+    font-size: 16px;
+}
+
+.beta-preview-lock {
+    margin: 0;
+    color: #858a98;
+    font-size: 12px;
+}
+
+/* Profil : demande d'accès */
+.beta-request-state {
+    color: #ff9f43;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.beta-request-state.refused {
+    color: #858a98;
+}
+
+@media (max-width: 800px) {
+
+    .navbar nav .nav-button[data-page="beta-page"]::before { content: "🧪"; }
+
+    .beta-idea-form,
+    .beta-news-form {
+        flex-direction: column;
+    }
+
+    .beta-news-form select {
+        max-width: none;
+    }
+
+    .beta-item {
+        flex-wrap: wrap;
+    }
+
+    .beta-item-side {
+        width: 100%;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .beta-progress-head {
+        flex-direction: column;
+        gap: 2px;
+    }
+
+}
+
+
+
+/* =========================================================
+   JOURNAL DES NOUVEAUTÉS (page Paris, sous le classement)
+========================================================= */
+
+.news-journal {
+    flex-shrink: 0;
+    padding: 14px 14px 10px;
+    border: 1px solid #2c3040;
+    border-radius: 18px;
+    background: linear-gradient(180deg, #1c202c 0%, #14161e 100%);
+}
+
+.news-journal.hidden {
+    display: none;
+}
+
+.news-journal-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.news-journal-head span {
+    margin-left: auto;
+    color: #737887;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.news-journal-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 4px;
+    border-top: 1px solid #23262f;
+    font-size: 13px;
+}
+
+.news-journal-line:first-child {
+    border-top: none;
+}
+
+.news-journal-new {
+    flex-shrink: 0;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: #3d8bff;
+    color: white;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    box-shadow: 0 0 10px rgba(61, 139, 255, 0.45);
+    animation: news-new-pulse 2s ease-in-out infinite;
+}
+
+@keyframes news-new-pulse {
+    50% { box-shadow: 0 0 2px rgba(61, 139, 255, 0.2); }
+}
+
+.news-journal-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.news-journal-who {
+    color: #c9c5ff;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.news-journal-line.mine .news-journal-who {
+    color: #63d69f;
+}
+
+/* Vote du vendredi */
+.news-journal-vote {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    margin: 2px 0 6px;
+    padding: 8px 10px;
+    border: 1px solid rgba(245, 196, 81, 0.35);
+    border-radius: 12px;
+    background: rgba(245, 196, 81, 0.07);
+    color: #f5c451;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    text-align: left;
+}
+
+.news-journal-vote button {
+    margin-left: auto;
+    padding: 5px 10px;
+    border: none;
+    border-radius: 8px;
+    background: #f5c451;
+    color: #1a1408;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.news-journal-vote.done {
+    border-color: #2c3040;
+    background: #151821;
+    color: #aaaeba;
+    cursor: pointer;
+}
+
+/* Téléphone : pas de journal pour l'instant (le classement est une fenêtre). */
+@media (max-width: 800px) {
+
+    .news-journal {
+        display: none;
+    }
+
+}
+
+/* Fenêtre du vote */
+.beta-vote-content {
+    max-width: 420px;
+}
+
+.beta-vote-title {
+    margin: 0 0 6px;
+    font-size: 18px;
+}
+
+.beta-vote-hint {
+    margin: 0 0 14px;
+    color: #aaaeba;
+    font-size: 13px;
+}
+
+.beta-vote-options {
+    display: grid;
+    gap: 8px;
+}
+
+.beta-vote-option {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    overflow: hidden;
+    padding: 11px 12px;
+    border: 1px solid #343846;
+    border-radius: 10px;
+    background: #11131a;
+    color: #e6e8ee;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+}
+
+.beta-vote-option:disabled {
+    cursor: default;
+}
+
+.beta-vote-option > span,
+.beta-vote-option > b {
+    position: relative;
+}
+
+.beta-vote-option.selected {
+    border-color: #f5c451;
+    background: rgba(245, 196, 81, 0.1);
+}
+
+.beta-vote-option.mine {
+    border-color: #63d69f;
+}
+
+.beta-vote-bar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    background: rgba(108, 99, 255, 0.18);
+}
+
+.beta-vote-option.mine .beta-vote-bar {
+    background: rgba(99, 214, 159, 0.16);
+}
+
+.beta-vote-go {
+    width: 100%;
+    margin-top: 12px;
+}
+
+.beta-vote-go:disabled {
+    opacity: 0.4;
+    cursor: default;
+    transform: none;
+}
+
+
+
+/* =========================================================
+   NOUVEAU BÊTA-TESTEUR : FENÊTRE DE BIENVENUE
+   ET ONGLET AIDE APP MIS EN AVANT JUSQU'À SA PREMIÈRE VISITE
+========================================================= */
+
+/* « Aide app » reste sur une ligne. */
+#beta-nav-button {
+    white-space: nowrap;
+}
+
+.nav-button.nav-highlight {
+    position: relative;
+    color: #c9c5ff;
+    background: rgba(108, 99, 255, 0.14);
+    box-shadow: inset 0 0 0 1px rgba(108, 99, 255, 0.6);
+    animation: beta-nav-pulse 1.8s ease-in-out infinite;
+}
+
+.nav-button.nav-highlight::after {
+    content: "NEW";
+    position: absolute;
+    top: -7px;
+    right: -6px;
+    padding: 1px 5px;
+    border-radius: 999px;
+    background: #3d8bff;
+    color: white;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    box-shadow: 0 0 10px rgba(61, 139, 255, 0.5);
+}
+
+@keyframes beta-nav-pulse {
+    0%, 100% { box-shadow: inset 0 0 0 1px rgba(108, 99, 255, 0.6); }
+    50% { box-shadow: inset 0 0 0 1px #8c84ff, 0 0 14px rgba(108, 99, 255, 0.55); }
+}
+
+@media (max-width: 800px) {
+
+    .navbar nav .nav-button.nav-highlight {
+        background: none;
+        box-shadow: none;
+        animation: none;
+        overflow: visible;
+    }
+
+    .navbar nav .nav-button.nav-highlight::before {
+        animation: beta-nav-bounce 1.6s ease-in-out infinite;
+    }
+
+    .navbar nav .nav-button.nav-highlight::after {
+        top: 2px;
+        right: auto;
+        left: calc(50% + 6px);
+    }
+
+}
+
+@keyframes beta-nav-bounce {
+    0%, 100% { transform: none; }
+    50% { transform: translateY(-3px) scale(1.12); }
+}
+
+.beta-welcome-content {
+    max-width: 420px;
+    text-align: center;
+}
+
+.beta-welcome-icon {
+    font-size: 54px;
+    line-height: 1;
+    margin: 4px 0 8px;
+    animation: beta-welcome-pop 0.6s cubic-bezier(.2, .9, .3, 1.3);
+}
+
+@keyframes beta-welcome-pop {
+    from { transform: scale(0.3) rotate(-20deg); opacity: 0; }
+}
+
+.beta-welcome-content h2 {
+    margin: 0 0 8px;
+}
+
+.beta-welcome-text {
+    margin: 0 0 14px;
+    color: #aaaeba;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.beta-welcome-text b {
+    color: #c9c5ff;
+}
+
+.beta-welcome-list {
+    display: grid;
+    gap: 6px;
+    margin: 0 0 16px;
+    padding: 0;
+    list-style: none;
+    text-align: left;
+}
+
+.beta-welcome-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 9px 12px;
+    border: 1px solid #2c3040;
+    border-radius: 10px;
+    background: #11131a;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.beta-welcome-list li span {
+    color: #ffdf7e;
+    white-space: nowrap;
+}
+
+
+
+/* =========================================================
+   COFFRE DU JOUR EN CAPSULE (ordinateur, barre du haut)
+   À gauche de la jauge d'XP, assorti à Série, Solde et Points
+   (version A de demo-coffre-compact.html, placé par placeChest).
+========================================================= */
+
+.user-area .chest-card.chest-capsule {
+    order: -2;              /* avant la jauge d'XP (order: -1) */
+    box-sizing: border-box;
+    width: auto;
+    height: 44px;
+    display: grid;
+    grid-template-columns: auto auto;
+    align-content: center;
+    justify-content: start;
+    align-items: center;
+    column-gap: 5px;
+    row-gap: 5px;
+    padding: 7px 12px;
+    border: 1px solid rgba(245, 196, 81, 0.55);
+    border-radius: 12px;
+    background: rgba(245, 196, 81, 0.1);
+    white-space: nowrap;
+    animation: chest-capsule-glow 2s ease-in-out infinite;
+}
+
+.user-area .chest-card.chest-capsule:hover {
+    border-color: #f5c451;
+    background: rgba(245, 196, 81, 0.18);
+}
+
+/* Ouverture : la capsule brille et grossit un peu, comme la grande carte. */
+.user-area .chest-card.chest-capsule.opening {
+    border-color: #f5c451;
+    animation: chest-open-glow 1s ease-in forwards;
+}
+
+/* « Coffre » en haut sur toute la largeur, « 🎁 Ouvrir » dessous. */
+.chest-capsule .chest-text {
+    display: contents;
+}
+
+.chest-capsule .chest-text strong {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    color: #858a98;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.chest-capsule .chest-icon {
+    grid-row: 2;
+    font-size: 14px;
+    line-height: 1;
+}
+
+.chest-capsule .chest-text span {
+    grid-row: 2;
+    color: #f5c451;
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+@keyframes chest-capsule-glow {
+    50% { box-shadow: 0 0 16px rgba(245, 196, 81, 0.4); }
+}
+
+
+
+/* =========================================================
+   ADMIN : STATS DES JOUEURS (XP, flammes, solde, points)
+   (voir admin-stats.sql et renderAdminBalances dans app.js)
+========================================================= */
+
+.admin-stats-row {
+    align-items: flex-end;
+}
+
+.admin-stats-row .admin-balance-name {
+    flex-basis: 100%;
+}
+
+.admin-stats-fields {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.admin-stat,
+.create-card .admin-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    margin: 0;
+    font-size: inherit;
+}
+
+.admin-stat-label {
+    color: #858a98;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.admin-stat-level {
+    color: #c86bff;
+}
+
+.admin-stat-field {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.admin-stats-row .admin-balance-input {
+    width: 100%;
+    min-width: 0;
+    padding: 8px 10px;
+}
+
+@media (max-width: 800px) {
+
+    .admin-stats-fields {
+        flex-basis: 100%;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .admin-stats-row .primary-button {
+        width: 100%;
+    }
+
+}
+
+
+
+/* =========================================================
+   PSEUDO ENFLAMMÉ (15 jours de série, tant qu'elle tient)
+   Version D de demo-pseudo-enflamme.html : braises qui vacillent
+   et deux petites flammes discrètes.
+========================================================= */
+
+.name-flame {
+    position: relative;
+    display: inline-block;
+    font-weight: 900;
+    color: #ffb347;
+    animation: name-flame-flicker 1.6s ease-in-out infinite;
+}
+
+@keyframes name-flame-flicker {
+    0%, 100% { text-shadow: 0 0 4px #ff7a1a, 0 -2px 8px #ff3b1f, 0 -5px 14px rgba(255, 59, 31, 0.5); color: #ffb347; }
+    25% { text-shadow: 0 0 6px #ff9a1a, 0 -3px 10px #ff5a1f, 0 -7px 18px rgba(255, 90, 31, 0.55); color: #ffc65c; }
+    50% { text-shadow: 0 0 3px #ff6a1a, 0 -1px 7px #ff3b1f, 0 -4px 12px rgba(255, 59, 31, 0.4); color: #ffa63a; }
+    75% { text-shadow: 0 0 7px #ffa01a, 0 -4px 12px #ff4a1f, 0 -8px 20px rgba(255, 74, 31, 0.55); color: #ffd06e; }
+}
+
+.name-flame i {
+    position: absolute;
+    bottom: 70%;
+    font-style: normal;
+    font-size: 6px;
+    text-shadow: none;
+    opacity: 0;
+    pointer-events: none;
+    filter: saturate(0.8);
+    animation: name-flame-ember 2.6s ease-out infinite;
+}
+
+.name-flame i:nth-of-type(1) { left: 22%; }
+.name-flame i:nth-of-type(2) { left: 68%; animation-delay: 1.3s; }
+
+@keyframes name-flame-ember {
+    0% { transform: translateY(0) scale(0.5); opacity: 0; }
+    30% { opacity: 0.55; }
+    100% { transform: translateY(-10px) scale(0.9); opacity: 0; }
+}
+
+/* Vignette de la fenêtre de la série : l'initiale en braises */
+.flame-name-thumb {
+    width: 44px;
+    height: 50px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    font-size: 26px;
+}
+
+
+
+/* =========================================================
+   VIGNETTE DU PHÉNIX (fenêtre de la série)
+   Comme le vrai perroquet : lueur rouge qui respire
+   et braises qui montent (en petit).
+========================================================= */
+
+.phenix-thumb {
+    position: relative;
+    flex-shrink: 0;
+    display: block;
+    width: 44px;
+    height: 50px;
+}
+
+.phenix-thumb img {
+    position: relative;
+    z-index: 1;
+    display: block;
+}
+
+/* Lueur rouge derrière l'image (un filtre sur l'image la rendait floue). */
+.phenix-thumb::before {
+    content: "";
+    position: absolute;
+    inset: 2px -2px;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(255, 64, 26, 0.75), rgba(255, 64, 26, 0) 100%);
+    opacity: 0.55;
+    pointer-events: none;
+    animation: phenix-thumb-glow 1.4s ease-in-out infinite alternate;
+}
+
+@keyframes phenix-thumb-glow {
+    from { opacity: 0.45; transform: scale(0.95); }
+    to { opacity: 0.9; transform: scale(1.12); }
+}
+
+/* Verrouillé : l'effet reste visible, mais plus faible. */
+.xp-skin.locked .phenix-thumb::before {
+    background: radial-gradient(closest-side, rgba(255, 64, 26, 0.45), rgba(255, 64, 26, 0) 100%);
+}
+
+.phenix-thumb i {
+    position: absolute;
+    z-index: 2;
+    bottom: 30%;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: hsl(48, 100%, 70%);
+    box-shadow: 0 0 4px hsl(20, 100%, 55%);
+    opacity: 0;
+    pointer-events: none;
+    animation: phenix-thumb-ember 1.9s ease-out infinite;
+}
+
+.phenix-thumb i:nth-of-type(1) { left: 22%; }
+.phenix-thumb i:nth-of-type(2) { left: 48%; animation-delay: 0.4s; width: 2px; height: 2px; }
+.phenix-thumb i:nth-of-type(3) { left: 70%; animation-delay: 0.8s; }
+.phenix-thumb i:nth-of-type(4) { left: 35%; animation-delay: 1.2s; width: 2px; height: 2px; }
+.phenix-thumb i:nth-of-type(5) { left: 60%; animation-delay: 1.55s; }
+
+@keyframes phenix-thumb-ember {
+    0% { transform: translate(0, 0); opacity: 0; background: hsl(48, 100%, 70%); }
+    15% { opacity: 0.95; }
+    55% { background: hsl(20, 100%, 55%); }
+    100% { transform: translate(-3px, -30px); opacity: 0; background: hsl(2, 100%, 40%); }
+}
+
+.xp-skin.locked .phenix-thumb i {
+    filter: brightness(0.7);
+}
+
+
+
+/* Classement : joueur AFK (absent 2 jours ouvrés de suite), pseudo grisé. */
+.leaderboard-row--afk .afk-name {
+    opacity: 0.45;
+    filter: grayscale(1);
+}
+
+/* Étiquette grise « AFK » à côté du pseudo */
+.afk-tag {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: #2a2e3a;
+    color: #858a98;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    vertical-align: middle;
+}
+
+
+
+/* =========================================================
+   FENÊTRE DU SOLDE (clic sur le solde, voir openBalanceModal)
+========================================================= */
+
+.balance-widget {
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.balance-widget:hover,
+.balance-widget:focus-visible {
+    outline: none;
+    border-color: #63d69f;
+    background: rgba(99, 214, 159, 0.15);
+}
+
+.balance-modal-content h2 {
+    margin-bottom: 12px;
+}
+
+.bal-now {
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    border: 1px solid #2c3040;
+    border-radius: 12px;
+    background: #14161e;
+}
+
+.bal-now span {
+    display: block;
+    margin-bottom: 4px;
+    color: #858a98;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.bal-now strong {
+    color: #63d69f;
+    font-size: 18px;
+}
+
+/* Perroquet à 0 € */
+.bal-zero {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(99, 214, 159, 0.35);
+    border-radius: 14px;
+    background: rgba(99, 214, 159, 0.07);
+}
+
+.bal-zero img {
+    width: 52px;
+    height: 58px;
+    flex-shrink: 0;
+    object-fit: contain;
+    animation: bal-parrot-bounce 1.6s ease-in-out infinite;
+}
+
+@keyframes bal-parrot-bounce {
+    50% { transform: translateY(-4px) rotate(-3deg); }
+}
+
+.balance-modal-content .bal-zero p {
+    margin: 0;
+    color: #c9ccd6;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.bal-zero b {
+    color: #63d69f;
+}
+
+.bal-boost-on {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(245, 196, 81, 0.12);
+    color: #ffdf7e;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+/* Récupéré aujourd'hui */
+.bal-today {
+    margin-bottom: 16px;
+}
+
+.bal-today-label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    color: #aaaeba;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.bal-today-label b {
+    color: #e6e8ee;
+}
+
+.bal-today-bar {
+    height: 8px;
+    overflow: hidden;
+    border-radius: 99px;
+    background: #23262f;
+}
+
+.bal-today-bar i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #2fa36f, #63d69f);
+}
+
+.balance-modal-content .bal-hint {
+    margin: 0 0 10px;
+    color: #858a98;
+    font-size: 12px;
+}
+
+/* Paliers, avec la jauge verticale à gauche */
+.bal-tiers-wrap {
+    display: grid;
+    grid-template-columns: 14px 1fr;
+    gap: 10px;
+}
+
+.bal-gauge {
+    position: relative;
+}
+
+.bal-gauge-track {
+    position: absolute;
+    top: 19px;
+    bottom: 19px;
+    left: 50%;
+    width: 6px;
+    margin-left: -3px;
+    border-radius: 99px;
+    background: #23262f;
+}
+
+.bal-gauge-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    border-radius: inherit;
+    background: linear-gradient(180deg, #2fa36f, #63d69f 70%, #f5c451);
+    box-shadow: 0 0 8px rgba(99, 214, 159, 0.45);
+    transition: height 0.6s ease;
+}
+
+.bal-gauge-dot {
+    position: absolute;
+    left: 50%;
+    width: 12px;
+    height: 12px;
+    margin: -6px 0 0 -6px;
+    box-sizing: border-box;
+    border: 2px solid #4a4f60;
+    border-radius: 50%;
+    background: #14161e;
+}
+
+.bal-gauge-dot.done {
+    border-color: #63d69f;
+    background: #63d69f;
+}
+
+.bal-gauge-dot.current {
+    box-shadow: 0 0 0 3px rgba(99, 214, 159, 0.3);
+}
+
+.bal-tiers {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.bal-tier {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border: 1px solid #2c3040;
+    border-radius: 12px;
+    background: #14161e;
+    font-size: 13px;
+}
+
+.bal-tier-icon {
+    width: 20px;
+    text-align: center;
+}
+
+.bal-tier-need {
+    flex: 1;
+    color: #aaaeba;
+}
+
+.bal-tier-need b {
+    color: #e6e8ee;
+}
+
+.bal-tier-cap {
+    color: #858a98;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.bal-tier--done,
+.bal-tier--current {
+    border-color: rgba(99, 214, 159, 0.35);
+}
+
+.bal-tier--done .bal-tier-cap,
+.bal-tier--current .bal-tier-cap {
+    color: #63d69f;
+}
+
+.bal-tier--current {
+    border-color: #63d69f;
+    background: rgba(99, 214, 159, 0.08);
+    box-shadow: 0 0 0 1px #63d69f inset;
+}
+
+.bal-tier--next {
+    border-style: dashed;
+}
+
+.bal-tier-progress {
+    display: block;
+    height: 4px;
+    margin-top: 6px;
+    overflow: hidden;
+    border-radius: 99px;
+    background: #23262f;
+}
+
+.bal-tier-progress i {
+    display: block;
+    height: 100%;
+    background: #f5c451;
+}
+
+.bal-tier--locked {
+    opacity: 0.55;
+}
+
+/* Booste tes clics (boutique) */
+.bal-boost-title {
+    margin-top: 18px;
+}
+
+.bal-boosts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.bal-boost {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 12px;
+    border: 1px solid rgba(245, 196, 81, 0.3);
+    border-radius: 12px;
+    background: rgba(245, 196, 81, 0.06);
+}
+
+.bal-boost-mult {
+    color: #f5c451;
+    font-size: 20px;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.bal-boost-what {
+    color: #c9ccd6;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.bal-boost-price {
+    color: #ffdf7e;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.bal-boost.owned {
+    border-color: rgba(99, 214, 159, 0.45);
+    background: rgba(99, 214, 159, 0.08);
+}
+
+.bal-boost.owned .bal-boost-mult,
+.bal-boost.owned .bal-boost-price {
+    color: #63d69f;
+}
+
+.bal-shop-link {
+    display: block;
+    width: 100%;
+    margin-top: 8px;
+    padding: 9px;
+    border: 1px solid #343846;
+    border-radius: 10px;
+    background: #14161e;
+    color: #c9ccd6;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.bal-shop-link:hover {
+    border-color: #6c63ff;
+    color: white;
+}
+
+
+
+/* =========================================================
+   DIAMANTS 💎 (voir diamants.sql et le module 10 quater d'app.js)
+========================================================= */
+
+/* Capsule bleue de la barre du haut */
+.user-area .diamond-balance {
+    --capsule: 92, 182, 255;
+    cursor: pointer;
+}
+
+#diamond-balance {
+    color: #8fd0ff;
+}
+
+.user-area .diamond-balance:hover,
+.user-area .diamond-balance:focus-visible {
+    outline: none;
+    border-color: #5cb6ff;
+    background: rgba(92, 182, 255, 0.18);
+}
+
+/* Effets des objets exclusifs */
+.name-cristal {
+    display: inline-block;
+    font-weight: 900;
+    background: linear-gradient(110deg, #9fdcff 0%, #ffffff 25%, #b48cff 50%, #9fdcff 75%, #ffffff 100%);
+    background-size: 300% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 0 4px rgba(140, 200, 255, 0.6));
+    animation: name-cristal 3s linear infinite;
+}
+
+@keyframes name-cristal {
+    to { background-position: -300% 0; }
+}
+
+.leaderboard-row.leaderboard-row--diamond {
+    /* Comme le cadre doré : le contour ne touche ni le rang ni le solde. */
+    margin: 2px -8px;
+    padding: 9px 8px;
+    border-radius: 10px;
+    background: linear-gradient(90deg, rgba(92, 182, 255, 0.1), rgba(180, 140, 255, 0.1));
+    box-shadow: 0 0 0 1px #8fd0ff inset, 0 0 14px rgba(92, 182, 255, 0.35);
+}
+
+.bet-card.bet-theme-diamant,
+.dia-theme-peek.bet-theme-diamant {
+    background:
+        radial-gradient(circle at 18% 28%, rgba(255, 255, 255, 0.9) 0 1px, transparent 2px),
+        radial-gradient(circle at 72% 62%, rgba(255, 255, 255, 0.8) 0 1px, transparent 2px),
+        radial-gradient(circle at 45% 80%, rgba(200, 230, 255, 0.7) 0 1px, transparent 2px),
+        linear-gradient(135deg, #1b3a5c, #3b2a6a 60%, #1b3a5c);
+    border-color: rgba(143, 208, 255, 0.5);
+}
+
+/* Section Diamants de la boutique */
+.dia-banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(92, 182, 255, 0.35);
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(92, 182, 255, 0.12), rgba(170, 120, 255, 0.08));
+}
+
+.dia-banner-icon {
+    font-size: 34px;
+}
+
+.dia-banner-text {
+    flex: 1;
+    min-width: 200px;
+}
+
+.dia-banner-text b {
+    color: #8fd0ff;
+    font-size: 18px;
+}
+
+.dia-banner-text p {
+    margin: 2px 0 0;
+    color: #aaaeba;
+    font-size: 13px;
+}
+
+.dia-button {
+    padding: 10px 14px;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #5cb6ff, #b48cff);
+    color: #0b1a2a;
+    font: inherit;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.dia-button.ghost {
+    border: 1px solid rgba(92, 182, 255, 0.4);
+    background: rgba(92, 182, 255, 0.12);
+    color: #8fd0ff;
+}
+
+.dia-button:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.dia-card .mission-points.dia-price {
+    color: #8fd0ff;
+}
+
+.dia-card.owned {
+    border-color: rgba(92, 182, 255, 0.45);
+}
+
+.dia-card .mission-description {
+    margin-bottom: 10px;
+}
+
+.dia-excl {
+    margin-left: 6px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #5cb6ff, #b48cff);
+    color: #0b1a2a;
+    font-size: 10px;
+    font-weight: 900;
+    vertical-align: middle;
+}
+
+.dia-peek {
+    margin-bottom: 12px;
+}
+
+.dia-peek .leaderboard-row {
+    margin: 0;
+}
+
+.dia-theme-peek {
+    display: grid;
+    place-items: center;
+    height: 44px;
+    margin-bottom: 12px;
+    border: 1px solid;
+    border-radius: 10px;
+    color: #dff2ff;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.dia-skin-peek {
+    display: grid;
+    place-items: center;
+    height: 60px;
+    margin-bottom: 12px;
+    border-radius: 10px;
+    background: #11131a;
+}
+
+.dia-skin-peek img {
+    height: 56px;
+}
+
+.dia-convert {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    margin-top: 16px;
+    border: 1px solid #2c3040;
+    border-radius: 16px;
+    background: #151821;
+}
+
+.dia-convert-count {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.dia-convert-count button {
+    width: 30px;
+    height: 30px;
+    border: 1px solid #343846;
+    border-radius: 8px;
+    background: #11131a;
+    color: #e6e8ee;
+    font: inherit;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.dia-convert-count b {
+    min-width: 28px;
+    color: #8fd0ff;
+    font-size: 16px;
+    text-align: center;
+}
+
+.dia-convert-result {
+    color: #aaaeba;
+    font-size: 14px;
+}
+
+.dia-convert-result b {
+    color: #f5c451;
+}
+
+/* Fenêtre des packs (clic sur la capsule 💎) */
+.dia-now {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 12px 14px;
+    margin: 6px 0 16px;
+    border: 1px solid rgba(92, 182, 255, 0.35);
+    border-radius: 12px;
+    background: rgba(92, 182, 255, 0.08);
+}
+
+.dia-now span {
+    color: #aaaeba;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.dia-now strong {
+    color: #8fd0ff;
+    font-size: 22px;
+}
+
+.dia-packs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.dia-pack {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 16px 10px 12px;
+    border: 1px solid rgba(92, 182, 255, 0.35);
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(92, 182, 255, 0.1), #14161e);
+    text-align: center;
+}
+
+.dia-pack.best {
+    border-color: #b48cff;
+    box-shadow: 0 0 18px rgba(180, 140, 255, 0.3);
+}
+
+.dia-pack-tag {
+    position: absolute;
+    top: -10px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #5cb6ff, #b48cff);
+    color: #0b1a2a;
+    font-size: 10px;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.dia-pack-gems {
+    font-size: 24px;
+    letter-spacing: -6px;
+    line-height: 1;
+}
+
+.dia-pack-count {
+    color: #8fd0ff;
+    font-size: 20px;
+    font-weight: 900;
+}
+
+.dia-pack-bonus {
+    min-height: 15px;
+    color: #63d69f;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.dia-pack-price {
+    color: #e6e8ee;
+    font-size: 16px;
+    font-weight: 900;
+}
+
+.dia-pack-soon {
+    width: 100%;
+    padding: 8px;
+    border: 1px dashed #4a4f60;
+    border-radius: 10px;
+    background: none;
+    color: #858a98;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.diamond-modal-content .dia-legal {
+    margin: 14px 0 0;
+    color: #737887;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+/* Téléphone : capsule 💎 compacte, la barre du haut reste sur une ligne */
+@media (max-width: 800px) {
+
+    .user-area .diamond-balance strong {
+        font-size: 13px;
+    }
+
+}
+
+
+
+/* Téléphone : barre du haut plus serrée pour que tout tienne avec la capsule 💎
+   (niveau, flamme, solde, points, diamants, profil) sur un écran de 360-390 px. */
+@media (max-width: 800px) {
+
+    .navbar {
+        gap: 6px;
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    .user-area {
+        gap: 4px;
+    }
+
+    .user-area .balance {
+        padding: 0 6px;
+    }
+
+    .user-area .balance strong {
+        font-size: 12px;
+    }
+
+    .streak-widget {
+        padding: 0 6px 0 4px;
+    }
+
+    .xp-mini {
+        min-width: 40px;
+        padding: 4px 5px;
+    }
+
+    .profile-nav-button {
+        width: 32px;
+        height: 32px;
+    }
+
+    .group-switcher {
+        min-width: 44px;
+    }
+
+    .group-switcher-button {
+        padding: 7px 8px;
+    }
+
+}
+
+
+
+/* =========================================================
+   FENÊTRE D'UN PARTICIPANT (clic sur un pseudo, openPlayerProfile)
+   Version B de demo-profil-joueur.html.
+========================================================= */
+
+[data-player] {
+    cursor: pointer;
+}
+
+.user-name[data-player]:hover {
+    text-decoration: underline;
+    text-decoration-color: rgba(108, 99, 255, 0.6);
+    text-underline-offset: 3px;
+}
+
+/* Survol : un surligneur qui glisse d'un joueur à l'autre (setupLeaderboardHover),
+   plus large que la ligne pour ne pas coller au rang ni au solde. */
+#leaderboard-list {
+    position: relative;
+}
+
+#leaderboard-list .leaderboard-row {
+    position: relative;
+    z-index: 1;
+}
+
+.leaderboard-hover {
+    position: absolute;
+    top: 0;
+    left: -10px;
+    right: -10px;
+    height: 0;
+    border-radius: 12px;
+    background: rgba(108, 99, 255, 0.12);
+    box-shadow: inset 0 0 0 1px rgba(108, 99, 255, 0.35);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease;
+}
+
+.leaderboard-hover.on {
+    opacity: 1;
+}
+
+@media (max-width: 800px) {
+
+    .leaderboard-hover {
+        display: none;
+    }
+
+}
+
+.player-modal-content {
+    max-width: 480px;
+}
+
+.pp-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0 30px 14px 0;
+}
+
+.pp-parrot {
+    width: 58px;
+    height: 66px;
+    flex-shrink: 0;
+    object-fit: contain;
+}
+
+.pp-who {
+    min-width: 0;
+}
+
+.pp-name {
+    font-size: 20px;
+    font-weight: 900;
+}
+
+.pp-sub {
+    margin-top: 2px;
+    color: #858a98;
+    font-size: 12px;
+}
+
+.pp-rank {
+    margin-left: auto;
+    text-align: right;
+}
+
+.pp-rank b {
+    display: block;
+    font-size: 20px;
+    white-space: nowrap;
+}
+
+.pp-rank span {
+    color: #858a98;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+/* Stats en liste, deux colonnes */
+.pp-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.pp-stat {
+    --c: 200, 107, 255;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid rgba(var(--c), 0.35);
+    border-radius: 12px;
+    background: rgba(var(--c), 0.08);
+}
+
+.pp-stat.wide {
+    grid-column: 1 / -1;
+}
+
+.pp-stat span {
+    color: #858a98;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.pp-stat b {
+    color: rgb(var(--c));
+    font-size: 14px;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.pp-stat b small {
+    margin-left: 4px;
+    color: #737887;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.pp-stat.fire { --c: 255, 159, 67; }
+.pp-stat.money { --c: 99, 214, 159; }
+.pp-stat.coins { --c: 245, 196, 81; }
+.pp-stat.gems { --c: 92, 182, 255; }
+.pp-stat.play { --c: 200, 107, 255; }
+
+/* Historique */
+.pp-done-title {
+    margin-top: 16px;
+}
+
+.pp-history {
+    display: grid;
+    gap: 8px;
+}
+
+.balance-modal-content .pp-empty,
+.player-modal-content .pp-empty {
+    margin: 0;
+    padding: 6px 0;
+    color: #737887;
+    font-size: 13px;
+}
+
+.pp-bet {
+    padding: 10px 12px;
+    border: 1px solid #2c3040;
+    border-radius: 12px;
+    background: #14161e;
+}
+
+.pp-bet-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pp-bet-kind {
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: #23262f;
+    color: #aaaeba;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}
+
+.pp-bet-kind.combo {
+    background: rgba(200, 107, 255, 0.16);
+    color: #d9a8ff;
+}
+
+.pp-bet-state {
+    margin-left: auto;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.pp-bet-state.open { color: #a59fff; }
+.pp-bet-state.won { color: #63d69f; }
+.pp-bet-state.lost { color: #ff8a8a; }
+.pp-bet-state.refunded { color: #858a98; }
+
+.pp-legs {
+    display: grid;
+    gap: 4px;
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.pp-legs li {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 13px;
+}
+
+.pp-leg-q {
+    min-width: 0;
+    overflow: hidden;
+    color: #aaaeba;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pp-leg-q b {
+    color: #e6e8ee;
+}
+
+.pp-leg-o {
+    color: #a59fff;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.pp-bet-foot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px dashed #2c3040;
+    color: #858a98;
+    font-size: 12px;
+}
+
+.pp-bet-foot b {
+    color: #e6e8ee;
+}
+
+.pp-bet-foot b.pp-win {
+    color: #63d69f;
+}
+
+.pp-copy {
+    margin-left: auto;
+    padding: 7px 12px;
+    border: none;
+    border-radius: 10px;
+    background: #6c63ff;
+    color: white;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 900;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.pp-copy:hover {
+    background: #7b73ff;
+}
+
+.pp-copy:disabled {
+    background: #23262f;
+    color: #737887;
+    cursor: not-allowed;
+}
+
+.pp-why {
+    display: block;
+    margin-top: 6px;
+    color: #858a98;
+    font-size: 11px;
+    text-align: right;
+}
+
+
+
+/* Fenêtre du joueur : rien ne dépasse en largeur (une longue question est
+   coupée par « … » au lieu d'élargir la carte et de faire défiler de côté). */
+.pp-stats {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.pp-history,
+.pp-legs {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.pp-history > *,
+.pp-legs li,
+.pp-stat,
+.pp-who {
+    min-width: 0;
+}
+
+.pp-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pp-bet-foot {
+    flex-wrap: wrap;
+}
+
+.player-modal-content {
+    overflow-x: hidden;
+}
+
+
+/* Question longue : elle passe à la ligne, le choix (→ Lyon) reste visible. */
+.pp-leg-q {
+    overflow: visible;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+
+
+/* =========================================================
+   FENÊTRE DES PIÈCES (clic sur la capsule 🪙, openPointsModal)
+========================================================= */
+
+.points-widget {
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.user-area .points-widget:hover,
+.user-area .points-widget:focus-visible {
+    outline: none;
+    border-color: #f5c451;
+    background: rgba(245, 196, 81, 0.16);
+}
+
+.pts-now {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 12px 14px;
+    margin: 6px 0 8px;
+    border: 1px solid rgba(245, 196, 81, 0.35);
+    border-radius: 12px;
+    background: rgba(245, 196, 81, 0.08);
+}
+
+.pts-now span {
+    color: #aaaeba;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.pts-now strong {
+    color: #f5c451;
+    font-size: 22px;
+}
+
+.points-modal-content .pts-hint {
+    margin: 0 0 16px;
+    color: #858a98;
+    font-size: 12px;
+}
+
+.pts-ways {
+    display: grid;
+    gap: 6px;
+    margin: 0 0 18px;
+    padding: 0;
+    list-style: none;
+}
+
+.pts-ways li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid #2c3040;
+    border-radius: 12px;
+    background: #14161e;
+}
+
+.pts-way-icon {
+    font-size: 20px;
+    line-height: 1.2;
+}
+
+.pts-ways b {
+    font-size: 14px;
+}
+
+.points-modal-content .pts-ways p {
+    margin: 2px 0 0;
+    color: #aaaeba;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.pts-way-link {
+    margin-top: 6px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: #a59fff;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.pts-way-link:hover {
+    color: white;
+}
+
+.points-modal-content .dia-convert {
+    margin-top: 0;
+}
+
+.points-modal-content .pts-convert-note {
+    flex-basis: 100%;
+    margin: 0;
+    color: #858a98;
+    font-size: 12px;
 }

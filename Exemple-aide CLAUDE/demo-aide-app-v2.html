@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Onglet « Aide app » v2 (version B avec nos choix)</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body.demo { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; margin: 0; display: block; min-height: 0; }
+.demo h1 { font-size: 26px; margin: 0 0 6px; }
+.demo .sub { color: #858a98; margin: 0 0 16px; max-width: 900px; font-size: 14px; line-height: 1.5; }
+.demo .sub b { color: #e6e8ee; }
+.copied { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1c202c; border: 1px solid #63d69f; padding: 12px 18px; border-radius: 14px; font-weight: 700; z-index: 99; max-width: calc(100% - 32px); }
+
+/* Panneau de contrôle de la démo */
+.controls { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; background: #151821; border: 1px solid #2c3040; border-radius: 16px; padding: 14px; margin-bottom: 18px; position: sticky; top: 0; z-index: 30; }
+.ctl { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: #aaaeba; }
+.ctl select { background: #0f1117; color: #e6e8ee; border: 1px solid #2c3040; border-radius: 8px; padding: 7px 8px; font: inherit; font-size: 12px; }
+.ctl input[type=range] { accent-color: #6c63ff; width: 140px; }
+.ctl-btn { border: 1px solid #343846; background: #1c202c; color: #c9ccd6; padding: 8px 12px; border-radius: 10px; cursor: pointer; font: inherit; font-size: 12px; font-weight: 700; }
+.pick { margin-left: auto; background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; padding: 10px 16px; border-radius: 12px; cursor: pointer; font: inherit; font-weight: 900; }
+
+/* Aperçu de l'app */
+.preview { max-width: 920px; position: relative; }
+.demo .navbar { border: 1px solid #292d39; border-radius: 14px 14px 0 0; gap: 24px; padding: 0 20px; }
+.demo .navbar nav { flex: 1; flex-wrap: wrap; }
+.nav-help { position: relative; }
+.nav-dot { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: #ff5c5c; box-shadow: 0 0 8px #ff5c5c; }
+.page { border: 1px solid #292d39; border-top: none; border-radius: 0 0 14px 14px; padding: 22px; background: #11131a; min-height: 520px; }
+.page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.page-title { display: flex; align-items: center; gap: 10px; margin: 0 0 4px; font-size: 24px; }
+.page-sub { color: #858a98; font-size: 13px; margin: 0; }
+.demo .user-area { margin-left: auto; gap: 8px; }
+/* Capsules de la barre du haut (comme dans l'app) : les pièces gagnées volent vers « Points ». */
+.cap { display: flex; flex-direction: column; justify-content: center; gap: 5px; height: 40px; box-sizing: border-box; padding: 6px 10px; border: 1px solid rgba(var(--c), .3); border-radius: 12px; background: rgba(var(--c), .08); white-space: nowrap; }
+.cap small { color: #858a98; font-size: 10px; font-weight: 700; line-height: 1; }
+.cap b { color: var(--t); font-size: 13px; font-weight: 800; line-height: 1; }
+.cap.fire { --c: 255,159,67; --t: #ff9f43; }
+.cap.money { --c: 99,214,159; --t: #63d69f; }
+.cap.coins { --c: 245,196,81; --t: #f5c451; }
+.cap.bump { animation: cap-bump .5s ease; }
+@keyframes cap-bump { 40% { transform: scale(1.15); box-shadow: 0 0 22px rgba(245,196,81,.6); } }
+
+.card { background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; border-radius: 16px; padding: 16px; }
+.card h3 { margin: 0 0 4px; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+.meta { color: #737887; font-size: 12px; margin: 0 0 12px; }
+.meta b { color: #f5c451; }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; background: #23262f; color: #aaaeba; white-space: nowrap; }
+.chip.violet { background: rgba(108,99,255,.18); color: #c9c5ff; }
+.chip.orange { background: rgba(255,159,67,.15); color: #ff9f43; }
+.btn { border: none; border-radius: 10px; padding: 9px 14px; font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; background: #6c63ff; color: white; white-space: nowrap; }
+.btn.ghost { background: #23262f; color: #c9ccd6; }
+.btn.small { padding: 6px 10px; font-size: 12px; }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn .gain { margin-left: 6px; padding: 2px 7px; border-radius: 999px; background: rgba(0,0,0,.25); color: #ffdf7e; font-size: 12px; }
+textarea.in, input.in { width: 100%; box-sizing: border-box; background: #0f1117; color: #e6e8ee; border: 1px solid #2c3040; border-radius: 10px; padding: 10px; font: inherit; font-size: 13px; resize: vertical; }
+textarea.in:focus, input.in:focus { outline: none; border-color: #6c63ff; }
+.stack { display: flex; flex-direction: column; gap: 14px; }
+.row { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.empty { color: #737887; font-size: 13px; padding: 6px 0; }
+@keyframes pop-in { from { opacity: 0; transform: scale(.97); } }
+.pop { animation: pop-in .3s ease-out; }
+
+/* ---------- Progression (paliers) : chiffres à atteindre en grand ---------- */
+.progress-old { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: center; margin-bottom: 14px; padding: 14px 16px; border-radius: 16px; border: 1px solid rgba(108,99,255,.3); background: rgba(108,99,255,.07); }
+.progress .now { text-align: center; }
+.progress .now b { display: block; font-size: 34px; font-weight: 900; color: #fff; line-height: 1; }
+.progress .now small { color: #858a98; font-size: 11px; font-weight: 700; }
+.goals { display: flex; flex-direction: column; gap: 10px; }
+.goal { display: grid; grid-template-columns: 46px 1fr; gap: 12px; align-items: center; }
+.goal .target { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; font-size: 22px; font-weight: 900; color: #c9c5ff; background: #1c202c; border: 2px solid #343846; }
+.goal.done .target { background: #63d69f; color: #0b1f15; border-color: #63d69f; }
+.goal .bar { height: 10px; border-radius: 99px; background: #262a38; overflow: hidden; }
+.goal .bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #6c63ff, #c86bff); transition: width .6s ease; }
+.goal.done .bar i { background: #63d69f; }
+.goal .what { font-size: 13px; font-weight: 800; margin-bottom: 5px; display: flex; justify-content: space-between; gap: 8px; }
+.goal .what span { color: #858a98; font-weight: 700; font-size: 12px; }
+.goal .what span b { color: #fff; font-size: 14px; }
+.goal .reward { font-size: 26px; }
+
+/* Progression : une seule jauge sobre, avec les 2 paliers dessus */
+.progress { margin-bottom: 14px; padding: 12px 16px 10px; border-radius: 14px; border: 1px solid #2c3040; background: #151821; }
+.progress .head { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; color: #aaaeba; font-weight: 700; margin-bottom: 8px; }
+.progress .head b { color: #e6e8ee; font-size: 15px; }
+.progress .track { position: relative; height: 8px; border-radius: 99px; background: #23262f; }
+.progress .fill { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: #7a74c4; transition: width .6s ease; }
+.progress .tick { position: absolute; top: -3px; width: 2px; height: 14px; background: #4a4f60; border-radius: 2px; transform: translateX(-1px); }
+.progress .tick.done { background: #9a95d8; }
+.progress .labels { position: relative; height: 30px; margin-top: 6px; font-size: 11px; color: #737887; }
+.progress .labels > span { position: absolute; transform: translateX(-50%); text-align: center; white-space: nowrap; }
+.progress .labels > span:last-child { transform: translateX(-100%); text-align: right; }
+.progress .labels b { display: block; color: #c9ccd6; font-size: 13px; }
+.progress .labels .done b { color: #9a95d8; }
+
+/* ---------- Top contributeurs : podium toujours visible ---------- */
+.podium { display: grid; grid-template-columns: 1fr 1.15fr 1fr; gap: 10px; align-items: end; margin-bottom: 16px; padding: 14px; border-radius: 16px; border: 1px solid rgba(245,196,81,.3); background: linear-gradient(180deg, rgba(245,196,81,.08), rgba(245,196,81,.02)); position: relative; }
+.podium-title { position: absolute; top: -10px; left: 14px; background: #11131a; padding: 0 8px; font-size: 12px; font-weight: 900; color: #f5c451; }
+.step { text-align: center; border-radius: 14px 14px 8px 8px; padding: 10px 8px; background: #1c202c; border: 1px solid #2c3040; }
+.step.first { padding-top: 16px; border-color: rgba(245,196,81,.5); box-shadow: 0 0 20px rgba(245,196,81,.12); }
+.step.me { border-color: #6c63ff; }
+.step .medal { font-size: 26px; }
+.step.first .medal { font-size: 34px; }
+.step .who { font-weight: 900; font-size: 14px; margin: 4px 0 2px; }
+.step .n { color: #858a98; font-size: 12px; font-weight: 700; }
+.step .n b { color: #fff; font-size: 16px; }
+
+/* Couleurs de pseudo exclusives (propositions) */
+.name-chantier, .name-terminal, .name-glitch, .name-scan, .name-fiole { position: relative; display: inline-block; font-weight: 900; }
+/* Ruban chantier : rayures jaunes qui défilent */
+.name-chantier { background: repeating-linear-gradient(-45deg, #ffd34d 0 6px, #c98a12 6px 9px); background-size: 25.5px 25.5px; -webkit-background-clip: text; background-clip: text; color: transparent; animation: nb-tape 1.2s linear infinite; }
+@keyframes nb-tape { to { background-position: 25.5px 0; } }
+/* Terminal : police de code, curseur qui clignote */
+.name-terminal { font-family: Consolas, "Courier New", monospace; color: #63f59a; text-shadow: 0 0 6px rgba(99,245,154,.5); }
+.name-terminal::before { content: "> "; opacity: .6; }
+.name-terminal::after { content: "_"; animation: nb-blink 1s steps(1) infinite; }
+@keyframes nb-blink { 50% { opacity: 0; } }
+/* Glitch : décalage rouge / bleu de temps en temps */
+.name-glitch { color: #f2f3f7; animation: nb-glitch 3s infinite; }
+@keyframes nb-glitch {
+    0%, 86%, 100% { text-shadow: none; transform: none; }
+    88% { text-shadow: -2px 0 #ff4f7b, 2px 0 #3fd0ff; transform: translateX(1px); }
+    90% { text-shadow: 2px 0 #ff4f7b, -2px 0 #3fd0ff; transform: translateX(-1px) skewX(-8deg); }
+    92% { text-shadow: -1px 0 #ff4f7b, 1px 0 #3fd0ff; transform: none; }
+}
+/* Scanner : un trait de lumière balaie le pseudo */
+.name-scan { background: linear-gradient(90deg, #8f89e8 0 40%, #ffffff 50%, #8f89e8 60% 100%); background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: nb-scan 2.4s ease-in-out infinite; }
+@keyframes nb-scan { 0% { background-position: 100% 0; } 100% { background-position: -50% 0; } }
+/* Fiole qui bouillonne : vert labo avec des bulles */
+.name-fiole { color: #7dff9b; text-shadow: 0 0 8px rgba(125,255,155,.55); }
+.name-fiole i { position: absolute; bottom: 2px; width: 4px; height: 4px; border-radius: 50%; border: 1px solid #7dff9b; opacity: 0; animation: nb-bubble 2.2s ease-in infinite; }
+.name-fiole i:nth-of-type(1) { left: 15%; }
+.name-fiole i:nth-of-type(2) { left: 50%; animation-delay: .7s; width: 3px; height: 3px; }
+.name-fiole i:nth-of-type(3) { left: 80%; animation-delay: 1.4s; }
+@keyframes nb-bubble { 0% { transform: translateY(0); opacity: 0; } 20% { opacity: .9; } 100% { transform: translateY(-16px); opacity: 0; } }
+
+/* ---------- Sous-onglets ---------- */
+.subnav { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; border-bottom: 1px solid #23262f; padding-bottom: 10px; }
+.subnav button { border: none; background: none; color: #858a98; font: inherit; font-size: 14px; font-weight: 800; padding: 8px 14px; border-radius: 10px; cursor: pointer; }
+.subnav button.on { color: white; background: #1c202c; }
+.subnav .n { margin-left: 5px; display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 9px; background: #ff5c5c; color: white; font-size: 11px; }
+
+/* ---------- Rendez-vous : grand calendrier ---------- */
+.ritual { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; border-radius: 18px; padding: 16px; border: 2px solid; }
+.ritual.monday { border-color: #6c63ff; background: linear-gradient(135deg, rgba(108,99,255,.2), rgba(108,99,255,.04)); }
+.ritual.friday { border-color: #f5c451; background: linear-gradient(135deg, rgba(245,196,81,.16), rgba(245,196,81,.03)); }
+.cal { width: 84px; border-radius: 14px; overflow: hidden; text-align: center; background: #fff; color: #14161e; box-shadow: 0 8px 20px rgba(0,0,0,.35); }
+.cal .top { background: #6c63ff; color: white; font-size: 13px; font-weight: 900; letter-spacing: 1px; padding: 5px 0; text-transform: uppercase; }
+.friday .cal .top { background: #e8a92a; }
+.cal .num { font-size: 34px; font-weight: 900; line-height: 1.2; padding: 2px 0 4px; }
+.ritual h3 { margin: 0 0 4px; font-size: 20px; }
+.ritual h3 .day { color: #a59fff; text-transform: uppercase; letter-spacing: 1px; }
+.friday h3 .day { color: #f5c451; }
+.ritual p { margin: 0 0 10px; font-size: 13px; color: #aaaeba; }
+.news-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.news-chip { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 12px; font-size: 13px; font-weight: 800; border: 1px solid; }
+.news-chip .ic { font-size: 18px; }
+.news-chip.feature { color: #63d69f; border-color: rgba(99,214,159,.45); background: rgba(99,214,159,.1); }
+.news-chip.design { color: #d9a8ff; border-color: rgba(200,107,255,.45); background: rgba(200,107,255,.1); }
+.news-chip.fix { color: #ff9f43; border-color: rgba(255,159,67,.45); background: rgba(255,159,67,.1); }
+.next-ritual { font-size: 12px; color: #737887; display: flex; gap: 14px; flex-wrap: wrap; }
+
+/* ---------- Journal : tuiles avec aperçu ---------- */
+.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; font-weight: 800; margin-bottom: 12px; }
+.legend span { display: flex; align-items: center; gap: 5px; }
+.k-feature { color: #63d69f; } .k-design { color: #d9a8ff; } .k-fix { color: #ff9f43; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.tile { border-radius: 14px; overflow: hidden; border: 1px solid #2c3040; background: #0f1117; display: flex; flex-direction: column; }
+.tile.feature { border-color: rgba(99,214,159,.35); }
+.tile.design { border-color: rgba(200,107,255,.35); }
+.tile.fix { border-color: rgba(255,159,67,.35); }
+.tile.new { animation: pop-in .4s ease-out; box-shadow: 0 0 0 2px #6c63ff; }
+.shot { height: 96px; display: grid; place-items: center; background: #161922; position: relative; overflow: hidden; border-bottom: 1px solid #23262f; }
+.tile-foot { padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+.tile-kind { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .4px; }
+.tile-kind .ic { font-size: 16px; }
+.tile-title { font-size: 14px; font-weight: 800; }
+.tile-meta { display: flex; justify-content: space-between; gap: 6px; font-size: 11px; color: #737887; }
+.tile-meta .by { color: #a59fff; font-weight: 800; }
+
+/* Aperçus visuels (miniatures) */
+.mini-ticket { width: 150px; border-radius: 10px; background: #1c202c; border: 1px solid #c86bff; padding: 8px; font-size: 9px; box-shadow: 0 0 14px rgba(200,107,255,.25); }
+.mini-ticket .k { display: inline-block; background: #c86bff; color: white; border-radius: 99px; padding: 1px 6px; font-weight: 900; font-size: 8px; }
+.mini-ticket .leg { display: flex; justify-content: space-between; margin-top: 5px; color: #c9ccd6; }
+.mini-ticket .leg b { color: #c86bff; }
+.mini-ticket .sum { margin-top: 6px; padding-top: 5px; border-top: 1px dashed #343846; display: flex; justify-content: space-between; font-weight: 900; color: #fff; }
+.mini-bar { display: flex; gap: 4px; transform: scale(.9); }
+.mini-bar span { border-radius: 6px; padding: 4px 6px; font-size: 9px; font-weight: 900; border: 1px solid; white-space: nowrap; }
+.mini-bar .x { color: #c86bff; border-color: rgba(200,107,255,.4); background: rgba(108,99,255,.12); }
+.mini-bar .x i { display: block; height: 3px; margin-top: 3px; border-radius: 9px; background: linear-gradient(90deg,#6c63ff,#c86bff); width: 70%; }
+.mini-bar .f { color: #ff9f43; border-color: rgba(255,159,67,.4); background: rgba(255,159,67,.1); }
+.mini-bar .m { color: #63d69f; border-color: rgba(99,214,159,.4); background: rgba(99,214,159,.1); }
+.mini-bar .c { color: #f5c451; border-color: rgba(245,196,81,.4); background: rgba(245,196,81,.1); }
+.mini-win { font-size: 13px; font-weight: 900; color: #63d69f; background: #1c202c; border: 1px solid rgba(99,214,159,.4); padding: 8px 12px; border-radius: 10px; position: relative; z-index: 1; }
+.confetti { position: absolute; width: 6px; height: 9px; border-radius: 2px; top: -10px; animation: fall 2.4s linear infinite; }
+@keyframes fall { to { transform: translateY(120px) rotate(360deg); } }
+.mini-team { display: flex; align-items: center; gap: 6px; font-size: 22px; }
+.mini-team b { font-size: 10px; background: #6c63ff; color: white; padding: 3px 7px; border-radius: 99px; }
+.mini-fix { font-size: 34px; }
+
+/* ---------- Journal : l'auteur de l'idée en avant, aperçu dans une mini pop-up ---------- */
+.jlist { display: flex; flex-direction: column; gap: 8px; }
+.jrow { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; background: #0f1117; border: 1px solid #23262f; }
+.jrow.new { animation: pop-in .4s ease-out; border-color: #6c63ff; }
+.jrow.mine { border-color: rgba(108,99,255,.5); background: rgba(108,99,255,.07); }
+.avatar { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; font-size: 16px; color: white; flex-shrink: 0; background: linear-gradient(135deg, #5b4fe0, #c86bff); box-shadow: 0 4px 12px rgba(108,99,255,.3); }
+.avatar.team { background: #23262f; box-shadow: none; font-size: 18px; }
+.jrow .body { flex: 1; min-width: 0; }
+.jrow .credit { font-size: 15px; font-weight: 900; }
+.jrow .credit .tag { color: #c9c5ff; }
+.jrow .what { font-size: 13px; color: #aaaeba; margin-top: 2px; }
+.jrow .when { color: #737887; font-size: 11px; font-weight: 700; }
+.peek { border: 1px solid #343846; background: #1c202c; color: #c9ccd6; border-radius: 10px; padding: 7px 11px; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; white-space: nowrap; }
+.peek:hover { border-color: #6c63ff; color: white; }
+.popup-back { position: absolute; inset: 0; z-index: 40; background: rgba(0,0,0,.55); display: grid; place-items: center; border-radius: 14px; animation: fade .2s ease-out; }
+@keyframes fade { from { opacity: 0; } }
+.popup { width: min(340px, 90%); background: #181b24; border: 1px solid #343846; border-radius: 16px; padding: 16px; position: relative; animation: pop-in .25s ease-out; box-shadow: 0 20px 50px rgba(0,0,0,.6); }
+.popup .x { position: absolute; top: 10px; right: 12px; border: none; background: none; color: #858a98; font-size: 20px; cursor: pointer; }
+.popup .shot-big { height: 150px; display: grid; place-items: center; background: #11131a; border-radius: 12px; position: relative; overflow: hidden; margin: 10px 0 12px; }
+.popup .shot-big > * { transform: scale(1.35); }
+.popup .shot-big > .confetti { transform: none; }
+.popup h4 { margin: 0; font-size: 16px; padding-right: 20px; }
+
+/* Palier 5 : aperçu du pseudo coloré, comme dans la boutique */
+.tier-peek { border: none; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: center; }
+.tier-peek .pill { display: inline-flex; align-items: center; gap: 5px; margin-top: 3px; padding: 2px 8px; border-radius: 999px; border: 1px solid #343846; background: #1c202c; }
+.tier-peek:hover .pill { border-color: #6c63ff; }
+.tier-peek .nm { font-size: 12px; font-weight: 900; }
+.tier-peek .eye { font-size: 11px; }
+.progress .labels:has(.tier-peek) { height: 42px; }
+.popup .shop-preview-board { margin: 12px 0 10px; display: grid; gap: 4px; }
+.popup .shop-preview-board .leaderboard-row { margin: 0; }
+.popup .shop-preview-dim { opacity: .5; }
+.popup .bet-line { margin: 0 0 12px; font-size: 13px; color: #aaaeba; }
+.popup .bet-line b { font-weight: 900; }
+.popup .cosmetic-options { display: flex; flex-wrap: wrap; gap: 6px; }
+.popup .lock { margin: 10px 0 0; font-size: 12px; color: #858a98; }
+
+/* Top contributeurs : même classement que « Top Parieurs », avec sa propre couleur */
+.contrib-board { --contrib: 126, 176, 166; width: auto; position: static; margin-bottom: 16px; border-color: rgba(var(--contrib), .22); }
+.contrib-board .leaderboard-header { align-items: baseline; }
+.contrib-board .leaderboard-header .sub { margin-left: auto; align-self: center; color: #737887; font-size: 11px; font-weight: 700; }
+.contrib-board .leaderboard-balance { color: rgb(var(--contrib)); }
+.contrib-board .leaderboard-row--me { background: rgba(var(--contrib), .07); }
+.contrib-board .leaderboard-row--me .leaderboard-pseudo { color: rgb(var(--contrib)); }
+
+/* Top contributeurs : bandeau */
+.topband { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(245,196,81,.35); background: rgba(245,196,81,.06); }
+.topband .t { font-size: 12px; font-weight: 900; color: #f5c451; text-transform: uppercase; letter-spacing: .4px; }
+.topband .who { display: flex; align-items: center; gap: 6px; padding: 5px 10px 5px 6px; border-radius: 999px; background: #1c202c; border: 1px solid #2c3040; font-size: 13px; font-weight: 800; }
+.topband .who.me { border-color: #6c63ff; }
+.topband .who .m { font-size: 18px; }
+.topband .who small { color: #858a98; font-weight: 700; }
+.topband .place { margin-left: auto; font-size: 12px; color: #858a98; font-weight: 700; }
+.topband .place b { color: white; font-size: 15px; }
+
+/* Top contributeurs : classement avec barres */
+.toprank { margin-bottom: 16px; padding: 12px 14px; border-radius: 16px; border: 1px solid rgba(245,196,81,.35); background: linear-gradient(180deg, rgba(245,196,81,.07), transparent); }
+.toprank .head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; font-size: 12px; font-weight: 900; color: #f5c451; text-transform: uppercase; letter-spacing: .4px; }
+.toprank .head span { color: #737887; text-transform: none; letter-spacing: 0; font-weight: 700; }
+.toprank .r { display: grid; grid-template-columns: 28px 34px 110px 1fr 34px; gap: 10px; align-items: center; padding: 5px 0; font-size: 13px; font-weight: 800; }
+.toprank .r .m { font-size: 20px; text-align: center; }
+.toprank .r .avatar { width: 30px; height: 30px; font-size: 13px; }
+.toprank .r .b { height: 8px; border-radius: 99px; background: #262a38; overflow: hidden; }
+.toprank .r .b i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #e8a92a, #ffd36e); }
+.toprank .r.me .b i { background: linear-gradient(90deg, #6c63ff, #c86bff); }
+.toprank .r .n { text-align: right; color: #c9ccd6; }
+
+/* ---------- Votes ---------- */
+.opts { display: grid; gap: 8px; }
+.opts.cols { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.opt { position: relative; overflow: hidden; border: 1px solid #2c3040; background: #0f1117; border-radius: 12px; padding: 10px 12px; cursor: pointer; text-align: left; color: #e6e8ee; font: inherit; font-size: 13px; }
+.opt:hover:not(:disabled) { border-color: #454a5c; }
+.opt:disabled { cursor: default; }
+.opt.sel { border-color: #6c63ff; box-shadow: 0 0 0 1px #6c63ff; background: rgba(108,99,255,.08); }
+.opt.mine { border-color: #63d69f; box-shadow: 0 0 0 1px #63d69f; }
+.opt.none { border-style: dashed; color: #aaaeba; }
+.opt .res { position: absolute; inset: 0 auto 0 0; background: rgba(108,99,255,.16); transition: width .6s ease; }
+.opt.mine .res { background: rgba(99,214,159,.14); }
+.opt > span, .opt > .ctx { position: relative; }
+.opt > span { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.opt .pct { color: #a59fff; font-weight: 900; font-size: 12px; }
+.opt.mine .pct { color: #63d69f; }
+.vote-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; color: #737887; font-size: 12px; }
+.voted { color: #63d69f; font-weight: 800; }
+
+/* Couleur du bouton « Miser » mise en situation sur une mini carte de pari */
+.ctx { background: linear-gradient(180deg, #1c202c, #14161e); border: 1px solid #2c3040; border-radius: 10px; padding: 8px; margin-bottom: 8px; }
+.ctx .q { font-size: 10px; font-weight: 800; color: #c9ccd6; margin-bottom: 6px; }
+.ctx .ch { display: flex; gap: 4px; margin-bottom: 6px; }
+.ctx .ch i { flex: 1; font-style: normal; font-size: 9px; text-align: center; padding: 4px 0; border-radius: 6px; background: #0f1117; border: 1px solid #2c3040; color: #aaaeba; }
+.ctx .mise { text-align: center; font-size: 11px; font-weight: 900; color: white; padding: 6px 0; border-radius: 7px; }
+
+/* ---------- Bugs et idées ---------- */
+.topics { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.topic { border: 1px solid #2c3040; background: #0f1117; color: #aaaeba; border-radius: 999px; padding: 7px 12px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.topic.on { background: #6c63ff; border-color: #6c63ff; color: white; }
+.list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.item { display: flex; gap: 10px; align-items: center; background: #0f1117; border: 1px solid #23262f; border-radius: 12px; padding: 10px 12px; font-size: 13px; }
+.item .txt { flex: 1; min-width: 0; }
+.item .txt p { margin: 3px 0 0; color: #aaaeba; font-size: 12px; overflow-wrap: anywhere; }
+.item .side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.status { font-weight: 900; font-size: 13px; white-space: nowrap; }
+.st-sent { color: #a59fff; } .st-ok { color: #63d69f; } .st-no { color: #858a98; }
+.item.row-ok { border-color: rgba(99,214,159,.35); }
+.item.row-no { opacity: .65; }
+
+/* Bouton « j'aime » des idées (4 styles au choix) */
+.like { position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 50px; border: 1px solid #2c3040; background: #151821; color: #aaaeba; border-radius: 12px; padding: 6px 6px; cursor: pointer; font: inherit; font-size: 12px; font-weight: 900; transition: transform .15s; }
+.like .ico { font-size: 20px; line-height: 1; filter: grayscale(1) opacity(.6); transition: filter .2s; }
+.like:hover .ico { filter: none; }
+.like.on { border-color: var(--like); color: var(--like); background: color-mix(in srgb, var(--like) 14%, transparent); }
+.like.on .ico { filter: none; }
+.like.boom { animation: like-boom .45s ease; }
+@keyframes like-boom { 35% { transform: scale(1.25); } 70% { transform: scale(.95); } }
+.like:disabled { cursor: default; opacity: .5; }
+.burst { position: fixed; pointer-events: none; z-index: 200; font-size: 14px; }
+
+/* Demandes bêta (admin) et accès refusé */
+.requests { border: 1px solid rgba(255,159,67,.4); background: rgba(255,159,67,.07); border-radius: 14px; padding: 12px 14px; margin-bottom: 16px; }
+.requests .req { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 13px; }
+.requests .req b { flex: 1; }
+.locked { max-width: 460px; margin: 40px auto; text-align: center; }
+.locked .big { font-size: 44px; }
+
+/* Bulles et pièces qui volent */
+.toast { position: absolute; right: 16px; top: 80px; z-index: 20; display: flex; gap: 10px; align-items: center; background: #1c202c; border: 1px solid #6c63ff; border-radius: 14px; padding: 12px 14px; box-shadow: 0 12px 30px rgba(0,0,0,.5); font-size: 13px; max-width: 320px; animation: toast-in .35s ease-out; }
+.toast .big { font-size: 24px; }
+.toast b { display: block; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(-8px) scale(.96); } }
+.coin { position: fixed; z-index: 300; font-size: 20px; pointer-events: none; }
+.float-gain { position: fixed; z-index: 301; pointer-events: none; color: #ffdf7e; font-weight: 900; font-size: 16px; text-shadow: 0 2px 6px rgba(0,0,0,.6); }
+</style>
+</head>
+<body class="demo">
+
+<h1>Onglet « Aide app » v2 : version B avec nos choix</h1>
+<p class="sub">
+    Mis à jour avec tes retours : paliers sans chiffre à gauche ni icône à droite, plus de compteur de pièces
+    (elles volent vers « Points » dans la barre du haut), plus de top contributeurs, journal centré sur
+    <b>qui a eu l'idée</b> avec un <b>aperçu en mini pop-up</b>, plus de bloc du lundi, statuts simplifiés.
+</p>
+
+<div class="controls">
+    <label class="ctl">Voir comme
+        <select id="c-view">
+            <option value="beta">Bêta-testeur (Vincent)</option>
+            <option value="admin">Admin (toi)</option>
+            <option value="normal">Joueur sans accès</option>
+        </select>
+    </label>
+    <label class="ctl">Jour simulé
+        <select id="c-day">
+            <option value="lundi">Un jour normal</option>
+            <option value="vendredi">Vendredi (vote de la meilleure nouveauté)</option>
+        </select>
+    </label>
+    <label class="ctl">Mes contributions : <b id="c-count-label">4</b>
+        <input type="range" id="c-count" min="0" max="20" value="4">
+    </label>
+    <label class="ctl">Bouton « j'aime » des idées
+        <select id="c-like">
+            <option value="heart">❤️ Cœur</option>
+            <option value="thumb">👍 Pouce</option>
+            <option value="fire">🔥 Flamme</option>
+            <option value="rocket">🚀 Fusée « Je veux ! »</option>
+        </select>
+    </label>
+    <button class="ctl-btn" id="c-notif">🔔 Simuler : mon idée sort</button>
+    <button class="pick" id="choose">✅ C'est bon, on code</button>
+</div>
+
+<div class="preview">
+    <div id="nav"></div>
+    <div class="page" id="page"></div>
+</div>
+
+
+<script>
+/* =========================================================
+   État de la démo
+   ========================================================= */
+let view = "beta";
+let day = "lundi";
+let contributions = 4;
+let likeStyle = "heart";
+let topStyle = "board";
+let contribColor = "126, 176, 166";
+let points = 320;
+let popup = null;
+let tab = "idea";
+let weekPoints = 25;
+let requestSent = false;
+const ME = "Vincent";
+
+const POINTS = { vote: 5, send: 10, bugOk: 50, ideaKept: 150, elected: 100 };
+const TOPICS = ["Paris : créer / valider", "Mise : Simple / Combinée", "Profil : XP, flammes, argent, pièces", "Affichage / téléphone", "Autre"];
+const LIKES = {
+    heart: { ico: "❤️", color: "#ff5c7a", word: "J'aime", burst: ["❤️", "💖", "✨"] },
+    thumb: { ico: "👍", color: "#4ba3ff", word: "Top", burst: ["👍", "✨", "⭐"] },
+    fire: { ico: "🔥", color: "#ff9f43", word: "Chaud", burst: ["🔥", "✨", "💥"] },
+    rocket: { ico: "🚀", color: "#c86bff", word: "Je veux !", burst: ["🚀", "✨", "⭐"] }
+};
+
+// Couleurs proposées pour le bouton « Miser » (dilemme de design en situation).
+const DILEMMAS = [
+    { id: "d1", kind: "design", q: "Quelle couleur pour le bouton « Miser » ?", ends: "dans 4 jours",
+      opts: [
+        { id: "a", label: "Violet (actuel)", color: "linear-gradient(135deg,#5b4fe0,#8c82ff)", votes: 9 },
+        { id: "b", label: "Vert", color: "linear-gradient(135deg,#2fa36f,#63d69f)", votes: 5 },
+        { id: "c", label: "Doré", color: "linear-gradient(135deg,#e8a92a,#ffd36e)", votes: 7 },
+        { id: "none", label: "Aucun", votes: 2 }
+      ] },
+    { id: "d2", kind: "feature", q: "Prochaine grosse fonctionnalité ?", ends: "dans 6 jours",
+      opts: [
+        { id: "a", label: "⚽ Paris en direct pendant un match", votes: 12 },
+        { id: "b", label: "🏟️ Tournois entre groupes", votes: 8 },
+        { id: "c", label: "⚔️ Défis 1 contre 1", votes: 15 },
+        { id: "none", label: "Aucun", votes: 3 }
+      ] }
+];
+const myVotes = {};
+const picked = {};
+
+let bugTopic = null;
+let bugs = [
+    { id: "b1", topic: "Profil : XP, flammes, argent, pièces", text: "Ma série est repassée à 0 alors que je me suis connecté hier.", status: 0, by: ME },
+    { id: "b2", topic: "Paris : créer / valider", text: "Impossible de choisir une date lointaine après avoir fermé la fenêtre.", status: 1, by: ME },
+    { id: "b4", topic: "Mise : Simple / Combinée", text: "Le bouton Max ne prend pas tout mon solde.", status: 0, by: ME },
+    { id: "b3", topic: "Affichage / téléphone", text: "Le ticket cache un peu le perroquet.", status: 0, by: "Léa" }
+];
+// Bug : envoyé → corrigé.
+const BUG_STATUS = [["📨", "Envoyé", "st-sent", ""], ["✅", "Corrigé", "st-ok", "row-ok"]];
+
+let ideaKind = "feature";
+let ideas = [
+    { id: "i1", kind: "feature", text: "Pouvoir parier en équipe avec un ami", by: ME, votes: 14, status: 0 },
+    { id: "i2", kind: "design", text: "Un mode clair pour jouer dehors", by: "Sam", votes: 6, status: 0 },
+    { id: "i3", kind: "feature", text: "Statistiques de mes paris par mois", by: "Léa", votes: 9, status: 1 },
+    { id: "i4", kind: "design", text: "Des confettis quand on gagne un gros pari", by: "Hugo", votes: 11, status: 1 },
+    { id: "i5", kind: "feature", text: "Miser avec des pièces au lieu de l'argent", by: "Nora", votes: 2, status: 2 }
+];
+// Idée : envoyée → retenue ou pas retenue.
+const IDEA_STATUS = [["📨", "Envoyée", "st-sent", ""], ["⭐", "Retenue", "st-ok", "row-ok"], ["✖", "Pas retenue", "st-no", "row-no"]];
+const liked = new Set();
+
+// Journal : type feature = 💡 Ajouté (vert), design = 🎨 Nouveau look (violet), fix = 🔧 Corrigé (orange).
+let journal = [
+    { day: "Lundi", type: "feature", title: "Paris combinés", text: "Mets 2 à 4 paris dans le même ticket.", shot: "ticket", by: "Hugo" },
+    { day: "Lundi", type: "design", title: "Nouvelle barre du haut", text: "Niveau, série, solde et points en capsules.", shot: "bar", by: null },
+    { day: "Mardi", type: "fix", title: "Date d'échéance lointaine", text: "Le choix ne reste plus bloqué.", shot: null, by: ME },
+    { day: "Mercredi", type: "design", title: "Confettis de victoire", text: "Une pluie de confettis quand tu gagnes gros.", shot: "confetti", by: "Hugo" }
+];
+const KINDS = {
+    feature: { ic: "💡", word: "Ajouté" },
+    design: { ic: "🎨", word: "Nouveau look" },
+    fix: { ic: "🔧", word: "Corrigé" }
+};
+
+const FRIDAY = { opts: ["Paris combinés", "Nouvelle barre du haut", "Confettis de victoire"], votes: [11, 6, 8], mine: null, sel: null };
+const TOP = [["Léa", 14], ["Hugo", 9], ["Sam", 6], ["Nora", 3], ["Vincent", 0]];
+const requests = ["Sam", "Nora"];
+
+/* =========================================================
+   Outils
+   ========================================================= */
+const esc = t => String(t).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const admin = () => view === "admin";
+const gainTag = n => `<span class="gain">+${n} 🪙</span>`;
+
+// Pseudos réservés aux bêta-testeurs : un par palier.
+const BETA_TIERS = [
+    { at: 5, style: "terminal", name: "Terminal" },
+    { at: 10, style: "glitch", name: "Glitch" }
+];
+const OTHERS_STYLE = { "Léa": "glitch", "Hugo": "terminal" };
+
+function betaName(name, style) {
+    return `<span class="name-${style}">${esc(name)}</span>`;
+}
+
+// Le pseudo affiché est celui du plus haut palier atteint.
+function myBetaStyle() {
+    const reached = BETA_TIERS.filter(t => contributions >= t.at);
+    return reached.length ? reached[reached.length - 1].style : null;
+}
+
+function pseudo(name) {
+    const style = name === ME ? myBetaStyle() : OTHERS_STYLE[name];
+    return style ? betaName(name, style) : `<span>${esc(name)}</span>`;
+}
+
+function toast(icon, title, text) {
+    document.querySelector(".toast")?.remove();
+    const t = document.createElement("div");
+    t.className = "toast";
+    t.innerHTML = `<span class="big">${icon}</span><div><b>${title}</b>${text}</div>`;
+    document.querySelector(".preview").appendChild(t);
+    setTimeout(() => t.remove(), 3200);
+}
+
+/*
+    Pièces qui volent du bouton cliqué jusqu'au compteur « Cette semaine ».
+*/
+function flyCoins(from, n) {
+    const wallet = document.querySelector(".cap.coins");
+    if (!wallet || !from) return;
+    const a = from.getBoundingClientRect();
+    const b = wallet.getBoundingClientRect();
+    const x0 = a.left + a.width / 2, y0 = a.top + a.height / 2;
+    const x1 = b.left + 24, y1 = b.top + b.height / 2;
+
+    const label = document.createElement("span");
+    label.className = "float-gain";
+    label.textContent = "+" + n + " 🪙";
+    label.style.left = x0 - 20 + "px";
+    label.style.top = y0 - 30 + "px";
+    document.body.appendChild(label);
+    label.animate([{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, offset: .2 }, { opacity: 0, transform: "translateY(-30px)" }], { duration: 1100, easing: "ease-out" }).finished.then(() => label.remove());
+
+    const count = Math.min(8, 3 + Math.round(n / 10));
+    for (let i = 0; i < count; i++) {
+        const c = document.createElement("span");
+        c.className = "coin";
+        c.textContent = "🪙";
+        c.style.left = x0 - 10 + "px";
+        c.style.top = y0 - 10 + "px";
+        document.body.appendChild(c);
+        const spread = (Math.random() - .5) * 120;
+        const lift = -40 - Math.random() * 60;
+        c.animate([
+            { transform: "translate(0,0) scale(.6)", opacity: 0 },
+            { transform: `translate(${spread}px, ${lift}px) scale(1.1)`, opacity: 1, offset: .35 },
+            { transform: `translate(${x1 - x0}px, ${y1 - y0}px) scale(.6)`, opacity: .9 }
+        ], { duration: 900 + i * 70, easing: "cubic-bezier(.5,0,.3,1)" }).finished.then(() => {
+            c.remove();
+            if (i === count - 1) {
+                points += n;
+                wallet.querySelector("b").textContent = points + " 🪙";
+                wallet.classList.remove("bump");
+                void wallet.offsetWidth;
+                wallet.classList.add("bump");
+            }
+        });
+    }
+}
+
+function earn(n, from, why) {
+    contributions = Math.min(20, contributions + 1);
+    document.getElementById("c-count").value = contributions;
+    document.getElementById("c-count-label").textContent = contributions;
+    const rect = from?.getBoundingClientRect();
+    // On garde la position du bouton avant de redessiner la page.
+    const ghost = document.createElement("span");
+    if (rect) {
+        Object.assign(ghost.style, { position: "fixed", left: rect.left + "px", top: rect.top + "px", width: rect.width + "px", height: rect.height + "px" });
+        document.body.appendChild(ghost);
+    }
+    render();
+    if (rect) { flyCoins(ghost, n); setTimeout(() => ghost.remove(), 50); }
+    if (why) toast("✅", "Merci !", why);
+}
+
+function burst(button) {
+    const r = button.getBoundingClientRect();
+    const icons = LIKES[likeStyle].burst;
+    for (let i = 0; i < 7; i++) {
+        const s = document.createElement("span");
+        s.className = "burst";
+        s.textContent = icons[i % icons.length];
+        s.style.left = r.left + r.width / 2 - 7 + "px";
+        s.style.top = r.top + 6 + "px";
+        document.body.appendChild(s);
+        const ang = (Math.PI * 2 * i) / 7;
+        s.animate([
+            { transform: "translate(0,0) scale(.4)", opacity: 1 },
+            { transform: `translate(${Math.cos(ang) * 40}px, ${Math.sin(ang) * 40 - 10}px) scale(1)`, opacity: 0 }
+        ], { duration: 650, easing: "ease-out" }).finished.then(() => s.remove());
+    }
+}
+
+// Pastille de l'onglet : le vote du vendredi attend ma réponse.
+const pending = () => day === "vendredi" && FRIDAY.mine === null ? 1 : 0;
+
+/* =========================================================
+   Blocs fixes en haut : progression et podium
+   ========================================================= */
+function progressHtml() {
+    const kept = ideas.some(i => i.by === ME && i.status >= 1);
+    const MAX = 15;
+    const pct = Math.min(100, contributions / MAX * 100);
+    const skinDone = contributions >= MAX || kept;
+    const nextTier = BETA_TIERS.find(t => contributions < t.at);
+    const next = nextTier ? `encore ${nextTier.at - contributions} pour le pseudo ${nextTier.name}`
+        : !skinDone ? `encore ${MAX - contributions} pour le skin chantier`
+        : "tout est débloqué";
+    return `<div class="progress">
+        <div class="head"><span><b>${contributions}</b> contributions</span><span>${next}</span></div>
+        <div class="track">
+            <div class="fill" style="width:${pct}%"></div>
+            ${BETA_TIERS.map(t => `<span class="tick ${contributions >= t.at ? "done" : ""}" style="left:${t.at / MAX * 100}%"></span>`).join("")}
+        </div>
+        <div class="labels">
+            ${BETA_TIERS.map(t => {
+                const done = contributions >= t.at;
+                return `<span class="${done ? "done" : ""}" style="left:${t.at / MAX * 100}%"><button class="tier-peek" data-tier-peek="${t.style}" title="Voir l'aperçu"><b>${t.at}</b><span class="pill"><span class="eye">👁</span><span class="nm">${betaName(ME, t.style)}</span>${done ? " ✓" : ""}</span></button></span>`;
+            }).join("")}
+            <span class="${skinDone ? "done" : ""}" style="left:100%"><b>15</b>skin chantier${skinDone ? " ✓" : ""}${kept && contributions < MAX ? " (idée retenue)" : ""}</span>
+        </div>
+    </div>`;
+}
+
+function topHtml() {
+    const rows = TOP.map(([n, c]) => [n, n === ME ? contributions : c]).sort((a, b) => b[1] - a[1]);
+    const medals3 = ["🥇", "🥈", "🥉"];
+    const place = rows.findIndex(([n]) => n === ME) + 1;
+    if (topStyle === "board") {
+        return `<aside class="leaderboard-sidebar contrib-board" style="--contrib:${contribColor}">
+            <div class="leaderboard-header"><span>Top Contributeurs</span><span class="sub">cette semaine</span></div>
+            ${rows.map(([n, c], i) => `<div class="leaderboard-row${n === ME ? " leaderboard-row--me" : ""}">
+                <span class="leaderboard-rank">${i + 1}</span>
+                <span class="leaderboard-medal">${medals3[i] || ""}</span>
+                <span class="leaderboard-pseudo">${pseudo(n)}${n === ME ? " (toi)" : ""}</span>
+                <span class="leaderboard-balance">${c} contrib.</span>
+            </div>`).join("")}
+        </aside>`;
+    }
+    if (topStyle === "band") {
+        return `<div class="topband">
+            <span class="t">🏅 Top de la semaine</span>
+            ${rows.slice(0, 3).map(([n, c], i) => `<span class="who ${n === ME ? "me" : ""}"><span class="m">${medals3[i]}</span>${pseudo(n)}${n === ME ? " (toi)" : ""} <small>${c}</small></span>`).join("")}
+            <span class="place">Ta place : <b>${place}${place === 1 ? "er" : "e"}</b></span>
+        </div>`;
+    }
+    if (topStyle === "rank") {
+        const max = Math.max(...rows.map(r => r[1])) || 1;
+        return `<div class="toprank">
+            <div class="head">🏅 Top contributeurs de la semaine <span>remis à zéro lundi</span></div>
+            ${rows.slice(0, 3).map(([n, c], i) => `<div class="r ${n === ME ? "me" : ""}">
+                <span class="m">${medals3[i]}</span>
+                <span class="avatar">${esc(n[0])}</span>
+                <span>${pseudo(n)}${n === ME ? " (toi)" : ""}</span>
+                <span class="b"><i style="width:${c / max * 100}%"></i></span>
+                <span class="n">${c}</span>
+            </div>`).join("")}
+        </div>`;
+    }
+    const order = [rows[1], rows[0], rows[2]].filter(Boolean);
+    const medals = ["🥈", "🥇", "🥉"];
+    return `<div class="podium">
+        <span class="podium-title">🏅 TOP CONTRIBUTEURS DE LA SEMAINE</span>
+        ${order.map(([n, c], i) => `<div class="step ${i === 1 ? "first" : ""} ${n === ME ? "me" : ""}">
+            <div class="medal">${medals[i]}</div>
+            <div class="who">${pseudo(n)}${n === ME ? " (toi)" : ""}</div>
+            <div class="n"><b>${c}</b> contrib.</div>
+        </div>`).join("")}
+    </div>`;
+}
+
+/* =========================================================
+   Aperçus visuels du journal
+   ========================================================= */
+function shotHtml(kind) {
+    if (kind === "ticket") return `<div class="mini-ticket"><span class="k">Combiné · 2</span>
+        <div class="leg"><span>PSG gagne</span><b>1,80</b></div><div class="leg"><span>Plus de 2 buts</span><b>1,90</b></div>
+        <div class="sum"><span>Cote</span><span>× 3,42</span></div></div>`;
+    if (kind === "bar") return `<div class="mini-bar"><span class="x">Niveau 3<i></i></span><span class="f">🔥 4 jours</span><span class="m">1 250 €</span><span class="c">320 🪙</span></div>`;
+    if (kind === "confetti") {
+        const colors = ["#ff5c7a", "#f5c451", "#63d69f", "#4ba3ff", "#c86bff"];
+        return Array.from({ length: 14 }, (_, i) => `<span class="confetti" style="left:${(i * 37) % 100}%;background:${colors[i % 5]};animation-delay:${(i * .17) % 2.4}s"></span>`).join("") + `<span class="mini-win">🎉 +450 €</span>`;
+    }
+    if (kind === "team") return `<div class="mini-team">🧑‍🤝‍🧑<b>Pari en équipe</b></div>`;
+    return "";
+}
+
+/* =========================================================
+   Sous-onglets
+   ========================================================= */
+function newsTab() {
+    let ritual = "";
+    if (day === "vendredi") {
+        const total = FRIDAY.votes.reduce((a, b) => a + b, 0);
+        const voted = FRIDAY.mine !== null;
+        ritual = `<div class="ritual friday pop">
+            <div class="cal"><div class="top">Vendredi</div><div class="num">9</div></div>
+            <div>
+                <h3><span class="day">Vendredi</span> · la meilleure nouveauté</h3>
+                <p>Vote pour ta préférée : l'auteur de l'idée élue gagne <b style="color:#f5c451">+${POINTS.elected} 🪙</b>.</p>
+                <div class="opts cols">${FRIDAY.opts.map((o, i) => `<button class="opt${FRIDAY.mine === i ? " mine" : FRIDAY.sel === i && !voted ? " sel" : ""}" data-friday="${i}" ${voted ? "disabled" : ""}>
+                    ${voted ? `<i class="res" style="width:${Math.round(FRIDAY.votes[i] / total * 100)}%"></i>` : ""}
+                    <span><b>${esc(o)}</b>${voted ? `<span class="pct">${Math.round(FRIDAY.votes[i] / total * 100)} %</span>` : ""}</span>
+                </button>`).join("")}</div>
+                <div class="vote-row">${voted ? `<span class="voted">✓ Vote enregistré</span>` : `<span>Un seul vote, définitif.</span><button class="btn" data-friday-go ${FRIDAY.sel === null ? "disabled" : ""}>Voter ${gainTag(POINTS.vote)}</button>`}</div>
+            </div>
+        </div>`;
+    } else {
+        ritual = `<div class="next-ritual"><span>🏆 Vote de la meilleure nouveauté : <b>vendredi</b></span></div>`;
+    }
+
+    return `<div class="stack">
+        ${ritual}
+        <div class="card pop">
+            <div class="row" style="margin-bottom:8px"><h3>📖 Journal de la semaine</h3>${admin() ? `<button class="btn small" data-add-news>+ Nouveauté</button>` : ""}</div>
+            <div class="jlist">${journal.map((e, idx) => {
+                const credit = !e.by ? `🛠️ Équipe BetLab`
+                    : e.type === "fix" ? `🐞 Signalé par <span class="tag">#${esc(e.by)}</span>`
+                    : `💡 Idée de <span class="tag">#${esc(e.by)}</span>`;
+                return `<div class="jrow${e.isNew ? " new" : ""}${e.by === ME ? " mine" : ""}">
+                    <div class="body"><div class="credit">${credit}${e.by === ME ? " (toi)" : ""}</div><div class="what">${esc(e.title)}</div></div>
+                    ${e.shot ? `<button class="peek" data-peek="${idx}">👁 Aperçu</button>` : ""}
+                </div>`;
+            }).join("")}</div>
+        </div>
+    </div>`;
+}
+
+function bugTab() {
+    const list = admin() ? bugs : bugs.filter(b => b.by === ME);
+    return `<div class="stack">
+        ${admin() ? "" : `<div class="card pop">
+            <h3>🐞 Signaler un bug</h3>
+            <p class="meta">Où as-tu vu le problème ? S'il est confirmé, tu gagnes <b>+${POINTS.bugOk} 🪙</b> de plus.</p>
+            <div class="topics">${TOPICS.map(t => `<button class="topic${bugTopic === t ? " on" : ""}" data-topic="${esc(t)}">${esc(t)}</button>`).join("")}</div>
+            <textarea class="in" rows="3" id="bug-text" placeholder="Explique ce qui s'est passé et ce que tu attendais…"></textarea>
+            <div class="row" style="margin-top:10px;justify-content:flex-end"><button class="btn" data-send-bug ${bugTopic ? "" : "disabled"}>Envoyer ${gainTag(POINTS.send)}</button></div>
+        </div>`}
+        <div class="card pop">
+            <h3>${admin() ? "🐞 Bugs signalés" : "📋 Mes signalements"}</h3>
+            <div class="list">
+                ${list.length ? list.map(b => `<div class="item ${BUG_STATUS[b.status][3]}">
+                    <span style="font-size:20px">${BUG_STATUS[b.status][0]}</span>
+                    <div class="txt"><b>${esc(b.topic)}</b>${admin() ? ` · <span style="color:#858a98">${pseudo(b.by)}</span>` : ""}<p>${esc(b.text)}</p></div>
+                    <div class="side"><span class="status ${BUG_STATUS[b.status][2]}">${BUG_STATUS[b.status][1]}</span>
+                        ${admin() && b.status === 0 ? `<button class="btn small" data-bug-next="${b.id}">✓ Corrigé ${gainTag(POINTS.bugOk)}</button>` : ""}
+                    </div>
+                </div>`).join("") : `<div class="empty">Aucun signalement pour l'instant.</div>`}
+            </div>
+        </div>
+    </div>`;
+}
+
+function ideaTab() {
+    const L = LIKES[likeStyle];
+    const sorted = [...ideas].sort((a, b) => b.votes - a.votes);
+    return `<div class="stack">
+        ${admin() ? "" : `<div class="card pop">
+            <h3>💡 Proposer une idée</h3>
+            <p class="meta">Si elle est retenue, tu gagnes <b>+${POINTS.ideaKept} 🪙</b> et le skin chantier 👷.</p>
+            <div class="topics">${[["feature", "🧩 Fonctionnalité"], ["design", "🎨 Design"]].map(([k, l]) => `<button class="topic${ideaKind === k ? " on" : ""}" data-kind="${k}">${l}</button>`).join("")}</div>
+            <div style="display:flex;gap:8px"><input class="in" id="idea-text" placeholder="${ideaKind === "design" ? "Ex. : un thème de nuit pour les cartes" : "Ex. : pouvoir parier en équipe"}"><button class="btn" data-send-idea>Proposer ${gainTag(POINTS.send)}</button></div>
+        </div>`}
+        <div class="card pop">
+            <h3>🗳️ Les idées de tout le monde</h3>
+            <p class="meta">${L.ico} « ${L.word} » sur celles que tu veux voir arriver.</p>
+            <div class="list">
+                ${sorted.map(i => `<div class="item ${IDEA_STATUS[i.status][3]}">
+                    <button class="like${liked.has(i.id) ? " on" : ""}" style="--like:${L.color}" data-like="${i.id}" ${i.by === ME ? "disabled title='Ta propre idée'" : ""}><span class="ico">${L.ico}</span>${i.votes}</button>
+                    <div class="txt"><b>${esc(i.text)}</b><p>${i.kind === "design" ? "🎨 Design" : "🧩 Fonctionnalité"} · par ${i.by === ME ? "toi" : pseudo(i.by)}</p></div>
+                    <div class="side"><span class="status ${IDEA_STATUS[i.status][2]}">${IDEA_STATUS[i.status][0]} ${IDEA_STATUS[i.status][1]}</span>
+                        ${admin() && i.status === 0 ? `<div style="display:flex;gap:6px"><button class="btn small" data-idea-keep="${i.id}">★ Retenir ${gainTag(POINTS.ideaKept)}</button><button class="btn ghost small" data-idea-drop="${i.id}">Pas retenue</button></div>` : ""}
+                    </div>
+                </div>`).join("")}
+            </div>
+        </div>
+    </div>`;
+}
+
+/* =========================================================
+   Rendu
+   ========================================================= */
+function render() {
+    const access = view !== "normal";
+    document.getElementById("nav").innerHTML = `<header class="navbar">
+        <div class="logo"><span>BET</span>LAB</div>
+        <nav>
+            <button class="nav-button${access ? "" : " active"}">Paris</button>
+            <button class="nav-button">Historique</button>
+            <button class="nav-button">Missions</button>
+            <button class="nav-button">Boutique</button>
+            ${access ? `<button class="nav-button active nav-help">🧪 Aide app${pending() ? `<span class="nav-dot"></span>` : ""}</button>` : `<button class="nav-button active">👤 Profil</button>`}
+        </nav>
+        <div class="user-area">
+            <div class="cap fire"><small>Série</small><b>🔥 4 jours</b></div>
+            <div class="cap money"><small>Solde</small><b>1 250,00 €</b></div>
+            <div class="cap coins"><small>Points</small><b>${points} 🪙</b></div>
+        </div>
+    </header>`;
+
+    const page = document.getElementById("page");
+
+    if (!access) {
+        page.innerHTML = `<div class="locked card">
+            <div class="big">🧪</div>
+            <h3 style="justify-content:center">Deviens bêta-testeur</h3>
+            <p class="meta" style="margin:8px 0 14px;font-size:13px;line-height:1.5">Teste les nouveautés en avant-première, vote pour les prochains designs, propose tes idées et gagne des 🪙, un pseudo bêta exclusif et le skin perroquet chantier 👷.</p>
+            ${requestSent ? `<span class="chip orange">⏳ Demande envoyée : en attente de l'admin</span>` : `<button class="btn" data-request>🙋 Devenir bêta-testeur</button>`}
+            <p class="meta" style="margin-top:14px">(Ce bloc est dans la page Profil des joueurs sans accès.)</p>
+        </div>`;
+        return;
+    }
+
+    // Plus de sous-onglet « Voter » : 3 sous-onglets.
+    const tabs = [["idea", "💡 Idées", 0], ["bug", "🐞 Bug", 0]];
+    const content = { news: newsTab, bug: bugTab, idea: ideaTab }[tab]();
+
+    page.innerHTML = `
+        <div class="page-head">
+            <div>
+                <h1 class="page-title">🧪 Aide app</h1>
+                <p class="page-sub">${admin() ? "Vue admin : mêmes sous-onglets, avec tes boutons de gestion en plus." : "Merci de tester BetLab ! Vote, signale les bugs et propose tes idées."}</p>
+            </div>
+        </div>
+        ${admin() && requests.length ? `<div class="requests pop"><b>🙋 Demandes pour devenir bêta-testeur (${requests.length})</b>
+            ${requests.map(n => `<div class="req"><b>${esc(n)}</b><button class="btn small" data-accept="${esc(n)}">Accepter</button><button class="btn ghost small" data-refuse="${esc(n)}">Refuser</button></div>`).join("")}
+        </div>` : ""}
+        ${admin() ? "" : progressHtml()}
+        <div class="subnav">${tabs.map(([k, l, n]) => `<button class="${tab === k ? "on" : ""}" data-tab="${k}">${l}${n ? `<span class="n">${n}</span>` : ""}</button>`).join("")}</div>
+        ${content}`;
+
+    // Mini pop-up d'aperçu d'une nouveauté du journal.
+    document.querySelector(".popup-back")?.remove();
+    const tier = BETA_TIERS.find(t => t.style === popup);
+    if (tier) {
+        const unlocked = contributions >= tier.at;
+        const back = document.createElement("div");
+        back.className = "popup-back";
+        back.innerHTML = `<div class="popup">
+            <button class="x" data-close>×</button>
+            <h4>Pseudo ${tier.name}</h4>
+            <div class="shop-preview-board">
+                <div class="leaderboard-row shop-preview-dim"><span class="leaderboard-rank">2</span><span class="leaderboard-medal">🥈</span><span class="leaderboard-pseudo">Emma</span><span class="leaderboard-balance">1 840 €</span></div>
+                <div class="leaderboard-row leaderboard-row--me"><span class="leaderboard-rank">3</span><span class="leaderboard-medal">🥉</span><span class="leaderboard-pseudo">${betaName(ME, tier.style)}</span><span class="leaderboard-balance">1 520 €</span></div>
+                <div class="leaderboard-row shop-preview-dim"><span class="leaderboard-rank">4</span><span class="leaderboard-medal"></span><span class="leaderboard-pseudo">Lucas</span><span class="leaderboard-balance">1 310 €</span></div>
+            </div>
+            <p class="bet-line">Sur une carte de pari : 🏆 Créé par ${betaName(ME, tier.style)}</p>
+            <p class="lock">${unlocked ? "✓ Débloqué" : `🔒 Débloqué à ${tier.at} contributions (encore ${tier.at - contributions})`} · réservé aux bêta-testeurs</p>
+        </div>`;
+        back.addEventListener("click", ev => {
+            if (ev.target === back || ev.target.closest("[data-close]")) { popup = null; render(); }
+        });
+        document.querySelector(".preview").appendChild(back);
+    } else if (popup !== null) {
+        const e = journal[popup];
+        const back = document.createElement("div");
+        back.className = "popup-back";
+        back.innerHTML = `<div class="popup">
+            <button class="x" data-close>×</button>
+            <h4>${esc(e.title)}</h4>
+            <div class="shot-big">${shotHtml(e.shot)}</div>
+            <p class="meta" style="margin:0 0 6px;font-size:13px;color:#c9ccd6">${esc(e.text || "")}</p>
+            <p class="meta" style="margin:0">${e.by ? `💡 Idée de <span class="tag" style="color:#c9c5ff;font-weight:900">#${esc(e.by)}</span>` : "🛠️ Équipe BetLab"}</p>
+        </div>`;
+        back.addEventListener("click", ev => {
+            if (ev.target === back || ev.target.closest("[data-close]")) { popup = null; render(); }
+        });
+        document.querySelector(".preview").appendChild(back);
+    }
+}
+
+/* =========================================================
+   Clics dans l'aperçu
+   ========================================================= */
+document.getElementById("page").addEventListener("click", e => {
+    const t = e.target.closest("button");
+    if (!t || t.disabled) return;
+    const d = t.dataset;
+
+    if (d.tab) tab = d.tab;
+    else if (d.peek !== undefined) popup = Number(d.peek);
+    else if (d.tierPeek) popup = d.tierPeek;
+    else if (d.dlg) {
+        if (myVotes[d.dlg] || admin()) return;
+        picked[d.dlg] = d.opt;
+    } else if (d.vote) {
+        const dlg = DILEMMAS.find(x => x.id === d.vote);
+        dlg.opts.find(o => o.id === picked[d.vote]).votes++;
+        myVotes[d.vote] = picked[d.vote];
+        earn(POINTS.vote, t);
+        return;
+    } else if (d.friday !== undefined) {
+        FRIDAY.sel = Number(d.friday);
+    } else if (d.fridayGo !== undefined) {
+        FRIDAY.mine = FRIDAY.sel;
+        FRIDAY.votes[FRIDAY.mine]++;
+        earn(POINTS.vote, t);
+        return;
+    } else if (d.topic) bugTopic = d.topic;
+    else if (d.sendBug !== undefined) {
+        const text = document.getElementById("bug-text").value.trim() || "(sans description)";
+        bugs.unshift({ id: "b" + Date.now(), topic: bugTopic, text, status: 0, by: ME });
+        bugTopic = null;
+        earn(POINTS.send, t, "Bug reçu : tu suis son avancement juste en dessous.");
+        return;
+    } else if (d.bugNext) {
+        const b = bugs.find(x => x.id === d.bugNext);
+        b.status = 1;
+        toast("✅", "Bug corrigé", `${esc(b.by)} reçoit +${POINTS.bugOk} 🪙 et une notification.`);
+    } else if (d.kind) ideaKind = d.kind;
+    else if (d.sendIdea !== undefined) {
+        const input = document.getElementById("idea-text");
+        if (!input.value.trim()) { input.focus(); return; }
+        ideas.push({ id: "n" + Date.now(), kind: ideaKind, text: input.value.trim(), by: ME, votes: 1, status: 0 });
+        earn(POINTS.send, t, "Idée envoyée : les autres peuvent l'aimer.");
+        return;
+    } else if (d.like) {
+        const i = ideas.find(x => x.id === d.like);
+        const on = !liked.has(d.like);
+        on ? liked.add(d.like) : liked.delete(d.like);
+        i.votes += on ? 1 : -1;
+        if (on) burst(t);
+        render();
+        const again = document.querySelector(`[data-like="${d.like}"]`);
+        if (on && again) again.classList.add("boom");
+        return;
+    } else if (d.ideaKeep) {
+        const i = ideas.find(x => x.id === d.ideaKeep);
+        i.status = 1;
+        toast("⭐", "Idée retenue", `${esc(i.by)} reçoit +${POINTS.ideaKept} 🪙, une notification et débloque le skin chantier 👷.`);
+    } else if (d.ideaDrop) {
+        ideas.find(x => x.id === d.ideaDrop).status = 2;
+    } else if (d.addNews !== undefined) {
+        journal.push({ day: "Vendredi", type: "feature", title: "Nouvelle fonctionnalité", text: "(texte écrit par l'admin)", shot: null, by: null, isNew: true });
+    } else if (d.request !== undefined) requestSent = true;
+    else if (d.accept || d.refuse) {
+        const n = d.accept || d.refuse;
+        requests.splice(requests.indexOf(n), 1);
+        toast(d.accept ? "🧪" : "✖️", d.accept ? `${esc(n)} est bêta-testeur` : "Demande refusée", d.accept ? "L'onglet Aide app apparaît dans son menu." : `${esc(n)} est prévenu.`);
+    } else return;
+
+    render();
+});
+
+/* =========================================================
+   Panneau de contrôle
+   ========================================================= */
+document.getElementById("c-view").onchange = e => { view = e.target.value; render(); };
+document.getElementById("c-day").onchange = e => { day = e.target.value; tab = "news"; render(); };
+document.getElementById("c-count").oninput = e => { contributions = Number(e.target.value); document.getElementById("c-count-label").textContent = contributions; render(); };
+document.getElementById("c-like").onchange = e => { likeStyle = e.target.value; tab = "idea"; render(); };
+
+document.getElementById("c-notif").onclick = () => {
+    view = "beta";
+    document.getElementById("c-view").value = "beta";
+    const idea = ideas.find(i => i.by === ME);
+    idea.status = 1;
+    if (!journal.some(j => j.title === idea.text)) {
+        journal.push({ day: "Vendredi", type: "feature", title: idea.text, text: "Parie à deux sur le même ticket.", shot: "team", by: ME, isNew: true });
+    }
+    tab = "news";
+    render();
+    toast("🎉", "Ton idée est en ligne !", "« Parier en équipe » vient d'arriver dans le journal, avec ton nom.");
+};
+
+document.getElementById("choose").onclick = () => {
+    const text = `Aide app v2 : c'est bon, on code. Paliers : 5 pseudo Terminal, 10 pseudo Glitch, 15 skin chantier. Bouton j'aime : ${LIKES[likeStyle].ico} ${LIKES[likeStyle].word}.`;
+    navigator.clipboard && navigator.clipboard.writeText(text).catch(() => {});
+    const t = document.createElement("div");
+    t.className = "copied";
+    t.textContent = "✅ Copié : " + text;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3500);
+};
+
+// Ouvrir directement un sous-onglet : demo-aide-app-v2.html#vote
+if (["#bug", "#idea"].includes(location.hash)) tab = location.hash.slice(1);
+if (location.hash === "#terminal" || location.hash === "#glitch") popup = location.hash.slice(1);
+
+render();
+</script>
+</body>
+</html>

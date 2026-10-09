@@ -112,6 +112,20 @@
             </button>
 
 
+            <!-- Bêta-testeurs et admin seulement (voir aide-app.sql) -->
+            <button
+                class="nav-button hidden"
+                id="beta-nav-button"
+                data-page="beta-page"
+            >
+                Aide app
+                <span
+                    id="beta-nav-dot"
+                    class="beta-nav-dot hidden"
+                ></span>
+            </button>
+
+
             <button
                 class="nav-button hidden"
                 id="admin-nav-button"
@@ -137,22 +151,52 @@
                 title="Ta série de connexions : clique pour en savoir plus"
                 tabindex="0"
             >
+                <!-- Ordinateur seulement : titre de la capsule -->
+                <span class="streak-label">Série</span>
                 <span class="streak-flame">🔥</span>
                 <strong id="streak-count">0</strong>
+                <!-- Ordinateur seulement -->
+                <span
+                    id="streak-unit"
+                    class="streak-unit"
+                >
+                    jours
+                </span>
             </div>
 
-            <!-- Téléphone seulement : petite jauge d'XP (ouvre la fenêtre du niveau) -->
+            <!-- Jauge d'XP de la barre du haut (ouvre la fenêtre du niveau) :
+                 petite sur téléphone, capsule plus large sur ordinateur (version A de demo-jauge-xp.html) -->
             <button
                 type="button"
                 id="xp-mini"
                 class="xp-mini"
                 aria-label="Ton niveau"
             >
-                <span
-                    id="xp-mini-label"
-                    class="xp-mini-label"
-                >
-                    Niv. 1
+                <span class="xp-mini-top">
+
+                    <span
+                        id="xp-mini-label"
+                        class="xp-mini-label"
+                    >
+                        Niv. 1
+                    </span>
+
+                    <!-- Ordinateur seulement -->
+                    <span
+                        id="xp-mini-xp"
+                        class="xp-mini-xp"
+                    >
+                        0 / 100 XP
+                    </span>
+
+                    <!-- Ordinateur seulement, niveau à débloquer -->
+                    <span
+                        id="xp-mini-unlock"
+                        class="xp-mini-unlock"
+                    >
+                        ⭐ Débloquer niv. 2
+                    </span>
+
                 </span>
                 <span class="xp-mini-bar">
                     <span id="xp-mini-fill"></span>
@@ -160,7 +204,13 @@
             </button>
 
 
-            <div class="balance">
+            <!-- Un clic ouvre la fenêtre du solde (perroquet, paliers) -->
+            <div
+                id="balance-widget"
+                class="balance balance-widget"
+                title="Ton solde : clique pour en savoir plus"
+                tabindex="0"
+            >
 
                 <span>Solde</span>
 
@@ -171,12 +221,36 @@
             </div>
 
 
-            <div class="balance points-balance">
+            <!-- Un clic ouvre la fenêtre des pièces (comment en gagner, échange de diamants) -->
+            <div
+                id="points-widget"
+                class="balance points-balance points-widget"
+                title="Tes pièces : clique pour en savoir plus"
+                tabindex="0"
+            >
 
                 <span>Points</span>
 
                 <strong id="points-balance">
                     0 🪙
+                </strong>
+
+            </div>
+
+
+            <!-- Diamants (communs à tous les groupes, voir diamants.sql) :
+                 un clic ouvre la fenêtre des packs -->
+            <div
+                id="diamond-widget"
+                class="balance diamond-balance"
+                title="Tes diamants : clique pour en savoir plus"
+                tabindex="0"
+            >
+
+                <span>Diamants</span>
+
+                <strong id="diamond-balance">
+                    0 💎
                 </strong>
 
             </div>
@@ -424,6 +498,12 @@
                  (le bouton « Créer un pari » est une carte en tête de liste, voir app.js) -->
             <div class="page-header bets-page-header">
 
+                <!-- Téléphone seulement : nombre de paris disponibles (rempli par app.js) -->
+                <span
+                    id="bets-page-count"
+                    class="bets-page-count"
+                ></span>
+
 
                 <!-- Téléphone seulement : ouvre le classement en fenêtre -->
                 <button
@@ -473,6 +553,14 @@
                     id="bet-ticket"
                     class="bet-ticket"
                 ></aside>
+
+
+                <!-- Ordinateur : nouveautés de la semaine (glissent sous le ticket),
+                     dessinées par displayNewsJournal dans app.js -->
+                <section
+                    id="news-journal"
+                    class="news-journal hidden"
+                ></section>
 
                 </div>
 
@@ -707,6 +795,48 @@
 
 
         <!-- =====================================
+             PAGE : AIDE APP (bêta-testeurs)
+        ====================================== -->
+
+        <section
+            id="beta-page"
+            class="app-page hidden"
+        >
+
+            <div class="page-header">
+
+                <div>
+
+                    <h1>
+                        Aide app
+                    </h1>
+
+                    <p id="beta-page-subtitle">
+                        Merci de tester BetLab ! Signale les bugs et propose tes idées.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <p
+                id="beta-message"
+                class="missions-message hidden"
+            ></p>
+
+
+            <!-- Contenu dessiné par displayBetaPage dans app.js -->
+            <div
+                id="beta-container"
+                class="beta-container"
+            ></div>
+
+        </section>
+
+
+
+        <!-- =====================================
              PAGE : PROFIL
         ====================================== -->
 
@@ -774,6 +904,13 @@
                 ></p>
 
             </div>
+
+
+            <!-- Demande d'accès bêta-testeur (contenu dessiné par displayBetaRequestCard) -->
+            <div
+                id="beta-request-card"
+                class="profile-card beta-request-card hidden"
+            ></div>
 
 
             <div class="profile-card">
@@ -1200,10 +1337,12 @@
 
             <div class="create-card">
 
-                <h3>Soldes des joueurs</h3>
+                <h3>Stats des joueurs</h3>
 
                 <p class="resolve-info">
-                    Modifie le solde de n'importe quel joueur, dans n'importe quel groupe.
+                    Vois et modifie l'XP, la série de flammes, le solde, les points et les diamants de n'importe quel joueur.
+                    L'XP, les flammes et les diamants sont les mêmes dans tous ses groupes ;
+                    le solde et les points sont ceux du groupe choisi.
                 </p>
 
                 <select
@@ -1365,9 +1504,7 @@
                     </div>
 
                     <p class="bet-rules">
-                        Mise de <strong>10 €</strong> à <strong id="bet-rules-max">5 000 €</strong> · montant rond · 1 seule mise par pari
-                        <br>
-                        La mise max baisse avec le temps, jusqu'à 10 € juste avant la fermeture.
+                        Mise de <strong>10 €</strong> à <strong id="bet-rules-max">5 000 €</strong>
                     </p>
 
                     <p
@@ -1490,6 +1627,201 @@
                 id="shop-preview-options"
                 class="cosmetic-options"
             ></div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =========================================
+         MODAL : ACCÈS BÊTA-TESTEUR ACCEPTÉ
+    ========================================== -->
+
+    <div
+        id="beta-welcome-modal"
+        class="modal hidden"
+    >
+
+        <div class="modal-content beta-welcome-content">
+
+            <button
+                id="close-beta-welcome"
+                class="close-modal"
+            >
+                ×
+            </button>
+
+
+            <div class="beta-welcome-icon">
+                🧪
+            </div>
+
+            <h2>
+                Tu es bêta-testeur !
+            </h2>
+
+            <p class="beta-welcome-text">
+                Ta demande a été acceptée. Un nouvel onglet <b>Aide app</b>
+                vient d'apparaître dans le menu.
+            </p>
+
+            <ul class="beta-welcome-list">
+                <li>💡 Propose tes idées <span>+10 🪙 · +150 🪙 si retenue</span></li>
+                <li>🐞 Signale les bugs <span>+10 🪙 · +50 🪙 si corrigé</span></li>
+                <li>👾 Pseudos exclusifs à 5 et 10 contributions</li>
+            </ul>
+
+            <button
+                type="button"
+                id="beta-welcome-go"
+                class="primary-button large-button"
+            >
+                Découvrir l'onglet Aide app
+            </button>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =========================================
+         MODAL : VOTE DU VENDREDI (meilleure nouveauté)
+    ========================================== -->
+
+    <div
+        id="beta-vote-modal"
+        class="modal hidden"
+    >
+
+        <div class="modal-content beta-vote-content">
+
+            <button
+                id="close-beta-vote"
+                class="close-modal"
+            >
+                ×
+            </button>
+
+
+            <!-- Contenu dessiné par openBetaVote dans app.js -->
+            <div id="beta-vote-body"></div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =========================================
+         MODAL : PROFIL D'UN PARTICIPANT (clic sur un pseudo)
+         Stats, perroquet, argent en jeu, historique (profil-joueur.sql)
+    ========================================== -->
+
+    <div
+        id="player-modal"
+        class="modal hidden"
+    >
+
+        <div class="modal-content xp-modal-content player-modal-content">
+
+            <button
+                id="close-player-modal"
+                class="close-modal"
+            >
+                ×
+            </button>
+
+
+            <!-- Contenu dessiné par openPlayerProfile dans app.js -->
+            <div id="player-modal-body"></div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =========================================
+         MODAL : PIÈCES (clic sur la capsule 🪙)
+         Comment gagner des pièces, échange de diamants
+    ========================================== -->
+
+    <div
+        id="points-modal"
+        class="modal hidden"
+    >
+
+        <div class="modal-content xp-modal-content points-modal-content">
+
+            <button
+                id="close-points-modal"
+                class="close-modal"
+            >
+                ×
+            </button>
+
+
+            <!-- Contenu dessiné par openPointsModal dans app.js -->
+            <div id="points-modal-body"></div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =========================================
+         MODAL : DIAMANTS (clic sur la capsule 💎)
+    ========================================== -->
+
+    <div
+        id="diamond-modal"
+        class="modal hidden"
+    >
+
+        <div class="modal-content xp-modal-content diamond-modal-content">
+
+            <button
+                id="close-diamond-modal"
+                class="close-modal"
+            >
+                ×
+            </button>
+
+
+            <!-- Contenu dessiné par openDiamondModal dans app.js -->
+            <div id="diamond-modal-body"></div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =========================================
+         MODAL : SOLDE (clic sur le solde)
+         Perroquet à 0 €, paliers et boosts (perroquet-paliers.sql)
+    ========================================== -->
+
+    <div
+        id="balance-modal"
+        class="modal hidden"
+    >
+
+        <div class="modal-content xp-modal-content balance-modal-content">
+
+            <button
+                id="close-balance-modal"
+                class="close-modal"
+            >
+                ×
+            </button>
+
+
+            <!-- Contenu dessiné par openBalanceModal dans animations.js -->
+            <div id="balance-modal-body"></div>
 
         </div>
 

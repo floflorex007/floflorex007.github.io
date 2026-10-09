@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Pop-up du solde</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body.demo { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; margin: 0; display: block; min-height: 0; }
+.demo h1 { font-size: 26px; margin: 0 0 6px; }
+.demo .sub { color: #858a98; margin: 0 0 16px; max-width: 900px; font-size: 14px; line-height: 1.5; }
+.demo .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
+.demo .tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; font: inherit; }
+.demo .tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.demo .pick { margin-left: auto; background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; padding: 10px 16px; border-radius: 12px; cursor: pointer; font: inherit; font-weight: 900; }
+.ctl { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 0 0 18px; font-size: 13px; color: #aaaeba; }
+.ctl input, .ctl select { background: #11131a; color: #e6e8ee; border: 1px solid #343846; border-radius: 10px; padding: 8px 10px; font: inherit; width: 110px; }
+.ctl label { display: flex; gap: 6px; align-items: center; }
+.copied { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1c202c; border: 1px solid #63d69f; padding: 12px 18px; border-radius: 14px; font-weight: 700; z-index: 99; max-width: calc(100% - 32px); }
+.stage { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+.stage .modal-content { position: relative; margin: 0; max-width: 460px; }
+.editor { width: 300px; border: 1px solid #2c3040; border-radius: 16px; background: #151821; padding: 14px; font-size: 13px; color: #aaaeba; }
+.editor h3 { margin: 0 0 4px; color: #e6e8ee; font-size: 15px; }
+.editor p { margin: 0 0 10px; font-size: 12px; }
+.editor .row { display: grid; grid-template-columns: 1fr 18px 1fr 24px; gap: 6px; align-items: center; margin-bottom: 6px; }
+.editor input { width: 100%; box-sizing: border-box; background: #11131a; color: #e6e8ee; border: 1px solid #343846; border-radius: 8px; padding: 6px 8px; font: inherit; text-align: right; }
+.editor input:disabled { opacity: .5; }
+.editor .x { border: none; background: none; color: #858a98; cursor: pointer; font-size: 16px; }
+.editor .add { width: 100%; margin-top: 4px; border: 1px dashed #343846; background: none; color: #aaaeba; border-radius: 8px; padding: 7px; font: inherit; cursor: pointer; }
+
+/* =========================================================
+   Pop-up du solde
+   ========================================================= */
+.money-head { display: flex; gap: 10px; margin: 6px 0 16px; }
+.money-head > div { flex: 1; padding: 10px 12px; border-radius: 12px; border: 1px solid #2c3040; background: #14161e; }
+.money-head span { display: block; color: #858a98; font-size: 11px; font-weight: 700; margin-bottom: 4px; }
+.money-head strong { font-size: 18px; color: #63d69f; }
+.money-head .rec strong { color: #f5c451; }
+
+.zero-tip { display: flex; gap: 12px; align-items: center; padding: 12px; margin-bottom: 16px; border-radius: 14px; border: 1px solid rgba(99, 214, 159, .35); background: rgba(99, 214, 159, .07); }
+.zero-tip img { width: 52px; height: 58px; object-fit: contain; flex-shrink: 0; animation: tip-bounce 1.6s ease-in-out infinite; }
+@keyframes tip-bounce { 50% { transform: translateY(-4px) rotate(-3deg); } }
+.zero-tip p { margin: 0; font-size: 13px; line-height: 1.45; color: #c9ccd6; }
+.zero-tip b { color: #63d69f; }
+.zero-tip .x2 { display: inline-block; margin-top: 6px; padding: 2px 8px; border-radius: 999px; background: rgba(245, 196, 81, .12); color: #ffdf7e; font-size: 11px; font-weight: 800; }
+
+.today { margin: 0 0 16px; }
+.today .lbl { display: flex; justify-content: space-between; font-size: 12px; color: #aaaeba; font-weight: 700; margin-bottom: 6px; }
+.today .lbl b { color: #e6e8ee; }
+.today .bar { height: 8px; border-radius: 99px; background: #23262f; overflow: hidden; }
+.today .bar i { display: block; height: 100%; background: linear-gradient(90deg, #2fa36f, #63d69f); border-radius: inherit; }
+
+/* Version A : liste des paliers */
+.tiers { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.tier { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 12px; border: 1px solid #2c3040; background: #14161e; font-size: 13px; }
+.tier .need { flex: 1; color: #aaaeba; }
+.tier .need b { color: #e6e8ee; }
+.tier .cap { font-weight: 900; color: #858a98; white-space: nowrap; }
+.tier .st { width: 20px; text-align: center; }
+.tier.done { border-color: rgba(99, 214, 159, .35); }
+.tier.done .cap { color: #63d69f; }
+.tier.current { border-color: #63d69f; background: rgba(99, 214, 159, .08); box-shadow: 0 0 0 1px #63d69f inset; }
+.tier.next { border-style: dashed; }
+.tier.next .prog { display: block; height: 4px; margin-top: 6px; border-radius: 99px; background: #23262f; overflow: hidden; }
+.tier.next .prog i { display: block; height: 100%; background: #f5c451; }
+.tier.locked { opacity: .55; }
+
+/* Version A : jauge verticale à gauche des paliers */
+.tiers-wrap { display: grid; grid-template-columns: 14px 1fr; gap: 10px; }
+.vgauge { position: relative; }
+.vgauge .vtrack { position: absolute; left: 50%; top: 19px; bottom: 19px; width: 6px; margin-left: -3px; border-radius: 99px; background: #23262f; }
+.vgauge .vfill { position: absolute; left: 0; right: 0; top: 0; border-radius: inherit; background: linear-gradient(180deg, #2fa36f, #63d69f 70%, #f5c451); box-shadow: 0 0 8px rgba(99, 214, 159, .45); transition: height .6s ease; }
+.vgauge .vdot { position: absolute; left: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: #14161e; border: 2px solid #4a4f60; box-sizing: border-box; }
+.vgauge .vdot.done { background: #63d69f; border-color: #63d69f; }
+.vgauge .vdot.current { box-shadow: 0 0 0 3px rgba(99, 214, 159, .3); }
+
+/* Deux sections bien séparées : le solde (et la solution à 0 €), puis le perroquet */
+.pop-section + .pop-section { margin-top: 18px; }
+.money-now { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 14px; margin: 4px 0 10px; border-radius: 12px; border: 1px solid rgba(99, 214, 159, .35); background: rgba(99, 214, 159, .07); }
+.money-now span { color: #aaaeba; font-size: 13px; font-weight: 700; }
+.money-now strong { color: #63d69f; font-size: 22px; }
+.parrot-section { padding: 14px; border-radius: 16px; border: 1px solid rgba(245, 196, 81, .3); background: linear-gradient(180deg, rgba(245, 196, 81, .07), rgba(245, 196, 81, .02)); }
+.pop-section-title { margin: 0 0 12px; font-size: 15px; color: #f5c451; }
+.parrot-stats { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: end; margin-bottom: 14px; }
+.parrot-stats .today { margin: 0; }
+.my-tier { text-align: right; }
+.my-tier span { display: block; color: #858a98; font-size: 11px; font-weight: 700; }
+.my-tier strong { color: #f5c451; font-size: 16px; }
+.pop-hint { margin: 0 0 10px; font-size: 12px; color: #858a98; }
+
+/* Section « Booste tes clics » (articles de la boutique) */
+.boost-title { margin-top: 18px; }
+.boosts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.boost { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(245, 196, 81, .3); background: rgba(245, 196, 81, .06); }
+.boost .mult { font-size: 20px; font-weight: 900; color: #f5c451; line-height: 1; }
+.boost .what { font-size: 12px; color: #c9ccd6; font-weight: 700; }
+.boost .price { font-size: 12px; color: #ffdf7e; font-weight: 800; }
+.boost.owned { border-color: rgba(99, 214, 159, .45); background: rgba(99, 214, 159, .08); }
+.boost.owned .mult, .boost.owned .price { color: #63d69f; }
+.shop-link { display: block; width: 100%; margin-top: 8px; padding: 9px; border: 1px solid #343846; border-radius: 10px; background: #14161e; color: #c9ccd6; font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
+.shop-link:hover { border-color: #6c63ff; color: white; }
+
+/* Version B : échelle horizontale */
+.ladder { position: relative; margin: 10px 4px 6px; }
+.ladder .track { position: relative; height: 8px; border-radius: 99px; background: #23262f; }
+.ladder .fill { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: linear-gradient(90deg, #e8a92a, #f5c451); }
+.ladder .stop { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: #23262f; border: 2px solid #4a4f60; }
+.ladder .stop.done { background: #63d69f; border-color: #63d69f; }
+.ladder .labels { position: relative; height: 46px; margin-top: 8px; }
+.ladder .labels span { position: absolute; transform: translateX(-50%); text-align: center; font-size: 10px; color: #737887; white-space: nowrap; line-height: 1.3; }
+.ladder .labels span:first-child { transform: none; text-align: left; }
+.ladder .labels span:last-child { transform: translateX(-100%); text-align: right; }
+.ladder .labels b { display: block; font-size: 12px; color: #c9ccd6; }
+.ladder .labels .done b { color: #63d69f; }
+.ladder-note { margin: 4px 0 0; font-size: 12px; color: #aaaeba; }
+.ladder-note b { color: #f5c451; }
+</style>
+</head>
+<body class="demo">
+
+<h1>Pop-up du solde : perroquet et paliers</h1>
+<p class="sub">Un clic sur le <b>Solde</b> (barre du haut) ouvre cette fenêtre. Elle explique qu'à 0 € on peut se renflouer en cliquant sur le perroquet (débloqué pour tout le monde, 1 € par clic, 2 € avec l'article « Clic du perroquet ×2 » de la boutique), et montre les paliers : plus ton solde a été haut, plus tu peux cliquer par jour. <b>Les paliers sont modifiables à droite.</b></p>
+
+<div class="tabs">
+    <button class="tab active" data-v="a">A · Liste des paliers</button>
+    <button class="tab" data-v="b">B · Échelle</button>
+    <button class="pick" id="choose">✅ Je choisis celle-ci</button>
+</div>
+
+<div class="ctl">
+    <label>Mon solde <input type="number" id="bal" value="0" step="100"></label>
+    <label>Mon meilleur solde <input type="number" id="rec" value="12400" step="500"></label>
+    <label>Récupéré aujourd'hui <input type="number" id="done" value="320" step="10"></label>
+    <label>Boost acheté <select id="x2" style="width:auto"><option value="1">Aucun</option><option value="2">×2</option><option value="3">×3</option></select></label>
+</div>
+
+<div class="stage">
+    <div class="modal-content xp-modal-content" id="popup"></div>
+    <div class="editor">
+        <h3>✏️ Paliers</h3>
+        <p>Palier de solde à atteindre → clic du perroquet par jour.</p>
+        <div id="rows"></div>
+        <button class="add" id="add">+ Ajouter un palier</button>
+    </div>
+</div>
+
+<script>
+let variant = "a";
+let TIERS = [[0, 500], [5000, 750], [10000, 1000], [25000, 1500], [50000, 2500], [100000, 5000]];
+const fmt = n => Math.round(n).toLocaleString("fr-FR");
+const val = id => Number(document.getElementById(id).value) || 0;
+
+function renderEditor() {
+    document.getElementById("rows").innerHTML = TIERS.map(([need, cap], i) => `
+        <div class="row">
+            <input type="number" step="500" value="${need}" data-i="${i}" data-k="0" ${i === 0 ? "disabled title='Départ'" : ""}>
+            <span>→</span>
+            <input type="number" step="50" value="${cap}" data-i="${i}" data-k="1">
+            ${i === 0 ? "<span></span>" : `<button class="x" data-del="${i}">✕</button>`}
+        </div>`).join("");
+}
+
+function render() {
+    document.querySelectorAll(".tab[data-v]").forEach(t => t.classList.toggle("active", t.dataset.v === variant));
+    const tiers = [...TIERS].sort((a, b) => a[0] - b[0]);
+    const rec = Math.max(val("rec"), val("bal"));
+    const mult = val("x2") || 1;
+    const x2 = mult > 1;
+    let cur = 0;
+    tiers.forEach(([need], i) => { if (rec >= need) cur = i; });
+    const cap = tiers[cur][1];
+    const next = tiers[cur + 1];
+    const done = Math.min(val("done"), cap);
+
+    const tiersHtml = variant === "a"
+        ? (() => {
+            const n = tiers.length;
+            const frac = next ? Math.min(1, Math.max(0, (rec - tiers[cur][0]) / (next[0] - tiers[cur][0]))) : 0;
+            const fill = n > 1 ? (cur + frac) / (n - 1) * 100 : 100;
+            const list = tiers.map(([need, c], i) => {
+                const st = i < cur ? "done" : i === cur ? "current" : i === cur + 1 ? "next" : "locked";
+                const pct = frac * 100;
+                return `<li class="tier ${st}${i <= cur ? " done" : ""}">
+                    <span class="st">${i <= cur ? "✓" : "🔒"}</span>
+                    <span class="need">${i === 0 ? "Au départ" : `Palier <b>${fmt(need)} €</b>`}
+                        ${st === "next" ? `<span class="prog"><i style="width:${pct}%"></i></span>` : ""}</span>
+                    <span class="cap">Clique jusqu'à ${fmt(c)} €/j</span>
+                </li>`;
+            }).join("");
+            return `<div class="tiers-wrap">
+                <div class="vgauge"><div class="vtrack">
+                    <div class="vfill" style="height:${fill}%"></div>
+                    ${tiers.map((t, i) => `<span class="vdot${i < cur ? " done" : i === cur ? " done current" : ""}" style="top:${n > 1 ? i / (n - 1) * 100 : 0}%"></span>`).join("")}
+                </div></div>
+                <ul class="tiers">${list}</ul>
+            </div>`;
+        })()
+        : (() => {
+            const max = tiers[tiers.length - 1][0];
+            const pos = need => Math.min(100, Math.sqrt(need / max) * 100);
+            return `<div class="ladder">
+                <div class="track">
+                    <div class="fill" style="width:${pos(Math.min(rec, max))}%"></div>
+                    ${tiers.map(([need], i) => `<span class="stop${i <= cur ? " done" : ""}" style="left:${pos(need)}%"></span>`).join("")}
+                </div>
+                <div class="labels">${tiers.map(([need, c], i) => `<span class="${i <= cur ? "done" : ""}" style="left:${pos(need)}%"><b>${fmt(c)} €/j</b>${i === 0 ? "départ" : "palier " + fmt(need / 1000) + " k€"}</span>`).join("")}</div>
+            </div>
+            <p class="ladder-note">${next ? `Prochain palier : <b>${fmt(next[0])} €</b> → clique jusqu'à ${fmt(next[1])} €/j (encore ${fmt(next[0] - rec)} €).` : "Tous les paliers sont atteints !"}</p>`;
+        })();
+
+    document.getElementById("popup").innerHTML = `
+        <h2>💶 Ton solde</h2>
+        <div class="money-head">
+            <div><span>Solde actuel</span><strong>${fmt(val("bal"))} €</strong></div>
+        </div>
+        <div class="zero-tip">
+            <img src="assets/perroquet/wait-body.png" alt="">
+            <p>${val("bal") <= 0 ? "<b>Tu es à 0 € ?</b> Pas de panique !" : "<b>Plus d'argent ?</b> Pas de panique !"} Clique sur le perroquet : chaque clic te donne <b>${mult} €</b>, jusqu'à ton plafond du jour.<br>
+            ${x2 ? `<span class="x2">✓ Clic du perroquet ×${mult} activé</span>` : ""}</p>
+        </div>
+        <div class="today">
+            <div class="lbl"><span>Récupéré aujourd'hui</span><span><b>${fmt(done)} €</b> / ${fmt(cap)} €</span></div>
+            <div class="bar"><i style="width:${done / cap * 100}%"></i></div>
+        </div>
+        <p class="level-sidebar-title">🦜 Paliers du perroquet</p>
+        <p style="margin:0 0 10px;font-size:12px;color:#858a98">Atteins un palier de solde une seule fois et tu peux cliquer plus chaque jour, pour toujours (dans ce groupe).</p>
+        ${tiersHtml}
+        <p class="level-sidebar-title boost-title">🛍️ Booste tes clics</p>
+        <p style="margin:0 0 10px;font-size:12px;color:#858a98">Dans la boutique, des objets multiplient ce que te rapporte chaque clic sur le perroquet.</p>
+        <div class="boosts">
+            ${[[2, 30], [3, 80]].map(([m, price]) => `<div class="boost${mult >= m ? " owned" : ""}">
+                <span class="mult">×${m}</span>
+                <span class="what">Clic du perroquet ×${m} : ${m} € par clic</span>
+                <span class="price">${mult >= m ? "✓ Possédé" : price + " 🪙"}</span>
+            </div>`).join("")}
+        </div>
+        <button type="button" class="shop-link">Voir la boutique →</button>`;
+}
+
+document.querySelectorAll(".tab[data-v]").forEach(t => t.onclick = () => { variant = t.dataset.v; render(); });
+["bal", "rec", "done", "x2"].forEach(id => document.getElementById(id).addEventListener("input", render));
+document.getElementById("x2").onchange = render;
+document.getElementById("rows").addEventListener("input", e => {
+    const i = e.target.dataset.i, k = e.target.dataset.k;
+    if (i === undefined) return;
+    TIERS[i][k] = Number(e.target.value) || 0;
+    render();
+});
+document.getElementById("rows").addEventListener("click", e => {
+    const d = e.target.closest("[data-del]");
+    if (!d) return;
+    TIERS.splice(Number(d.dataset.del), 1);
+    renderEditor(); render();
+});
+document.getElementById("add").onclick = () => {
+    const last = TIERS[TIERS.length - 1];
+    TIERS.push([last[0] * 2, last[1] * 2]);
+    renderEditor(); render();
+};
+document.getElementById("choose").onclick = () => {
+    const tiers = [...TIERS].sort((a, b) => a[0] - b[0]).map(([n, c], i) => i === 0 ? `départ ${c} €/j` : `palier ${n} € → ${c} €/j`).join(", ");
+    const text = `Pop-up du solde : version ${variant === "a" ? "A, liste" : "B, échelle"}. Paliers : ${tiers}. Boutique : clic ×2 (30 🪙) et clic ×3 (80 🪙).`;
+    navigator.clipboard?.writeText(text).catch(() => {});
+    const t = document.createElement("div");
+    t.className = "copied";
+    t.textContent = "✅ Copié : " + text;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3500);
+};
+renderEditor();
+render();
+</script>
+</body>
+</html>

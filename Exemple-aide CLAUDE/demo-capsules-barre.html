@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Flamme, solde et points en capsules (propositions)</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body.demo { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; margin: 0; display: block; min-height: 0; }
+.demo h1 { font-size: 26px; margin: 0 0 6px; }
+.demo .sub { color: #858a98; margin: 0 0 16px; max-width: 820px; font-size: 14px; line-height: 1.5; }
+.demo .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; position: sticky; top: 0; background: #0f1117; padding: 10px 0; z-index: 30; align-items: center; }
+.demo .tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; font: inherit; }
+.demo .tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.demo .pick { margin-left: auto; background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; padding: 10px 16px; border-radius: 12px; cursor: pointer; font: inherit; font-weight: 900; }
+.demo .desc { color: #aaaeba; font-size: 14px; max-width: 760px; margin-bottom: 18px; line-height: 1.5; }
+.demo .desc b { color: #e6e8ee; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 18px; }
+.controls button { border: 1px solid #343846; background: #1c202c; color: #c9ccd6; padding: 8px 14px; border-radius: 10px; cursor: pointer; font: inherit; font-size: 13px; font-weight: 700; }
+.state-title { color: #858a98; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; margin: 22px 0 8px; }
+.copied { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1c202c; border: 1px solid #63d69f; padding: 12px 18px; border-radius: 14px; font-weight: 700; z-index: 99; max-width: calc(100% - 32px); }
+
+.demo .navbar { border: 1px solid #292d39; border-radius: 14px; gap: 30px; }
+.demo .navbar nav { flex: 1; }
+.demo .user-area { margin-left: auto; gap: 10px; }
+
+/* ---------- Jauge XP (version A choisie) ---------- */
+.xp-a { display: flex; flex-direction: column; gap: 6px; width: 170px; padding: 7px 12px; border: 1px solid rgba(200,107,255,.3); border-radius: 12px; background: rgba(108,99,255,.1); font-family: inherit; color: inherit; cursor: pointer; }
+.xp-a .top { display: flex; justify-content: space-between; align-items: baseline; line-height: 1; white-space: nowrap; }
+.xp-a .lv { color: #c86bff; font-size: 13px; font-weight: 800; }
+.xp-a .pts { color: #858a98; font-size: 11px; font-weight: 700; }
+.xp-a .bar { height: 7px; border-radius: 99px; background: #262a38; overflow: hidden; }
+.xp-a .bar i { display: block; height: 100%; width: 45%; border-radius: inherit; background: linear-gradient(90deg, #6c63ff, #c86bff); }
+
+/* Couleurs propres à chaque capsule */
+.cap { --c: 200,107,255; --t: #c86bff; }
+.cap.fire { --c: 255,159,67; --t: #ff9f43; }
+.cap.money { --c: 99,214,159; --t: #63d69f; }
+.cap.coins { --c: 245,196,81; --t: #f5c451; }
+
+/* Petite animation quand la valeur change */
+@keyframes bump { 35% { transform: scale(1.12); } }
+.bump { animation: bump .45s ease; display: inline-block; }
+
+/* ---------- A : capsules assorties (titre + valeur) ---------- */
+.cap-a { display: flex; flex-direction: column; justify-content: center; gap: 6px; height: 44px; box-sizing: border-box; padding: 7px 12px; border: 1px solid rgba(var(--c), .3); border-radius: 12px; background: rgba(var(--c), .08); cursor: pointer; white-space: nowrap; transition: border-color .2s, background .2s; }
+.cap-a:hover { border-color: var(--t); background: rgba(var(--c), .15); }
+.cap-a small { color: #858a98; font-size: 11px; font-weight: 700; line-height: 1; }
+.cap-a b { color: var(--t); font-size: 14px; font-weight: 800; line-height: 1; }
+
+/* ---------- B : pilules compactes (icône + valeur) ---------- */
+.cap-b { display: flex; align-items: center; gap: 7px; height: 44px; box-sizing: border-box; padding: 0 14px; border: 1px solid rgba(var(--c), .3); border-radius: 12px; background: rgba(var(--c), .08); cursor: pointer; white-space: nowrap; transition: border-color .2s, background .2s; }
+.cap-b:hover { border-color: var(--t); background: rgba(var(--c), .15); }
+.cap-b .ic { font-size: 17px; }
+.cap-b b { color: var(--t); font-size: 15px; font-weight: 800; }
+.cap-b small { color: #858a98; font-size: 11px; font-weight: 700; }
+
+/* ---------- C : une seule capsule groupée avec séparateurs ---------- */
+.group-c { display: flex; align-items: center; height: 44px; box-sizing: border-box; border: 1px solid #2c3040; border-radius: 12px; background: rgba(255,255,255,.03); overflow: hidden; }
+.group-c .seg { display: flex; flex-direction: column; justify-content: center; gap: 6px; height: 100%; padding: 0 14px; white-space: nowrap; cursor: pointer; transition: background .2s; }
+.group-c .seg:hover { background: rgba(var(--c), .1); }
+.group-c .seg + .seg { border-left: 1px solid #2c3040; }
+.group-c small { color: #858a98; font-size: 11px; font-weight: 700; line-height: 1; }
+.group-c b { color: var(--t); font-size: 14px; font-weight: 800; line-height: 1; }
+.group-c .xp-in { width: 150px; }
+.group-c .xp-in .top { display: flex; justify-content: space-between; align-items: baseline; line-height: 1; }
+.group-c .xp-in .bar { height: 7px; border-radius: 99px; background: #262a38; overflow: hidden; }
+.group-c .xp-in .bar i { display: block; height: 100%; width: 45%; border-radius: inherit; background: linear-gradient(90deg, #6c63ff, #c86bff); }
+
+.flame { display: inline-block; animation: streak-flicker 1.2s ease-in-out infinite alternate; }
+</style>
+</head>
+<body class="demo">
+
+<h1>Flamme, solde et points en capsules</h1>
+<p class="sub">
+    3 propositions pour habiller la flamme, le solde et les points comme la jauge d'XP (version A).
+    Chaque élément garde sa couleur actuelle : orange pour la flamme, vert pour le solde, jaune pour les points.
+</p>
+
+<div class="tabs">
+    <button class="tab active" data-v="A">A · Capsules assorties</button>
+    <button class="tab" data-v="B">B · Pilules compactes</button>
+    <button class="tab" data-v="C">C · Une seule capsule</button>
+    <button class="pick" id="choose">✅ Je choisis celle-ci</button>
+</div>
+
+<div class="desc" id="desc"></div>
+
+<div class="controls">
+    <button id="win">Gagner un pari (+250 €, +40 🪙)</button>
+    <button id="day">Jour de série en plus</button>
+</div>
+
+<div class="state-title">Barre du haut</div>
+<div id="bar"></div>
+
+
+<script>
+const DESCS = {
+    A: "<b>Capsules assorties</b> : chaque élément a sa capsule, de la même hauteur que la jauge XP, avec un petit titre gris (Série, Solde, Points) et la valeur en couleur dessous. Le plus proche de la jauge choisie.",
+    B: "<b>Pilules compactes</b> : une icône et la valeur sur une seule ligne (🔥 4 jours, 💰 1 250 €, 🪙 320). Prend moins de place, plus « jeu ».",
+    C: "<b>Une seule capsule</b> : XP, série, solde et points regroupés dans un seul bloc avec des traits de séparation. Très rangé, comme un tableau de bord."
+};
+
+let version = "A";
+let balance = 1250;
+let coins = 320;
+let streak = 4;
+let changed = null;
+
+const money = n => n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+const bump = key => changed === key ? " bump" : "";
+
+const xpA = `<button class="xp-a"><span class="top"><span class="lv">Niveau 3</span><span class="pts">45 / 100 XP</span></span><span class="bar"><i></i></span></button>`;
+
+function items() {
+    if (version === "A") {
+        return `${xpA}
+            <div class="cap cap-a fire"><small>Série</small><b class="${bump("streak")}"><span class="flame">🔥</span> ${streak} jours</b></div>
+            <div class="cap cap-a money"><small>Solde</small><b class="${bump("money")}">${money(balance)}</b></div>
+            <div class="cap cap-a coins"><small>Points</small><b class="${bump("coins")}">${coins} 🪙</b></div>`;
+    }
+    if (version === "B") {
+        return `${xpA}
+            <div class="cap cap-b fire"><span class="ic flame">🔥</span><b class="${bump("streak")}">${streak}</b><small>jours</small></div>
+            <div class="cap cap-b money"><span class="ic">💰</span><b class="${bump("money")}">${money(balance)}</b></div>
+            <div class="cap cap-b coins"><span class="ic">🪙</span><b class="${bump("coins")}">${coins}</b></div>`;
+    }
+    return `<div class="group-c">
+            <div class="seg cap xp-in"><span class="top"><b>Niveau 3</b><small>45 / 100 XP</small></span><span class="bar"><i></i></span></div>
+            <div class="seg cap fire"><small>Série</small><b class="${bump("streak")}"><span class="flame">🔥</span> ${streak}</b></div>
+            <div class="seg cap money"><small>Solde</small><b class="${bump("money")}">${money(balance)}</b></div>
+            <div class="seg cap coins"><small>Points</small><b class="${bump("coins")}">${coins} 🪙</b></div>
+        </div>`;
+}
+
+function render() {
+    document.getElementById("bar").innerHTML = `<header class="navbar">
+        <div class="logo"><span>BET</span>LAB</div>
+        <nav>
+            <button class="nav-button active">Paris</button>
+            <button class="nav-button">Historique</button>
+            <button class="nav-button">Missions</button>
+            <button class="nav-button">Boutique</button>
+        </nav>
+        <div class="user-area">
+            ${items()}
+            <button class="nav-button profile-nav-button">👤 Profil</button>
+        </div>
+    </header>`;
+    document.getElementById("desc").innerHTML = DESCS[version];
+    changed = null;
+}
+
+document.getElementById("win").onclick = () => { balance += 250; coins += 40; changed = "money"; render(); changed = "coins"; document.querySelectorAll(".coins b").forEach(b => { b.classList.remove("bump"); void b.offsetWidth; b.classList.add("bump"); }); changed = null; };
+document.getElementById("day").onclick = () => { streak += 1; changed = "streak"; render(); };
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === t));
+    version = t.dataset.v;
+    render();
+});
+
+document.getElementById("choose").onclick = () => {
+    const text = `Flamme, solde et points en capsules : je choisis la version ${version}`;
+    navigator.clipboard && navigator.clipboard.writeText(text).catch(() => {});
+    const t = document.createElement("div");
+    t.className = "copied";
+    t.textContent = "✅ Copié : " + text;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+};
+
+render();
+</script>
+</body>
+</html>

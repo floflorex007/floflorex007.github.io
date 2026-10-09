@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Journal sur la page Paris</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body.demo { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 60px; margin: 0; display: block; min-height: 0; }
+.demo h1 { font-size: 26px; margin: 0 0 6px; }
+.demo .sub { color: #858a98; margin: 0 0 16px; max-width: 900px; font-size: 14px; line-height: 1.5; }
+.controls { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; padding: 14px 16px; margin-bottom: 18px; max-width: 1100px; border-radius: 14px; border: 1px solid #2c3040; background: #151821; }
+.ctl { display: grid; gap: 6px; font-size: 12px; color: #aaaeba; }
+.ctl select { padding: 8px 10px; border-radius: 10px; border: 1px solid #343846; background: #11131a; color: #e6e8ee; font: inherit; font-size: 13px; }
+.pick { margin-left: auto; border: none; border-radius: 12px; padding: 12px 18px; font: inherit; font-weight: 900; color: white; background: linear-gradient(135deg, #2fb37a, #4fd39a); cursor: pointer; }
+.copied { color: #63d69f; font-size: 13px; font-weight: 800; }
+
+/* Page Paris (ordinateur), simplifiée au centre */
+.page { display: flex; gap: 24px; align-items: flex-start; max-width: 1100px; }
+.page .left-column { position: static; max-height: none; overflow: visible; }
+.mid { flex: 1; display: grid; gap: 14px; }
+.bcard { border: 1px solid #2c3040; background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border-radius: 18px; padding: 16px; }
+.bcard h3 { margin: 0 0 4px; font-size: 16px; }
+.bcard .by { margin: 0 0 12px; font-size: 12px; color: #737887; }
+.odds { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.odd { display: flex; justify-content: space-between; padding: 10px 12px; border-radius: 12px; border: 1px solid #343846; background: #181b24; color: #e6e8ee; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; transition: border-color .15s, background .15s; }
+.odd b { color: #a59fff; }
+.odd:hover { border-color: #6c63ff; }
+.odd.on { border-color: #c86bff; background: rgba(200,107,255,.12); }
+
+/* Ticket simplifié (la vraie fenêtre de mise est dessinée par app.js) */
+.tk-leg { display: flex; justify-content: space-between; gap: 8px; padding: 8px 10px; margin-bottom: 6px; border-radius: 10px; background: #11131a; font-size: 13px; }
+.tk-leg b { color: #a59fff; }
+.tk-stake { display: flex; gap: 8px; margin-top: 10px; }
+.tk-stake input { flex: 1; min-width: 0; padding: 9px 10px; border-radius: 10px; border: 1px solid #343846; background: #11131a; color: #e6e8ee; font: inherit; }
+.tk-stake button { border: none; border-radius: 10px; padding: 9px 14px; background: #6c63ff; color: white; font: inherit; font-weight: 900; }
+
+/* =========================================================
+   Journal compact, sous le classement
+   ========================================================= */
+.journal { border: 1px solid #2c3040; background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border-radius: 18px; padding: 14px 14px 10px; }
+.journal .jh { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 14px; font-weight: 900; }
+.journal .jh .wk { margin-left: auto; color: #737887; font-size: 11px; font-weight: 700; }
+.jline { display: flex; align-items: center; gap: 8px; padding: 7px 4px; border-top: 1px solid #23262f; font-size: 13px; }
+.jline:first-of-type { border-top: none; }
+.jline .ico { width: 18px; text-align: center; flex-shrink: 0; }
+.jline .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.jline .who { color: #c9c5ff; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.jline .eye { border: 1px solid #343846; background: #1c202c; color: #c9ccd6; border-radius: 8px; padding: 3px 7px; font-size: 11px; cursor: pointer; }
+.jline .eye:hover { border-color: #6c63ff; }
+.jline.mine .who { color: #63d69f; }
+/* Pastille NEW : nouveauté pas encore vue (disparaît après l'aperçu) */
+.jnew { flex-shrink: 0; padding: 1px 6px; border-radius: 999px; background: #3d8bff; color: white; font-size: 9px; font-weight: 900; letter-spacing: .5px; box-shadow: 0 0 10px rgba(61,139,255,.45); animation: jnew-pulse 2s ease-in-out infinite; }
+@keyframes jnew-pulse { 50% { box-shadow: 0 0 2px rgba(61,139,255,.2); } }
+.journal .jh .count { padding: 1px 7px; border-radius: 999px; background: #3d8bff; color: white; font-size: 10px; font-weight: 900; }
+.jvote { display: flex; align-items: center; gap: 8px; margin: 2px 0 6px; padding: 8px 10px; border-radius: 12px; border: 1px solid rgba(245,196,81,.35); background: rgba(245,196,81,.07); font-size: 12px; font-weight: 800; color: #f5c451; }
+.jvote button { margin-left: auto; border: none; border-radius: 8px; padding: 5px 10px; background: #f5c451; color: #1a1408; font: inherit; font-size: 12px; font-weight: 900; cursor: pointer; }
+.jvote.done { color: #aaaeba; border-color: #2c3040; background: #151821; }
+.jmore { display: block; width: 100%; margin-top: 4px; padding: 6px; border: none; background: none; color: #858a98; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.jmore:hover { color: #e6e8ee; }
+
+/* Variante B : encore plus compacte, une pastille par nouveauté */
+.journal.chips .jlist { display: flex; flex-wrap: wrap; gap: 6px; }
+.journal.chips .jline { border: 1px solid #2c3040; border-radius: 999px; padding: 5px 10px 5px 8px; background: #151821; }
+.journal.chips .jline .t { max-width: 150px; }
+.journal.chips .jline .who { display: none; }
+
+/* Pop-up (aperçu d'une nouveauté ou vote) */
+.popup-back { position: fixed; inset: 0; z-index: 400; background: rgba(0,0,0,.55); display: grid; place-items: center; animation: fade .2s ease-out; }
+@keyframes fade { from { opacity: 0; } }
+.popup { width: min(340px, 90%); background: #181b24; border: 1px solid #343846; border-radius: 16px; padding: 16px; position: relative; animation: ticket-pop .25s ease-out; box-shadow: 0 20px 50px rgba(0,0,0,.6); }
+.popup .x { position: absolute; top: 10px; right: 12px; border: none; background: none; color: #858a98; font-size: 20px; cursor: pointer; }
+.popup h4 { margin: 0 0 6px; font-size: 16px; padding-right: 20px; }
+.popup p { margin: 0 0 8px; font-size: 13px; color: #aaaeba; }
+.popup .shot { height: 120px; display: grid; place-items: center; margin: 10px 0; border-radius: 12px; background: #11131a; font-size: 40px; }
+.popup .opt { display: block; width: 100%; margin-bottom: 6px; padding: 10px 12px; border-radius: 10px; border: 1px solid #343846; background: #11131a; color: #e6e8ee; font: inherit; font-size: 13px; font-weight: 700; text-align: left; cursor: pointer; }
+.popup .opt.sel { border-color: #f5c451; background: rgba(245,196,81,.1); }
+.popup .go { width: 100%; margin-top: 6px; border: none; border-radius: 10px; padding: 10px; background: #f5c451; color: #1a1408; font: inherit; font-weight: 900; cursor: pointer; }
+.popup .go:disabled { opacity: .4; cursor: default; }
+</style>
+</head>
+<body class="demo">
+
+<h1>Journal des nouveautés sur la page Paris</h1>
+<p class="sub">Le journal quitte l'onglet Aide app et passe sous le classement, en version compacte, visible par tous. Il ne montre que les nouveautés de la semaine (fonctionnalités ✨ et design 🎨), sans aperçu ni bugs corrigés. <b>Clique sur une cote</b> : la fenêtre de mise apparaît entre le classement et le journal, et le journal glisse vers le bas. Enlève la cote : il remonte. (Vue ordinateur.)</p>
+
+<div class="controls">
+    <label class="ctl">Style du journal
+        <select id="c-style">
+            <option value="list">A · Liste compacte</option>
+            <option value="chips">B · Pastilles (encore plus court)</option>
+        </select>
+    </label>
+    <label class="ctl">Jour simulé
+        <select id="c-day">
+            <option value="normal">Un jour normal</option>
+            <option value="vendredi">Vendredi (vote)</option>
+        </select>
+    </label>
+    <span class="copied" id="copied"></span>
+    <button class="pick" id="choose">✅ Je choisis</button>
+</div>
+
+<div class="page">
+    <div class="left-column">
+        <aside class="leaderboard-sidebar">
+            <div class="leaderboard-header"><span>🏆</span><span>Top Parieurs</span></div>
+            <div class="leaderboard-row"><span class="leaderboard-rank">1</span><span class="leaderboard-medal">🥇</span><span class="leaderboard-pseudo">Léa</span><span class="leaderboard-balance">2 310 €</span></div>
+            <div class="leaderboard-row"><span class="leaderboard-rank">2</span><span class="leaderboard-medal">🥈</span><span class="leaderboard-pseudo">Emma</span><span class="leaderboard-balance">1 840 €</span></div>
+            <div class="leaderboard-row leaderboard-row--me"><span class="leaderboard-rank">3</span><span class="leaderboard-medal">🥉</span><span class="leaderboard-pseudo">Vincent</span><span class="leaderboard-balance">1 520 €</span></div>
+            <div class="leaderboard-row"><span class="leaderboard-rank">4</span><span class="leaderboard-medal"></span><span class="leaderboard-pseudo">Lucas</span><span class="leaderboard-balance">1 310 €</span></div>
+            <div class="leaderboard-row"><span class="leaderboard-rank">5</span><span class="leaderboard-medal"></span><span class="leaderboard-pseudo">Hugo</span><span class="leaderboard-balance">1 050 €</span></div>
+        </aside>
+
+        <aside class="bet-ticket" id="ticket"></aside>
+
+        <section class="journal" id="journal"></section>
+    </div>
+
+    <div class="mid" id="bets"></div>
+</div>
+
+<script>
+const ME = "Vincent";
+const esc = t => String(t).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+const BETS = [
+    { q: "Qui gagne le match ce soir ?", by: "Léa", opts: [["Paris", 1.8], ["Lyon", 2.4], ["Nul", 3.1]] },
+    { q: "Il pleut demain à midi ?", by: "Hugo", opts: [["Oui", 2.2], ["Non", 1.6]] },
+    { q: "Combien de buts dans le match ?", by: "Emma", opts: [["0 à 2", 1.9], ["3 ou plus", 2.0]] }
+];
+const JOURNAL = [
+    // Seulement les nouveautés de la semaine : fonctionnalités (✨) et design (🎨), pas les bugs corrigés.
+    { ico: "✨", t: "Paris combinés", by: "Hugo" },
+    { ico: "🎨", t: "Nouvelle barre du haut", by: null },
+    { ico: "✨", t: "Pseudos animés en boutique", by: "Vincent" }
+];
+const VOTE = ["Paris combinés", "Nouvelle barre du haut", "Confettis de victoire"];
+
+let legs = [];            // [betIndex, optIndex]
+let style = "list";
+let day = "normal";
+let voteSel = null, voted = false;
+
+function renderBets() {
+    document.getElementById("bets").innerHTML = BETS.map((b, bi) => `<div class="bcard">
+        <h3>${esc(b.q)}</h3><p class="by">Créé par ${esc(b.by)}</p>
+        <div class="odds">${b.opts.map(([l, o], oi) => `<button class="odd${legs.some(([x, y]) => x === bi && y === oi) ? " on" : ""}" data-b="${bi}" data-o="${oi}"><span>${esc(l)}</span><b>${o.toFixed(2)}</b></button>`).join("")}</div>
+    </div>`).join("");
+}
+
+function renderTicket() {
+    document.body.classList.toggle("ticket-has-legs", legs.length > 0);
+    if (!legs.length) return;
+    const total = legs.reduce((m, [b, o]) => m * BETS[b].opts[o][1], 1);
+    document.getElementById("ticket").innerHTML = `
+        <div class="ticket-header"><span class="t-kind">${legs.length > 1 ? "Combiné" : "Mise simple"}</span></div>
+        ${legs.map(([b, o]) => `<div class="tk-leg"><span>${esc(BETS[b].opts[o][0])}</span><b>${BETS[b].opts[o][1].toFixed(2)}</b></div>`).join("")}
+        <p style="margin:8px 0 0;font-size:12px;color:#858a98">Cote totale <b style="color:#e6e8ee">${total.toFixed(2)}</b> · Mise de 10 € à 275 €</p>
+        <div class="tk-stake"><input placeholder="Ta mise"><button>Miser</button></div>`;
+}
+
+function renderJournal() {
+    const j = document.getElementById("journal");
+    j.className = "journal" + (style === "chips" ? " chips" : "");
+    const vote = day !== "vendredi" ? ""
+        : voted ? `<div class="jvote done">✓ Tu as voté pour la nouveauté de la semaine</div>`
+        : `<div class="jvote">🏆 Vote de la semaine <button data-vote>Voter +5 🪙</button></div>`;
+    j.innerHTML = `<div class="jh">📖 Nouveautés<span class="wk">cette semaine</span></div>
+        ${vote}
+        <div class="jlist">${JOURNAL.map(e => `<div class="jline${e.by === ME ? " mine" : ""}" title="${esc(e.t)}">
+            <span class="jnew">NEW</span><span class="t">${esc(e.t)}</span>
+            <span class="who">${e.by ? "#" + esc(e.by) : "Équipe"}</span>
+        </div>`).join("")}</div>`;
+}
+
+// Le journal glisse vers sa nouvelle place (même principe que le ticket dans app.js).
+function slideJournal(change) {
+    const j = document.getElementById("journal");
+    const before = j.getBoundingClientRect().top;
+    change();
+    const delta = before - j.getBoundingClientRect().top;
+    if (delta) j.animate([{ transform: `translateY(${delta}px)` }, { transform: "none" }], { duration: 380, easing: "cubic-bezier(.2,.8,.2,1)" });
+}
+
+function popup(html, onClick) {
+    document.querySelector(".popup-back")?.remove();
+    const back = document.createElement("div");
+    back.className = "popup-back";
+    back.innerHTML = `<div class="popup"><button class="x" data-close>×</button>${html}</div>`;
+    back.addEventListener("click", e => {
+        if (e.target === back || e.target.closest("[data-close]")) return back.remove();
+        onClick?.(e, back);
+    });
+    document.body.appendChild(back);
+}
+
+function votePopup() {
+    popup(`<h4>🏆 Meilleure nouveauté de la semaine</h4><p>L'auteur de l'idée élue gagne +100 🪙. Un seul vote, définitif.</p>
+        ${VOTE.map((v, i) => `<button class="opt${voteSel === i ? " sel" : ""}" data-opt="${i}">${esc(v)}</button>`).join("")}
+        <button class="go" data-go ${voteSel === null ? "disabled" : ""}>Voter +5 🪙</button>`,
+    (e, back) => {
+        const o = e.target.closest("[data-opt]");
+        if (o) { voteSel = Number(o.dataset.opt); votePopup(); }
+        if (e.target.closest("[data-go]")) { voted = true; back.remove(); renderJournal(); }
+    });
+}
+
+document.getElementById("bets").addEventListener("click", e => {
+    const b = e.target.closest(".odd");
+    if (!b) return;
+    const bi = Number(b.dataset.b), oi = Number(b.dataset.o);
+    slideJournal(() => {
+        const same = legs.findIndex(([x, y]) => x === bi && y === oi);
+        if (same >= 0) legs.splice(same, 1);
+        else legs = legs.filter(([x]) => x !== bi).concat([[bi, oi]]).slice(-4);
+        renderTicket();
+    });
+    renderBets();
+});
+
+document.getElementById("journal").addEventListener("click", e => {
+    if (e.target.closest("[data-vote]")) votePopup();
+});
+
+document.getElementById("c-style").onchange = e => { style = e.target.value; renderJournal(); };
+document.getElementById("c-day").onchange = e => { day = e.target.value; renderJournal(); };
+document.getElementById("choose").onclick = () => {
+    const text = `Journal sur la page Paris : ${style === "list" ? "A, liste compacte" : "B, pastilles"}.`;
+    navigator.clipboard?.writeText(text).then(
+        () => document.getElementById("copied").textContent = "Copié ! Colle-le à Claude.",
+        () => document.getElementById("copied").textContent = text
+    );
+};
+
+// demo-journal-accueil.html#mise : une cote déjà choisie.
+if (location.hash === "#mise") legs = [[0, 0], [1, 1]];
+renderBets();
+renderTicket();
+renderJournal();
+</script>
+</body>
+</html>

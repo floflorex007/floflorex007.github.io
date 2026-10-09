@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Coffre compact</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body.demo { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; margin: 0; display: block; min-height: 0; }
+.demo h1 { font-size: 26px; margin: 0 0 6px; }
+.demo .sub { color: #858a98; margin: 0 0 16px; max-width: 900px; font-size: 14px; line-height: 1.5; }
+.demo .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
+.demo .tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; font: inherit; }
+.demo .tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.demo .pick { margin-left: auto; background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; padding: 10px 16px; border-radius: 12px; cursor: pointer; font: inherit; font-weight: 900; }
+.demo .desc { color: #aaaeba; font-size: 14px; max-width: 820px; margin: 0 0 16px; line-height: 1.5; }
+.demo .desc b { color: #e6e8ee; }
+.demo .again { border: 1px solid #343846; background: #1c202c; color: #c9ccd6; padding: 8px 14px; border-radius: 10px; cursor: pointer; font: inherit; font-size: 13px; font-weight: 700; margin-bottom: 16px; }
+.copied { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1c202c; border: 1px solid #63d69f; padding: 12px 18px; border-radius: 14px; font-weight: 700; z-index: 99; }
+.demo .navbar { position: relative; border: 1px solid #292d39; border-radius: 14px; }
+.demo .group-menu, .demo #group-requests-dot { display: none; }
+
+/* =========================================================
+   Coffre compact, à gauche de la jauge d'XP
+   ========================================================= */
+.chest-mini { order: -2; /* avant la jauge d'XP (elle-même en order: -1) */ box-sizing: border-box; height: 44px; border: 1px solid rgba(245,196,81,.55); border-radius: 12px; background: rgba(245,196,81,.1); color: #f5c451; font: inherit; cursor: pointer; white-space: nowrap; animation: chest-mini-glow 2s ease-in-out infinite; transition: opacity .4s, transform .4s, width .4s, padding .4s, margin .4s; }
+.chest-mini:hover { border-color: #f5c451; background: rgba(245,196,81,.18); }
+@keyframes chest-mini-glow { 50% { box-shadow: 0 0 16px rgba(245,196,81,.4); } }
+.chest-mini .ico { display: inline-block; font-size: 18px; line-height: 1; animation: chest-wiggle 2.4s ease-in-out infinite; }
+.chest-mini.opening .ico { animation: chest-shake 1s cubic-bezier(.4,0,.2,1) forwards; }
+.chest-mini.gone { opacity: 0; transform: scale(.8); pointer-events: none; }
+
+/* A : capsule assortie aux autres (« Coffre » en haut, « 🎁 Ouvrir » dessous) */
+.chest-a { display: grid; grid-template-columns: auto auto; align-content: center; column-gap: 5px; row-gap: 5px; padding: 7px 12px; text-align: left; }
+.chest-a .lbl { grid-column: 1 / -1; color: #858a98; font-size: 11px; font-weight: 700; line-height: 1; }
+.chest-a .ico { font-size: 14px; }
+.chest-a .txt { font-size: 14px; font-weight: 800; line-height: 1; }
+
+/* B : icône seule, carrée, avec un point rouge */
+.chest-b { position: relative; width: 44px; display: grid; place-items: center; padding: 0; }
+.chest-b .ico { font-size: 22px; }
+.chest-b .txt { display: none; }
+.chest-b::after { content: ""; position: absolute; top: -3px; right: -3px; width: 10px; height: 10px; border-radius: 50%; background: #ff5c5c; box-shadow: 0 0 8px #ff5c5c; }
+.chest-b.won { width: auto; padding: 0 10px; }
+.chest-b.won .txt { display: inline; font-size: 14px; font-weight: 800; }
+.chest-b.won::after { display: none; }
+
+/* C : bouton doré plein, « 🎁 Coffre du jour » avec un reflet */
+.chest-c { position: relative; overflow: hidden; display: flex; align-items: center; gap: 7px; padding: 0 14px; border: none; background: linear-gradient(135deg, #e8a92a, #ffd36e); color: #2a1d05; font-size: 13px; font-weight: 900; }
+.chest-c::before { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.55) 50%, transparent 70%); transform: translateX(-100%); animation: chest-shine 2.6s ease-in-out infinite; }
+@keyframes chest-shine { 60%, 100% { transform: translateX(100%); } }
+.chest-c:hover { background: linear-gradient(135deg, #f0b43a, #ffdc85); }
+
+.chest-pop-text { animation: chest-text-in .5s cubic-bezier(.2,.8,.2,1); }
+@keyframes chest-text-in { from { opacity: 0; transform: translateY(5px); } }
+.coin-fly { position: fixed; z-index: 300; font-size: 18px; pointer-events: none; }
+</style>
+</head>
+<body class="demo">
+
+<h1>Coffre du jour compact, à gauche de la jauge d'XP</h1>
+<p class="sub">Le grand coffre de la colonne de droite devient une petite capsule dans la barre du haut, juste avant ton niveau. Il n'apparaît que quand il peut être ouvert. <b>Clique dessus</b> : il tremble, affiche ton gain, les pièces volent vers « Points », puis il disparaît jusqu'à demain. (Vue ordinateur.)</p>
+
+<div class="tabs">
+    <button class="tab active" data-v="a">A · Capsule assortie</button>
+    <button class="tab" data-v="b">B · Icône seule</button>
+    <button class="tab" data-v="c">C · Bouton doré</button>
+    <button class="pick" id="choose">✅ Je choisis celle-ci</button>
+</div>
+<p class="desc" id="desc"></p>
+<button class="again" id="again">↺ Faire revenir le coffre</button>
+
+<header class="navbar">
+
+        <div class="logo">
+            <span>BET</span>LAB
+        </div>
+
+
+        <!-- Sélecteur du groupe privé en cours -->
+
+        <div class="group-switcher">
+
+            <button
+                type="button"
+                id="group-switcher-button"
+                class="group-switcher-button"
+            >
+                👥
+                <span id="group-switcher-name">Groupe</span>
+                ▾
+                <span
+                    id="group-requests-dot"
+                    class="group-requests-dot hidden"
+                ></span>
+            </button>
+
+            <div
+                id="group-menu"
+                class="group-menu hidden"
+            ></div>
+
+        </div>
+
+
+        <nav>
+
+            <button
+                class="nav-button active"
+                data-page="bets-page"
+            >
+                Paris
+            </button>
+
+
+            <button
+                class="nav-button"
+                data-page="my-bets-page"
+            >
+                Historique
+            </button>
+
+            <!-- Téléphone seulement : bouton rond « + » (créer un pari) -->
+            <button
+                type="button"
+                id="nav-create-button"
+                class="nav-create-button"
+                aria-label="Créer un pari"
+            >
+                +
+            </button>
+
+
+            <button
+                class="nav-button"
+                data-page="missions-page"
+            >
+                Missions
+            </button>
+
+
+            <button
+                class="nav-button"
+                data-page="shop-page"
+            >
+                Boutique
+            </button>
+
+
+            <!-- Bêta-testeurs et admin seulement (voir aide-app.sql) -->
+            <button
+                class="nav-button hidden"
+                id="beta-nav-button"
+                data-page="beta-page"
+            >
+                Aide app
+                <span
+                    id="beta-nav-dot"
+                    class="beta-nav-dot hidden"
+                ></span>
+            </button>
+
+
+            <button
+                class="nav-button hidden"
+                id="admin-nav-button"
+                data-page="admin-page"
+            >
+                Message
+            </button>
+
+            <!-- Téléphone seulement : trait qui glisse sous l'onglet actif -->
+            <span
+                class="nav-indicator"
+                aria-hidden="true"
+            ></span>
+
+        </nav>
+
+
+        <div class="user-area">
+
+            <div
+                id="streak-widget"
+                class="streak-widget hidden"
+                title="Ta série de connexions : clique pour en savoir plus"
+                tabindex="0"
+            >
+                <!-- Ordinateur seulement : titre de la capsule -->
+                <span class="streak-label">Série</span>
+                <span class="streak-flame">🔥</span>
+                <strong id="streak-count">0</strong>
+                <!-- Ordinateur seulement -->
+                <span
+                    id="streak-unit"
+                    class="streak-unit"
+                >
+                    jours
+                </span>
+            </div>
+
+            <!-- Jauge d'XP de la barre du haut (ouvre la fenêtre du niveau) :
+                 petite sur téléphone, capsule plus large sur ordinateur (version A de demo-jauge-xp.html) -->
+            <button
+                type="button"
+                id="xp-mini"
+                class="xp-mini"
+                aria-label="Ton niveau"
+            >
+                <span class="xp-mini-top">
+
+                    <span
+                        id="xp-mini-label"
+                        class="xp-mini-label"
+                    >
+                        Niv. 1
+                    </span>
+
+                    <!-- Ordinateur seulement -->
+                    <span
+                        id="xp-mini-xp"
+                        class="xp-mini-xp"
+                    >
+                        0 / 100 XP
+                    </span>
+
+                    <!-- Ordinateur seulement, niveau à débloquer -->
+                    <span
+                        id="xp-mini-unlock"
+                        class="xp-mini-unlock"
+                    >
+                        ⭐ Débloquer niv. 2
+                    </span>
+
+                </span>
+                <span class="xp-mini-bar">
+                    <span id="xp-mini-fill"></span>
+                </span>
+            </button>
+
+
+            <div class="balance">
+
+                <span>Solde</span>
+
+                <strong id="balance">
+                    1 000,00 €
+                </strong>
+
+            </div>
+
+
+            <div class="balance points-balance">
+
+                <span>Points</span>
+
+                <strong id="points-balance">
+                    0 🪙
+                </strong>
+
+            </div>
+
+
+            <button
+                id="profile-nav-button"
+                class="nav-button profile-nav-button"
+                data-page="profile-page"
+            >
+                👤 Profil
+            </button>
+
+        </div>
+
+    </header>
+
+<script>
+const DESC = {
+    a: "<b>A · Capsule assortie</b> : même taille et même forme que Série, Solde et Points, en doré. « Coffre » en petit, « 🎁 Ouvrir » dessous. Après ouverture : « 🎁 +12 🪙 ».",
+    b: "<b>B · Icône seule</b> : un petit carré doré avec le 🎁 qui remue et un point rouge, le plus discret. Après ouverture, il s'élargit pour afficher « +12 🪙 ».",
+    c: "<b>C · Bouton doré</b> : bouton plein « 🎁 Coffre du jour » avec un reflet qui passe, le plus visible."
+};
+let variant = "a";
+
+function chestHtml() {
+    if (variant === "a") return `<button type="button" class="chest-mini chest-a" id="chest-mini"><span class="lbl">Coffre</span><span class="ico">🎁</span><span class="txt">Ouvrir</span></button>`;
+    if (variant === "b") return `<button type="button" class="chest-mini chest-b" id="chest-mini" title="Coffre du jour : clique pour l'ouvrir !"><span class="ico">🎁</span><span class="txt"></span></button>`;
+    return `<button type="button" class="chest-mini chest-c" id="chest-mini"><span class="ico">🎁</span><span class="txt">Coffre du jour</span></button>`;
+}
+
+function render() {
+    document.querySelectorAll(".tab[data-v]").forEach(t => t.classList.toggle("active", t.dataset.v === variant));
+    document.getElementById("desc").innerHTML = DESC[variant];
+    document.getElementById("chest-mini")?.remove();
+    document.getElementById("xp-mini").insertAdjacentHTML("beforebegin", chestHtml());
+    document.getElementById("chest-mini").addEventListener("click", openChest);
+}
+
+function openChest(e) {
+    const chest = e.currentTarget;
+    if (chest.disabled) return;
+    chest.disabled = true;
+    chest.classList.add("opening");
+    const gain = 12;
+    setTimeout(() => {
+        chest.classList.remove("opening");
+        const ico = chest.querySelector(".ico");
+        const txt = chest.querySelector(".txt");
+        ico.textContent = "📦";
+        if (variant === "b") chest.classList.add("won");
+        txt.textContent = "+" + gain + " 🪙";
+        txt.classList.add("chest-pop-text");
+        flyCoins(chest.getBoundingClientRect(), gain);
+        setTimeout(() => chest.classList.add("gone"), 2200);
+    }, 1000);
+}
+
+function flyCoins(from, gain) {
+    const target = document.getElementById("points-balance");
+    const to = target.getBoundingClientRect();
+    let shown = Number(target.textContent.replace(/\D/g, "")) || 0;
+    for (let i = 0; i < 8; i++) {
+        const c = document.createElement("span");
+        c.className = "coin-fly";
+        c.textContent = "🪙";
+        document.body.appendChild(c);
+        const sx = from.left + from.width / 2 - 9, sy = from.top + from.height / 2 - 9;
+        const ex = to.left + to.width / 2 - 9, ey = to.top + to.height / 2 - 9;
+        c.animate([
+            { transform: `translate(${sx}px, ${sy}px) scale(.6)`, opacity: 0 },
+            { transform: `translate(${(sx + ex) / 2}px, ${Math.min(sy, ey) + 40 + Math.random() * 30}px) scale(1)`, opacity: 1, offset: .5 },
+            { transform: `translate(${ex}px, ${ey}px) scale(.7)`, opacity: 1 }
+        ], { duration: 700, delay: i * 70, easing: "ease-in-out", fill: "both" }).finished.then(() => {
+            c.remove();
+            shown += Math.round(gain / 8) || 1;
+            target.textContent = shown + " 🪙";
+        });
+    }
+}
+
+document.querySelectorAll(".tab[data-v]").forEach(t => t.onclick = () => { variant = t.dataset.v; render(); });
+document.getElementById("again").onclick = render;
+document.getElementById("choose").onclick = () => {
+    const names = { a: "A, capsule assortie", b: "B, icône seule", c: "C, bouton doré" };
+    const text = `Coffre compact : je choisis la version ${names[variant]}.`;
+    navigator.clipboard?.writeText(text).catch(() => {});
+    const t = document.createElement("div");
+    t.className = "copied";
+    t.textContent = "✅ Copié : " + text;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+};
+
+// Barre du haut remplie comme dans l'app.
+document.getElementById("streak-widget").classList.remove("hidden");
+document.getElementById("streak-count").textContent = "4";
+document.getElementById("xp-mini-label").textContent = "Niv. 3";
+document.getElementById("xp-mini-xp").textContent = "140 / 300 XP";
+document.getElementById("xp-mini-fill").style.width = "46%";
+document.getElementById("balance").textContent = "1 250,00 €";
+document.getElementById("points-balance").textContent = "320 🪙";
+document.getElementById("profile-nav-button").textContent = "👤 Vincent";
+document.getElementById("group-switcher-name").textContent = "Les Fous du BE";
+render();
+</script>
+</body>
+</html>

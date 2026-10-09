@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Diamants</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body.demo { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; margin: 0; display: block; min-height: 0; }
+.demo h1 { font-size: 26px; margin: 0 0 6px; }
+.demo .sub { color: #858a98; margin: 0 0 16px; max-width: 900px; font-size: 14px; line-height: 1.5; }
+.demo .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0 14px; align-items: center; }
+.demo .tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; font: inherit; }
+.demo .tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.demo .pick { margin-left: auto; background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; padding: 10px 16px; border-radius: 12px; cursor: pointer; font: inherit; font-weight: 900; }
+.copied { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1c202c; border: 1px solid #63d69f; padding: 12px 18px; border-radius: 14px; font-weight: 700; z-index: 99; max-width: calc(100% - 32px); }
+.demo .navbar { position: relative; border: 1px solid #292d39; border-radius: 14px; }
+.demo .group-menu, .demo #group-requests-dot { display: none; }
+.view { max-width: 1000px; }
+.hint { color: #c9c5ff; font-size: 13px; margin: 0 0 14px; }
+
+/* Capsule 💎 (bleue), assortie à Solde et Points */
+.diamond-cap { --capsule: 92, 182, 255; display: flex; flex-direction: column; justify-content: center; gap: 6px; box-sizing: border-box; height: 44px; padding: 7px 12px; border: 1px solid rgba(var(--capsule), .35); border-radius: 12px; background: rgba(var(--capsule), .1); cursor: pointer; white-space: nowrap; font: inherit; color: inherit; text-align: left; }
+.diamond-cap:hover { border-color: rgb(var(--capsule)); background: rgba(var(--capsule), .18); }
+.diamond-cap span { color: #858a98; font-size: 11px; font-weight: 700; line-height: 1; }
+.diamond-cap strong { color: #8fd0ff; font-size: 14px; font-weight: 800; line-height: 1; }
+
+/* Section Diamants de la boutique */
+.dia-banner { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 14px 16px; margin-bottom: 16px; border-radius: 16px; border: 1px solid rgba(92,182,255,.35); background: linear-gradient(135deg, rgba(92,182,255,.12), rgba(170,120,255,.08)); }
+.dia-banner .big { font-size: 34px; }
+.dia-banner .txt { flex: 1; min-width: 200px; }
+.dia-banner .txt b { color: #8fd0ff; font-size: 18px; }
+.dia-banner .txt p { margin: 2px 0 0; color: #aaaeba; font-size: 13px; }
+.dia-btn { border: none; border-radius: 10px; padding: 10px 14px; font: inherit; font-weight: 900; cursor: pointer; color: #0b1a2a; background: linear-gradient(135deg, #5cb6ff, #b48cff); }
+.dia-btn.ghost { color: #8fd0ff; background: rgba(92,182,255,.12); border: 1px solid rgba(92,182,255,.4); }
+.dia-price { color: #8fd0ff !important; }
+.price-edit input { width: 52px; padding: 3px 6px; border-radius: 8px; border: 1px solid #343846; background: #11131a; color: #8fd0ff; font: inherit; font-weight: 900; text-align: right; }
+.shop-card .peek-row { margin: 0 0 12px; }
+.shop-card .peek-row .leaderboard-row { margin: 0; }
+.excl { margin-left: 6px; padding: 2px 7px; border-radius: 999px; background: linear-gradient(135deg, #5cb6ff, #b48cff); color: #0b1a2a; font-size: 10px; font-weight: 900; vertical-align: middle; }
+
+/* Conversion 💎 → 🪙 */
+.convert { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 14px 16px; margin-top: 16px; border-radius: 16px; border: 1px solid #2c3040; background: #151821; }
+.convert .q { display: flex; align-items: center; gap: 6px; }
+.convert .q button { width: 30px; height: 30px; border-radius: 8px; border: 1px solid #343846; background: #11131a; color: #e6e8ee; font: inherit; font-weight: 900; cursor: pointer; }
+.convert .q b { min-width: 28px; text-align: center; color: #8fd0ff; font-size: 16px; }
+.convert .eq { color: #aaaeba; font-size: 14px; }
+.convert .eq b { color: #f5c451; }
+
+/* Effets exclusifs proposés */
+.name-cristal { background: linear-gradient(110deg, #9fdcff 0%, #ffffff 25%, #b48cff 50%, #9fdcff 75%, #ffffff 100%); background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 900; filter: drop-shadow(0 0 4px rgba(140, 200, 255, .6)); animation: cristal 3s linear infinite; }
+@keyframes cristal { to { background-position: -300% 0; } }
+.row-diamond { box-shadow: 0 0 0 1px #8fd0ff inset, 0 0 14px rgba(92,182,255,.35); background: linear-gradient(90deg, rgba(92,182,255,.1), rgba(180,140,255,.1)) !important; border-radius: 10px; }
+.mini-theme { height: 44px; border-radius: 10px; margin-bottom: 12px; background: radial-gradient(circle at 20% 30%, rgba(255,255,255,.9) 0 1px, transparent 2px), radial-gradient(circle at 70% 60%, rgba(255,255,255,.8) 0 1px, transparent 2px), linear-gradient(135deg, #1b3a5c, #3b2a6a 60%, #1b3a5c); border: 1px solid rgba(143,208,255,.4); display: grid; place-items: center; color: #dff2ff; font-size: 12px; font-weight: 800; }
+.mini-skin { height: 60px; display: grid; place-items: center; margin-bottom: 12px; border-radius: 10px; background: #11131a; }
+.mini-skin img { height: 56px; filter: hue-rotate(170deg) saturate(.6) brightness(1.25) drop-shadow(0 0 6px rgba(143,208,255,.7)); }
+
+/* Page des packs */
+.packs { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+.pack { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 20px 14px 16px; border-radius: 18px; border: 1px solid rgba(92,182,255,.35); background: linear-gradient(180deg, rgba(92,182,255,.1), #14161e); text-align: center; }
+.pack.best { border-color: #b48cff; box-shadow: 0 0 22px rgba(180,140,255,.3); }
+.pack .tag { position: absolute; top: -10px; padding: 3px 10px; border-radius: 999px; background: linear-gradient(135deg, #5cb6ff, #b48cff); color: #0b1a2a; font-size: 11px; font-weight: 900; }
+.pack .gems { font-size: 30px; letter-spacing: -6px; line-height: 1; }
+.pack .n { color: #8fd0ff; font-size: 22px; font-weight: 900; }
+.pack .bonus { color: #63d69f; font-size: 12px; font-weight: 800; min-height: 16px; }
+.pack .eur { display: flex; align-items: center; gap: 4px; color: #e6e8ee; font-size: 18px; font-weight: 900; }
+.pack .eur input { width: 64px; padding: 4px 6px; border-radius: 8px; border: 1px solid #343846; background: #11131a; color: #e6e8ee; font: inherit; font-weight: 900; text-align: right; }
+.pack .soon { width: 100%; padding: 10px; border-radius: 10px; border: 1px dashed #4a4f60; background: none; color: #858a98; font: inherit; font-weight: 800; }
+.legal { margin-top: 14px; color: #737887; font-size: 12px; line-height: 1.5; max-width: 760px; }
+</style>
+</head>
+<body class="demo">
+
+<h1>💎 Les diamants</h1>
+<p class="sub">Nouvelle monnaie commune à tous les groupes. Elle sert à acheter des <b>objets exclusifs</b> (introuvables avec les pièces) et peut s'échanger : <b>1 💎 = 200 🪙</b>. Pour l'instant, les diamants sont donnés par l'admin ; les packs payants sont affichés « bientôt disponible ». <b>Tous les prix sont modifiables.</b> Clique sur la capsule 💎 pour aller aux packs.</p>
+
+<header class="navbar">
+
+        <div class="logo">
+            <span>BET</span>LAB
+        </div>
+
+
+        <!-- Sélecteur du groupe privé en cours -->
+
+        <div class="group-switcher">
+
+            <button
+                type="button"
+                id="group-switcher-button"
+                class="group-switcher-button"
+            >
+                👥
+                <span id="group-switcher-name">Groupe</span>
+                ▾
+                <span
+                    id="group-requests-dot"
+                    class="group-requests-dot hidden"
+                ></span>
+            </button>
+
+            <div
+                id="group-menu"
+                class="group-menu hidden"
+            ></div>
+
+        </div>
+
+
+        <nav>
+
+            <button
+                class="nav-button active"
+                data-page="bets-page"
+            >
+                Paris
+            </button>
+
+
+            <button
+                class="nav-button"
+                data-page="my-bets-page"
+            >
+                Historique
+            </button>
+
+            <!-- Téléphone seulement : bouton rond « + » (créer un pari) -->
+            <button
+                type="button"
+                id="nav-create-button"
+                class="nav-create-button"
+                aria-label="Créer un pari"
+            >
+                +
+            </button>
+
+
+            <button
+                class="nav-button"
+                data-page="missions-page"
+            >
+                Missions
+            </button>
+
+
+            <button
+                class="nav-button"
+                data-page="shop-page"
+            >
+                Boutique
+            </button>
+
+
+            <!-- Bêta-testeurs et admin seulement (voir aide-app.sql) -->
+            <button
+                class="nav-button hidden"
+                id="beta-nav-button"
+                data-page="beta-page"
+            >
+                Aide app
+                <span
+                    id="beta-nav-dot"
+                    class="beta-nav-dot hidden"
+                ></span>
+            </button>
+
+
+            <button
+                class="nav-button hidden"
+                id="admin-nav-button"
+                data-page="admin-page"
+            >
+                Message
+            </button>
+
+            <!-- Téléphone seulement : trait qui glisse sous l'onglet actif -->
+            <span
+                class="nav-indicator"
+                aria-hidden="true"
+            ></span>
+
+        </nav>
+
+
+        <div class="user-area">
+
+            <div
+                id="streak-widget"
+                class="streak-widget hidden"
+                title="Ta série de connexions : clique pour en savoir plus"
+                tabindex="0"
+            >
+                <!-- Ordinateur seulement : titre de la capsule -->
+                <span class="streak-label">Série</span>
+                <span class="streak-flame">🔥</span>
+                <strong id="streak-count">0</strong>
+                <!-- Ordinateur seulement -->
+                <span
+                    id="streak-unit"
+                    class="streak-unit"
+                >
+                    jours
+                </span>
+            </div>
+
+            <!-- Jauge d'XP de la barre du haut (ouvre la fenêtre du niveau) :
+                 petite sur téléphone, capsule plus large sur ordinateur (version A de demo-jauge-xp.html) -->
+            <button
+                type="button"
+                id="xp-mini"
+                class="xp-mini"
+                aria-label="Ton niveau"
+            >
+                <span class="xp-mini-top">
+
+                    <span
+                        id="xp-mini-label"
+                        class="xp-mini-label"
+                    >
+                        Niv. 1
+                    </span>
+
+                    <!-- Ordinateur seulement -->
+                    <span
+                        id="xp-mini-xp"
+                        class="xp-mini-xp"
+                    >
+                        0 / 100 XP
+                    </span>
+
+                    <!-- Ordinateur seulement, niveau à débloquer -->
+                    <span
+                        id="xp-mini-unlock"
+                        class="xp-mini-unlock"
+                    >
+                        ⭐ Débloquer niv. 2
+                    </span>
+
+                </span>
+                <span class="xp-mini-bar">
+                    <span id="xp-mini-fill"></span>
+                </span>
+            </button>
+
+
+            <!-- Un clic ouvre la fenêtre du solde (perroquet, paliers) -->
+            <div
+                id="balance-widget"
+                class="balance balance-widget"
+                title="Ton solde : clique pour en savoir plus"
+                tabindex="0"
+            >
+
+                <span>Solde</span>
+
+                <strong id="balance">
+                    1 000,00 €
+                </strong>
+
+            </div>
+
+
+            <div class="balance points-balance">
+
+                <span>Points</span>
+
+                <strong id="points-balance">
+                    0 🪙
+                </strong>
+
+            </div>
+
+
+            <button
+                id="profile-nav-button"
+                class="nav-button profile-nav-button"
+                data-page="profile-page"
+            >
+                👤 Profil
+            </button>
+
+        </div>
+
+    </header>
+
+<div class="tabs">
+    <button class="tab active" data-v="shop">🛍️ Boutique : section Diamants</button>
+    <button class="tab" data-v="packs">💳 Acheter des diamants</button>
+    <button class="pick" id="choose">✅ C'est bon, copier</button>
+</div>
+
+<div class="view" id="view"></div>
+
+<script>
+let view = "shop";
+let diamonds = 12;
+let points = 320;
+let convertQty = 1;
+const RATE = 200;
+const ITEMS = [
+    { id: "cristal", title: "Pseudo cristal", price: 5, desc: "Ton pseudo scintille comme un diamant, avec un reflet bleu-violet qui passe." },
+    { id: "cadre", title: "Cadre diamant", price: 8, desc: "Ta ligne du classement brille d'un contour de diamant." },
+    { id: "emoji", title: "💎 à côté du pseudo", price: 2, desc: "Un petit diamant à côté de ton pseudo, partout sur le site." },
+    { id: "theme", title: "Thème de carte « Diamant »", price: 10, desc: "Les paris que tu crées ont un fond cristal étoilé, visible par tous." },
+    { id: "skin", title: "Skin perroquet « Cristal »", price: 15, desc: "Le perroquet devient bleu glacier et brille. (Image à dessiner dans Claude Design.)" }
+];
+const PACKS = [
+    { n: 5, eur: 1.99, bonus: "" },
+    { n: 12, eur: 3.99, bonus: "+2 offerts" },
+    { n: 30, eur: 8.99, bonus: "+5 offerts", best: true },
+    { n: 80, eur: 19.99, bonus: "+20 offerts" }
+];
+const esc = t => String(t).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function previewOf(item) {
+    const row = (name, extra = "") => `<div class="peek-row"><div class="leaderboard-row leaderboard-row--me ${extra}"><span class="leaderboard-rank">3</span><span class="leaderboard-medal">🥉</span><span class="leaderboard-pseudo">${name}</span><span class="leaderboard-balance">1 520 €</span></div></div>`;
+    if (item.id === "cristal") return row(`<span class="name-cristal">Vincent</span>`);
+    if (item.id === "cadre") return row("Vincent", "row-diamond");
+    if (item.id === "emoji") return row("Vincent 💎");
+    if (item.id === "theme") return `<div class="mini-theme">🏆 Qui gagne le match ce soir ?</div>`;
+    return `<div class="mini-skin"><img src="assets/perroquet/skins/classique/thumb.png" alt=""></div>`;
+}
+
+function render() {
+    document.querySelectorAll(".tab[data-v]").forEach(t => t.classList.toggle("active", t.dataset.v === view));
+    document.getElementById("dia-count").textContent = diamonds + " 💎";
+    document.getElementById("points-balance").textContent = points + " 🪙";
+    const v = document.getElementById("view");
+    if (view === "shop") {
+        v.innerHTML = `
+            <p class="hint">✏️ Clique sur un prix pour le changer.</p>
+            <div class="dia-banner">
+                <span class="big">💎</span>
+                <div class="txt"><b>${diamonds} diamants</b><p>Objets exclusifs, introuvables avec les pièces. Communs à tous tes groupes.</p></div>
+                <button class="dia-btn" data-go-packs>Obtenir des 💎</button>
+            </div>
+            <section class="shop-category">
+                <h2 class="missions-title">💎 Exclusivités diamant</h2>
+                <div class="missions-grid">${ITEMS.map((item, i) => `
+                    <div class="mission-card shop-card">
+                        <div class="mission-head">
+                            <h3>${esc(item.title)}<span class="excl">EXCLU</span></h3>
+                            <span class="mission-points dia-price price-edit"><input type="number" min="1" value="${item.price}" data-item="${i}"> 💎</span>
+                        </div>
+                        <p class="mission-description" style="margin-bottom:10px">${esc(item.desc)}</p>
+                        ${previewOf(item)}
+                        <div class="mission-footer">
+                            <span class="mission-state">${diamonds >= item.price ? "Disponible" : "Il te manque " + (item.price - diamonds) + " 💎"}</span>
+                            <button class="primary-button cosmetic-buy" ${diamonds >= item.price ? "" : "disabled"}>Acheter</button>
+                        </div>
+                    </div>`).join("")}
+                </div>
+            </section>
+            <div class="convert">
+                <b>Échanger des diamants contre des pièces</b>
+                <span class="q"><button data-q="-1">−</button><b>${convertQty}</b><button data-q="1">+</button> 💎</span>
+                <span class="eq">= <b>${convertQty * RATE} 🪙</b> (1 💎 = ${RATE} 🪙, à sens unique)</span>
+                <button class="dia-btn ghost" data-convert ${convertQty > diamonds ? "disabled" : ""}>Échanger</button>
+            </div>`;
+    } else {
+        v.innerHTML = `
+            <p class="hint">✏️ Clique sur un prix en euros pour le changer.</p>
+            <div class="packs">${PACKS.map((p, i) => `
+                <div class="pack${p.best ? " best" : ""}">
+                    ${p.best ? `<span class="tag">LE PLUS CHOISI</span>` : ""}
+                    <span class="gems">${"💎".repeat(Math.min(4, i + 1))}</span>
+                    <span class="n">${p.n} 💎</span>
+                    <span class="bonus">${esc(p.bonus)}</span>
+                    <span class="eur"><input type="number" step="0.01" min="0" value="${p.eur}" data-pack="${i}"> €</span>
+                    <button class="soon" disabled>Bientôt disponible</button>
+                </div>`).join("")}
+            </div>
+            <p class="legal">Paiement sécurisé à venir (Stripe). Les diamants ne servent qu'aux objets cosmétiques et à l'échange en pièces ; ils ne se revendent pas et ne se transforment jamais en argent réel. En attendant, l'admin peut t'en donner.</p>`;
+    }
+}
+
+document.querySelectorAll(".tab[data-v]").forEach(t => t.onclick = () => { view = t.dataset.v; render(); });
+document.getElementById("view").addEventListener("input", e => {
+    if (e.target.dataset.item !== undefined) ITEMS[e.target.dataset.item].price = Math.max(1, Number(e.target.value) || 1);
+    if (e.target.dataset.pack !== undefined) PACKS[e.target.dataset.pack].eur = Number(e.target.value) || 0;
+});
+document.getElementById("view").addEventListener("change", render);
+document.getElementById("view").addEventListener("click", e => {
+    const b = e.target.closest("button");
+    if (!b || b.disabled) return;
+    if (b.dataset.goPacks !== undefined) { view = "packs"; render(); }
+    if (b.dataset.q) { convertQty = Math.max(1, convertQty + Number(b.dataset.q)); render(); }
+    if (b.dataset.convert !== undefined) { diamonds -= convertQty; points += convertQty * RATE; convertQty = 1; render(); }
+});
+document.getElementById("choose").onclick = () => {
+    const text = "Diamants : objets " + ITEMS.map(i => `${i.title} ${i.price} 💎`).join(", ") +
+        ". Packs " + PACKS.map(p => `${p.n} 💎 ${p.eur} €`).join(", ") + ". Échange 1 💎 = 200 🪙.";
+    navigator.clipboard?.writeText(text).catch(() => {});
+    const t = document.createElement("div");
+    t.className = "copied";
+    t.textContent = "✅ Copié : " + text;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3500);
+};
+
+// Barre du haut remplie comme dans l'app, avec la nouvelle capsule 💎 après « Points ».
+document.getElementById("streak-widget").classList.remove("hidden");
+document.getElementById("streak-count").textContent = "12";
+document.getElementById("xp-mini-label").textContent = "Niv. 12";
+document.getElementById("xp-mini-xp").textContent = "300 / 650 XP";
+document.getElementById("xp-mini-fill").style.width = "46%";
+document.getElementById("balance").textContent = "17 233,50 €";
+document.getElementById("profile-nav-button").textContent = "👤 Vincent";
+document.getElementById("group-switcher-name").textContent = "BE MECA";
+document.querySelector(".points-balance").insertAdjacentHTML("afterend",
+    `<button type="button" class="diamond-cap" data-go-packs><span>Diamants</span><strong id="dia-count"></strong></button>`);
+document.querySelector(".diamond-cap").onclick = () => { view = "packs"; render(); };
+render();
+</script>
+</body>
+</html>

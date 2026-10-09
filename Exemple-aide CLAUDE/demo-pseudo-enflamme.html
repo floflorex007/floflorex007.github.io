@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Pseudo enflammé</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body.demo { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; margin: 0; display: block; min-height: 0; }
+.demo h1 { font-size: 26px; margin: 0 0 6px; }
+.demo .sub { color: #858a98; margin: 0 0 16px; max-width: 900px; font-size: 14px; line-height: 1.5; }
+.demo .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
+.demo .tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; font: inherit; }
+.demo .tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.demo .pick { margin-left: auto; background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; padding: 10px 16px; border-radius: 12px; cursor: pointer; font: inherit; font-weight: 900; }
+.demo .desc { color: #aaaeba; font-size: 14px; max-width: 820px; margin: 0 0 16px; line-height: 1.5; }
+.demo .desc b { color: #e6e8ee; }
+.ctl { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 0 0 18px; font-size: 13px; color: #aaaeba; }
+.ctl select { background: #11131a; color: #e6e8ee; border: 1px solid #343846; border-radius: 10px; padding: 8px 10px; font: inherit; }
+.copied { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1c202c; border: 1px solid #63d69f; padding: 12px 18px; border-radius: 14px; font-weight: 700; z-index: 99; }
+.stage { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+.stage .modal-content { position: relative; margin: 0; max-width: 440px; }
+.stage .side { width: 320px; display: grid; gap: 16px; }
+.bet-line { margin: 0; padding: 14px 16px; border: 1px solid #2c3040; border-radius: 16px; background: #14161e; font-size: 13px; color: #aaaeba; }
+/* Vignette du palier : le pseudo en grand à la place de l'image du perroquet */
+.flame-thumb { width: 44px; height: 50px; flex-shrink: 0; display: grid; place-items: center; font-size: 26px; }
+
+/* =========================================================
+   3 propositions de police enflammée
+   ========================================================= */
+.fire { position: relative; display: inline-block; font-weight: 900; }
+
+/* A : feu qui monte (dégradé jaune → orange → rouge qui défile vers le haut) */
+.fire-a { background: linear-gradient(0deg, #ff3b1f 0%, #ff7a1a 35%, #ffc53d 65%, #fff1a8 100%); background-size: 100% 200%; -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 4px rgba(255, 110, 30, .7)); animation: fire-rise 1.2s linear infinite; }
+@keyframes fire-rise { from { background-position: 0 0; } to { background-position: 0 -200%; } }
+
+/* B : braises (orange qui vacille avec une lueur qui danse) */
+.fire-b { color: #ffb347; animation: fire-flicker 1.6s ease-in-out infinite; }
+@keyframes fire-flicker {
+    0%, 100% { text-shadow: 0 0 4px #ff7a1a, 0 -2px 8px #ff3b1f, 0 -5px 14px rgba(255, 59, 31, .5); color: #ffb347; }
+    25% { text-shadow: 0 0 6px #ff9a1a, 0 -3px 10px #ff5a1f, 0 -7px 18px rgba(255, 90, 31, .55); color: #ffc65c; }
+    50% { text-shadow: 0 0 3px #ff6a1a, 0 -1px 7px #ff3b1f, 0 -4px 12px rgba(255, 59, 31, .4); color: #ffa63a; }
+    75% { text-shadow: 0 0 7px #ffa01a, 0 -4px 12px #ff4a1f, 0 -8px 20px rgba(255, 74, 31, .55); color: #ffd06e; }
+}
+
+/* D : mélange B + petites flammes discrètes (braises qui vacillent, 2 flammèches minuscules et pâles) */
+.fire-d { color: #ffb347; animation: fire-flicker 1.6s ease-in-out infinite; }
+.fire-d i { position: absolute; bottom: 70%; font-style: normal; font-size: 6px; opacity: 0; pointer-events: none; filter: saturate(.8); animation: fire-ember-soft 2.6s ease-out infinite; }
+.fire-d i:nth-of-type(1) { left: 22%; }
+.fire-d i:nth-of-type(2) { left: 68%; animation-delay: 1.3s; }
+@keyframes fire-ember-soft { 0% { transform: translateY(0) scale(.5); opacity: 0; } 30% { opacity: .55; } 100% { transform: translateY(-10px) scale(.9); opacity: 0; } }
+
+/* C : lettres en feu + petites flammes qui s'échappent */
+.fire-c { background: linear-gradient(0deg, #ff4d1f, #ffb13d 60%, #ffe28a); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 3px rgba(255, 110, 30, .6)); }
+.fire-c i { position: absolute; bottom: 60%; font-style: normal; font-size: 9px; opacity: 0; pointer-events: none; animation: fire-ember 1.8s ease-out infinite; -webkit-text-fill-color: initial; }
+.fire-c i:nth-of-type(1) { left: 10%; }
+.fire-c i:nth-of-type(2) { left: 45%; animation-delay: .6s; }
+.fire-c i:nth-of-type(3) { left: 80%; animation-delay: 1.2s; }
+@keyframes fire-ember { 0% { transform: translateY(0) scale(.6); opacity: 0; } 25% { opacity: 1; } 100% { transform: translateY(-16px) scale(1); opacity: 0; } }
+</style>
+</head>
+<body class="demo">
+
+<h1>Palier de série à 15 🔥 : pseudo enflammé</h1>
+<p class="sub">Nouvelle récompense dans la fenêtre de la série, avant le skin Phénix (30 jours) : à 15 jours de série, ton pseudo s'écrit en lettres de feu, visible par tous (classement, cartes de pari…). Choisis le style de flammes, et la règle juste en dessous.</p>
+
+<div class="tabs">
+    <button class="tab active" data-v="d">D · Braises + petites flammes</button>
+    <button class="tab" data-v="a">A · Feu qui monte</button>
+    <button class="tab" data-v="b">B · Braises qui vacillent</button>
+    <button class="tab" data-v="c">C · Lettres en feu + flammèches</button>
+    <button class="pick" id="choose">✅ Je choisis celle-ci</button>
+</div>
+<p class="desc" id="desc"></p>
+
+<div class="ctl">
+    Règle :
+    <select id="rule">
+        <option value="keep">Gardé pour toujours une fois les 15 jours atteints (comme le Phénix)</option>
+        <option value="live">Seulement tant que ta série est à 15 jours ou plus</option>
+    </select>
+    Ma série :
+    <select id="streak">
+        <option value="16">16 jours (débloqué)</option>
+        <option value="9">9 jours (pas encore)</option>
+    </select>
+</div>
+
+<div class="stage">
+    <div class="modal-content xp-modal-content streak-modal-content">
+        <h2>🔥 Ta série</h2>
+        <p class="level-sidebar-title xp-skins-title">🦜 Récompenses de série</p>
+        <ul class="xp-skins" id="list"></ul>
+    </div>
+    <div class="side">
+        <aside class="leaderboard-sidebar" style="position:static;width:auto">
+            <div class="leaderboard-header"><span>🏆</span><span>Top Parieurs</span></div>
+            <div id="board"></div>
+        </aside>
+        <p class="bet-line" id="betline"></p>
+    </div>
+</div>
+
+<script>
+const DESC = {
+    d: "<b>D · Braises + petites flammes</b> : la lueur orange qui vacille de la B, avec deux minuscules 🔥 pâles qui s'échappent de temps en temps, plus discrètes que la C.",
+    a: "<b>A · Feu qui monte</b> : dégradé jaune → orange → rouge qui défile vers le haut, comme une flamme, avec une lueur orange.",
+    b: "<b>B · Braises qui vacillent</b> : lettres orange avec une lueur qui danse et monte, comme des braises. Plus sobre.",
+    c: "<b>C · Lettres en feu + flammèches</b> : lettres en dégradé de feu, et de petites 🔥 qui s'échappent du pseudo. Le plus visible."
+};
+let variant = "d";
+const esc = t => String(t).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fire = name => `<span class="fire fire-${variant}">${esc(name)}${variant === "c" ? "<i>🔥</i><i>🔥</i><i>🔥</i>" : variant === "d" ? "<i>🔥</i><i>🔥</i>" : ""}</span>`;
+
+function render() {
+    document.querySelectorAll(".tab[data-v]").forEach(t => t.classList.toggle("active", t.dataset.v === variant));
+    document.getElementById("desc").innerHTML = DESC[variant];
+    const streak = Number(document.getElementById("streak").value);
+    const unlocked = streak >= 15;
+    const keep = document.getElementById("rule").value === "keep";
+    document.getElementById("list").innerHTML = `
+        <li class="xp-skin${unlocked ? " active" : " locked"}">
+            <span class="flame-thumb">${unlocked ? fire("A") : "🔒"}</span>
+            <div class="xp-skin-text">
+                <strong>Pseudo enflammé : ${unlocked ? fire("Vincent") : "Vincent"}</strong>
+                <span>🔥 15 jours de série${keep ? "" : " · tant que ta série tient"}</span>
+            </div>
+            <button type="button" class="xp-skin-button${unlocked ? " active" : " locked"}" ${unlocked ? "" : "disabled"}>${unlocked ? "Désactiver" : "🔒 Non disponible"}</button>
+        </li>
+        <li class="xp-skin locked">
+            <img src="assets/perroquet/skins/phenix/thumb.png" alt="">
+            <div class="xp-skin-text"><strong>Skin Phénix</strong><span>🔥 30 jours de série</span></div>
+            <button type="button" class="xp-skin-button locked" disabled>🔒 Non disponible</button>
+        </li>`;
+    const me = unlocked ? fire("Vincent") : "Vincent";
+    document.getElementById("board").innerHTML = `
+        <div class="leaderboard-row"><span class="leaderboard-rank">1</span><span class="leaderboard-medal">🥇</span><span class="leaderboard-pseudo">Léa</span><span class="leaderboard-balance">2 310 €</span></div>
+        <div class="leaderboard-row leaderboard-row--me"><span class="leaderboard-rank">2</span><span class="leaderboard-medal">🥈</span><span class="leaderboard-pseudo has-effect">${me}</span><span class="leaderboard-balance">1 840 €</span></div>
+        <div class="leaderboard-row"><span class="leaderboard-rank">3</span><span class="leaderboard-medal">🥉</span><span class="leaderboard-pseudo">Emma</span><span class="leaderboard-balance">1 520 €</span></div>`;
+    document.getElementById("betline").innerHTML = `Sur une carte de pari : 🏆 Créé par ${me}`;
+}
+
+document.querySelectorAll(".tab[data-v]").forEach(t => t.onclick = () => { variant = t.dataset.v; render(); });
+document.getElementById("rule").onchange = render;
+document.getElementById("streak").onchange = render;
+document.getElementById("choose").onclick = () => {
+    const names = { d: "D, braises + petites flammes discrètes", a: "A, feu qui monte", b: "B, braises qui vacillent", c: "C, lettres en feu + flammèches" };
+    const rule = document.getElementById("rule").value === "keep" ? "gardé pour toujours" : "seulement tant que la série tient";
+    const text = `Pseudo enflammé à 15 jours : version ${names[variant]}, ${rule}.`;
+    navigator.clipboard?.writeText(text).catch(() => {});
+    const t = document.createElement("div");
+    t.className = "copied";
+    t.textContent = "✅ Copié : " + text;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+};
+render();
+</script>
+</body>
+</html>

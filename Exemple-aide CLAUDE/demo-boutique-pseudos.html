@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Nouveaux pseudos boutique</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body.demo { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; margin: 0; display: block; min-height: 0; }
+.demo h1 { font-size: 26px; margin: 0 0 6px; }
+.demo .sub { color: #858a98; margin: 0 0 18px; max-width: 900px; font-size: 14px; line-height: 1.5; }
+.wrap { max-width: 1100px; }
+.ladder { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 22px; font-size: 12px; }
+.ladder span { padding: 4px 10px; border-radius: 999px; border: 1px solid #2c3040; background: #151821; color: #aaaeba; }
+.ladder span.new { border-color: #6c63ff; color: #e6e8ee; }
+.ladder b { color: #fff; }
+.shop-card .new-tag { margin-left: 6px; padding: 2px 7px; border-radius: 999px; background: #6c63ff; color: white; font-size: 10px; font-weight: 900; letter-spacing: .4px; vertical-align: middle; }
+.peek-line { margin: 0 0 12px; font-size: 14px; color: #aaaeba; }
+.peek-row { margin: 0 0 12px; }
+.peek-row .leaderboard-row { margin: 0; }
+.bar { position: sticky; bottom: 16px; margin-top: 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-radius: 14px; border: 1px solid #2c3040; background: rgba(21,24,33,.95); }
+.bar .txt { flex: 1; font-size: 14px; color: #aaaeba; }
+.pick { border: none; border-radius: 12px; padding: 12px 18px; font: inherit; font-weight: 900; color: white; background: linear-gradient(135deg, #2fb37a, #4fd39a); cursor: pointer; }
+.copied { color: #63d69f; font-size: 13px; font-weight: 800; }
+.edit-hint { margin: -8px 0 16px; font-size: 13px; color: #c9c5ff; }
+[contenteditable] { outline: none; border-radius: 6px; padding: 1px 3px; margin: -1px -3px; transition: background .15s, box-shadow .15s; cursor: text; }
+[contenteditable]:hover { background: rgba(108,99,255,.1); }
+[contenteditable]:focus { background: rgba(108,99,255,.16); box-shadow: 0 0 0 1px #6c63ff; }
+.price-edit { display: inline-flex; align-items: center; gap: 4px; }
+.price-edit input { width: 58px; padding: 3px 6px; border-radius: 8px; border: 1px solid #343846; background: #11131a; color: #f5c451; font: inherit; font-weight: 900; text-align: right; }
+.price-edit input:focus { outline: none; border-color: #6c63ff; }
+.shop-card .mission-description::after { display: none; }
+
+/* =========================================================
+   Les 4 nouveaux pseudos animés de la boutique
+   ========================================================= */
+.nb { position: relative; display: inline-block; font-weight: 900; }
+
+/* Ruban chantier : rayures jaunes qui défilent */
+.nb-chantier { background: repeating-linear-gradient(-45deg, #ffd34d 0 6px, #c98a12 6px 9px); background-size: 25.5px 25.5px; -webkit-background-clip: text; background-clip: text; color: transparent; animation: nb-tape 1.2s linear infinite; }
+@keyframes nb-tape { to { background-position: 25.5px 0; } }
+
+/* Néon animé : dégradé bleu-violet qui défile */
+.nb-neonanime { background: linear-gradient(90deg, #4be3ff, #c86bff, #4be3ff); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 5px rgba(140,120,255,.55)); animation: nb-run 3s linear infinite; }
+@keyframes nb-run { to { background-position: -200% 0; } }
+
+/* Fiole qui bouillonne : vert labo avec des bulles */
+.nb-fiole { color: #7dff9b; text-shadow: 0 0 8px rgba(125,255,155,.55); }
+.nb-fiole i { position: absolute; bottom: 2px; width: 4px; height: 4px; border-radius: 50%; border: 1px solid #7dff9b; opacity: 0; animation: nb-bubble 2.2s ease-in infinite; }
+.nb-fiole i:nth-of-type(1) { left: 15%; }
+.nb-fiole i:nth-of-type(2) { left: 50%; animation-delay: .7s; width: 3px; height: 3px; }
+.nb-fiole i:nth-of-type(3) { left: 80%; animation-delay: 1.4s; }
+@keyframes nb-bubble { 0% { transform: translateY(0); opacity: 0; } 20% { opacity: .9; } 100% { transform: translateY(-16px); opacity: 0; } }
+
+/* Scanner : un trait de lumière balaie le pseudo */
+.nb-scan { background: linear-gradient(90deg, #8f89e8 0 40%, #ffffff 50%, #8f89e8 60% 100%); background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: nb-scan 2.4s ease-in-out infinite; }
+@keyframes nb-scan { 0% { background-position: 100% 0; } 100% { background-position: -50% 0; } }
+</style>
+</head>
+<body class="demo">
+<div class="wrap">
+
+<h1>Boutique : 4 nouveaux pseudos animés</h1>
+<p class="sub">Prix choisis pour se placer entre les reflets métal et l'aura, selon l'effort de l'animation. Le « Néon animé » est un dégradé bleu-violet qui défile : il ne remplace pas le « Pseudo néon » actuel (couleur fixe à 80 🪙). Ici tu as 320 🪙, comme dans la démo Aide app.</p>
+
+<p class="edit-hint">✏️ Tout est modifiable : clique sur un prix, un nom ou une description et change-le. L'échelle des prix se remet dans l'ordre toute seule.</p>
+<div class="ladder" id="ladder"></div>
+
+<section class="shop-category">
+    <h2 class="missions-title">🎨 Couleurs et animations du pseudo</h2>
+    <div class="missions-grid" id="grid"></div>
+</section>
+
+<div class="bar">
+    <span class="txt">Quand c'est bon, copie tes réglages et colle-les-moi.</span>
+    <span class="copied" id="copied"></span>
+    <button class="pick" id="choose">✅ C'est bon, copier</button>
+</div>
+
+</div>
+<script>
+const ME = "Vincent";
+const POINTS = 320;
+const ITEMS = [
+    { id: "chantier", title: "Pseudo ruban chantier", price: 300, description: "Des rayures jaunes défilent sur ton pseudo, comme un ruban « travaux en cours »." },
+    { id: "neonanime", title: "Pseudo néon animé", price: 250, description: "Un dégradé néon bleu-violet qui défile en continu sur ton pseudo." },
+    { id: "fiole", title: "Pseudo fiole qui bouillonne", price: 280, description: "Ton pseudo brille en vert labo et de petites bulles s'en échappent." },
+    { id: "scan", title: "Pseudo scanner", price: 80, description: "Un trait de lumière balaie ton pseudo en boucle." }
+];
+const esc = t => String(t).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const nameHtml = id => `<span class="nb nb-${id}">${esc(ME)}${id === "fiole" ? "<i></i><i></i><i></i>" : ""}</span>`;
+
+// Articles déjà en boutique, pour situer les nouveaux prix.
+const EXISTING = [["Néon", 80], ["Rose gold", 100], ["Étincelant", 100], ["Bronze", 150], ["Argent", 200], ["Or", 250], ["Aura", 300]];
+
+function cardHtml(item, i) {
+    return `<div class="mission-card shop-card" data-i="${i}">
+        <div class="mission-head">
+            <h3><span contenteditable="true" spellcheck="false" data-field="title">${esc(item.title)}</span><span class="new-tag">NOUVEAU</span></h3>
+            <span class="mission-points price-edit"><input type="number" min="0" step="10" value="${item.price}" data-field="price"> 🪙</span>
+        </div>
+        <p class="mission-description"><span contenteditable="true" spellcheck="false" data-field="description">${esc(item.description)}</span></p>
+        <div class="peek-row">
+            <div class="leaderboard-row leaderboard-row--me"><span class="leaderboard-rank">3</span><span class="leaderboard-medal">🥉</span><span class="leaderboard-pseudo">${nameHtml(item.id)}</span><span class="leaderboard-balance">1 520 €</span></div>
+        </div>
+        <div class="mission-footer">
+            <span class="mission-state" data-state></span>
+            <button class="primary-button cosmetic-buy" data-buy>Acheter</button>
+        </div>
+    </div>`;
+}
+
+// Statut, bouton et échelle : mis à jour sans redessiner les cartes (garde le curseur).
+function refresh() {
+    document.querySelectorAll(".shop-card").forEach(card => {
+        const item = ITEMS[card.dataset.i];
+        const canBuy = POINTS >= item.price;
+        card.querySelector("[data-state]").textContent = canBuy ? "Disponible" : "Il te manque " + (item.price - POINTS) + " 🪙";
+        card.querySelector("[data-buy]").disabled = !canBuy;
+    });
+    const all = EXISTING.map(([n, p]) => ({ n, p, isNew: false }))
+        .concat(ITEMS.map(i => ({ n: (t => t.charAt(0).toUpperCase() + t.slice(1))(i.title.replace(/^Pseudo /, "")), p: i.price, isNew: true })))
+        .sort((a, b) => a.p - b.p);
+    document.getElementById("ladder").innerHTML = all.map(x => `<span class="${x.isNew ? "new" : ""}">${esc(x.n)} <b>${x.p}</b></span>`).join("");
+}
+
+const grid = document.getElementById("grid");
+grid.innerHTML = ITEMS.map(cardHtml).join("");
+
+grid.addEventListener("input", e => {
+    const field = e.target.dataset.field;
+    if (!field) return;
+    const item = ITEMS[e.target.closest(".shop-card").dataset.i];
+    item[field] = field === "price" ? Math.max(0, Number(e.target.value) || 0) : e.target.textContent.trim();
+    refresh();
+});
+
+// Entrée valide le texte au lieu d'ajouter une ligne.
+grid.addEventListener("keydown", e => {
+    if (e.key === "Enter" && e.target.isContentEditable) { e.preventDefault(); e.target.blur(); }
+});
+
+refresh();
+
+document.getElementById("choose").onclick = () => {
+    const text = "Boutique, nouveaux pseudos :\n" + ITEMS.map(i => `- ${i.title} : ${i.price} 🪙. ${i.description}`).join("\n");
+    navigator.clipboard?.writeText(text).then(
+        () => document.getElementById("copied").textContent = "Copié ! Colle-le à Claude.",
+        () => document.getElementById("copied").textContent = text
+    );
+};
+</script>
+</body>
+</html>

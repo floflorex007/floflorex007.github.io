@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Profil d'un joueur</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body.demo { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; margin: 0; display: block; min-height: 0; }
+.demo h1 { font-size: 26px; margin: 0 0 6px; }
+.demo .sub { color: #858a98; margin: 0 0 16px; max-width: 900px; font-size: 14px; line-height: 1.5; }
+.demo .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; align-items: center; }
+.demo .tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; font: inherit; }
+.demo .tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.demo .pick { margin-left: auto; background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; padding: 10px 16px; border-radius: 12px; cursor: pointer; font: inherit; font-weight: 900; }
+.copied { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1c202c; border: 1px solid #63d69f; padding: 12px 18px; border-radius: 14px; font-weight: 700; z-index: 99; max-width: calc(100% - 32px); }
+.stage { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+.stage .modal-content { position: relative; margin: 0; max-width: 480px; }
+.side { width: 300px; display: grid; gap: 12px; }
+.side .leaderboard-sidebar { position: static; width: auto; }
+.side .leaderboard-row { cursor: pointer; }
+.side .leaderboard-row:hover { background: rgba(108,99,255,.1); }
+.side p { margin: 0; font-size: 12px; color: #858a98; }
+
+/* ---------- Fenêtre d'un joueur ---------- */
+.pp-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.pp-avatar { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; font-size: 22px; font-weight: 900; color: white; background: linear-gradient(135deg, #5b4fe0, #c86bff); flex-shrink: 0; }
+.pp-name { font-size: 20px; font-weight: 900; }
+.pp-sub { color: #858a98; font-size: 12px; margin-top: 2px; }
+.pp-rank { margin-left: auto; text-align: right; }
+.pp-rank b { display: block; font-size: 20px; }
+.pp-rank span { color: #858a98; font-size: 11px; font-weight: 700; }
+
+.pp-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 16px; }
+.pp-stat { --c: 200, 107, 255; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 9px 4px; border-radius: 12px; border: 1px solid rgba(var(--c), .35); background: rgba(var(--c), .08); text-align: center; }
+.pp-stat span { color: #858a98; font-size: 10px; font-weight: 700; }
+.pp-stat b { color: rgb(var(--c)); font-size: 14px; font-weight: 900; white-space: nowrap; }
+.pp-stat small { color: #737887; font-size: 10px; }
+.pp-stat.xp { --c: 200, 107, 255; }
+.pp-stat.fire { --c: 255, 159, 67; }
+.pp-stat.money { --c: 99, 214, 159; }
+.pp-stat.coins { --c: 245, 196, 81; }
+.pp-stat.gems { --c: 92, 182, 255; }
+.pp-stat .xpbar { width: 80%; height: 4px; border-radius: 99px; background: #262a38; overflow: hidden; }
+.pp-stat .xpbar i { display: block; height: 100%; background: linear-gradient(90deg, #6c63ff, #c86bff); }
+
+/* Variante B : statistiques en liste */
+.pp-stats.list { grid-template-columns: 1fr 1fr; }
+.pp-stats.list .pp-stat { flex-direction: row; justify-content: space-between; padding: 10px 12px; }
+.pp-stats.list .pp-stat span { font-size: 12px; }
+.pp-stats.list .pp-stat:first-child { grid-column: 1 / -1; }
+
+.pp-subnav { display: flex; gap: 6px; margin: 0 0 12px; border-bottom: 1px solid #23262f; padding-bottom: 8px; }
+.pp-subnav button { border: none; background: none; color: #858a98; font: inherit; font-size: 13px; font-weight: 800; padding: 7px 12px; border-radius: 10px; cursor: pointer; }
+.pp-subnav button.on { color: white; background: #1c202c; }
+
+.pp-history { display: grid; gap: 8px; }
+.pp-bet { padding: 10px 12px; border-radius: 12px; border: 1px solid #2c3040; background: #14161e; }
+.pp-bet-top { display: flex; align-items: center; gap: 8px; }
+.pp-bet-kind { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: .4px; padding: 2px 7px; border-radius: 999px; background: #23262f; color: #aaaeba; }
+.pp-bet-kind.combo { background: rgba(200,107,255,.16); color: #d9a8ff; }
+.pp-bet-state { margin-left: auto; font-size: 12px; font-weight: 900; }
+.pp-bet-state.open { color: #a59fff; }
+.pp-bet-state.won { color: #63d69f; }
+.pp-bet-state.lost { color: #ff8a8a; }
+.pp-legs { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.pp-legs li { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.pp-legs li .q { color: #aaaeba; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pp-legs li .q b { color: #e6e8ee; }
+.pp-legs li .o { color: #a59fff; font-weight: 900; white-space: nowrap; }
+.pp-bet-foot { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 8px; border-top: 1px dashed #2c3040; font-size: 12px; color: #858a98; }
+.pp-bet-foot b { color: #e6e8ee; }
+.pp-copy { margin-left: auto; border: none; border-radius: 10px; padding: 7px 12px; font: inherit; font-size: 12px; font-weight: 900; color: white; background: #6c63ff; cursor: pointer; white-space: nowrap; }
+.pp-copy:hover { background: #7b73ff; }
+.pp-copy:disabled { background: #23262f; color: #737887; cursor: not-allowed; }
+.pp-why { display: block; margin-top: 6px; color: #858a98; font-size: 11px; text-align: right; }
+</style>
+</head>
+<body class="demo">
+
+<h1>Fenêtre d'un participant</h1>
+<p class="sub">Un clic sur un pseudo (classement, carte de pari, détail des parieurs…) ouvre sa fenêtre : ses <b>stats</b> (XP, flammes, solde, pièces, diamants) et son <b>historique de paris</b>. Les paris et combinés encore possibles ont un bouton <b>« Copier »</b> : il t'emmène sur la page Paris, coche les mêmes cotes et ouvre la fenêtre de mise. S'il n'est pas copiable, le bouton est grisé avec la raison. <b>Clique sur un joueur du classement à droite.</b></p>
+
+<div class="tabs">
+    <button class="tab active" data-v="a">A · Stats en pastilles + onglets</button>
+    <button class="tab" data-v="b">B · Stats en liste + tout à la suite</button>
+    <button class="pick" id="choose">✅ Je choisis celle-ci</button>
+</div>
+
+<div class="stage">
+    <div class="modal-content xp-modal-content" id="pop"></div>
+    <div class="side">
+        <aside class="leaderboard-sidebar">
+            <div class="leaderboard-header"><span>🏆</span><span>Top Parieurs</span></div>
+            <div id="board"></div>
+        </aside>
+        <p>Dans l'app : un clic sur n'importe quel pseudo ouvre cette fenêtre.</p>
+    </div>
+</div>
+
+<script>
+let variant = "a";
+let sub = "open";
+let who = "Léa";
+const esc = t => String(t).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = n => Math.round(n).toLocaleString("fr-FR");
+
+const PLAYERS = {
+    "Léa": { rank: 1, level: 14, xp: 420, need: 750, fire: 18, money: 23100, coins: 640, gems: 12, since: "membre depuis le 2 sept." },
+    "Hugo": { rank: 2, level: 9, xp: 200, need: 500, fire: 4, money: 18400, coins: 210, gems: 0, since: "membre depuis le 5 sept." },
+    "Emma": { rank: 3, level: 6, xp: 90, need: 350, fire: 0, money: 15200, coins: 95, gems: 3, since: "membre depuis le 20 sept." }
+};
+
+// Historique : les copiables et les autres, avec la raison.
+const HISTORY = [
+    { kind: "simple", state: "open", legs: [["Qui gagne le match ce soir ?", "Paris", 1.8]], stake: 120, copy: true },
+    { kind: "combo", state: "open", legs: [["Il pleut demain à midi ?", "Non", 1.6], ["Combien de buts ?", "3 ou plus", 2.0], ["Vincent arrive en retard ?", "Oui", 2.4]], stake: 50, copy: true },
+    { kind: "simple", state: "open", legs: [["Qui finit le projet en premier ?", "Hugo", 3.1]], stake: 200, copy: false, why: "Tu as déjà misé sur ce pari." },
+    { kind: "simple", state: "open", legs: [["Pizza ou burger vendredi ?", "Pizza", 1.5]], stake: 80, copy: false, why: "Mises closes (moins d'1 h avant l'échéance)." },
+    { kind: "combo", state: "open", legs: [["Il pleut demain à midi ?", "Oui", 2.2], ["Qui gagne le match ce soir ?", "Lyon", 2.4]], stake: 40, copy: false, why: "Tu as déjà joué exactement ce combiné." },
+    { kind: "simple", state: "won", legs: [["Le café sera réparé lundi ?", "Non", 2.0]], stake: 100, gain: 200 },
+    { kind: "combo", state: "lost", legs: [["Qui gagne la pétanque ?", "Équipe A", 1.9], ["Il neige ce week-end ?", "Oui", 4.0]], stake: 60 }
+];
+
+const STATE = { open: ["⏳ En cours", "open"], won: ["✅ Gagné", "won"], lost: ["❌ Perdu", "lost"] };
+
+function betHtml(b, i) {
+    const odds = b.legs.reduce((m, l) => m * l[2], 1);
+    return `<div class="pp-bet">
+        <div class="pp-bet-top">
+            <span class="pp-bet-kind${b.kind === "combo" ? " combo" : ""}">${b.kind === "combo" ? `Combiné · ${b.legs.length}` : "Simple"}</span>
+            <span class="pp-bet-state ${STATE[b.state][1]}">${STATE[b.state][0]}</span>
+        </div>
+        <ul class="pp-legs">${b.legs.map(([q, c, o]) => `<li><span class="q">${esc(q)} → <b>${esc(c)}</b></span><span class="o">${o.toFixed(2)}</span></li>`).join("")}</ul>
+        <div class="pp-bet-foot">
+            <span>Mise <b>${fmt(b.stake)} €</b>${b.kind === "combo" ? ` · cote <b>${odds.toFixed(2)}</b>` : ""}${b.gain ? ` · gain <b style="color:#63d69f">+${fmt(b.gain)} €</b>` : ""}</span>
+            ${b.state === "open" ? `<button class="pp-copy" data-copy="${i}" ${b.copy ? "" : "disabled"}>📋 Copier</button>` : ""}
+        </div>
+        ${b.state === "open" && !b.copy ? `<span class="pp-why">${esc(b.why)}</span>` : ""}
+    </div>`;
+}
+
+function render() {
+    document.querySelectorAll(".tab[data-v]").forEach(t => t.classList.toggle("active", t.dataset.v === variant));
+    const p = PLAYERS[who];
+    const stats = `<div class="pp-stats${variant === "b" ? " list" : ""}">
+        <div class="pp-stat xp"><span>Niveau</span><b>Niv. ${p.level}</b><small>${p.xp} / ${p.need} XP</small>${variant === "a" ? `<span class="xpbar"><i style="width:${p.xp / p.need * 100}%"></i></span>` : ""}</div>
+        <div class="pp-stat fire"><span>Série</span><b>🔥 ${p.fire}</b></div>
+        <div class="pp-stat money"><span>Solde</span><b>${fmt(p.money)} €</b></div>
+        <div class="pp-stat coins"><span>Pièces</span><b>${fmt(p.coins)} 🪙</b></div>
+        <div class="pp-stat gems"><span>Diamants</span><b>${p.gems} 💎</b></div>
+    </div>`;
+    const open = HISTORY.map((b, i) => [b, i]).filter(([b]) => b.state === "open");
+    const done = HISTORY.map((b, i) => [b, i]).filter(([b]) => b.state !== "open");
+    const history = variant === "a"
+        ? `<div class="pp-subnav">
+                <button class="${sub === "open" ? "on" : ""}" data-sub="open">⏳ En cours (${open.length})</button>
+                <button class="${sub === "done" ? "on" : ""}" data-sub="done">📜 Terminés (${done.length})</button>
+            </div>
+            <div class="pp-history">${(sub === "open" ? open : done).map(([b, i]) => betHtml(b, i)).join("")}</div>`
+        : `<p class="level-sidebar-title">⏳ Paris en cours</p>
+            <div class="pp-history">${open.map(([b, i]) => betHtml(b, i)).join("")}</div>
+            <p class="level-sidebar-title" style="margin-top:16px">📜 Paris terminés</p>
+            <div class="pp-history">${done.map(([b, i]) => betHtml(b, i)).join("")}</div>`;
+    document.getElementById("pop").innerHTML = `
+        <div class="pp-head">
+            <div class="pp-avatar">${esc(who[0])}</div>
+            <div><div class="pp-name">${esc(who)}</div><div class="pp-sub">${esc(p.since)}</div></div>
+            <div class="pp-rank"><b>${p.rank === 1 ? "🥇" : p.rank === 2 ? "🥈" : "🥉"} ${p.rank}<sup>${p.rank === 1 ? "er" : "e"}</sup></b><span>du groupe</span></div>
+        </div>
+        ${stats}
+        ${history}`;
+    document.getElementById("board").innerHTML = Object.entries(PLAYERS).map(([n, q]) => `
+        <div class="leaderboard-row${n === who ? " leaderboard-row--me" : ""}" data-who="${esc(n)}">
+            <span class="leaderboard-rank">${q.rank}</span><span class="leaderboard-medal">${["🥇", "🥈", "🥉"][q.rank - 1]}</span>
+            <span class="leaderboard-pseudo">${esc(n)}</span><span class="leaderboard-balance">${fmt(q.money)} €</span>
+        </div>`).join("");
+}
+
+function toast(text) {
+    document.querySelector(".copied")?.remove();
+    const t = document.createElement("div");
+    t.className = "copied";
+    t.innerHTML = text;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 4200);
+}
+
+document.querySelectorAll(".tab[data-v]").forEach(t => t.onclick = () => { variant = t.dataset.v; render(); });
+document.getElementById("board").addEventListener("click", e => {
+    const r = e.target.closest("[data-who]");
+    if (r) { who = r.dataset.who; render(); }
+});
+document.getElementById("pop").addEventListener("click", e => {
+    const s = e.target.closest("[data-sub]");
+    if (s) { sub = s.dataset.sub; render(); return; }
+    const c = e.target.closest("[data-copy]");
+    if (c && !c.disabled) {
+        const b = HISTORY[c.dataset.copy];
+        toast(`📋 Copié ! Dans l'app : la fenêtre se ferme, tu arrives sur <b>Paris</b>, ${b.legs.length > 1 ? `les <b>${b.legs.length} cotes</b> sont cochées` : "la cote est cochée"} et la fenêtre de mise s'ouvre (${b.legs.length > 1 ? "combiné" : "mise simple"}). Il ne reste qu'à choisir ta mise.`);
+    }
+});
+document.getElementById("choose").onclick = () => {
+    const text = `Fenêtre d'un participant : version ${variant === "a" ? "A, stats en pastilles + onglets" : "B, stats en liste + tout à la suite"}.`;
+    navigator.clipboard?.writeText(text).catch(() => {});
+    toast("✅ Copié : " + text);
+};
+render();
+</script>
+</body>
+</html>

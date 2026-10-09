@@ -504,7 +504,7 @@ async function loadGroupStyles() {
 
     const { data, error } = await supabaseClient
         .from("group_members")
-        .select("cosmetics, gold_frame_until, name_color_until, profiles ( username )")
+        .select("cosmetics, gold_frame_until, name_color_until, profiles ( username, streak_days, last_checkin, flame_name_off, diamond_items )")
         .eq("group_id", currentGroup.id);
 
     if (error) {
@@ -520,7 +520,13 @@ async function loadGroupStyles() {
                 {
                     cosmetics: member.cosmetics || {},
                     gold_frame_until: member.gold_frame_until,
-                    name_color_until: member.name_color_until
+                    name_color_until: member.name_color_until,
+                    // Série (pseudo enflammé à 15 jours).
+                    streak_days: member.profiles.streak_days,
+                    last_checkin: member.profiles.last_checkin,
+                    flame_name_off: member.profiles.flame_name_off,
+                    // Objets exclusifs achetés en diamants (communs à tous les groupes).
+                    diamond_items: member.profiles.diamond_items || {}
                 }
             ])
     );
@@ -2520,6 +2526,8 @@ function updateBalance() {
 
     }
 
+    updateDiamondDisplay();
+
 }
 
 
@@ -2607,25 +2615,70 @@ function getEffects(profile) {
     const metal =
         ["or", "argent", "bronze", "rose"].find(m => active("metal_" + m)) || null;
 
+    // Pseudos animés de la boutique : un seul affiché, le plus cher.
+    const anim =
+        NAME_ANIMATIONS.find(id => active(id)) || null;
+
     return {
         gold: isMe ? hasMyReward("gold_frame_until") : isRewardActive(profile.gold_frame_until) && !profile.cosmetics?.cadre?.off,
         rainbow: isMe ? hasMyReward("name_color_until") : isRewardActive(profile.name_color_until) && !profile.cosmetics?.couleur?.off,
         metal,
+        anim,
+        // Objets exclusifs achetés en diamants.
+        cristal: diamondItemOn(isMe ? currentProfile : profile, "cristal"),
+        diamondFrame: diamondItemOn(isMe ? currentProfile : profile, "cadre_diamant"),
+        diamondEmoji: diamondItemOn(isMe ? currentProfile : profile, "emoji_diamant"),
+        flame: flameNameOn(profile),
+        beta: betaStyleOf(profile.username),
         neon: active("neon") ? option("neon") : null,
         emoji: active("emoji") ? option("emoji") : null,
-        title: active("titre") ? option("titre") : null,
         sparkle: active("etincelles"),
         aura: active("aura"),
-        theme: active("theme") ? option("theme") : null
+        theme: diamondItemOn(isMe ? currentProfile : profile, "theme_diamant")
+            ? "diamant"
+            : active("theme") ? option("theme") : null
     };
 
 }
 
 
 /*
-    Pseudo avec ses effets (couleur, emoji, titre, étincelles).
-    Priorité de la couleur : métal > arc-en-ciel > néon.
+    Pseudo avec ses effets (couleur, emoji, étincelles).
+    Priorité de la couleur : métal > arc-en-ciel > cristal (diamant) > pseudo animé
+    de la boutique > pseudo enflammé > pseudo bêta-testeur > néon.
 */
+
+/*
+    Pseudo enflammé : récompense de série, seulement tant que la série
+    tient (15 jours ou plus, dernière connexion aujourd'hui ou hier).
+    Voir pseudo-enflamme.sql.
+*/
+
+const FLAME_NAME_STREAK = 15;
+
+function flameNameOn(profile) {
+
+    const isMe =
+        currentProfile && profile.username === currentProfile.username;
+
+    const player =
+        isMe ? currentProfile : profile;
+
+    if (!player || player.flame_name_off || !player.last_checkin) {
+        return false;
+    }
+
+    if ((player.streak_days || 0) < FLAME_NAME_STREAK) {
+        return false;
+    }
+
+    const yesterday =
+        parisDay(new Date(Date.now() - 86400000));
+
+    return String(player.last_checkin).slice(0, 10) >= yesterday;
+
+}
+
 
 function nameHtml(profile, effects = getEffects(profile)) {
 
@@ -2635,6 +2688,17 @@ function nameHtml(profile, effects = getEffects(profile)) {
         name = `<span class="name-metal metal-${effects.metal}">${escapeHtml(profile.username)}</span>`;
     } else if (effects.rainbow) {
         name = `<span class="pseudo-color">${rainbowName(profile.username)}</span>`;
+    } else if (effects.cristal) {
+        name = `<span class="name-cristal">${escapeHtml(profile.username)}</span>`;
+    } else if (effects.anim) {
+        // La fiole a ses bulles qui montent.
+        const bubbles = effects.anim === "fiole" ? "<i></i><i></i><i></i>" : "";
+        name = `<span class="name-anim anim-${effects.anim}">${escapeHtml(profile.username)}${bubbles}</span>`;
+    } else if (effects.flame) {
+        // Braises qui vacillent, avec deux petites flammes discrètes.
+        name = `<span class="name-flame">${escapeHtml(profile.username)}<i>🔥</i><i>🔥</i></span>`;
+    } else if (effects.beta) {
+        name = `<span class="name-beta beta-${effects.beta}">${escapeHtml(profile.username)}</span>`;
     } else if (effects.neon) {
         name = `<span class="name-neon neon-${effects.neon}">${escapeHtml(profile.username)}</span>`;
     } else {
@@ -2650,8 +2714,8 @@ function nameHtml(profile, effects = getEffects(profile)) {
         name += ` <span class="name-emoji">${escapeHtml(effects.emoji)}</span>`;
     }
 
-    if (effects.title) {
-        name += ` <span class="name-title">${escapeHtml(effects.title)}</span>`;
+    if (effects.diamondEmoji) {
+        name += ` <span class="name-emoji name-diamond">💎</span>`;
     }
 
     return name;
@@ -2668,7 +2732,8 @@ function styledName(profile, fallback = "Utilisateur") {
     const effects =
         getEffects(profile);
 
-    return `<span class="user-name${effects.gold ? " name-gold" : ""}">${nameHtml(profile, effects)}</span>`;
+    // data-player : un clic ouvre la fenêtre du joueur (setupPlayerProfile).
+    return `<span class="user-name${effects.gold ? " name-gold" : ""}" data-player="${escapeHtml(profile.username)}">${nameHtml(profile, effects)}</span>`;
 
 }
 
@@ -2677,22 +2742,136 @@ function styledName(profile, fallback = "Utilisateur") {
     Ligne du classement (joueur classé ou admin épinglé).
 */
 
+/*
+    Joueur AFK : pas venu sur le site pendant 2 jours ouvrés de suite
+    (samedi et dimanche ne comptent pas, ni la journée en cours).
+    Même règle que is_afk dans afk.sql.
+*/
+
+function isAfk(lastCheckin) {
+
+    if (!lastCheckin) {
+        return true;
+    }
+
+    const today = parisDay();
+
+    const day = new Date(String(lastCheckin).slice(0, 10) + "T12:00:00Z");
+
+    let missed = 0;
+
+    day.setUTCDate(day.getUTCDate() + 1);
+
+    while (day.toISOString().slice(0, 10) < today) {
+
+        const weekday = day.getUTCDay();
+
+        if (weekday !== 0 && weekday !== 6) {
+            missed += 1;
+        }
+
+        day.setUTCDate(day.getUTCDate() + 1);
+
+    }
+
+    return missed >= 2;
+
+}
+
+// Membre du groupe en cours absent (jamais soi-même : on vient d'ouvrir le site).
+function isAfkPlayer(profile) {
+
+    const style =
+        groupStyles.get(profile?.username);
+
+    return Boolean(style)
+        && profile.username !== currentProfile?.username
+        && isAfk(style.last_checkin);
+
+}
+
+
 function leaderboardRowHtml(profile, { rank, medal, balance, extraClass = "", effects: forcedEffects = null }) {
 
     const effects =
         forcedEffects || getEffects(profile);
 
+    // AFK : pseudo grisé (pas dans les aperçus de la boutique).
+    const afk =
+        !forcedEffects && isAfkPlayer(profile);
+
     const hasEffect =
-        effects.metal || effects.rainbow || effects.neon || effects.sparkle || effects.emoji || effects.title;
+        effects.metal || effects.rainbow || effects.cristal || effects.diamondEmoji || effects.anim || effects.flame || effects.beta || effects.neon || effects.sparkle || effects.emoji;
 
     return `
-        <div class="leaderboard-row${extraClass}${effects.gold ? " leaderboard-row--gold" : ""}${effects.aura ? " leaderboard-row--aura" : ""}">
+        <div class="leaderboard-row${extraClass}${effects.gold ? " leaderboard-row--gold" : ""}${effects.aura ? " leaderboard-row--aura" : ""}${effects.diamondFrame ? " leaderboard-row--diamond" : ""}${afk ? " leaderboard-row--afk" : ""}"${afk ? ' title="Absent depuis au moins 2 jours ouvrés"' : ""}${forcedEffects ? "" : ` data-player="${escapeHtml(profile.username)}"`}>
             <span class="leaderboard-rank">${rank}</span>
             <span class="leaderboard-medal">${medal}</span>
-            <span class="leaderboard-pseudo${hasEffect ? " has-effect" : ""}">${nameHtml(profile, effects)}</span>
+            <span class="leaderboard-pseudo${hasEffect ? " has-effect" : ""}">${afk ? `<span class="afk-name">${nameHtml(profile, effects)}</span><span class="afk-tag">AFK</span>` : nameHtml(profile, effects)}</span>
             <span class="leaderboard-balance">${balance}</span>
         </div>
     `;
+
+}
+
+
+/*
+    Survol du classement : un seul surligneur glisse d'un joueur à l'autre
+    (au lieu d'un fond qui saute de ligne en ligne). Un peu plus large que
+    la ligne, pour ne pas coller au pseudo ni au solde.
+*/
+
+function setupLeaderboardHover(container) {
+
+    // Premier enfant : la règle « dernière ligne sans trait » reste juste.
+    const glow = document.createElement("div");
+
+    glow.className = "leaderboard-hover";
+
+    container.prepend(glow);
+
+    if (container.dataset.hoverReady) {
+        return;
+    }
+
+    container.dataset.hoverReady = "1";
+
+    container.addEventListener("mouseover", event => {
+
+        const row = event.target.closest(".leaderboard-row[data-player]");
+
+        const indicator = container.querySelector(".leaderboard-hover");
+
+        if (!row || !indicator) {
+            return;
+        }
+
+        const visible = indicator.classList.contains("on");
+
+        // Il apparaît sur place la première fois, puis glisse d'une ligne à l'autre.
+        indicator.style.transition = visible ? "" : "none";
+
+        indicator.style.transform = `translateY(${row.offsetTop}px)`;
+
+        indicator.style.height = row.offsetHeight + "px";
+
+        if (!visible) {
+
+            void indicator.offsetWidth;
+
+            indicator.style.transition = "";
+
+        }
+
+        indicator.classList.add("on");
+
+    });
+
+    container.addEventListener("mouseleave", () => {
+
+        container.querySelector(".leaderboard-hover")?.classList.remove("on");
+
+    });
 
 }
 
@@ -2737,6 +2916,8 @@ async function displayLeaderboard() {
             )
         ).join("");
 
+
+        setupLeaderboardHover(container);
 
         animateLeaderboard(profiles);
 
@@ -2795,9 +2976,18 @@ async function displayAdminMessage() {
         document.getElementById("permanent-message-input");
 
 
-    if (!data) {
+    // Aucun message, ou message vidé par l'admin : la fenêtre disparaît.
+    if (!data || !data.content?.trim()) {
 
         sidebar.classList.add("hidden");
+
+        content.textContent = "";
+
+        if (permanentInput) {
+
+            permanentInput.value = "";
+
+        }
 
         return;
 
@@ -3105,7 +3295,8 @@ function setupAdminAccounts() {
 
 
 /*
-    Admin : soldes de tous les joueurs, groupe par groupe (voir admin-soldes.sql).
+    Admin : stats de tous les joueurs, groupe par groupe (voir admin-stats.sql) :
+    XP et flammes (communes à tous les groupes), solde et points (du groupe).
 */
 
 let adminBalances = [];
@@ -3120,13 +3311,13 @@ async function displayAdminBalances() {
         return;
     }
 
-    const { data, error } = await supabaseClient.rpc("admin_list_balances");
+    const { data, error } = await supabaseClient.rpc("admin_list_stats");
 
     if (error) {
 
         console.error(error);
 
-        list.innerHTML = `<p class="error-message">Impossible de charger les soldes (admin-soldes.sql lancé ?).</p>`;
+        list.innerHTML = `<p class="error-message">Impossible de charger les stats (admin-stats.sql lancé ?).</p>`;
 
         return;
 
@@ -3170,9 +3361,31 @@ async function displayAdminBalances() {
 
         });
 
+        // Le niveau suit l'XP tapée, avant même d'enregistrer.
+        list.addEventListener("input", event => {
+
+            if (event.target.matches("[data-stat='xp']")) {
+
+                const level = event.target.closest(".admin-stat").querySelector(".admin-stat-level");
+
+                level.textContent = "Niv. " + adminLevelOf(event.target.value);
+
+            }
+
+        });
+
     }
 
     renderAdminBalances();
+
+}
+
+
+function adminLevelOf(xp) {
+
+    return typeof levelFromXp === "function"
+        ? levelFromXp(Math.max(0, Number(xp) || 0)).level
+        : "?";
 
 }
 
@@ -3183,27 +3396,41 @@ function renderAdminBalances() {
 
     const rows = adminBalances.filter(row => row.group_id === groupId);
 
+    const field = (stat, label, value, unit, extra = "") => `
+        <label class="admin-stat">
+            <span class="admin-stat-label">${label}${extra}</span>
+            <span class="admin-stat-field">
+                <input
+                    type="number"
+                    class="admin-balance-input"
+                    data-stat="${stat}"
+                    min="0"
+                    step="1"
+                    value="${value}"
+                >
+                <span class="admin-balance-unit">${unit}</span>
+            </span>
+        </label>
+    `;
+
     document.getElementById("admin-balance-list").innerHTML = rows.length
         ? rows.map(row => `
-            <div class="admin-balance-row">
+            <div class="admin-balance-row admin-stats-row">
                 <span class="admin-balance-name" title="${escapeHtml(row.username)}">👤 ${escapeHtml(row.username)}</span>
-                <div class="admin-balance-edit">
-                    <input
-                        type="number"
-                        class="admin-balance-input"
-                        min="0"
-                        step="1"
-                        value="${Math.round(Number(row.balance))}"
-                    >
-                    <span class="admin-balance-unit">€</span>
-                    <button
-                        type="button"
-                        class="primary-button"
-                        data-save-balance="${row.user_id}"
-                    >
-                        Enregistrer
-                    </button>
+                <div class="admin-stats-fields">
+                    ${field("xp", "XP", row.xp, "XP", ` · <span class="admin-stat-level">Niv. ${adminLevelOf(row.xp)}</span>`)}
+                    ${field("streak", "Flammes", row.streak_days, "🔥")}
+                    ${field("balance", "Solde", Math.round(Number(row.balance)), "€")}
+                    ${field("points", "Points", row.points, "🪙")}
+                    ${field("diamonds", "Diamants", row.diamonds ?? 0, "💎")}
                 </div>
+                <button
+                    type="button"
+                    class="primary-button"
+                    data-save-balance="${row.user_id}"
+                >
+                    Enregistrer
+                </button>
             </div>
         `).join("")
         : `<div class="empty-state">Aucun joueur dans ce groupe.</div>`;
@@ -3217,17 +3444,25 @@ async function saveAdminBalance(button) {
 
     const userId = button.dataset.saveBalance;
 
-    const input = button.closest(".admin-balance-row").querySelector("input");
+    const line = button.closest(".admin-balance-row");
 
     const message = document.getElementById("admin-balance-message");
 
-    const value = Number(input.value);
+    const value = stat => Number(line.querySelector(`[data-stat="${stat}"]`).value);
+
+    const stats = {
+        xp: value("xp"),
+        streak: value("streak"),
+        balance: value("balance"),
+        points: value("points"),
+        diamonds: value("diamonds")
+    };
 
     const row = adminBalances.find(r => r.group_id === groupId && r.user_id === userId);
 
-    if (!Number.isFinite(value) || value < 0) {
+    if (Object.values(stats).some(number => !Number.isFinite(number) || number < 0)) {
 
-        message.textContent = "Entre un solde positif.";
+        message.textContent = "Entre des nombres positifs.";
 
         message.classList.add("error");
 
@@ -3237,17 +3472,32 @@ async function saveAdminBalance(button) {
 
     button.disabled = true;
 
-    const { data, error } = await supabaseClient.rpc("admin_set_balance", {
+    const { error } = await supabaseClient.rpc("admin_set_stats", {
         p_group: groupId,
         p_user: userId,
-        p_balance: Math.round(value)
+        p_balance: Math.round(stats.balance),
+        p_points: Math.round(stats.points),
+        p_streak: Math.round(stats.streak),
+        p_xp: Math.round(stats.xp)
     });
+
+    // Diamants (communs à tous les groupes) : seulement s'ils ont changé.
+    let diamondError = null;
+
+    if (!error && row && Math.round(stats.diamonds) !== Number(row.diamonds ?? 0)) {
+
+        ({ error: diamondError } = await supabaseClient.rpc("admin_set_diamonds", {
+            p_user: userId,
+            p_diamonds: Math.round(stats.diamonds)
+        }));
+
+    }
 
     button.disabled = false;
 
-    if (error) {
+    if (error || diamondError) {
 
-        message.textContent = error.message || "Impossible de modifier ce solde.";
+        message.textContent = (error || diamondError).message || "Impossible de modifier ces stats.";
 
         message.classList.add("error");
 
@@ -3255,15 +3505,12 @@ async function saveAdminBalance(button) {
 
     }
 
-    if (row) {
-        row.balance = data;
-    }
-
-    input.value = Math.round(Number(data));
-
     message.classList.remove("error");
 
-    message.textContent = "✓ Solde de " + (row ? row.username : "ce joueur") + " : " + formatBalance(data);
+    message.textContent = "✓ Stats de " + (row ? row.username : "ce joueur") + " enregistrées.";
+
+    // XP et flammes sont communes à tous ses groupes : la liste est rechargée.
+    await displayAdminBalances();
 
     // Le classement du groupe en cours suit.
     if (currentGroup && currentGroup.id === groupId && typeof displayLeaderboard === "function") {
@@ -3350,11 +3597,8 @@ async function savePermanentMessage() {
     errorElement.textContent = "";
 
 
-    if (!content) {
-        return;
-    }
-
-
+    // Champ vide : on enregistre un message vide, ce qui retire la fenêtre
+    // du message permanent pour tout le monde (l'historique est gardé).
     try {
 
         const { error } = await supabaseClient
@@ -4985,6 +5229,35 @@ async function displayBets({ quiet = false, force = false } = {}) {
             );
 
 
+        // Nombre de paris disponibles, juste sous la carte « Créer un pari ».
+        const betCount =
+            document.createElement("div");
+
+        betCount.className =
+            "bets-count";
+
+        betCount.textContent =
+            openBets.length + (openBets.length === 1 ? " pari disponible" : " paris disponibles");
+
+        // Sans pari, le message « Aucun pari disponible » s'affiche déjà plus bas.
+        if (openBets.length > 0) {
+
+            container.appendChild(betCount);
+
+        }
+
+        // Téléphone : le même nombre dans l'en-tête, à gauche du bouton « Classement ».
+        const phoneCount =
+            document.getElementById("bets-page-count");
+
+        if (phoneCount) {
+
+            phoneCount.textContent =
+                openBets.length > 0 ? betCount.textContent : "";
+
+        }
+
+
         /*
             Paris validés où j'ai encore des mises à récupérer :
             affichés en premier, avec « Récupérer » ou « Perdre la mise ».
@@ -5485,6 +5758,9 @@ async function displayBets({ quiet = false, force = false } = {}) {
                 void button.offsetWidth;
 
                 button.classList.add("validate-fab-no");
+
+                // Vibration finie : la classe part, pour ne pas rejouer en dépliant la carte.
+                button.addEventListener("animationend", () => button.classList.remove("validate-fab-no"), { once: true });
 
             });
 
@@ -6335,6 +6611,14 @@ function renderTicket({ bump = false } = {}) {
         return;
     }
 
+    // Taille et positions avant de redessiner : le ticket grandit ensuite en douceur.
+    const previousLayout =
+        ticketLayout(ticket);
+
+    // Place du journal des nouveautés, juste sous le ticket.
+    const journalTop =
+        newsJournalTop();
+
     const entries = ticketEntries();
 
     const count = entries.length;
@@ -6344,6 +6628,13 @@ function renderTicket({ bump = false } = {}) {
     if (count === 0) {
 
         ticketOpen = false;
+
+    }
+
+    // Ticket qui se vide : il disparaît en fondu au lieu de s'effacer d'un coup.
+    if (count === 0 && document.body.classList.contains("ticket-has-legs")) {
+
+        fadeOutTicket(ticket);
 
     }
 
@@ -6372,7 +6663,6 @@ function renderTicket({ bump = false } = {}) {
     ticket.innerHTML = `
 
         <button type="button" class="ticket-bar" data-ticket-toggle>
-            <span>🎟️ Ton ticket</span>
             ${kind}
             <b class="ticket-bar-odds${bump ? " bump" : ""}">× ${formatOdds(odds)}</b>
             <span class="ticket-bar-arrow">▲</span>
@@ -6381,8 +6671,6 @@ function renderTicket({ bump = false } = {}) {
         <div class="ticket-body">
 
             <div class="leaderboard-header ticket-header">
-                <span>🎟️</span>
-                <span>Ton ticket</span>
                 ${kind}
                 ${count ? `<button type="button" class="ticket-clear" data-ticket-clear>Vider</button>` : ""}
                 <button type="button" class="ticket-close" data-ticket-toggle aria-label="Replier">▼</button>
@@ -6419,7 +6707,7 @@ function renderTicket({ bump = false } = {}) {
                     ? `<p class="ticket-note ticket-note-duplicate">Tu as déjà fait ce combiné (mêmes paris, mêmes choix). Change un choix ou un pari.</p>`
                     : ticketSingleBlocked(entries)
                     ? `<p class="ticket-note">Tu as déjà misé sur ce pari (1 seule mise par pari). Ajoute un 2e pari pour faire un combiné.</p>`
-                    : count === 1 ? `<p class="ticket-note">Ajoute une cote d'un autre pari pour faire un combiné.</p>` : ""}
+                    : ""}
 
                 <input
                     type="number"
@@ -6445,7 +6733,7 @@ function renderTicket({ bump = false } = {}) {
                 <button type="button" class="primary-button ticket-go" data-ticket-go disabled></button>
 
                 <p class="ticket-rules">
-                    Mise de ${formatMoney(STAKE_MIN)} à <b data-ticket-max></b> · montant rond${combo ? " · tout ou rien : perdu dès qu'un pari est perdu" : ""}
+                    Mise de ${formatMoney(STAKE_MIN)} à <b data-ticket-max></b>
                 </p>
 
                 <p class="error-message" data-ticket-error></p>
@@ -6541,6 +6829,181 @@ function renderTicket({ bump = false } = {}) {
         ticketTimer = setInterval(updateTicketLive, 1000);
 
     }
+
+    animateTicketHeight(ticket, previousLayout);
+
+    // Ticket qui apparaît ou disparaît : le journal glisse vers le bas (ou remonte).
+    // Quand le ticket change seulement de taille, le journal suit déjà son animation.
+    if (!previousLayout.height !== !ticket.getBoundingClientRect().height) {
+
+        slideNewsJournal(journalTop);
+
+    }
+
+}
+
+
+/*
+    Ticket vidé : une copie reste à sa place et s'efface en douceur
+    (le vrai ticket, lui, est caché tout de suite).
+*/
+
+function fadeOutTicket(ticket) {
+
+    const rect = ticket.getBoundingClientRect();
+
+    if (!rect.width || !rect.height) {
+        return;
+    }
+
+    // Sur téléphone, son style dépend de body.ticket-has-legs, retiré juste après : on le recopie.
+    const look = getComputedStyle(ticket);
+
+    const ghost = ticket.cloneNode(true);
+
+    ghost.removeAttribute("id");
+
+    ghost.classList.add("bet-ticket-ghost");
+
+    Object.assign(ghost.style, {
+        display: "block",
+        position: "fixed",
+        left: rect.left + "px",
+        top: rect.top + "px",
+        right: "auto",
+        bottom: "auto",
+        width: rect.width + "px",
+        height: rect.height + "px",
+        margin: "0",
+        padding: look.padding,
+        background: look.background,
+        border: look.border,
+        borderRadius: look.borderRadius,
+        boxShadow: look.boxShadow,
+        overflow: "hidden",
+        zIndex: "95",
+        pointerEvents: "none",
+        animation: "none"
+    });
+
+    document.body.appendChild(ghost);
+
+    ghost.animate(
+        [
+            { opacity: 1, transform: "none" },
+            { opacity: 0, transform: "scale(0.9)" }
+        ],
+        { duration: 300, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" }
+    ).finished.then(() => ghost.remove()).catch(() => ghost.remove());
+
+}
+
+
+/*
+    Passage en combiné (ou retour en mise simple) : le cadre change de
+    taille progressivement et chaque élément glisse de son ancienne place
+    à la nouvelle en même temps (rien n'est coupé ni superposé au contour).
+    Les éléments nouveaux (cote ajoutée…) apparaissent en fondu.
+*/
+
+const TICKET_MOVE = { duration: 350, easing: "cubic-bezier(.4,0,.2,1)" };
+
+const TICKET_BLOCKS =
+    ".ticket-header, .ticket-leg, .ticket-sum, .ticket-note, .ticket-boost, " +
+    ".ticket-stake, .ticket-chips, .ticket-win, .ticket-go, .ticket-rules";
+
+// Repère d'un élément du ticket d'un dessin à l'autre (une cote : son pari).
+function ticketBlockKey(element) {
+
+    const remove = element.querySelector("[data-ticket-remove]");
+
+    return remove
+        ? "leg-" + remove.dataset.ticketRemove
+        : element.classList[0];
+
+}
+
+// Hauteur du ticket et position de ses éléments (par rapport au haut du ticket).
+function ticketLayout(ticket) {
+
+    const box = ticket.getBoundingClientRect();
+
+    const tops = new Map();
+
+    ticket.querySelectorAll(TICKET_BLOCKS).forEach(element => {
+
+        const rect = element.getBoundingClientRect();
+
+        if (rect.height) {
+            tops.set(ticketBlockKey(element), rect.top - box.top);
+        }
+
+    });
+
+    return { height: box.height, tops };
+
+}
+
+function animateTicketHeight(ticket, previous) {
+
+    ticket.getAnimations()
+        .filter(animation => animation.id === "ticket-height")
+        .forEach(animation => animation.cancel());
+
+    const current = ticketLayout(ticket);
+
+    // Ticket qui apparaît, disparaît, replié ou sans changement de taille : rien à animer.
+    if (!previous.height || !current.height || Math.abs(current.height - previous.height) < 2) {
+        return;
+    }
+
+    ticket.animate(
+        [
+            { height: previous.height + "px" },
+            { height: current.height + "px" }
+        ],
+        { ...TICKET_MOVE, id: "ticket-height" }
+    );
+
+    ticket.querySelectorAll(TICKET_BLOCKS).forEach(element => {
+
+        const key = ticketBlockKey(element);
+
+        if (!current.tops.has(key)) {
+            return;
+        }
+
+        // Nouvel élément : apparaît sur place.
+        if (!previous.tops.has(key)) {
+
+            element.animate(
+                [
+                    { opacity: 0, transform: "scale(0.96)" },
+                    { opacity: 1, transform: "none" }
+                ],
+                TICKET_MOVE
+            );
+
+            return;
+
+        }
+
+        // Élément déjà là : part de son ancienne place et glisse jusqu'à la nouvelle.
+        const shift = previous.tops.get(key) - current.tops.get(key);
+
+        if (Math.abs(shift) > 1) {
+
+            element.animate(
+                [
+                    { transform: `translateY(${shift}px)` },
+                    { transform: "none" }
+                ],
+                TICKET_MOVE
+            );
+
+        }
+
+    });
 
 }
 
@@ -8666,6 +9129,11 @@ async function openStakesModal(bet, card) {
     pop.querySelectorAll(".validate-bilan, .validate-hint, .validate-tag")
         .forEach(element => element.remove());
 
+    // La pastille de validation ne rejoue pas, à l'ouverture, une animation
+    // déjà jouée sur la carte (le « non » qui vibre, l'arrivée).
+    pop.querySelectorAll(".validate-fab")
+        .forEach(fab => fab.classList.remove("validate-fab-no", "validate-enter"));
+
 
     // Liste des parieurs sous le contenu de la carte.
     const stakes = bet.stakes || [];
@@ -8838,6 +9306,8 @@ async function openStakesModal(bet, card) {
         void fab.offsetWidth;
 
         fab.classList.add("validate-fab-no");
+
+        fab.addEventListener("animationend", () => fab.classList.remove("validate-fab-no"), { once: true });
 
     });
 
@@ -9137,6 +9607,9 @@ async function resolveBet(
 */
 
 function openCreateModal() {
+
+    // Échéance repartie de zéro : une date choisie puis abandonnée ne reste pas affichée.
+    resetDeadlinePicker();
 
     document.getElementById("create-modal").classList.remove("hidden");
 
@@ -9485,7 +9958,8 @@ async function createBet() {
 */
 
 /*
-    Sélecteur d'échéance : un jour parmi les 7 prochains
+    Sélecteur d'échéance : un jour parmi les 6 prochains, ou n'importe
+    quelle date avec le 7e bouton « Autre » (calendrier du navigateur),
     + une heure au curseur (par pas de 15 minutes).
     Aucun jour n'est choisi au départ : l'échéance est obligatoire.
 */
@@ -9570,7 +10044,23 @@ function setupDeadlinePicker() {
     }
 
 
-    for (let i = 0; i < 7; i++) {
+    // Jour choisi : seul son bouton reste allumé.
+    const selectDay = (offset, activeButton) => {
+
+        deadlineDayOffset = offset;
+
+        daysContainer
+            .querySelectorAll(".deadline-day")
+            .forEach(button => button.classList.toggle("active", button === activeButton));
+
+        document.getElementById("deadline-error").classList.add("hidden");
+
+        updateDeadlinePreview();
+
+    };
+
+
+    for (let i = 0; i < 6; i++) {
 
         const date = new Date();
 
@@ -9590,23 +10080,96 @@ function setupDeadlinePicker() {
             <b>${date.getDate()}</b>
         `;
 
-        dayButton.addEventListener("click", () => {
-
-            deadlineDayOffset = i;
-
-            daysContainer
-                .querySelectorAll(".deadline-day")
-                .forEach(button => button.classList.toggle("active", button === dayButton));
-
-            document.getElementById("deadline-error").classList.add("hidden");
-
-            updateDeadlinePreview();
-
-        });
+        dayButton.addEventListener("click", () => selectDay(i, dayButton));
 
         daysContainer.appendChild(dayButton);
 
     }
+
+
+    // 7e bouton : n'importe quelle date, avec le calendrier du navigateur.
+    const otherButton =
+        document.createElement("button");
+
+    otherButton.type = "button";
+
+    otherButton.className = "deadline-day deadline-day-other";
+
+    otherButton.innerHTML = `
+        <small data-other-top>autre</small>
+        <b data-other-day>📅</b>
+        <input type="date" class="deadline-other-input" tabindex="-1" aria-label="Choisir une autre date">
+    `;
+
+    const dateInput =
+        otherButton.querySelector(".deadline-other-input");
+
+    otherButton.addEventListener("click", () => {
+
+        // Pas de date passée dans le calendrier.
+        const today = new Date();
+
+        dateInput.min =
+            today.getFullYear() + "-" +
+            String(today.getMonth() + 1).padStart(2, "0") + "-" +
+            String(today.getDate()).padStart(2, "0");
+
+        // Champ vidé : n'importe quel choix (même la date d'avant) est bien pris en compte.
+        dateInput.value = "";
+
+        try {
+            dateInput.showPicker();
+        } catch {
+            dateInput.focus();
+            dateInput.click();
+        }
+
+    });
+
+    dateInput.addEventListener("click", event => event.stopPropagation());
+
+    dateInput.addEventListener("change", () => {
+
+        if (!dateInput.value) {
+            return;
+        }
+
+        const [year, month, day] = dateInput.value.split("-").map(Number);
+
+        const chosen = new Date(year, month - 1, day);
+
+        const today = new Date();
+
+        today.setHours(0, 0, 0, 0);
+
+        const offset = Math.round((chosen - today) / 86400000);
+
+        if (offset < 0) {
+            return;
+        }
+
+        // Date déjà présente dans les 6 premiers boutons : on allume celui-là.
+        if (offset < 6) {
+
+            resetOtherDeadlineButton();
+
+            selectDay(offset, daysContainer.querySelectorAll(".deadline-day")[offset]);
+
+            return;
+
+        }
+
+        otherButton.querySelector("[data-other-top]").textContent =
+            chosen.toLocaleDateString("fr-FR", { month: "short" });
+
+        otherButton.querySelector("[data-other-day]").textContent =
+            chosen.getDate();
+
+        selectDay(offset, otherButton);
+
+    });
+
+    daysContainer.appendChild(otherButton);
 
 
     document
@@ -9618,9 +10181,30 @@ function setupDeadlinePicker() {
 }
 
 
+// Bouton « Autre » remis à zéro (icône calendrier, sans date).
+function resetOtherDeadlineButton() {
+
+    const otherButton =
+        document.querySelector(".deadline-day-other");
+
+    if (!otherButton) {
+        return;
+    }
+
+    otherButton.querySelector("[data-other-top]").textContent = "autre";
+
+    otherButton.querySelector("[data-other-day]").textContent = "📅";
+
+    otherButton.querySelector(".deadline-other-input").value = "";
+
+}
+
+
 function resetDeadlinePicker() {
 
     deadlineDayOffset = null;
+
+    resetOtherDeadlineButton();
 
     document
         .querySelectorAll(".deadline-day")
@@ -9865,13 +10449,6 @@ const COSMETICS = [
         options: ["🔥", "⚡", "🍀", "🦊", "💎", "🎯"]
     },
     {
-        id: "titre",
-        title: "Titre à côté du pseudo",
-        description: "Un petit titre affiché à côté de ton pseudo.",
-        price: 20,
-        options: ["Chanceux", "Outsider", "Requin", "Débutant"]
-    },
-    {
         id: "neon",
         title: "Pseudo néon",
         description: "Ton pseudo brille d'une couleur néon.",
@@ -9923,11 +10500,45 @@ const COSMETICS = [
     },
     {
         id: "clic_perroquet",
-        title: "Clic du perroquet",
-        description: "Clique sur le perroquet : il rebondit et te lâche 1 € à chaque clic, jusqu'à 500 € par jour.",
+        title: "Clic du perroquet ×2",
+        description: "Chaque clic sur le perroquet te donne 2 € au lieu de 1 €, jusqu'à ton plafond du jour.",
         price: 30,
+    },
+    {
+        id: "clic_perroquet_x3",
+        title: "Clic du perroquet ×3",
+        description: "Chaque clic sur le perroquet te donne 3 € au lieu de 1 €, jusqu'à ton plafond du jour.",
+        price: 80,
+    },
+    {
+        id: "scanner",
+        title: "Pseudo scanner",
+        description: "Un trait de lumière balaie ton pseudo en boucle.",
+        price: 80,
+    },
+    {
+        id: "neon_anime",
+        title: "Pseudo néon animé",
+        description: "Un dégradé néon bleu-violet qui défile en continu sur ton pseudo.",
+        price: 250,
+    },
+    {
+        id: "fiole",
+        title: "Pseudo fiole qui bouillonne",
+        description: "Ton pseudo brille en vert labo et de petites bulles s'en échappent.",
+        price: 280,
+    },
+    {
+        id: "ruban_chantier",
+        title: "Pseudo ruban chantier",
+        description: "Des rayures jaunes défilent sur ton pseudo, comme un ruban « travaux en cours ».",
+        price: 300,
     }
 ];
+
+
+// Pseudos animés de la boutique, du plus cher au moins cher (un seul affiché).
+const NAME_ANIMATIONS = ["ruban_chantier", "fiole", "neon_anime", "scanner"];
 
 
 /*
@@ -9940,13 +10551,13 @@ const SHOP_CATEGORIES = [
         icon: "✨",
         title: "Additionnels au pseudo",
         kind: "cosmetic",
-        items: ["emoji", "titre", "etincelles"]
+        items: ["emoji", "etincelles"]
     },
     {
         icon: "🎨",
         title: "Couleurs et animations du pseudo",
         kind: "cosmetic",
-        items: ["neon", "metal_rose", "metal_bronze", "metal_argent", "metal_or", "couleur"]
+        items: ["neon", "scanner", "metal_rose", "metal_bronze", "metal_argent", "neon_anime", "metal_or", "fiole", "ruban_chantier", "couleur"]
     },
     {
         icon: "🖼️",
@@ -9964,7 +10575,7 @@ const SHOP_CATEGORIES = [
         icon: "🦜",
         title: "Perroquet",
         kind: "utile",
-        items: ["clic_perroquet"]
+        items: ["clic_perroquet", "clic_perroquet_x3"]
     },
     {
         icon: "🔥",
@@ -10476,7 +11087,7 @@ function displayShop() {
 
         </div>
 
-    ` + SHOP_CATEGORIES.map(category => `
+    ` + diamondShopHtml() + SHOP_CATEGORIES.map(category => `
 
         <section
             class="shop-category${shopFilter !== "all" && shopFilter !== category.kind ? " hidden" : ""}"
@@ -10704,9 +11315,9 @@ function openShopPreview(itemId, option) {
         gold: itemId === "cadre",
         rainbow: itemId === "couleur",
         metal: itemId.startsWith("metal_") ? itemId.slice(6) : null,
+        anim: NAME_ANIMATIONS.includes(itemId) ? itemId : null,
         neon: itemId === "neon" ? selected : null,
         emoji: itemId === "emoji" ? selected : null,
-        title: itemId === "titre" ? selected : null,
         sparkle: itemId === "etincelles",
         aura: itemId === "aura",
         theme: itemId === "theme" ? selected : null
@@ -10877,6 +11488,72 @@ function setupXpModal() {
 
 
 /*
+    Fenêtres XP et série (flamme) : sur ordinateur, posées pile au-dessus
+    de la colonne des cartes de paris (même bord gauche, même largeur).
+    Les cartes ne sont pas centrées dans la page, d'où ce calage.
+*/
+
+function alignModalsWithCards() {
+
+    const modals =
+        ["xp-modal", "streak-modal", "balance-modal", "diamond-modal", "player-modal", "points-modal"]
+            .map(id => document.getElementById(id))
+            .filter(Boolean);
+
+    const align = modal => {
+
+        const content = modal.querySelector(".modal-content");
+
+        if (!content || modal.classList.contains("hidden")) {
+            return;
+        }
+
+        const card = [...document.querySelectorAll("#bets-container .bet-card, #bets-container .bet-create-card")]
+            .find(item => item.getBoundingClientRect().width > 0);
+
+        // Téléphone, ou cartes pas affichées : la fenêtre reste centrée.
+        if (window.innerWidth <= 800 || !card) {
+
+            modal.style.justifyContent = "";
+
+            content.style.marginLeft = "";
+
+            content.style.width = "";
+
+            content.style.maxWidth = "";
+
+            return;
+
+        }
+
+        const rect = card.getBoundingClientRect();
+
+        const padding = parseFloat(getComputedStyle(modal).paddingLeft) || 0;
+
+        modal.style.justifyContent = "flex-start";
+
+        content.style.marginLeft = (rect.left - padding) + "px";
+
+        content.style.width = rect.width + "px";
+
+        content.style.maxWidth = "none";
+
+    };
+
+    modals.forEach(modal => {
+
+        // Alignée à chaque ouverture (la classe « hidden » est retirée).
+        new MutationObserver(() => align(modal))
+            .observe(modal, { attributes: true, attributeFilter: ["class"] });
+
+    });
+
+    window.addEventListener("resize", () => modals.forEach(align));
+
+}
+
+
+/*
     Téléphone : la carte « Ton niveau » est remplacée par une petite jauge
     dans la barre du haut. Elle recopie la carte (qui reste la seule mise à
     jour par animations.js) et l'ouvre au toucher, comme la flamme.
@@ -10904,6 +11581,17 @@ function setupXpMini(openXpModal) {
 
         document.getElementById("xp-mini-fill").style.width =
             document.getElementById("level-sidebar-fill").style.width || "0%";
+
+        document.getElementById("xp-mini-xp").textContent =
+            document.getElementById("level-sidebar-xp").textContent.trim();
+
+        // « ⭐ Débloquer le niveau 4 » → « ⭐ Débloquer niv. 4 » (ordinateur).
+        if (levelUpButton) {
+
+            document.getElementById("xp-mini-unlock").textContent =
+                levelUpButton.textContent.trim().replace("le niveau", "niv.");
+
+        }
 
         mini.classList.toggle(
             "pending",
@@ -10973,7 +11661,7 @@ function setupShopPreview() {
             event.target.closest("[data-shop-item]");
 
         // Pas d'aperçu pour les articles sans effet sur le pseudo.
-        if (card && !["clic_perroquet", "bouclier", "rattrapage"].includes(card.dataset.shopItem)) {
+        if (card && !["clic_perroquet", "clic_perroquet_x3", "bouclier", "rattrapage"].includes(card.dataset.shopItem)) {
             openShopPreview(card.dataset.shopItem);
         }
 
@@ -11115,7 +11803,7 @@ function cosmeticCardHtml(item) {
         hasMyCosmetic(item.id);
 
     // Le clic du perroquet ne change pas le pseudo : pas d'aperçu.
-    const adminToggle = currentProfile.is_admin && item.id !== "clic_perroquet"
+    const adminToggle = currentProfile.is_admin && !item.id.startsWith("clic_perroquet")
         ? `
             <button
                 class="reward-preview-toggle cosmetic-preview-toggle${previewOn ? " on" : ""}"
@@ -11350,6 +12038,2483 @@ async function refreshMissions() {
 
 
 /* =========================================================
+   10 TER. AIDE APP (BÊTA-TESTEURS) ET JOURNAL DES NOUVEAUTÉS
+   (tables et fonctions : aide-app.sql)
+========================================================= */
+
+const BETA_POINTS = {
+    send: 10,
+    bugFixed: 50,
+    ideaKept: 150,
+    vote: 5,
+    elected: 100
+};
+
+const BETA_TOPICS = [
+    "Paris : créer / valider",
+    "Mise : Simple / Combinée",
+    "Profil : XP, flammes, argent, pièces",
+    "Affichage / téléphone",
+    "Autre"
+];
+
+// Pseudos réservés aux bêta-testeurs : un par palier de contributions.
+const BETA_TIERS = [
+    { at: 5, style: "terminal", name: "Terminal" },
+    { at: 10, style: "glitch", name: "Glitch" }
+];
+
+// Palier du skin perroquet « chantier » (pas encore dessiné).
+const BETA_SKIN_AT = 15;
+
+const BETA_KINDS = {
+    feature: "Fonctionnalité",
+    design: "Design"
+};
+
+
+// Contributions des bêta-testeurs acceptés, par pseudo (leur pseudo bêta s'affiche partout).
+let betaContributions = new Map();
+
+// Ma ligne de beta_testers (null si je n'ai jamais demandé l'accès).
+let myBeta = null;
+
+// Demandes d'accès en attente (admin).
+let betaRequests = [];
+
+let betaTab = "idea";
+
+let betaBugTopic = null;
+
+let betaIdeaKind = "feature";
+
+let betaBugs = [];
+
+let betaIdeas = [];
+
+let betaLikes = [];
+
+// Brouillon de nouveauté de l'admin (rempli depuis une idée retenue).
+let betaNewsDraft = { title: "", kind: "feature", ideaId: "" };
+
+
+// Nouveautés de la semaine (journal de la page Paris) et mon vote du vendredi.
+let weekNews = [];
+
+let myWeekVote = null;
+
+let betaVoteChoice = null;
+
+
+function hasBetaAccess() {
+
+    return Boolean(currentProfile?.is_admin) || myBeta?.status === "accepted";
+
+}
+
+
+// Pseudo bêta d'un joueur : celui du plus haut palier atteint.
+function betaStyleOf(username) {
+
+    const contributions =
+        betaContributions.get(username);
+
+    if (contributions === undefined) {
+        return null;
+    }
+
+    const reached =
+        BETA_TIERS.filter(tier => contributions >= tier.at);
+
+    return reached.length
+        ? reached[reached.length - 1].style
+        : null;
+
+}
+
+
+/*
+    Dates à l'heure de Paris (le vote ouvre le vendredi,
+    le journal repart à zéro le lundi).
+*/
+
+function parisDay(date = new Date()) {
+
+    return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(date);
+
+}
+
+// 1 = lundi … 7 = dimanche.
+function parisWeekday() {
+
+    return new Date(parisDay() + "T12:00:00Z").getUTCDay() || 7;
+
+}
+
+// Lundi de la semaine en cours, au format AAAA-MM-JJ.
+function parisWeekStart() {
+
+    const day = new Date(parisDay() + "T12:00:00Z");
+
+    day.setUTCDate(day.getUTCDate() - (parisWeekday() - 1));
+
+    return day.toISOString().slice(0, 10);
+
+}
+
+
+/*
+    Statut bêta de tout le monde : mon accès, les demandes
+    en attente (admin) et les contributions (pseudos bêta).
+*/
+
+async function loadBetaStatus() {
+
+    const { data, error } = await supabaseClient
+        .from("beta_testers")
+        .select("user_id, status, contributions, decided_at, seen_at, requested_at, profiles!beta_testers_user_id_fkey ( username )");
+
+    if (error) {
+        console.error(error);
+        return;
+    }
+
+    const rows = data || [];
+
+    betaContributions = new Map(
+        rows
+            .filter(row => row.status === "accepted" && row.profiles)
+            .map(row => [row.profiles.username, row.contributions])
+    );
+
+    myBeta =
+        rows.find(row => row.user_id === currentUser?.id) || null;
+
+    betaRequests =
+        rows
+            .filter(row => row.status === "pending" && row.profiles)
+            .sort((a, b) => new Date(a.requested_at) - new Date(b.requested_at));
+
+    refreshBetaNav();
+
+}
+
+
+// L'onglet Aide app a-t-il déjà été ouvert sur cet appareil ?
+function betaTabKey() {
+
+    return "beta-tab-visited-" + (currentUser?.id || "");
+
+}
+
+function betaTabVisited() {
+
+    try {
+        return localStorage.getItem(betaTabKey()) === "1";
+    } catch {
+        return true;
+    }
+
+}
+
+function markBetaTabVisited() {
+
+    try {
+        localStorage.setItem(betaTabKey(), "1");
+    } catch {}
+
+    document
+        .getElementById("beta-nav-button")
+        ?.classList.remove("nav-highlight");
+
+}
+
+
+function refreshBetaNav() {
+
+    const button =
+        document.getElementById("beta-nav-button");
+
+    button?.classList.toggle("hidden", !hasBetaAccess());
+
+    // Nouveau bêta-testeur : l'onglet est mis en avant jusqu'à sa première visite.
+    button?.classList.toggle(
+        "nav-highlight",
+        myBeta?.status === "accepted" && !currentProfile?.is_admin && !betaTabVisited()
+    );
+
+    // Admin : pastille tant que des demandes attendent une réponse.
+    document
+        .getElementById("beta-nav-dot")
+        ?.classList.toggle("hidden", !(currentProfile?.is_admin && betaRequests.length));
+
+}
+
+
+/*
+    Notifications : réponse à ma demande d'accès, bug corrigé,
+    idée retenue ou non. Affichées une seule fois.
+*/
+
+async function notifyBetaUpdates() {
+
+    if (!currentUser || currentProfile?.is_admin || typeof alertToast !== "function") {
+        return;
+    }
+
+    const notes = [];
+
+    // Accès accepté : une vraie fenêtre de bienvenue, pas une simple notification.
+    const welcome =
+        myBeta?.decided_at && !myBeta.seen_at && myBeta.status === "accepted";
+
+    if (myBeta?.decided_at && !myBeta.seen_at && myBeta.status === "refused") {
+
+        notes.push("Ta demande pour devenir bêta-testeur n'a pas été acceptée.");
+
+    }
+
+    if (myBeta?.status === "accepted") {
+
+        const [bugs, ideas] = await Promise.all([
+            supabaseClient
+                .from("beta_bugs")
+                .select("topic, status")
+                .eq("user_id", currentUser.id)
+                .neq("status", "sent")
+                .is("seen_at", null),
+            supabaseClient
+                .from("beta_ideas")
+                .select("text, status")
+                .eq("user_id", currentUser.id)
+                .neq("status", "sent")
+                .is("seen_at", null)
+        ]);
+
+        (bugs.data || []).forEach(bug => {
+
+            notes.push(
+                bug.status === "fixed"
+                    ? `Ton bug « ${escapeHtml(bug.topic)} » est corrigé : <b>+${BETA_POINTS.bugFixed} 🪙</b>`
+                    : `Ton bug « ${escapeHtml(bug.topic)} » n'a pas été retenu.`
+            );
+
+        });
+
+        (ideas.data || []).forEach(idea => {
+
+            notes.push(
+                idea.status === "kept"
+                    ? `Ton idée « ${escapeHtml(idea.text)} » est retenue : <b>+${BETA_POINTS.ideaKept} 🪙</b>`
+                    : `Ton idée « ${escapeHtml(idea.text)} » n'a pas été retenue.`
+            );
+
+        });
+
+    }
+
+    if (welcome) {
+
+        document.getElementById("beta-welcome-modal")?.classList.remove("hidden");
+
+    }
+
+    if (!notes.length && !welcome) {
+        return;
+    }
+
+    notes.forEach(text => {
+
+        alertToast(text, {
+            type: "beta",
+            onClick: hasBetaAccess() ? () => openBetaPage() : null
+        });
+
+    });
+
+    const { error } = await supabaseClient.rpc("beta_mark_seen");
+
+    if (error) {
+        console.error(error);
+    }
+
+}
+
+
+function openBetaPage() {
+
+    document
+        .querySelector('.nav-button[data-page="beta-page"]')
+        ?.click();
+
+}
+
+
+/*
+    Carte du Profil : demander à devenir bêta-testeur.
+*/
+
+function displayBetaRequestCard() {
+
+    const card =
+        document.getElementById("beta-request-card");
+
+    if (!card) {
+        return;
+    }
+
+    // Admin et bêta-testeurs : l'onglet Aide app suffit.
+    if (currentProfile?.is_admin || myBeta?.status === "accepted") {
+
+        card.classList.add("hidden");
+
+        return;
+
+    }
+
+    const pending =
+        myBeta?.status === "pending";
+
+    const refused =
+        myBeta?.status === "refused";
+
+    card.classList.remove("hidden");
+
+    card.innerHTML = `
+        <h2>🧪 Deviens bêta-testeur</h2>
+
+        <p class="profile-hint">
+            Teste les nouveautés en avant-première, signale les bugs, propose tes idées
+            et gagne des 🪙 et des pseudos exclusifs.
+        </p>
+
+        ${pending
+            ? `<p class="beta-request-state">⏳ Demande envoyée : en attente de l'admin.</p>`
+            : `
+                ${refused ? `<p class="beta-request-state refused">Ta dernière demande n'a pas été acceptée.</p>` : ""}
+                <button type="button" class="primary-button" id="beta-request-button">
+                    🙋 Devenir bêta-testeur
+                </button>
+            `}
+
+        <p
+            id="beta-request-message"
+            class="missions-message hidden"
+        ></p>
+    `;
+
+    card.querySelector("#beta-request-button")?.addEventListener("click", async event => {
+
+        const button = event.currentTarget;
+
+        button.disabled = true;
+
+        const { error } = await supabaseClient.rpc("beta_request");
+
+        if (error) {
+
+            showMissionsMessage(error.message, true, "beta-request-message");
+
+            button.disabled = false;
+
+            return;
+
+        }
+
+        await loadBetaStatus();
+
+        displayBetaRequestCard();
+
+    });
+
+}
+
+
+/*
+    Données de l'onglet : bugs (les miens, ou tous pour l'admin),
+    idées de tout le monde et leurs « j'aime ».
+*/
+
+async function loadBetaData() {
+
+    const [bugs, ideas, likes] = await Promise.all([
+        supabaseClient
+            .from("beta_bugs")
+            .select("id, user_id, topic, text, status, created_at, profiles!beta_bugs_user_id_fkey ( username )")
+            .order("created_at", { ascending: false }),
+        supabaseClient
+            .from("beta_ideas")
+            .select("id, user_id, kind, text, status, created_at, profiles!beta_ideas_user_id_fkey ( username )")
+            .order("created_at", { ascending: false }),
+        supabaseClient
+            .from("beta_idea_likes")
+            .select("idea_id, user_id")
+    ]);
+
+    [bugs, ideas, likes].forEach(result => {
+
+        if (result.error) {
+            console.error(result.error);
+        }
+
+    });
+
+    betaBugs = bugs.data || [];
+
+    betaIdeas = ideas.data || [];
+
+    betaLikes = likes.data || [];
+
+}
+
+
+async function displayBetaPage() {
+
+    const container =
+        document.getElementById("beta-container");
+
+    if (!container) {
+        return;
+    }
+
+    markBetaTabVisited();
+
+    if (!hasBetaAccess()) {
+
+        container.innerHTML = "";
+
+        return;
+
+    }
+
+    await Promise.all([
+        loadBetaStatus(),
+        loadBetaData(),
+        loadWeekNews()
+    ]);
+
+    renderBetaPage();
+
+}
+
+
+function renderBetaPage() {
+
+    const container =
+        document.getElementById("beta-container");
+
+    if (!container) {
+        return;
+    }
+
+    const isAdmin =
+        Boolean(currentProfile?.is_admin);
+
+    document.getElementById("beta-page-subtitle").textContent = isAdmin
+        ? "Vue admin : demandes d'accès, journal de la semaine, bugs et idées à traiter."
+        : "Merci de tester BetLab ! Signale les bugs et propose tes idées.";
+
+    const tabs = [
+        ["idea", "💡 Idées"],
+        ["bug", "🐞 Bug"]
+    ];
+
+    container.innerHTML = `
+        ${isAdmin ? betaRequestsHtml() + betaNewsAdminHtml() : betaProgressHtml()}
+
+        <div class="beta-subnav">
+            ${tabs.map(([key, label]) => `
+                <button type="button" class="${betaTab === key ? "on" : ""}" data-beta-tab="${key}">${label}</button>
+            `).join("")}
+        </div>
+
+        ${betaTab === "idea" ? betaIdeasHtml() : betaBugsHtml()}
+    `;
+
+}
+
+
+/*
+    Jauge des paliers : 5 = pseudo Terminal, 10 = pseudo Glitch,
+    15 = skin chantier. Chaque palier a son aperçu (comme la boutique).
+*/
+
+function betaProgressHtml() {
+
+    const contributions =
+        myBeta?.contributions || 0;
+
+    const percent =
+        Math.min(100, contributions / BETA_SKIN_AT * 100);
+
+    const nextTier =
+        BETA_TIERS.find(tier => contributions < tier.at);
+
+    const next = nextTier
+        ? `encore ${nextTier.at - contributions} pour le pseudo ${nextTier.name}`
+        : contributions < BETA_SKIN_AT
+            ? `encore ${BETA_SKIN_AT - contributions} pour le skin chantier`
+            : "tout est débloqué";
+
+    const me = { username: currentProfile.username };
+
+    return `
+        <div class="beta-progress">
+
+            <div class="beta-progress-head">
+                <span><b>${contributions}</b> contribution${contributions > 1 ? "s" : ""}</span>
+                <span>${next}</span>
+            </div>
+
+            <div class="beta-progress-track">
+                <div class="beta-progress-fill" style="width: ${percent}%"></div>
+                ${BETA_TIERS.map(tier => `
+                    <span class="beta-progress-tick${contributions >= tier.at ? " done" : ""}" style="left: ${tier.at / BETA_SKIN_AT * 100}%"></span>
+                `).join("")}
+            </div>
+
+            <div class="beta-progress-labels">
+                ${BETA_TIERS.map(tier => `
+                    <span class="${contributions >= tier.at ? "done" : ""}" style="left: ${tier.at / BETA_SKIN_AT * 100}%">
+                        <button type="button" class="beta-tier-peek" data-beta-tier="${tier.style}" title="Voir l'aperçu">
+                            <b>${tier.at}</b>
+                            <span class="beta-tier-pill">
+                                <span class="beta-tier-eye">👁</span>
+                                <span class="beta-tier-name">${nameHtml(me, { beta: tier.style })}</span>
+                                ${contributions >= tier.at ? " ✓" : ""}
+                            </span>
+                        </button>
+                    </span>
+                `).join("")}
+                <span class="${contributions >= BETA_SKIN_AT ? "done" : ""}" style="left: 100%">
+                    <b>${BETA_SKIN_AT}</b>skin chantier
+                </span>
+            </div>
+
+        </div>
+    `;
+
+}
+
+
+// Aperçu d'un pseudo bêta, dans la fenêtre d'aperçu de la boutique.
+function openBetaTierPreview(style) {
+
+    const tier =
+        BETA_TIERS.find(item => item.style === style);
+
+    if (!tier || !currentProfile) {
+        return;
+    }
+
+    const me = { username: currentProfile.username };
+
+    const effects = { beta: tier.style };
+
+    const contributions =
+        myBeta?.contributions || 0;
+
+    document.getElementById("shop-preview-stage").innerHTML = `
+        <h3 class="beta-preview-title">Pseudo ${tier.name}</h3>
+        <div class="shop-preview-board">
+            ${leaderboardRowHtml({ username: "Emma" }, { rank: 2, medal: "🥈", balance: formatBalance(1840), effects: {}, extraClass: " shop-preview-dim" })}
+            ${leaderboardRowHtml(me, { rank: 3, medal: "🥉", balance: formatBalance(1520), effects })}
+            ${leaderboardRowHtml({ username: "Lucas" }, { rank: 4, medal: "", balance: formatBalance(1310), effects: {}, extraClass: " shop-preview-dim" })}
+        </div>
+        <p class="shop-preview-bet-line">
+            Sur une carte de pari : 🏆 Créé par
+            <span class="user-name">${nameHtml(me, effects)}</span>
+        </p>
+        <p class="beta-preview-lock">
+            ${contributions >= tier.at
+                ? "✓ Débloqué"
+                : `🔒 Débloqué à ${tier.at} contributions (encore ${tier.at - contributions})`}
+            · réservé aux bêta-testeurs
+        </p>
+    `;
+
+    document.getElementById("shop-preview-options").innerHTML = "";
+
+    document.getElementById("shop-preview-modal").classList.remove("hidden");
+
+}
+
+
+// Admin : demandes d'accès en attente.
+function betaRequestsHtml() {
+
+    if (!betaRequests.length) {
+        return "";
+    }
+
+    return `
+        <div class="beta-requests">
+            <b>🙋 Demandes pour devenir bêta-testeur (${betaRequests.length})</b>
+            ${betaRequests.map(request => `
+                <div class="beta-request">
+                    <span>${styledName(request.profiles)}</span>
+                    <button type="button" class="primary-button" data-beta-accept="${request.user_id}">Accepter</button>
+                    <button type="button" class="secondary-button" data-beta-refuse="${request.user_id}">Refuser</button>
+                </div>
+            `).join("")}
+        </div>
+    `;
+
+}
+
+
+// Admin : publier une nouveauté dans le journal de la page Paris.
+function betaNewsAdminHtml() {
+
+    const kept =
+        betaIdeas.filter(idea => idea.status === "kept");
+
+    return `
+        <div class="beta-card beta-news-admin">
+
+            <h3>📖 Journal de la semaine</h3>
+
+            <p class="beta-meta">
+                Visible par tous sur la page Paris jusqu'à lundi. Seulement les fonctionnalités et le design, pas les bugs corrigés.
+            </p>
+
+            <div class="beta-topics">
+                ${Object.entries(BETA_KINDS).map(([key, label]) => `
+                    <button type="button" class="beta-topic${betaNewsDraft.kind === key ? " on" : ""}" data-beta-news-kind="${key}">${label}</button>
+                `).join("")}
+            </div>
+
+            <div class="beta-news-form">
+                <input
+                    type="text"
+                    class="beta-input"
+                    id="beta-news-title"
+                    maxlength="80"
+                    placeholder="Titre de la nouveauté"
+                    value="${escapeHtml(betaNewsDraft.title)}"
+                >
+                <select class="beta-input" id="beta-news-idea">
+                    <option value="">🛠️ Équipe BetLab</option>
+                    ${kept.map(idea => `
+                        <option value="${idea.id}"${String(idea.id) === String(betaNewsDraft.ideaId) ? " selected" : ""}>
+                            💡 Idée de ${escapeHtml(idea.profiles?.username || "?")} : ${escapeHtml(idea.text.slice(0, 40))}
+                        </option>
+                    `).join("")}
+                </select>
+                <button type="button" class="primary-button" data-beta-news-add>Publier</button>
+            </div>
+
+            <div class="beta-list">
+                ${weekNews.length
+                    ? weekNews.map(news => `
+                        <div class="beta-item">
+                            <div class="beta-item-text">
+                                <b>${escapeHtml(news.title)}</b>
+                                <p>${BETA_KINDS[news.kind]} · ${news.profiles?.username ? "idée de " + escapeHtml(news.profiles.username) : "Équipe BetLab"}</p>
+                            </div>
+                            <button type="button" class="secondary-button" data-beta-news-delete="${news.id}" title="Retirer du journal">✕</button>
+                        </div>
+                    `).join("")
+                    : `<p class="beta-empty">Rien de publié cette semaine.</p>`}
+            </div>
+
+        </div>
+    `;
+
+}
+
+
+const BETA_BUG_STATUS = {
+    sent: { icon: "📨", label: "Envoyé", className: "sent" },
+    fixed: { icon: "✅", label: "Corrigé", className: "ok" },
+    rejected: { icon: "✖", label: "Rejeté", className: "no" }
+};
+
+const BETA_IDEA_STATUS = {
+    sent: { icon: "📨", label: "Envoyée", className: "sent" },
+    kept: { icon: "⭐", label: "Retenue", className: "ok" },
+    rejected: { icon: "✖", label: "Pas retenue", className: "no" }
+};
+
+
+function betaGainHtml(points) {
+
+    return `<span class="beta-gain">+${points} 🪙</span>`;
+
+}
+
+
+function betaBugsHtml() {
+
+    const isAdmin =
+        Boolean(currentProfile?.is_admin);
+
+    const list = isAdmin
+        ? betaBugs
+        : betaBugs.filter(bug => bug.user_id === currentUser.id);
+
+    return `
+        <div class="beta-stack">
+
+            ${isAdmin ? "" : `
+                <div class="beta-card">
+                    <h3 class="beta-card-head">🐞 Signaler un bug <span class="beta-bonus">+${BETA_POINTS.bugFixed} 🪙 si corrigé</span></h3>
+                    <div class="beta-topics">
+                        ${BETA_TOPICS.map(topic => `
+                            <button type="button" class="beta-topic${betaBugTopic === topic ? " on" : ""}" data-beta-topic="${escapeHtml(topic)}">${escapeHtml(topic)}</button>
+                        `).join("")}
+                    </div>
+                    <textarea
+                        class="beta-input"
+                        id="beta-bug-text"
+                        rows="3"
+                        maxlength="600"
+                        placeholder="Explique ce qui s'est passé et ce que tu attendais…"
+                    ></textarea>
+                    <div class="beta-actions">
+                        <button type="button" class="primary-button" data-beta-send-bug ${betaBugTopic ? "" : "disabled"}>
+                            Envoyer ${betaGainHtml(BETA_POINTS.send)}
+                        </button>
+                    </div>
+                </div>
+            `}
+
+            <div class="beta-card">
+                <h3>${isAdmin ? "🐞 Bugs signalés" : "📋 Mes signalements"}</h3>
+                <div class="beta-list">
+                    ${list.length
+                        ? list.map(bug => {
+                            const status = BETA_BUG_STATUS[bug.status];
+                            return `
+                                <div class="beta-item beta-item--${status.className}">
+                                    <span class="beta-item-icon">${status.icon}</span>
+                                    <div class="beta-item-text">
+                                        <b>${escapeHtml(bug.topic)}</b>${isAdmin ? ` · ${styledName(bug.profiles)}` : ""}
+                                        <p>${escapeHtml(bug.text)}</p>
+                                    </div>
+                                    <div class="beta-item-side">
+                                        <span class="beta-status beta-status--${status.className}">${status.label}</span>
+                                        ${isAdmin && bug.status === "sent" ? `
+                                            <div class="beta-item-buttons">
+                                                <button type="button" class="primary-button" data-beta-fix="${bug.id}">✓ Corrigé ${betaGainHtml(BETA_POINTS.bugFixed)}</button>
+                                                <button type="button" class="secondary-button" data-beta-reject-bug="${bug.id}">Rejeter</button>
+                                            </div>
+                                        ` : ""}
+                                    </div>
+                                </div>
+                            `;
+                        }).join("")
+                        : `<p class="beta-empty">Aucun signalement pour l'instant.</p>`}
+                </div>
+            </div>
+
+        </div>
+    `;
+
+}
+
+
+function betaIdeasHtml() {
+
+    const isAdmin =
+        Boolean(currentProfile?.is_admin);
+
+    const likesOf = id =>
+        betaLikes.filter(like => like.idea_id === id).length;
+
+    const iLike = id =>
+        betaLikes.some(like => like.idea_id === id && like.user_id === currentUser.id);
+
+    // Les idées encore en attente d'abord, puis les plus aimées.
+    const sorted = [...betaIdeas].sort((a, b) =>
+        (a.status === "sent" ? 0 : 1) - (b.status === "sent" ? 0 : 1) ||
+        likesOf(b.id) - likesOf(a.id)
+    );
+
+    return `
+        <div class="beta-stack">
+
+            ${isAdmin ? "" : `
+                <div class="beta-card">
+                    <h3 class="beta-card-head">💡 Proposer une idée <span class="beta-bonus">+${BETA_POINTS.ideaKept} 🪙 si retenue</span></h3>
+                    <div class="beta-topics">
+                        ${Object.entries(BETA_KINDS).map(([key, label]) => `
+                            <button type="button" class="beta-topic${betaIdeaKind === key ? " on" : ""}" data-beta-kind="${key}">${key === "design" ? "🎨" : "🧩"} ${label}</button>
+                        `).join("")}
+                    </div>
+                    <div class="beta-idea-form">
+                        <input
+                            type="text"
+                            class="beta-input"
+                            id="beta-idea-text"
+                            maxlength="300"
+                            placeholder="${betaIdeaKind === "design" ? "Ex. : un thème de nuit pour les cartes" : "Ex. : pouvoir parier en équipe"}"
+                        >
+                        <button type="button" class="primary-button" data-beta-send-idea>
+                            Proposer ${betaGainHtml(BETA_POINTS.send)}
+                        </button>
+                    </div>
+                </div>
+            `}
+
+            <div class="beta-card">
+                <h3>🗳️ Les idées de tout le monde</h3>
+                <p class="beta-meta">❤️ « J'aime » sur celles que tu veux voir arriver.</p>
+                <div class="beta-list">
+                    ${sorted.length
+                        ? sorted.map(idea => {
+                            const status = BETA_IDEA_STATUS[idea.status];
+                            const mine = idea.user_id === currentUser.id;
+                            return `
+                                <div class="beta-item beta-item--${status.className}">
+                                    <button
+                                        type="button"
+                                        class="beta-like${iLike(idea.id) ? " on" : ""}"
+                                        data-beta-like="${idea.id}"
+                                        ${mine || isAdmin ? "disabled" : ""}
+                                        title="${mine ? "Ta propre idée" : "J'aime"}"
+                                    >
+                                        <span class="beta-like-icon">❤️</span>${likesOf(idea.id)}
+                                    </button>
+                                    <div class="beta-item-text">
+                                        <b>${escapeHtml(idea.text)}</b>
+                                        <p>${idea.kind === "design" ? "🎨 Design" : "🧩 Fonctionnalité"} · par ${mine ? "toi" : styledName(idea.profiles)}</p>
+                                    </div>
+                                    <div class="beta-item-side">
+                                        <span class="beta-status beta-status--${status.className}">${status.icon} ${status.label}</span>
+                                        ${isAdmin && idea.status === "sent" ? `
+                                            <div class="beta-item-buttons">
+                                                <button type="button" class="primary-button" data-beta-keep="${idea.id}">★ Retenir ${betaGainHtml(BETA_POINTS.ideaKept)}</button>
+                                                <button type="button" class="secondary-button" data-beta-reject="${idea.id}">Pas retenue</button>
+                                            </div>
+                                        ` : ""}
+                                        ${isAdmin && idea.status === "kept"
+                                            ? `<button type="button" class="secondary-button" data-beta-to-news="${idea.id}">📖 Au journal</button>`
+                                            : ""}
+                                    </div>
+                                </div>
+                            `;
+                        }).join("")
+                        : `<p class="beta-empty">Aucune idée pour l'instant : lance-toi !</p>`}
+                </div>
+            </div>
+
+        </div>
+    `;
+
+}
+
+
+/*
+    Envoi d'un bug, d'une idée ou d'un vote : les pièces gagnées
+    volent du bouton jusqu'au compteur de points.
+*/
+
+async function betaEarn(button, rpc, params) {
+
+    const origin =
+        button.getBoundingClientRect();
+
+    const pointsBefore =
+        Number(currentProfile?.points || 0);
+
+    button.disabled = true;
+
+    const { data, error } =
+        await supabaseClient.rpc(rpc, params);
+
+    if (error) {
+
+        button.disabled = false;
+
+        throw error;
+
+    }
+
+    const gained =
+        Number(data) || 0;
+
+    if (currentProfile) {
+        currentProfile.points = pointsBefore + gained;
+    }
+
+    if (typeof flyCoins === "function") {
+        flyCoins(origin, gained, pointsBefore);
+    }
+
+    return gained;
+
+}
+
+
+// Après un envoi : une contribution de plus, et peut-être un pseudo débloqué.
+function betaCountContribution() {
+
+    if (!myBeta) {
+        return;
+    }
+
+    myBeta.contributions += 1;
+
+    betaContributions.set(currentProfile.username, myBeta.contributions);
+
+    const tier =
+        BETA_TIERS.find(item => item.at === myBeta.contributions);
+
+    if (tier && typeof alertToast === "function") {
+
+        alertToast(`Pseudo <b>${tier.name}</b> débloqué ! Il s'affiche partout sur le site.`, {
+            type: "beta",
+            onClick: () => openBetaTierPreview(tier.style)
+        });
+
+    }
+
+}
+
+
+function burstLikes(button) {
+
+    const rect = button.getBoundingClientRect();
+
+    const icons = ["❤️", "💖", "✨"];
+
+    for (let i = 0; i < 7; i++) {
+
+        const heart = document.createElement("span");
+
+        heart.className = "beta-like-burst";
+
+        heart.textContent = icons[i % icons.length];
+
+        heart.style.left = rect.left + rect.width / 2 - 7 + "px";
+
+        heart.style.top = rect.top + 6 + "px";
+
+        document.body.appendChild(heart);
+
+        const angle = (Math.PI * 2 * i) / 7;
+
+        heart.animate(
+            [
+                { transform: "translate(0, 0) scale(0.4)", opacity: 1 },
+                { transform: `translate(${Math.cos(angle) * 40}px, ${Math.sin(angle) * 40 - 10}px) scale(1)`, opacity: 0 }
+            ],
+            { duration: 650, easing: "ease-out" }
+        ).finished.then(() => heart.remove()).catch(() => heart.remove());
+
+    }
+
+}
+
+
+function setupBetaPage() {
+
+    const container =
+        document.getElementById("beta-container");
+
+    if (!container) {
+        return;
+    }
+
+    const message = (text, isError = false) =>
+        showMissionsMessage(text, isError, "beta-message");
+
+    container.addEventListener("click", async event => {
+
+        const button = event.target.closest("button");
+
+        if (!button || button.disabled) {
+            return;
+        }
+
+        const data = button.dataset;
+
+        try {
+
+            if (data.betaTab) {
+
+                betaTab = data.betaTab;
+
+                renderBetaPage();
+
+            } else if (data.betaTier) {
+
+                openBetaTierPreview(data.betaTier);
+
+            } else if (data.betaTopic) {
+
+                const text = document.getElementById("beta-bug-text")?.value || "";
+
+                betaBugTopic = data.betaTopic;
+
+                renderBetaPage();
+
+                // Le texte déjà tapé est gardé.
+                document.getElementById("beta-bug-text").value = text;
+
+            } else if (data.betaSendBug !== undefined) {
+
+                const text = document.getElementById("beta-bug-text").value;
+
+                await betaEarn(button, "beta_send_bug", {
+                    p_group: currentGroup.id,
+                    p_topic: betaBugTopic,
+                    p_text: text
+                });
+
+                betaBugTopic = null;
+
+                betaCountContribution();
+
+                message("Bug reçu, merci ! Tu suis son avancement juste en dessous.");
+
+                await loadBetaData();
+
+                renderBetaPage();
+
+            } else if (data.betaKind) {
+
+                const text = document.getElementById("beta-idea-text")?.value || "";
+
+                betaIdeaKind = data.betaKind;
+
+                renderBetaPage();
+
+                document.getElementById("beta-idea-text").value = text;
+
+            } else if (data.betaSendIdea !== undefined) {
+
+                const input = document.getElementById("beta-idea-text");
+
+                if (!input.value.trim()) {
+
+                    input.focus();
+
+                    return;
+
+                }
+
+                await betaEarn(button, "beta_send_idea", {
+                    p_group: currentGroup.id,
+                    p_kind: betaIdeaKind,
+                    p_text: input.value
+                });
+
+                betaCountContribution();
+
+                message("Idée envoyée : les autres bêta-testeurs peuvent l'aimer.");
+
+                await loadBetaData();
+
+                renderBetaPage();
+
+            } else if (data.betaLike) {
+
+                const id = Number(data.betaLike);
+
+                const { data: liked, error } = await supabaseClient.rpc("beta_toggle_like", { p_idea: id });
+
+                if (error) {
+                    throw error;
+                }
+
+                betaLikes = liked
+                    ? [...betaLikes, { idea_id: id, user_id: currentUser.id }]
+                    : betaLikes.filter(like => !(like.idea_id === id && like.user_id === currentUser.id));
+
+                renderBetaPage();
+
+                if (liked) {
+
+                    const again = container.querySelector(`[data-beta-like="${id}"]`);
+
+                    if (again) {
+
+                        again.classList.add("boom");
+
+                        burstLikes(again);
+
+                    }
+
+                }
+
+            } else if (data.betaAccept || data.betaRefuse) {
+
+                const { error } = await supabaseClient.rpc("beta_decide", {
+                    p_user: data.betaAccept || data.betaRefuse,
+                    p_accept: Boolean(data.betaAccept)
+                });
+
+                if (error) {
+                    throw error;
+                }
+
+                message(data.betaAccept ? "Accès bêta accordé." : "Demande refusée.");
+
+                await loadBetaStatus();
+
+                renderBetaPage();
+
+            } else if (data.betaFix) {
+
+                const { error } = await supabaseClient.rpc("beta_fix_bug", { p_bug: Number(data.betaFix) });
+
+                if (error) {
+                    throw error;
+                }
+
+                message(`Bug corrigé : son auteur reçoit +${BETA_POINTS.bugFixed} 🪙 et une notification.`);
+
+                await loadBetaData();
+
+                renderBetaPage();
+
+            } else if (data.betaRejectBug) {
+
+                const { error } = await supabaseClient.rpc("beta_reject_bug", { p_bug: Number(data.betaRejectBug) });
+
+                if (error) {
+                    throw error;
+                }
+
+                message("Bug rejeté : son auteur est prévenu.");
+
+                await loadBetaData();
+
+                renderBetaPage();
+
+            } else if (data.betaKeep || data.betaReject) {
+
+                const { error } = await supabaseClient.rpc("beta_decide_idea", {
+                    p_idea: Number(data.betaKeep || data.betaReject),
+                    p_keep: Boolean(data.betaKeep)
+                });
+
+                if (error) {
+                    throw error;
+                }
+
+                message(data.betaKeep
+                    ? `Idée retenue : son auteur reçoit +${BETA_POINTS.ideaKept} 🪙 et une notification.`
+                    : "Idée marquée « pas retenue ».");
+
+                await loadBetaData();
+
+                renderBetaPage();
+
+            } else if (data.betaToNews) {
+
+                const idea = betaIdeas.find(item => String(item.id) === data.betaToNews);
+
+                betaNewsDraft = {
+                    title: idea.text.slice(0, 80),
+                    kind: idea.kind,
+                    ideaId: idea.id
+                };
+
+                renderBetaPage();
+
+                document.getElementById("beta-news-title")?.focus();
+
+            } else if (data.betaNewsKind) {
+
+                betaNewsDraft = {
+                    title: document.getElementById("beta-news-title").value,
+                    kind: data.betaNewsKind,
+                    ideaId: document.getElementById("beta-news-idea").value
+                };
+
+                renderBetaPage();
+
+            } else if (data.betaNewsAdd !== undefined) {
+
+                const ideaId = document.getElementById("beta-news-idea").value;
+
+                const { error } = await supabaseClient.rpc("beta_add_news", {
+                    p_title: document.getElementById("beta-news-title").value,
+                    p_kind: betaNewsDraft.kind,
+                    p_idea: ideaId ? Number(ideaId) : null
+                });
+
+                if (error) {
+                    throw error;
+                }
+
+                betaNewsDraft = { title: "", kind: "feature", ideaId: "" };
+
+                message("Nouveauté publiée dans le journal de la page Paris.");
+
+                await loadWeekNews();
+
+                renderBetaPage();
+
+            } else if (data.betaNewsDelete) {
+
+                const { error } = await supabaseClient.rpc("beta_delete_news", { p_news: Number(data.betaNewsDelete) });
+
+                if (error) {
+                    throw error;
+                }
+
+                await loadWeekNews();
+
+                renderBetaPage();
+
+            }
+
+        } catch (error) {
+
+            console.error(error);
+
+            message(error.message || "Une erreur est survenue.", true);
+
+        }
+
+    });
+
+}
+
+
+/*
+    Journal des nouveautés (page Paris, sous le classement) :
+    seulement les nouveautés de la semaine, et le vote du vendredi.
+*/
+
+async function loadWeekNews() {
+
+    const weekStart =
+        parisWeekStart();
+
+    // Un peu plus large que la semaine, puis tri à l'heure de Paris.
+    const since =
+        new Date(new Date(weekStart + "T00:00:00Z").getTime() - 86400000).toISOString();
+
+    const [news, vote] = await Promise.all([
+        supabaseClient
+            .from("beta_news")
+            .select("id, title, kind, author_id, created_at, profiles!beta_news_author_id_fkey ( username )")
+            .gte("created_at", since)
+            .order("created_at"),
+        currentUser
+            ? supabaseClient
+                .from("beta_votes")
+                .select("news_id")
+                .eq("week_start", weekStart)
+                .eq("user_id", currentUser.id)
+                .maybeSingle()
+            : { data: null }
+    ]);
+
+    if (news.error) {
+
+        console.error(news.error);
+
+        return;
+
+    }
+
+    weekNews =
+        (news.data || []).filter(item => parisDay(new Date(item.created_at)) >= weekStart);
+
+    myWeekVote =
+        vote.data?.news_id || null;
+
+    renderNewsJournal();
+
+}
+
+
+// Le vote est ouvert du vendredi au dimanche, s'il y a au moins 2 nouveautés.
+function betaVoteOpen() {
+
+    return parisWeekday() >= 5 && weekNews.length >= 2;
+
+}
+
+
+function renderNewsJournal() {
+
+    const journal =
+        document.getElementById("news-journal");
+
+    if (!journal) {
+        return;
+    }
+
+    journal.classList.toggle("hidden", weekNews.length === 0);
+
+    if (!weekNews.length) {
+
+        journal.innerHTML = "";
+
+        return;
+
+    }
+
+    const vote = !betaVoteOpen()
+        ? ""
+        : myWeekVote
+            ? `<button type="button" class="news-journal-vote done" data-journal-vote>✓ Tu as voté · voir les résultats</button>`
+            : `<div class="news-journal-vote">🏆 Vote de la semaine <button type="button" data-journal-vote>Voter +${BETA_POINTS.vote} 🪙</button></div>`;
+
+    journal.innerHTML = `
+        <div class="news-journal-head">
+            📖 Nouveautés
+            <span>cette semaine</span>
+        </div>
+
+        ${vote}
+
+        <div class="news-journal-list">
+            ${weekNews.map(news => `
+                <div class="news-journal-line${news.author_id === currentUser?.id ? " mine" : ""}" title="${escapeHtml(news.title)}">
+                    <span class="news-journal-new">NEW</span>
+                    <span class="news-journal-title">${escapeHtml(news.title)}</span>
+                    <span class="news-journal-who">${news.profiles?.username ? "#" + escapeHtml(news.profiles.username) : "Équipe"}</span>
+                </div>
+            `).join("")}
+        </div>
+    `;
+
+}
+
+
+/*
+    Fenêtre du vote : choix puis « Voter », définitif.
+    Après le vote, elle montre les résultats.
+*/
+
+async function openBetaVote() {
+
+    const body =
+        document.getElementById("beta-vote-body");
+
+    const modal =
+        document.getElementById("beta-vote-modal");
+
+    if (!body || !modal) {
+        return;
+    }
+
+    let counts = new Map();
+
+    if (myWeekVote) {
+
+        const { data } = await supabaseClient
+            .from("beta_votes")
+            .select("news_id")
+            .eq("week_start", parisWeekStart());
+
+        (data || []).forEach(vote => counts.set(vote.news_id, (counts.get(vote.news_id) || 0) + 1));
+
+    }
+
+    const total =
+        [...counts.values()].reduce((sum, count) => sum + count, 0) || 1;
+
+    body.innerHTML = `
+        <h2 class="beta-vote-title">🏆 Meilleure nouveauté de la semaine</h2>
+
+        <p class="beta-vote-hint">
+            ${myWeekVote
+                ? "Résultats en direct. Le gagnant est connu lundi."
+                : `L'auteur de l'idée élue gagne +${BETA_POINTS.elected} 🪙. Un seul vote, définitif.`}
+        </p>
+
+        <div class="beta-vote-options">
+            ${weekNews.map(news => {
+                const percent = Math.round((counts.get(news.id) || 0) / total * 100);
+                return `
+                    <button
+                        type="button"
+                        class="beta-vote-option${betaVoteChoice === news.id && !myWeekVote ? " selected" : ""}${myWeekVote === news.id ? " mine" : ""}"
+                        data-vote-option="${news.id}"
+                        ${myWeekVote ? "disabled" : ""}
+                    >
+                        ${myWeekVote ? `<i class="beta-vote-bar" style="width: ${percent}%"></i>` : ""}
+                        <span>${escapeHtml(news.title)}</span>
+                        ${myWeekVote ? `<b>${percent} %</b>` : ""}
+                    </button>
+                `;
+            }).join("")}
+        </div>
+
+        ${myWeekVote ? "" : `
+            <button type="button" class="primary-button beta-vote-go" data-vote-go ${betaVoteChoice ? "" : "disabled"}>
+                Voter ${betaGainHtml(BETA_POINTS.vote)}
+            </button>
+        `}
+
+        <p
+            id="beta-vote-message"
+            class="missions-message hidden"
+        ></p>
+    `;
+
+    modal.classList.remove("hidden");
+
+}
+
+
+function setupNewsJournal() {
+
+    document.getElementById("news-journal")?.addEventListener("click", event => {
+
+        if (event.target.closest("[data-journal-vote]")) {
+            openBetaVote();
+        }
+
+    });
+
+    document.getElementById("close-beta-vote")?.addEventListener("click", () => {
+
+        document.getElementById("beta-vote-modal").classList.add("hidden");
+
+    });
+
+    document.getElementById("beta-vote-body")?.addEventListener("click", async event => {
+
+        const option = event.target.closest("[data-vote-option]");
+
+        if (option && !option.disabled) {
+
+            betaVoteChoice = Number(option.dataset.voteOption);
+
+            openBetaVote();
+
+            return;
+
+        }
+
+        const go = event.target.closest("[data-vote-go]");
+
+        if (!go || go.disabled || !betaVoteChoice) {
+            return;
+        }
+
+        try {
+
+            await betaEarn(go, "beta_vote", {
+                p_group: currentGroup.id,
+                p_news: betaVoteChoice
+            });
+
+            myWeekVote = betaVoteChoice;
+
+            betaVoteChoice = null;
+
+            renderNewsJournal();
+
+            openBetaVote();
+
+        } catch (error) {
+
+            console.error(error);
+
+            showMissionsMessage(error.message || "Vote impossible.", true, "beta-vote-message");
+
+        }
+
+    });
+
+}
+
+
+/*
+    Le ticket de mise apparaît (ou disparaît) entre le classement
+    et le journal : le journal glisse vers sa nouvelle place.
+*/
+
+function newsJournalTop() {
+
+    const journal =
+        document.getElementById("news-journal");
+
+    return journal && !journal.classList.contains("hidden")
+        ? journal.getBoundingClientRect().top
+        : null;
+
+}
+
+function slideNewsJournal(previousTop) {
+
+    const journal =
+        document.getElementById("news-journal");
+
+    if (previousTop === null || !journal) {
+        return;
+    }
+
+    const shift =
+        previousTop - journal.getBoundingClientRect().top;
+
+    if (Math.abs(shift) < 2) {
+        return;
+    }
+
+    journal.animate(
+        [
+            { transform: `translateY(${shift}px)` },
+            { transform: "none" }
+        ],
+        { duration: 380, easing: "cubic-bezier(.2,.8,.2,1)" }
+    );
+
+}
+
+
+/*
+    Après l'affichage (statut bêta et journal déjà chargés) :
+    boutons, carte du Profil, dépouillement des votes passés et notifications.
+*/
+
+async function initBeta() {
+
+    setupBetaPage();
+
+    setupNewsJournal();
+
+    displayBetaRequestCard();
+
+
+    // Fenêtre de bienvenue des nouveaux bêta-testeurs.
+    const welcome =
+        document.getElementById("beta-welcome-modal");
+
+    document.getElementById("close-beta-welcome")?.addEventListener("click", () => {
+
+        welcome.classList.add("hidden");
+
+    });
+
+    document.getElementById("beta-welcome-go")?.addEventListener("click", () => {
+
+        welcome.classList.add("hidden");
+
+        openBetaPage();
+
+    });
+
+    supabaseClient.rpc("beta_settle_votes").then(({ error }) => {
+
+        if (error) {
+            console.error(error);
+        }
+
+    });
+
+    notifyBetaUpdates();
+
+}
+
+
+
+/* =========================================================
+   10 QUATER. DIAMANTS 💎
+   Monnaie commune à tous les groupes : objets exclusifs,
+   échange en pièces, packs « bientôt disponibles » (diamants.sql).
+========================================================= */
+
+const DIAMOND_RATE = 200;
+
+const DIAMOND_ITEMS = [
+    {
+        id: "cristal",
+        title: "Pseudo cristal",
+        description: "Ton pseudo scintille comme un diamant, avec un reflet bleu-violet qui passe.",
+        price: 1
+    },
+    {
+        id: "cadre_diamant",
+        title: "Cadre diamant",
+        description: "Ta ligne du classement brille d'un contour de diamant.",
+        price: 8
+    },
+    {
+        id: "emoji_diamant",
+        title: "💎 à côté du pseudo",
+        description: "Un petit diamant à côté de ton pseudo, partout sur le site.",
+        price: 2
+    },
+    {
+        id: "theme_diamant",
+        title: "Thème de carte « Diamant »",
+        description: "Les paris que tu crées ont un fond cristal étoilé, visible par tous.",
+        price: 5
+    },
+    {
+        id: "skin_cristal",
+        title: "Skin perroquet « Cristal »",
+        description: "Le perroquet devient bleu glacier et lavande.",
+        price: 10
+    }
+];
+
+const DIAMOND_PACKS = [
+    { count: 5, price: "1,99 €", bonus: "" },
+    { count: 12, price: "3,99 €", bonus: "+2 offerts" },
+    { count: 30, price: "8,99 €", bonus: "+5 offerts", best: true },
+    { count: 80, price: "19,99 €", bonus: "+20 offerts" }
+];
+
+let diamondConvertCount = 1;
+
+
+function myDiamonds() {
+
+    return Number(currentProfile?.diamonds) || 0;
+
+}
+
+function ownsDiamondItem(id) {
+
+    return Boolean(currentProfile?.diamond_items?.[id]);
+
+}
+
+// Objet exclusif possédé et équipé (pour n'importe quel joueur).
+function diamondItemOn(profile, id) {
+
+    const item = profile?.diamond_items?.[id];
+
+    return Boolean(item) && !item.off;
+
+}
+
+
+function updateDiamondDisplay() {
+
+    const element = document.getElementById("diamond-balance");
+
+    if (element) {
+
+        element.textContent = currentProfile?.is_admin
+            ? "∞ 💎"
+            : myDiamonds() + " 💎";
+
+    }
+
+}
+
+
+// Aperçu d'un objet exclusif dans sa carte de la boutique.
+function diamondPreviewHtml(item) {
+
+    const me = { username: currentProfile.username };
+
+    const row = (effects, extra = "") => `
+        <div class="dia-peek">
+            ${leaderboardRowHtml(me, { rank: 3, medal: "🥉", balance: formatBalance(1520), effects, extraClass: extra })}
+        </div>
+    `;
+
+    if (item.id === "cristal") {
+        return row({ cristal: true });
+    }
+
+    if (item.id === "cadre_diamant") {
+        return row({ diamondFrame: true });
+    }
+
+    if (item.id === "emoji_diamant") {
+        return row({ diamondEmoji: true });
+    }
+
+    if (item.id === "theme_diamant") {
+        return `<div class="dia-theme-peek bet-theme-diamant">🏆 Qui gagne le match ce soir ?</div>`;
+    }
+
+    return `<div class="dia-skin-peek"><img src="assets/perroquet/skins/cristal/thumb.png" alt=""></div>`;
+
+}
+
+
+function diamondShopHtml() {
+
+    const admin = Boolean(currentProfile?.is_admin);
+
+    const diamonds = myDiamonds();
+
+    const cards = DIAMOND_ITEMS.map(item => {
+
+        const owned = ownsDiamondItem(item.id);
+
+        const canBuy = admin || diamonds >= item.price;
+
+        const on = owned && !currentProfile.diamond_items[item.id].off;
+
+        let button;
+
+        if (!owned) {
+
+            button = `<button type="button" class="primary-button" data-diamond-buy="${item.id}" ${canBuy ? "" : "disabled"}>Acheter</button>`;
+
+        } else if (item.id === "skin_cristal") {
+
+            const active = typeof activeParrotSkin === "function" && activeParrotSkin() === "cristal";
+
+            button = `<button type="button" class="secondary-button" data-diamond-skin="${active ? "off" : "on"}">${active ? "Retirer le skin" : "Activer le skin"}</button>`;
+
+        } else {
+
+            button = `<button type="button" class="secondary-button" data-diamond-toggle="${item.id}" data-on="${on ? "0" : "1"}">${on ? "Retirer" : "Équiper"}</button>`;
+
+        }
+
+        return `
+            <div class="mission-card dia-card${owned ? " owned" : ""}">
+                <div class="mission-head">
+                    <h3>${escapeHtml(item.title)}<span class="dia-excl">EXCLU</span></h3>
+                    <span class="mission-points dia-price">${item.price} 💎</span>
+                </div>
+                <p class="mission-description">${escapeHtml(item.description)}</p>
+                ${diamondPreviewHtml(item)}
+                <div class="mission-footer">
+                    <span class="mission-state${owned ? " done" : ""}">
+                        ${owned ? "✓ Possédé" : canBuy ? "Disponible" : "Il te manque " + (item.price - diamonds) + " 💎"}
+                    </span>
+                    ${button}
+                </div>
+            </div>
+        `;
+
+    }).join("");
+
+    return `
+        <section
+            class="shop-category dia-section${shopFilter === "utile" ? " hidden" : ""}"
+            data-kind="cosmetic"
+        >
+
+            <div class="dia-banner">
+                <span class="dia-banner-icon">💎</span>
+                <div class="dia-banner-text">
+                    <b>${admin ? "∞" : diamonds} diamant${diamonds > 1 || admin ? "s" : ""}</b>
+                    <p>Objets exclusifs, introuvables avec les pièces. Communs à tous tes groupes.</p>
+                </div>
+                <button type="button" class="dia-button" data-diamond-packs>Obtenir des 💎</button>
+            </div>
+
+            <h2 class="missions-title">💎 Exclusivités diamant</h2>
+
+            <div class="missions-grid">${cards}</div>
+
+            <p
+                id="diamond-message"
+                class="missions-message hidden"
+            ></p>
+
+        </section>
+    `;
+
+}
+
+
+async function afterDiamondChange(message) {
+
+    await loadCurrentProfile();
+
+    displayShop();
+
+    updateDiamondDisplay();
+
+    displayLeaderboard?.();
+
+    if (message) {
+        showMissionsMessage(message, false, "diamond-message");
+    }
+
+}
+
+
+function setupDiamonds() {
+
+    const container = document.getElementById("shop-container");
+
+    container?.addEventListener("click", async event => {
+
+        const button = event.target.closest("button");
+
+        if (!button || button.disabled || !button.closest(".dia-section")) {
+            return;
+        }
+
+        const data = button.dataset;
+
+        try {
+
+            if (data.diamondBuy) {
+
+                button.disabled = true;
+
+                const { error } = await supabaseClient.rpc("buy_diamond_item", { p_item: data.diamondBuy });
+
+                if (error) {
+                    throw error;
+                }
+
+                const item = DIAMOND_ITEMS.find(entry => entry.id === data.diamondBuy);
+
+                await afterDiamondChange(`« ${item.title} » est à toi !`);
+
+            } else if (data.diamondToggle) {
+
+                const { error } = await supabaseClient.rpc("toggle_diamond_item", {
+                    p_item: data.diamondToggle,
+                    p_on: data.on === "1"
+                });
+
+                if (error) {
+                    throw error;
+                }
+
+                await afterDiamondChange();
+
+            } else if (data.diamondSkin) {
+
+                writeStorage("parrot-skin", data.diamondSkin === "on" ? "cristal" : "classique");
+
+                applyParrotSkin();
+
+                displayShop();
+
+            } else if (data.diamondPacks !== undefined) {
+
+                openDiamondModal();
+
+            }
+
+        } catch (error) {
+
+            console.error(error);
+
+            button.disabled = false;
+
+            showMissionsMessage(error.message || "Action impossible.", true, "diamond-message");
+
+        }
+
+    });
+
+
+    // Capsule 💎 de la barre du haut : fenêtre des packs.
+    const widget = document.getElementById("diamond-widget");
+
+    widget?.addEventListener("click", openDiamondModal);
+
+    widget?.addEventListener("keydown", event => {
+
+        if (event.key === "Enter" || event.key === " ") {
+
+            event.preventDefault();
+
+            openDiamondModal();
+
+        }
+
+    });
+
+    const modal = document.getElementById("diamond-modal");
+
+    document.getElementById("close-diamond-modal")?.addEventListener("click", () => {
+
+        modal.classList.add("hidden");
+
+    });
+
+    // « Voir les exclusivités » : boutique, section Diamants.
+    modal?.addEventListener("click", event => {
+
+        if (!event.target.closest("[data-diamond-shop]")) {
+            return;
+        }
+
+        modal.classList.add("hidden");
+
+        document.querySelector('.nav-button[data-page="shop-page"]')?.click();
+
+        setTimeout(() => {
+            document.querySelector(".dia-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 400);
+
+    });
+
+    updateDiamondDisplay();
+
+}
+
+
+/*
+    Fenêtre des pièces (clic sur la capsule 🪙) : comment en gagner,
+    et l'échange de diamants (déplacé depuis la boutique).
+*/
+
+function pointsModalHtml() {
+
+    const admin = Boolean(currentProfile?.is_admin);
+
+    const diamonds = myDiamonds();
+
+    const count = Math.max(1, Math.min(diamondConvertCount, Math.max(1, diamonds)));
+
+    diamondConvertCount = count;
+
+    const beta = typeof hasBetaAccess === "function" && hasBetaAccess() && !admin;
+
+    const ways = [
+        ["🎯", "Missions", "De 5 à 30 🪙 par mission réussie. Récupère-les dans l'onglet Missions.", "missions-page", "Voir les missions"],
+        ["🎁", "Coffre du jour", "Ouvre-le une fois par jour (barre du haut sur ordinateur, page Paris sur téléphone) : de 5 à 20 🪙.", null, null],
+        ["🏆", "Vote du vendredi", "Vote pour la nouveauté de la semaine dans le journal de la page Paris : +5 🪙.", null, null],
+        ...(beta ? [["🧪", "Aide app", "Bêta-testeur : +10 🪙 par bug ou idée envoyé, +50 si ton bug est corrigé, +150 si ton idée est retenue.", "beta-page", "Ouvrir l'Aide app"]] : []),
+        ["💎", "Diamants", `Échange tes diamants juste en dessous : 1 💎 = ${DIAMOND_RATE} 🪙.`, null, null]
+    ];
+
+    return `
+        <h2>🪙 Tes pièces</h2>
+
+        <div class="pts-now">
+            <span>Dans ce groupe</span>
+            <strong>${admin ? "∞" : (currentProfile?.points || 0)} 🪙</strong>
+        </div>
+
+        <p class="pts-hint">Les pièces servent à acheter des objets dans la boutique. Chaque groupe a ses propres pièces.</p>
+
+        <p class="level-sidebar-title">💡 Comment gagner des pièces</p>
+
+        <ul class="pts-ways">
+            ${ways.map(([icon, title, text, page, link]) => `
+                <li>
+                    <span class="pts-way-icon">${icon}</span>
+                    <div>
+                        <b>${title}</b>
+                        <p>${text}</p>
+                        ${page ? `<button type="button" class="pts-way-link" data-points-page="${page}">${link} →</button>` : ""}
+                    </div>
+                </li>
+            `).join("")}
+        </ul>
+
+        <p class="level-sidebar-title">💎 Échanger des diamants contre des pièces</p>
+
+        <div class="dia-convert">
+            <span class="dia-convert-count">
+                <button type="button" data-diamond-count="-1">−</button>
+                <b>${count}</b>
+                <button type="button" data-diamond-count="1">+</button>
+                💎
+            </span>
+            <span class="dia-convert-result">= <b>${count * DIAMOND_RATE} 🪙</b></span>
+            <button type="button" class="dia-button ghost" data-diamond-convert ${!admin && diamonds < count ? "disabled" : ""}>Échanger</button>
+            <p class="pts-convert-note">Tu as ${admin ? "∞" : diamonds} 💎 · 1 💎 = ${DIAMOND_RATE} 🪙, à sens unique.</p>
+        </div>
+
+        <p
+            id="points-message"
+            class="missions-message hidden"
+        ></p>
+    `;
+
+}
+
+
+function openPointsModal() {
+
+    const body = document.getElementById("points-modal-body");
+
+    const modal = document.getElementById("points-modal");
+
+    if (!body || !modal) {
+        return;
+    }
+
+    body.innerHTML = pointsModalHtml();
+
+    modal.classList.remove("hidden");
+
+}
+
+
+function setupPointsModal() {
+
+    const widget = document.getElementById("points-widget");
+
+    const modal = document.getElementById("points-modal");
+
+    if (!widget || !modal) {
+        return;
+    }
+
+    widget.addEventListener("click", openPointsModal);
+
+    widget.addEventListener("keydown", event => {
+
+        if (event.key === "Enter" || event.key === " ") {
+
+            event.preventDefault();
+
+            openPointsModal();
+
+        }
+
+    });
+
+    document.getElementById("close-points-modal")?.addEventListener("click", () => {
+
+        modal.classList.add("hidden");
+
+    });
+
+    modal.addEventListener("click", async event => {
+
+        const button = event.target.closest("button");
+
+        if (!button || button.disabled) {
+            return;
+        }
+
+        const data = button.dataset;
+
+        if (data.pointsPage) {
+
+            modal.classList.add("hidden");
+
+            document.querySelector(`.nav-button[data-page="${data.pointsPage}"]`)?.click();
+
+            return;
+
+        }
+
+        if (data.diamondCount) {
+
+            diamondConvertCount += Number(data.diamondCount);
+
+            document.getElementById("points-modal-body").innerHTML = pointsModalHtml();
+
+            return;
+
+        }
+
+        if (data.diamondConvert === undefined) {
+            return;
+        }
+
+        button.disabled = true;
+
+        const origin = button.getBoundingClientRect();
+
+        const pointsBefore = Number(currentProfile?.points || 0);
+
+        const { data: gained, error } = await supabaseClient.rpc("convert_diamonds", {
+            p_group: currentGroup.id,
+            p_count: diamondConvertCount
+        });
+
+        if (error) {
+
+            button.disabled = false;
+
+            showMissionsMessage(error.message || "Échange impossible.", true, "points-message");
+
+            return;
+
+        }
+
+        currentProfile.points = pointsBefore + Number(gained);
+
+        // Les pièces volent du bouton jusqu'à la capsule 🪙.
+        if (typeof flyCoins === "function") {
+            flyCoins(origin, Number(gained), pointsBefore);
+        }
+
+        diamondConvertCount = 1;
+
+        await loadCurrentProfile();
+
+        updateDiamondDisplay();
+
+        displayShop();
+
+        document.getElementById("points-modal-body").innerHTML = pointsModalHtml();
+
+        showMissionsMessage(`+${gained} 🪙 ajoutés à tes pièces !`, false, "points-message");
+
+    });
+
+}
+
+
+function openDiamondModal() {
+
+    const body = document.getElementById("diamond-modal-body");
+
+    const modal = document.getElementById("diamond-modal");
+
+    if (!body || !modal) {
+        return;
+    }
+
+    body.innerHTML = `
+        <h2>💎 Tes diamants</h2>
+
+        <div class="dia-now">
+            <span>Tu as</span>
+            <strong>${currentProfile?.is_admin ? "∞" : myDiamonds()} 💎</strong>
+        </div>
+
+        <p class="level-sidebar-title">💳 Acheter des diamants</p>
+
+        <div class="dia-packs">
+            ${DIAMOND_PACKS.map((pack, index) => `
+                <div class="dia-pack${pack.best ? " best" : ""}">
+                    ${pack.best ? `<span class="dia-pack-tag">LE PLUS CHOISI</span>` : ""}
+                    <span class="dia-pack-gems">${"💎".repeat(Math.min(4, index + 1))}</span>
+                    <span class="dia-pack-count">${pack.count} 💎</span>
+                    <span class="dia-pack-bonus">${pack.bonus}</span>
+                    <span class="dia-pack-price">${pack.price}</span>
+                    <button type="button" class="dia-pack-soon" disabled>Bientôt disponible</button>
+                </div>
+            `).join("")}
+        </div>
+
+        <p class="dia-legal">
+            Paiement sécurisé à venir. Les diamants ne servent qu'aux objets exclusifs et à l'échange
+            en pièces (1 💎 = ${DIAMOND_RATE} 🪙) ; ils ne se revendent pas et ne se transforment jamais en argent réel.
+        </p>
+
+        <button type="button" class="bal-shop-link" data-diamond-shop>Voir les exclusivités →</button>
+    `;
+
+    modal.classList.remove("hidden");
+
+}
+
+
+
+/* =========================================================
+   10 QUINQUIES. FENÊTRE D'UN PARTICIPANT (clic sur un pseudo)
+   Stats, perroquet, argent en jeu et historique, avec « Copier »
+   pour rejouer un pari ou un combiné encore possible
+   (version B de demo-profil-joueur.html, profil-joueur.sql).
+========================================================= */
+
+const PARROT_SKIN_NAMES = {
+    classique: "Classique",
+    flamant: "Flamant",
+    nuit: "Bleu nuit",
+    violet: "Violet royal",
+    arctique: "Arctique",
+    noir: "Noir et or",
+    phenix: "Phénix",
+    cristal: "Cristal"
+};
+
+// Paris de la fenêtre ouverte, pour retrouver ce qu'on copie.
+let playerProfileItems = [];
+
+
+/*
+    Peut-on copier ces sélections ([{ betId, choiceId }]) ?
+    Mêmes règles qu'un clic sur les cotes. Renvoie la raison, ou null.
+*/
+
+function copyBlockReason(legs) {
+
+    for (const leg of legs) {
+
+        const bet = lastLoadedBets.find(item => item.id === leg.betId);
+
+        if (!bet || bet.status !== "open") {
+            return "Ce pari n'est plus ouvert.";
+        }
+
+        if (!bet.bet_choices?.some(choice => choice.id === leg.choiceId)) {
+            return "Ce choix n'existe plus.";
+        }
+
+        if (isBlockedTarget(bet)) {
+            return "Tu es bloqué(e) sur ce pari.";
+        }
+
+        if (isBetClosed(bet)) {
+            return "Mises closes (échéance trop proche).";
+        }
+
+    }
+
+    if (legs.length === 1) {
+
+        const bet = lastLoadedBets.find(item => item.id === legs[0].betId);
+
+        if (myStakesOn(bet) >= STAKES_PER_BET) {
+            return "Tu as déjà misé sur ce pari.";
+        }
+
+        return null;
+
+    }
+
+    const key = legs.map(leg => leg.choiceId).sort().join(",");
+
+    if (myCombos.some(combo => (combo.combo_legs || []).map(leg => leg.choice_id).sort().join(",") === key)) {
+        return "Tu as déjà joué exactement ce combiné.";
+    }
+
+    return null;
+
+}
+
+
+// Copier : page Paris, cotes cochées, fenêtre de mise ouverte.
+function copyPlayerBet(legs) {
+
+    document.getElementById("player-modal")?.classList.add("hidden");
+
+    document.querySelector('.nav-button[data-page="bets-page"]')?.click();
+
+    ticketLegs = legs.map(leg => ({ betId: leg.betId, choiceId: leg.choiceId }));
+
+    // Téléphone : le ticket s'ouvre en grand, comme après un clic sur une cote.
+    ticketOpen = true;
+
+    renderTicket({ bump: true });
+
+    syncTicketHighlights();
+
+}
+
+
+function playerBetHtml(item, index, canCopy) {
+
+    const euros = value => formatMoney(Number(value) || 0);
+
+    const states = {
+        open: ["⏳ En cours", "open"],
+        won: ["✅ Gagné", "won"],
+        lost: ["❌ Perdu", "lost"],
+        refunded: ["↩️ Remboursé", "refunded"],
+        cancelled: ["↩️ Annulé", "refunded"]
+    };
+
+    const [stateLabel, stateClass] = states[item.state] || states.open;
+
+    const reason = item.state === "open" && canCopy
+        ? copyBlockReason(item.legs.map(leg => ({ betId: leg.bet_id, choiceId: leg.choice_id })))
+        : null;
+
+    return `
+        <div class="pp-bet">
+            <div class="pp-bet-top">
+                <span class="pp-bet-kind${item.combo ? " combo" : ""}">${item.combo ? "Combiné · " + item.legs.length : "Simple"}</span>
+                ${item.state === "open" ? "" : `<span class="pp-bet-state ${stateClass}">${stateLabel}</span>`}
+            </div>
+            <ul class="pp-legs">
+                ${item.legs.map(leg => `
+                    <li>
+                        <span class="pp-leg-q">${escapeHtml(leg.question)} → <b>${escapeHtml(leg.label)}</b></span>
+                        <span class="pp-leg-o">${Number(leg.odds).toFixed(2)}</span>
+                    </li>
+                `).join("")}
+            </ul>
+            <div class="pp-bet-foot">
+                <span>
+                    Mise <b>${euros(item.stake)}</b>
+                    ${item.combo ? ` · cote <b>${Number(item.odds).toFixed(2)}</b>` : ""}
+                    ${item.state === "won" ? ` · gain <b class="pp-win">+${euros(item.win)}</b>` : ""}
+                </span>
+                ${item.state === "open" && canCopy
+                    ? `<button type="button" class="pp-copy" data-copy-bet="${index}" ${reason ? "disabled" : ""}>📋 Copier</button>`
+                    : ""}
+            </div>
+            ${reason ? `<span class="pp-why">${escapeHtml(reason)}</span>` : ""}
+        </div>
+    `;
+
+}
+
+
+function playerProfileHtml(data) {
+
+    const euros = value => Math.round(Number(value) || 0).toLocaleString("fr-FR") + " €";
+
+    const isMe = data.username === currentProfile?.username;
+
+    const admin = Boolean(data.is_admin);
+
+    const info = typeof levelFromXp === "function" ? levelFromXp(Number(data.xp) || 0) : { level: 1, current: 0, needed: 100 };
+
+    const skin = PARROT_SKIN_NAMES[data.parrot_skin] ? data.parrot_skin : "classique";
+
+    // Mises simples et combinés, du plus récent au plus ancien.
+    const simple = (data.stakes || []).map(stake => ({
+        combo: false,
+        created_at: stake.created_at,
+        stake: stake.stake,
+        win: stake.potential_win,
+        state: stake.status === "resolved"
+            ? (stake.winner_choice_id === stake.choice_id ? "won" : "lost")
+            : stake.status === "cancelled" ? "cancelled" : "open",
+        legs: [{ bet_id: stake.bet_id, question: stake.question, choice_id: stake.choice_id, label: stake.label, odds: stake.odds }]
+    }));
+
+    const combos = (data.combos || []).map(combo => ({
+        combo: true,
+        created_at: combo.created_at,
+        stake: combo.stake,
+        odds: combo.odds,
+        win: combo.potential_win,
+        state: combo.state || "open",
+        legs: combo.legs || []
+    }));
+
+    playerProfileItems = [...simple, ...combos]
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    const open = playerProfileItems.map((item, index) => [item, index]).filter(([item]) => item.state === "open");
+
+    const done = playerProfileItems.map((item, index) => [item, index]).filter(([item]) => item.state !== "open");
+
+    const list = (items, empty) => items.length
+        ? items.map(([item, index]) => playerBetHtml(item, index, !isMe)).join("")
+        : `<p class="pp-empty">${empty}</p>`;
+
+    const medal = ["🥇", "🥈", "🥉"][data.rank - 1] || "🏅";
+
+    return `
+        <div class="pp-head">
+            <img class="pp-parrot" src="assets/perroquet/skins/${skin}/thumb.png" alt="">
+            <div class="pp-who">
+                <div class="pp-name">${styledName({ username: data.username })}</div>
+                <div class="pp-sub">🦜 Perroquet ${escapeHtml(PARROT_SKIN_NAMES[skin])}</div>
+                <div class="pp-sub">Membre depuis le ${new Date(data.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}</div>
+            </div>
+            ${admin ? "" : `<div class="pp-rank"><b>${medal} ${data.rank}<sup>${data.rank === 1 ? "er" : "e"}</sup></b><span>du groupe</span></div>`}
+        </div>
+
+        <div class="pp-stats">
+            <div class="pp-stat xp wide">
+                <span>Niveau</span>
+                <b>Niv. ${info.level} <small>${info.current} / ${info.needed} XP</small></b>
+            </div>
+            <div class="pp-stat fire"><span>Série</span><b>🔥 ${admin ? "∞" : data.streak}</b></div>
+            <div class="pp-stat money"><span>Solde</span><b>${admin ? "∞" : euros(data.balance)}</b></div>
+            <div class="pp-stat coins"><span>Pièces</span><b>${admin ? "∞" : (data.points || 0) + " 🪙"}</b></div>
+            <div class="pp-stat gems"><span>Diamants</span><b>${admin ? "∞" : (data.diamonds || 0) + " 💎"}</b></div>
+            <div class="pp-stat play wide"><span>Argent en jeu</span><b>${euros(data.in_play)}</b></div>
+        </div>
+
+        <p class="level-sidebar-title">⏳ Paris en cours</p>
+        <div class="pp-history">${list(open, "Aucun pari en cours.")}</div>
+
+        <p class="level-sidebar-title pp-done-title">📜 Paris terminés</p>
+        <div class="pp-history">${list(done, "Aucun pari terminé pour l'instant.")}</div>
+    `;
+
+}
+
+
+async function openPlayerProfile(username) {
+
+    const modal = document.getElementById("player-modal");
+
+    const body = document.getElementById("player-modal-body");
+
+    if (!modal || !body || !currentGroup || !username) {
+        return;
+    }
+
+    body.innerHTML = `<p class="pp-empty">Chargement du profil de ${escapeHtml(username)}…</p>`;
+
+    modal.classList.remove("hidden");
+
+    const { data: profile, error: idError } = await supabaseClient
+        .from("profiles")
+        .select("id")
+        .eq("username", username)
+        .maybeSingle();
+
+    if (idError || !profile) {
+
+        body.innerHTML = `<p class="pp-empty">Profil introuvable.</p>`;
+
+        return;
+
+    }
+
+    const { data, error } = await supabaseClient.rpc("player_profile", {
+        p_group: currentGroup.id,
+        p_user: profile.id
+    });
+
+    if (error) {
+
+        body.innerHTML = `<p class="pp-empty">${escapeHtml(error.message || "Profil indisponible.")}</p>`;
+
+        return;
+
+    }
+
+    body.innerHTML = playerProfileHtml(data);
+
+}
+
+
+function setupPlayerProfile() {
+
+    const modal = document.getElementById("player-modal");
+
+    if (!modal) {
+        return;
+    }
+
+    // Un clic sur un pseudo (classement, cartes, détail des parieurs…) ouvre sa fenêtre.
+    // En capture : la carte de pari derrière le pseudo ne s'ouvre pas en plus.
+    document.addEventListener("click", event => {
+
+        const target = event.target.closest("[data-player]");
+
+        if (!target || target.closest(".shop-preview-stage, .dia-peek, .shop-card, #player-modal")) {
+            return;
+        }
+
+        event.preventDefault();
+
+        event.stopPropagation();
+
+        // Téléphone : le classement (en fenêtre) se ferme pour laisser place au profil.
+        document.body.classList.remove("leaderboard-open");
+
+        openPlayerProfile(target.dataset.player);
+
+    }, true);
+
+    document.getElementById("close-player-modal")?.addEventListener("click", () => {
+
+        modal.classList.add("hidden");
+
+    });
+
+    modal.addEventListener("click", event => {
+
+        const button = event.target.closest("[data-copy-bet]");
+
+        if (!button || button.disabled) {
+            return;
+        }
+
+        const item = playerProfileItems[Number(button.dataset.copyBet)];
+
+        if (item) {
+            copyPlayerBet(item.legs.map(leg => ({ betId: leg.bet_id, choiceId: leg.choice_id })));
+        }
+
+    });
+
+}
+
+
+
+/* =========================================================
    11. NAVIGATION
 ========================================================= */
 
@@ -11402,6 +14567,17 @@ function showPage(pageId, skipCascade = false) {
         if (pageId === "bets-page") {
 
             displayLeaderboard();
+
+            // Nouveautés publiées entre-temps (et vote du vendredi).
+            loadWeekNews();
+
+        }
+
+
+        // Profil : la demande bêta a pu être acceptée entre-temps.
+        if (pageId === "profile-page") {
+
+            loadBetaStatus().then(displayBetaRequestCard);
 
         }
 
@@ -12122,6 +15298,12 @@ async function initAppPage() {
         }
 
 
+        // Pseudos bêta (affichés partout) et journal des nouveautés, avant le premier dessin.
+        await Promise.all([
+            loadBetaStatus(),
+            loadWeekNews()
+        ]);
+
         // Groupe connu : on prépare les paris et le classement avant d'afficher
         // la page, pour que les cartes arrivent d'un coup, une seule fois.
         await displayBets();
@@ -12183,9 +15365,19 @@ async function initAppPage() {
 
         setupShopPreview();
 
+        setupDiamonds();
+
+        setupPointsModal();
+
+        setupPlayerProfile();
+
         setupXpModal();
 
+        alignModalsWithCards();
+
         setupModalBackdrops();
+
+        await initBeta();
 
         await initAnimations();
 
@@ -12210,7 +15402,11 @@ async function initAppPage() {
                 "click",
                 async () => {
 
+                    const isBetaPage =
+                        button.dataset.page === "beta-page";
+
                     const isRefreshPage =
+                        isBetaPage ||
                         button.dataset.page === "missions-page" ||
                         button.dataset.page === "shop-page";
 
@@ -12229,15 +15425,27 @@ async function initAppPage() {
 
                         page.classList.add("page-refreshing");
 
-                        await displayMissions();
+                        if (isBetaPage) {
 
-                        displayShop();
+                            await displayBetaPage();
+
+                        } else {
+
+                            await displayMissions();
+
+                            displayShop();
+
+                        }
 
                         page.classList.remove("page-refreshing");
 
                         cascadeIn(page);
 
-                        refreshProgression();
+                        if (!isBetaPage) {
+
+                            refreshProgression();
+
+                        }
 
                     }
 

@@ -516,13 +516,26 @@ async function dailyCheckin() {
 
     count.textContent = row.streak;
 
+    // « 1 jour » / « 4 jours » dans la capsule (ordinateur).
+    document.getElementById("streak-unit").textContent =
+        row.streak > 1 ? "jours" : "jour";
+
     if (row.streak > bestStreak()) {
 
         writeStorage("best-streak", row.streak);
 
-        renderParrotSkins();
+    }
+
+    // Série du jour retenue dans le profil : le pseudo enflammé (15 jours) la suit.
+    if (currentProfile) {
+
+        currentProfile.streak_days = row.streak;
+
+        currentProfile.last_checkin = parisDay();
 
     }
+
+    renderParrotSkins();
 
     widget.style.setProperty(
         "--flame-size",
@@ -537,6 +550,8 @@ async function dailyCheckin() {
     if (currentProfile?.is_admin) {
 
         count.textContent = "∞";
+
+        document.getElementById("streak-unit").textContent = "";
 
         widget.style.setProperty("--flame-size", "26px");
 
@@ -574,10 +589,79 @@ async function dailyCheckin() {
     const chest =
         document.getElementById("chest-button");
 
+    placeChest();
+
     // Le coffre n'apparaît que lorsqu'il peut être ouvert.
     chest.classList.toggle("hidden", !row.chest_available);
 
     chest.disabled = !row.chest_available;
+
+}
+
+
+/*
+    Ordinateur : le coffre est une capsule dorée dans la barre du haut,
+    à gauche de la jauge d'XP (version A de demo-coffre-compact.html).
+    Téléphone : il reste une grande carte dans la colonne de droite.
+*/
+
+let chestHome = null;
+
+function chestInBar(chest) {
+
+    return chest.classList.contains("chest-capsule");
+
+}
+
+// Textes du coffre fermé, selon sa place.
+function chestIdleTexts(chest) {
+
+    const inBar = chestInBar(chest);
+
+    chest.querySelector(".chest-text strong").textContent =
+        inBar ? "Coffre" : "Coffre du jour";
+
+    chest.querySelector(".chest-text span").textContent =
+        inBar ? "Ouvrir" : "Clique pour l'ouvrir !";
+
+}
+
+function placeChest() {
+
+    const chest =
+        document.getElementById("chest-button");
+
+    const xpMini =
+        document.getElementById("xp-mini");
+
+    if (!chest || !xpMini) {
+        return;
+    }
+
+    // Place d'origine (colonne de droite), pour y revenir sur téléphone.
+    if (!chestHome) {
+        chestHome = { parent: chest.parentNode, next: chest.nextSibling };
+    }
+
+    const toBar =
+        !PHONE_LAYOUT.matches;
+
+    if (toBar === chestInBar(chest)) {
+        return;
+    }
+
+    if (toBar) {
+        xpMini.before(chest);
+    } else {
+        chestHome.parent.insertBefore(chest, chestHome.next);
+    }
+
+    chest.classList.toggle("chest-capsule", toBar);
+
+    // Coffre pas encore ouvert : ses textes suivent sa nouvelle place.
+    if (!chest.disabled || chest.classList.contains("hidden")) {
+        chestIdleTexts(chest);
+    }
 
 }
 
@@ -638,8 +722,9 @@ async function openChest() {
 
         icon.classList.add("chest-pop");
 
-        textElement.textContent =
-            "+" + data + " points gagnés !";
+        textElement.textContent = chestInBar(chest)
+            ? "+" + data + " 🪙"
+            : "+" + data + " points gagnés !";
 
         textElement.animate(
             [
@@ -698,7 +783,7 @@ async function openChest() {
 
                 icon.textContent = "🎁";
 
-                textElement.textContent = "Clique pour l'ouvrir !";
+                chestIdleTexts(chest);
 
                 chest.disabled = false;
 
@@ -706,18 +791,35 @@ async function openChest() {
 
             }
 
-            // Repli en hauteur : les cartes du dessous remontent sans à-coup.
-            const height = chest.offsetHeight;
-
             chest.style.overflow = "hidden";
 
-            await chest.animate(
-                [
-                    { height: height + "px", opacity: 1, transform: "scale(1)", paddingTop: "16px", paddingBottom: "16px", marginTop: "0px" },
-                    { height: "0px", opacity: 0, transform: "scale(0.94)", paddingTop: "0px", paddingBottom: "0px", marginTop: "-16px" }
-                ],
-                { duration: 650, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" }
-            ).finished.catch(() => {});
+            if (chestInBar(chest)) {
+
+                // Barre du haut : la capsule se replie en largeur, la jauge d'XP glisse à sa place.
+                const width = chest.offsetWidth;
+
+                await chest.animate(
+                    [
+                        { width: width + "px", opacity: 1, transform: "scale(1)", paddingLeft: "12px", paddingRight: "12px", borderWidth: "1px", marginRight: "0px" },
+                        { width: "0px", opacity: 0, transform: "scale(0.9)", paddingLeft: "0px", paddingRight: "0px", borderWidth: "0px", marginRight: "-10px" }
+                    ],
+                    { duration: 550, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" }
+                ).finished.catch(() => {});
+
+            } else {
+
+                // Repli en hauteur : les cartes du dessous remontent sans à-coup.
+                const height = chest.offsetHeight;
+
+                await chest.animate(
+                    [
+                        { height: height + "px", opacity: 1, transform: "scale(1)", paddingTop: "16px", paddingBottom: "16px", marginTop: "0px" },
+                        { height: "0px", opacity: 0, transform: "scale(0.94)", paddingTop: "0px", paddingBottom: "0px", marginTop: "-16px" }
+                    ],
+                    { duration: 650, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" }
+                ).finished.catch(() => {});
+
+            }
 
             chest.classList.add("hidden");
 
@@ -764,9 +866,11 @@ let lastXpTotal = null;
 
 function pulseXpCard() {
 
-    const card = document.querySelector(".level-sidebar");
+    // Carte « Ton niveau », ou jauge de la barre du haut quand la carte est cachée.
+    const card = [document.querySelector(".level-sidebar"), document.getElementById("xp-mini")]
+        .find(element => element && element.getClientRects().length > 0);
 
-    if (!card || card.getClientRects().length === 0) {
+    if (!card) {
 
         return;
 
@@ -870,11 +974,13 @@ let lastProgressInfo = null;
 const PARROT_SKINS = [
     { id: "classique", name: "Classique", level: 0 },
     { id: "flamant", name: "Flamant", level: 10 },
-    { id: "nuit", name: "Bleu nuit", level: 15 },
-    { id: "violet", name: "Violet royal", level: 20 },
-    { id: "arctique", name: "Arctique", level: 25 },
-    { id: "noir", name: "Noir et or", level: 30 },
-    { id: "phenix", name: "Phénix", streak: 30 }
+    { id: "nuit", name: "Bleu nuit", level: 12 },
+    { id: "violet", name: "Violet royal", level: 14 },
+    { id: "arctique", name: "Arctique", level: 16 },
+    { id: "noir", name: "Noir et or", level: 18 },
+    { id: "phenix", name: "Phénix", streak: 30 },
+    // Exclusivité diamant (diamants.sql) : visible dans la fenêtre XP une fois achetée.
+    { id: "cristal", name: "Cristal", diamond: "skin_cristal" }
 ];
 
 
@@ -890,6 +996,10 @@ function skinUnlocked(skin) {
 
     if (currentProfile?.is_admin) {
         return true;
+    }
+
+    if (skin.diamond) {
+        return Boolean(currentProfile?.diamond_items?.[skin.diamond]);
     }
 
     return skin.streak
@@ -915,6 +1025,17 @@ function activeParrotSkin() {
 function applyParrotSkin() {
 
     const id = activeParrotSkin();
+
+    // Skin enregistré dans le profil : les autres le voient dans la fenêtre du joueur.
+    if (currentProfile && currentProfile.parrot_skin !== id && typeof supabaseClient !== "undefined") {
+
+        currentProfile.parrot_skin = id;
+
+        supabaseClient.rpc("set_parrot_skin", { p_skin: id }).then(({ error }) => {
+            if (error) console.error(error);
+        });
+
+    }
 
     if (typeof Parrot !== "undefined" && Parrot.skin) {
 
@@ -948,10 +1069,52 @@ function skinItemHtml(skin, active) {
 
     return `
         <li class="xp-skin${unlocked ? "" : " locked"}${isActive ? " active" : ""}">
-            <img src="assets/perroquet/skins/${skin.id}/thumb.png" alt="">
+            ${skin.id === "phenix"
+                // Phénix : lueur rouge et braises, comme le vrai perroquet.
+                ? `<span class="phenix-thumb"><img src="assets/perroquet/skins/phenix/thumb.png" alt=""><i></i><i></i><i></i><i></i><i></i></span>`
+                : `<img src="assets/perroquet/skins/${skin.id}/thumb.png" alt="">`}
             <div class="xp-skin-text">
                 <strong>Skin ${escapeHtml(skin.name)}</strong>
-                <span>${skin.streak ? "🔥 " + skin.streak + " jours de série" : skin.level ? "Niveau " + skin.level : "Dès le départ"}</span>
+                <span>${skin.diamond ? "💎 Exclusivité diamant" : skin.streak ? "🔥 " + skin.streak + " jours de série" : skin.level ? "Niveau " + skin.level : "Dès le départ"}</span>
+            </div>
+            ${button}
+        </li>
+    `;
+
+}
+
+
+// Fenêtre de la série : pseudo enflammé à 15 jours, tant que la série tient.
+function flameNameItemHtml() {
+
+    if (!currentProfile) {
+        return "";
+    }
+
+    const streak =
+        Number(currentProfile.streak_days) || 0;
+
+    const unlocked =
+        currentProfile.is_admin || streak >= FLAME_NAME_STREAK;
+
+    const on =
+        unlocked && !currentProfile.flame_name_off;
+
+    const me = { username: currentProfile.username };
+
+    const name =
+        unlocked ? nameHtml(me, { flame: true }) : escapeHtml(currentProfile.username);
+
+    const button = !unlocked
+        ? `<button type="button" class="xp-skin-button locked" disabled>🔒 Non disponible</button>`
+        : `<button type="button" class="xp-skin-button${on ? " active" : ""}" data-flame-name="${on ? "off" : "on"}">${on ? "Désactiver" : "Activer"}</button>`;
+
+    return `
+        <li class="xp-skin${unlocked ? "" : " locked"}${on ? " active" : ""}">
+            <span class="flame-name-thumb">${unlocked ? nameHtml({ username: currentProfile.username.charAt(0).toUpperCase() }, { flame: true }) : "🔒"}</span>
+            <div class="xp-skin-text">
+                <strong>Pseudo enflammé : ${name}</strong>
+                <span>🔥 ${FLAME_NAME_STREAK} jours de série · tant que ta série tient</span>
             </div>
             ${button}
         </li>
@@ -970,7 +1133,7 @@ function renderParrotSkins() {
     if (xpList) {
 
         xpList.innerHTML = PARROT_SKINS
-            .filter(skin => !skin.streak)
+            .filter(skin => !skin.streak && (!skin.diamond || skinUnlocked(skin)))
             .map(skin => skinItemHtml(skin, active))
             .join("");
 
@@ -980,7 +1143,7 @@ function renderParrotSkins() {
 
     if (streakList) {
 
-        streakList.innerHTML = PARROT_SKINS
+        streakList.innerHTML = flameNameItemHtml() + PARROT_SKINS
             .filter(skin => skin.streak)
             .map(skin => skinItemHtml(skin, active))
             .join("");
@@ -992,7 +1155,38 @@ function renderParrotSkins() {
 
 function setupParrotSkins() {
 
-    document.addEventListener("click", event => {
+    document.addEventListener("click", async event => {
+
+        // Pseudo enflammé : activé ou désactivé pour tout le monde.
+        const flame = event.target.closest(".xp-skins [data-flame-name]");
+
+        if (flame && !flame.disabled) {
+
+            flame.disabled = true;
+
+            const on = flame.dataset.flameName === "on";
+
+            const { error } = await supabaseClient.rpc("toggle_flame_name", { p_on: on });
+
+            if (error) {
+
+                console.error(error);
+
+                flame.disabled = false;
+
+                return;
+
+            }
+
+            currentProfile.flame_name_off = !on;
+
+            renderParrotSkins();
+
+            displayLeaderboard?.();
+
+            return;
+
+        }
 
         const button = event.target.closest(".xp-skins [data-skin]");
 
@@ -2066,10 +2260,10 @@ function cascadeIn(root) {
 
     };
 
-    // Titres, filtres (boutique, Historique), contestations, carte « Créer un pari », cartes et messages
-    // « rien pour le moment », dans l'ordre de la page.
+    // Titres, filtres (boutique, Historique), contestations, carte « Créer un pari »,
+    // nombre de paris disponibles, cartes et messages « rien pour le moment », dans l'ordre de la page.
     root
-        .querySelectorAll(".page-header, .shop-filters, .missions-title, .contests-block, .my-bets-summary, .my-bets-filters, .bet-create-card, .bet-card, .my-bet-item, .mission-card, .empty-state")
+        .querySelectorAll(".page-header, .shop-filters, .missions-title, .contests-block, .my-bets-summary, .my-bets-filters, .bet-create-card, .bets-count, .bet-card, .my-bet-item, .mission-card, .empty-state")
         .forEach(play);
 
     // Colonnes latérales (top parieurs, ticket, message, XP, coffre) : elles arrivent
@@ -2190,7 +2384,8 @@ const TOAST_TYPES = {
     error:  { icon: "⚠️", color: "#ff6b81" },
     contest: { icon: "⚖️", color: "#f5c451" },
     join: { icon: "🙋", color: "#6c63ff" },
-    joined: { icon: "✅", color: "#63d69f" }
+    joined: { icon: "✅", color: "#63d69f" },
+    beta: { icon: "🧪", color: "#63d69f" }
 };
 
 const TOAST_LIFE = 9000;
@@ -3584,7 +3779,14 @@ async function initAnimations() {
         document.getElementById("chest-button");
 
     if (chest) {
+
         chest.addEventListener("click", openChest);
+
+        // Passage ordinateur ↔ téléphone : le coffre change de place.
+        placeChest();
+
+        PHONE_LAYOUT.addEventListener("change", placeChest);
+
     }
 
 
@@ -4237,16 +4439,19 @@ function spendCoins(toRect, price, pointsBefore) {
 
 /* =========================================================
    CLIC DU PERROQUET
-   Article de boutique « Clic du perroquet » : chaque clic sur le
-   perroquet le fait rebondir et lâche un billet qui file vers le
-   solde (+1 €), jusqu'à 500 € par jour. Les clics sont envoyés
-   par paquets à parrot_click (voir clic-perroquet.sql).
+   Pour tout le monde : chaque clic sur le perroquet le fait rebondir
+   et lâche un billet qui file vers le solde (+1 €, ou +2 / +3 € avec
+   les articles ×2 et ×3 de la boutique), jusqu'au plafond du jour
+   (selon le palier de meilleur solde). Les clics sont envoyés par
+   paquets à parrot_click (voir perroquet-paliers.sql).
 ========================================================= */
 
-const PARROT_CLICK_LIMIT = 500;
+function parrotTiredMessage() {
 
-const PARROT_TIRED_MESSAGE =
-    "🦜 Le perroquet est épuisé !<br>Tu as gagné tes 500 € du jour, reviens demain.";
+    return "🦜 Le perroquet est épuisé !<br>Tu as gagné tes " +
+        parrotClick.cap.toLocaleString("fr-FR") + " € du jour, reviens demain.";
+
+}
 
 // Réglages choisis sur la maquette (proposition B).
 const PARROT_CLICK = {
@@ -4263,7 +4468,13 @@ const PARROT_CLICK = {
 
 const parrotClick = {
     today: 0,
+    // Plafond du jour, gain par clic et meilleur solde (donnés par le serveur).
+    cap: 500,
+    mult: 1,
+    best: 0,
     pending: 0,
+    // Euros ajoutés à l'affichage pour chaque clic pas encore enregistré.
+    gains: [],
     sending: false,
     flushTimer: null,
     spring: { y: 0, vy: 0, sq: 0, vsq: 0 },
@@ -4275,14 +4486,10 @@ const parrotClick = {
 };
 
 
+// Débloqué pour tout le monde.
 function parrotClickEnabled() {
 
-    return Boolean(
-        currentGroup &&
-        currentProfile &&
-        typeof hasMyCosmetic === "function" &&
-        hasMyCosmetic("clic_perroquet")
-    );
+    return Boolean(currentGroup && currentProfile);
 
 }
 
@@ -4304,6 +4511,12 @@ async function refreshParrotClick() {
     if (!error && data && data[0]) {
 
         parrotClick.today = data[0].today;
+
+        parrotClick.cap = data[0].cap;
+
+        parrotClick.mult = data[0].mult;
+
+        parrotClick.best = Number(data[0].best) || 0;
 
     }
 
@@ -4731,6 +4944,13 @@ async function flushParrotClicks() {
 
     parrotClick.pending -= count;
 
+    // Euros affichés pour ce paquet de clics, et ceux des clics encore en attente.
+    const sentGains =
+        parrotClick.gains.splice(0, count).reduce((sum, gain) => sum + gain, 0);
+
+    const waitingGains =
+        parrotClick.gains.reduce((sum, gain) => sum + gain, 0);
+
     if (!currentGroup || currentGroup.id !== groupId) {
 
         parrotClick.pending = 0;
@@ -4742,9 +4962,9 @@ async function flushParrotClicks() {
     if (error || !data || !data[0]) {
 
         // Clics refusés : on retire ce qui avait été ajouté à l'affichage.
-        currentProfile.balance = Number(currentProfile.balance) - count;
+        currentProfile.balance = Number(currentProfile.balance) - sentGains;
         currentGroup.balance = currentProfile.balance;
-        parrotClick.today = Math.max(0, parrotClick.today - count);
+        parrotClick.today = Math.max(0, parrotClick.today - sentGains);
 
         showParrotBalance();
 
@@ -4753,8 +4973,11 @@ async function flushParrotClicks() {
     } else {
 
         // Le solde du serveur fait foi, plus les clics partis entre-temps.
-        parrotClick.today = data[0].today + parrotClick.pending;
-        currentProfile.balance = Number(data[0].balance) + parrotClick.pending;
+        parrotClick.today = data[0].today + waitingGains;
+        parrotClick.cap = data[0].cap;
+        parrotClick.mult = data[0].mult;
+        parrotClick.best = Number(data[0].best) || 0;
+        currentProfile.balance = Number(data[0].balance) + waitingGains;
         currentGroup.balance = currentProfile.balance;
 
         showParrotBalance();
@@ -4772,14 +4995,14 @@ async function flushParrotClicks() {
 
 function onParrotClick() {
 
-    if (parrotClick.today >= PARROT_CLICK_LIMIT) {
+    if (parrotClick.today >= parrotClick.cap) {
 
         // Plus rien aujourd'hui : un tout petit sursaut, sans billet.
         parrotClick.spring.vsq += 0.04;
 
         startParrotClickLoop();
 
-        parrotClickToast(PARROT_TIRED_MESSAGE);
+        parrotClickToast(parrotTiredMessage());
 
         return;
 
@@ -4792,17 +5015,22 @@ function onParrotClick() {
 
     startParrotClickLoop();
 
-    parrotClick.today += 1;
-    parrotClick.pending += 1;
+    // 1, 2 ou 3 € par clic, sans dépasser le plafond du jour.
+    const gain =
+        Math.min(parrotClick.mult, parrotClick.cap - parrotClick.today);
 
-    currentProfile.balance = Number(currentProfile.balance) + 1;
+    parrotClick.today += gain;
+    parrotClick.pending += 1;
+    parrotClick.gains.push(gain);
+
+    currentProfile.balance = Number(currentProfile.balance) + gain;
     currentGroup.balance = currentProfile.balance;
 
     showParrotBalance();
 
-    if (parrotClick.today >= PARROT_CLICK_LIMIT) {
+    if (parrotClick.today >= parrotClick.cap) {
 
-        setTimeout(() => parrotClickToast(PARROT_TIRED_MESSAGE), 300);
+        setTimeout(() => parrotClickToast(parrotTiredMessage()), 300);
 
     }
 
@@ -5165,3 +5393,224 @@ function startPhenixEmbers() {
     requestAnimationFrame(frame);
 
 }
+
+
+
+/* =========================================================
+   FENÊTRE DU SOLDE (clic sur le solde)
+   Perroquet à 0 €, plafond du jour, paliers et boosts de la
+   boutique (version A de demo-popup-solde.html).
+========================================================= */
+
+// Meilleur solde atteint dans le groupe → plafond du clic par jour
+// (mêmes valeurs que parrot_click_cap dans perroquet-paliers.sql).
+const PARROT_TIERS = [
+    [0, 500],
+    [5000, 750],
+    [10000, 1000],
+    [25000, 1500],
+    [50000, 2500],
+    [100000, 5000]
+];
+
+// Articles de la boutique qui multiplient le gain d'un clic.
+const PARROT_BOOSTS = [
+    { id: "clic_perroquet", mult: 2 },
+    { id: "clic_perroquet_x3", mult: 3 }
+];
+
+
+function balanceModalHtml() {
+
+    const euros = value => Math.round(Number(value) || 0).toLocaleString("fr-FR");
+
+    const admin = Boolean(currentProfile?.is_admin);
+
+    const balance = Number(currentProfile?.balance) || 0;
+
+    const best = Math.max(parrotClick.best, balance);
+
+    const mult = parrotClick.mult || 1;
+
+    let current = 0;
+
+    PARROT_TIERS.forEach(([need], index) => {
+        if (best >= need) current = index;
+    });
+
+    const cap = parrotClick.cap || PARROT_TIERS[current][1];
+
+    const next = PARROT_TIERS[current + 1];
+
+    const done = Math.min(parrotClick.today, cap);
+
+    // Avancement vers le palier suivant (0 à 1).
+    const progress = next
+        ? Math.min(1, Math.max(0, (best - PARROT_TIERS[current][0]) / (next[0] - PARROT_TIERS[current][0])))
+        : 0;
+
+    const count = PARROT_TIERS.length;
+
+    const fill = (current + progress) / (count - 1) * 100;
+
+    const tiers = PARROT_TIERS.map(([need, tierCap], index) => {
+
+        const state = index < current ? "done" : index === current ? "current" : index === current + 1 ? "next" : "locked";
+
+        return `
+            <li class="bal-tier bal-tier--${state}">
+                <span class="bal-tier-icon">${index <= current ? "✓" : "🔒"}</span>
+                <span class="bal-tier-need">
+                    ${index === 0 ? "Au départ" : `Palier <b>${euros(need)} €</b>`}
+                    ${state === "next" ? `<span class="bal-tier-progress"><i style="width: ${progress * 100}%"></i></span>` : ""}
+                </span>
+                <span class="bal-tier-cap">Clique jusqu'à ${euros(tierCap)} €/j</span>
+            </li>
+        `;
+
+    }).join("");
+
+    const boosts = PARROT_BOOSTS.map(boost => {
+
+        const item = COSMETICS.find(cosmetic => cosmetic.id === boost.id);
+
+        const owned = mult >= boost.mult;
+
+        return `
+            <div class="bal-boost${owned ? " owned" : ""}">
+                <span class="bal-boost-mult">×${boost.mult}</span>
+                <span class="bal-boost-what">Clic du perroquet ×${boost.mult} : ${boost.mult} € par clic</span>
+                <span class="bal-boost-price">${owned ? "✓ Possédé" : (item?.price ?? "?") + " 🪙"}</span>
+            </div>
+        `;
+
+    }).join("");
+
+    return `
+        <h2>💶 Ton solde</h2>
+
+        <div class="bal-now">
+            <span>Solde actuel</span>
+            <strong>${admin ? "∞" : euros(balance) + " €"}</strong>
+        </div>
+
+        <div class="bal-zero">
+            <!-- Perroquet entier, avec le skin choisi (wait-body.png n'a pas la tête). -->
+            <img src="assets/perroquet/skins/${activeParrotSkin()}/thumb.png" alt="">
+            <p>
+                <b>${balance <= 0 ? "Tu es à 0 € ?" : "Plus d'argent ?"}</b> Pas de panique !
+                Clique sur le perroquet : chaque clic te donne <b>${mult} €</b>, jusqu'à ton plafond du jour.
+                ${mult > 1 ? `<br><span class="bal-boost-on">✓ Clic du perroquet ×${mult} activé</span>` : ""}
+            </p>
+        </div>
+
+        <div class="bal-today">
+            <div class="bal-today-label">
+                <span>Récupéré aujourd'hui</span>
+                <span><b>${euros(done)} €</b> / ${euros(cap)} €</span>
+            </div>
+            <div class="bal-today-bar"><i style="width: ${done / cap * 100}%"></i></div>
+        </div>
+
+        <p class="level-sidebar-title">🦜 Paliers du perroquet</p>
+
+        <p class="bal-hint">
+            Atteins un palier de solde une seule fois et tu peux cliquer plus chaque jour, pour toujours (dans ce groupe).
+        </p>
+
+        <div class="bal-tiers-wrap">
+            <div class="bal-gauge">
+                <div class="bal-gauge-track">
+                    <div class="bal-gauge-fill" style="height: ${fill}%"></div>
+                    ${PARROT_TIERS.map((tier, index) => `
+                        <span class="bal-gauge-dot${index <= current ? " done" : ""}${index === current ? " current" : ""}" style="top: ${index / (count - 1) * 100}%"></span>
+                    `).join("")}
+                </div>
+            </div>
+            <ul class="bal-tiers">${tiers}</ul>
+        </div>
+
+        <p class="level-sidebar-title bal-boost-title">🛍️ Booste tes clics</p>
+
+        <p class="bal-hint">
+            Dans la boutique, des objets multiplient ce que te rapporte chaque clic sur le perroquet.
+        </p>
+
+        <div class="bal-boosts">${boosts}</div>
+
+        <button type="button" class="bal-shop-link" data-balance-shop>Voir la boutique →</button>
+    `;
+
+}
+
+
+async function openBalanceModal() {
+
+    const modal = document.getElementById("balance-modal");
+
+    const body = document.getElementById("balance-modal-body");
+
+    if (!modal || !body || !currentGroup) {
+        return;
+    }
+
+    body.innerHTML = balanceModalHtml();
+
+    modal.classList.remove("hidden");
+
+    // Plafond, boost et récupéré du jour à jour, puis on redessine.
+    await refreshParrotClick();
+
+    if (!modal.classList.contains("hidden")) {
+        body.innerHTML = balanceModalHtml();
+    }
+
+}
+
+
+function setupBalanceModal() {
+
+    const widget = document.getElementById("balance-widget");
+
+    const modal = document.getElementById("balance-modal");
+
+    if (!widget || !modal) {
+        return;
+    }
+
+    widget.addEventListener("click", openBalanceModal);
+
+    widget.addEventListener("keydown", event => {
+
+        if (event.key === "Enter" || event.key === " ") {
+
+            event.preventDefault();
+
+            openBalanceModal();
+
+        }
+
+    });
+
+    document.getElementById("close-balance-modal")?.addEventListener("click", () => {
+
+        modal.classList.add("hidden");
+
+    });
+
+    // « Voir la boutique » : la fenêtre se ferme et l'onglet Boutique s'ouvre.
+    modal.addEventListener("click", event => {
+
+        if (event.target.closest("[data-balance-shop]")) {
+
+            modal.classList.add("hidden");
+
+            document.querySelector('.nav-button[data-page="shop-page"]')?.click();
+
+        }
+
+    });
+
+}
+
+document.addEventListener("DOMContentLoaded", setupBalanceModal);

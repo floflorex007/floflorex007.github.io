@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Onglet « Aide app » pour les bêta-testeurs (propositions)</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body.demo { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; margin: 0; display: block; min-height: 0; }
+.demo h1 { font-size: 26px; margin: 0 0 6px; }
+.demo .sub { color: #858a98; margin: 0 0 16px; max-width: 900px; font-size: 14px; line-height: 1.5; }
+.demo .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; position: sticky; top: 0; background: #0f1117; padding: 10px 0; z-index: 30; align-items: center; }
+.demo .tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; font: inherit; }
+.demo .tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.demo .pick { margin-left: auto; background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; padding: 10px 16px; border-radius: 12px; cursor: pointer; font: inherit; font-weight: 900; }
+.demo .desc { color: #aaaeba; font-size: 14px; max-width: 900px; margin-bottom: 18px; line-height: 1.5; }
+.demo .desc b { color: #e6e8ee; }
+.copied { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1c202c; border: 1px solid #63d69f; padding: 12px 18px; border-radius: 14px; font-weight: 700; z-index: 99; max-width: calc(100% - 32px); white-space: pre-line; }
+
+/* ---------- Mise en page de la démo : réglages à gauche, aperçu à droite ---------- */
+.stage { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; }
+@media (max-width: 1000px) { .stage { grid-template-columns: 1fr; } }
+
+.settings { position: sticky; top: 70px; max-height: calc(100vh - 90px); overflow-y: auto; background: #151821; border: 1px solid #2c3040; border-radius: 16px; padding: 14px; scrollbar-width: thin; }
+.settings h2 { font-size: 15px; margin: 0 0 4px; }
+.settings .hint { color: #737887; font-size: 12px; margin: 0 0 10px; }
+.settings details { border-top: 1px solid #23262f; padding: 8px 0; }
+.settings summary { cursor: pointer; font-weight: 800; font-size: 13px; color: #c9ccd6; padding: 4px 0; list-style: none; }
+.settings summary::before { content: "▸ "; color: #6c63ff; }
+.settings details[open] summary::before { content: "▾ "; }
+.set { display: flex; flex-direction: column; gap: 5px; margin: 9px 0; font-size: 12px; color: #aaaeba; }
+.set.row { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; }
+.set select, .set input[type=text], .set input[type=number] { background: #0f1117; color: #e6e8ee; border: 1px solid #2c3040; border-radius: 8px; padding: 7px 8px; font: inherit; font-size: 12px; width: 100%; box-sizing: border-box; }
+.set input[type=number] { width: 80px; }
+.set input[type=checkbox] { accent-color: #6c63ff; width: 16px; height: 16px; }
+
+/* ---------- Aperçu de l'app ---------- */
+.preview { min-width: 0; }
+.demo .navbar { border: 1px solid #292d39; border-radius: 14px 14px 0 0; gap: 24px; padding: 0 20px; }
+.demo .navbar nav { flex: 1; flex-wrap: wrap; }
+.nav-help { position: relative; }
+.beta-badge { display: inline-block; margin-left: 6px; padding: 2px 6px; border-radius: 6px; font-size: 9px; font-weight: 900; letter-spacing: .5px; vertical-align: 2px; color: white; background: var(--accent); }
+.nav-dot { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: #ff5c5c; box-shadow: 0 0 8px #ff5c5c; }
+.page { border: 1px solid #292d39; border-top: none; border-radius: 0 0 14px 14px; padding: 22px; background: #11131a; min-height: 400px; }
+.page-title { display: flex; align-items: center; gap: 10px; margin: 0 0 4px; font-size: 24px; }
+.page-sub { color: #858a98; font-size: 13px; margin: 0 0 18px; }
+
+:root { --accent: #6c63ff; --accent-rgb: 108, 99, 255; }
+
+.card { background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; border-radius: 16px; padding: 16px; }
+.card h3 { margin: 0 0 4px; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+.card .meta { color: #737887; font-size: 12px; margin: 0 0 12px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; background: #23262f; color: #aaaeba; white-space: nowrap; }
+.chip.accent { background: rgba(var(--accent-rgb), .18); color: #c9c5ff; }
+.chip.green { background: rgba(99,214,159,.15); color: #63d69f; }
+.chip.orange { background: rgba(255,159,67,.15); color: #ff9f43; }
+.chip.red { background: rgba(255,107,107,.15); color: #ff8a8a; }
+.chip.gold { background: rgba(245,196,81,.15); color: #f5c451; }
+.btn { border: none; border-radius: 10px; padding: 9px 14px; font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; background: var(--accent); color: white; }
+.btn.ghost { background: #23262f; color: #c9ccd6; }
+.btn:disabled { opacity: .45; cursor: default; }
+textarea.in, input.in, select.in { width: 100%; box-sizing: border-box; background: #0f1117; color: #e6e8ee; border: 1px solid #2c3040; border-radius: 10px; padding: 10px; font: inherit; font-size: 13px; resize: vertical; }
+textarea.in:focus, input.in:focus { outline: none; border-color: var(--accent); }
+.empty { color: #737887; font-size: 13px; padding: 10px 0; }
+.tag { color: var(--accent-light, #a59fff); font-weight: 800; }
+
+/* Dilemmes */
+.dlg-opts { display: grid; gap: 8px; }
+.dlg-opts.cols { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+.dlg-opt { position: relative; overflow: hidden; border: 1px solid #2c3040; background: #0f1117; border-radius: 12px; padding: 10px 12px; cursor: pointer; text-align: left; color: #e6e8ee; font: inherit; font-size: 13px; }
+.dlg-opt:hover { border-color: #454a5c; }
+.dlg-opt.mine { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.dlg-opt .res { position: absolute; inset: 0 auto 0 0; background: rgba(var(--accent-rgb), .16); transition: width .6s ease; z-index: 0; }
+.dlg-opt > span { position: relative; z-index: 1; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.dlg-opt b { font-weight: 800; }
+.dlg-opt .pct { color: #a59fff; font-weight: 900; font-size: 12px; }
+.swatch { height: 46px; border-radius: 8px; margin-bottom: 8px; position: relative; z-index: 1; }
+.dlg-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; color: #737887; font-size: 12px; gap: 10px; flex-wrap: wrap; }
+
+/* Bugs et idées */
+.topics { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.topic { border: 1px solid #2c3040; background: #0f1117; color: #aaaeba; border-radius: 999px; padding: 6px 11px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.topic.on { background: var(--accent); border-color: var(--accent); color: white; }
+.sev { display: flex; gap: 6px; margin: 10px 0; }
+.form-row { display: flex; gap: 8px; align-items: center; justify-content: space-between; margin-top: 10px; flex-wrap: wrap; }
+.file { color: #858a98; font-size: 12px; border: 1px dashed #343846; border-radius: 10px; padding: 8px 10px; cursor: pointer; }
+.list { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.item { display: flex; gap: 10px; align-items: flex-start; background: #0f1117; border: 1px solid #23262f; border-radius: 12px; padding: 10px 12px; font-size: 13px; }
+.item .txt { flex: 1; min-width: 0; }
+.item .txt p { margin: 3px 0 0; color: #aaaeba; font-size: 12px; overflow-wrap: anywhere; }
+.vote-up { display: flex; flex-direction: column; align-items: center; min-width: 40px; border: 1px solid #2c3040; background: #151821; color: #aaaeba; border-radius: 10px; padding: 5px 4px; cursor: pointer; font: inherit; font-size: 11px; font-weight: 800; }
+.vote-up.on { border-color: var(--accent); color: #c9c5ff; background: rgba(var(--accent-rgb), .15); }
+
+/* Journal et rendez-vous */
+.ritual { display: flex; gap: 12px; align-items: center; border-radius: 16px; padding: 14px 16px; margin-bottom: 16px; border: 1px solid; }
+.ritual .big { font-size: 28px; }
+.ritual h3 { margin: 0; font-size: 15px; }
+.ritual p { margin: 3px 0 0; font-size: 13px; color: #c9ccd6; }
+.ritual.monday { border-color: rgba(var(--accent-rgb), .5); background: rgba(var(--accent-rgb), .1); }
+.ritual.wednesday { border-color: rgba(99,214,159,.45); background: rgba(99,214,159,.08); }
+.ritual.friday { border-color: rgba(245,196,81,.5); background: rgba(245,196,81,.08); }
+.ritual .actions { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+.week-days { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+.week-days span { padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; background: #1c202c; color: #737887; border: 1px solid #2c3040; }
+.week-days span.today { background: var(--accent); color: white; border-color: var(--accent); }
+.journal { display: flex; flex-direction: column; gap: 10px; }
+.j-day { color: #858a98; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .5px; margin-top: 6px; }
+.j-entry { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; line-height: 1.45; }
+.j-entry .ic { width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; background: #23262f; flex-shrink: 0; }
+.j-entry.feature .ic { background: rgba(var(--accent-rgb), .2); }
+.j-entry.design .ic { background: rgba(200,107,255,.2); }
+.j-entry.fix .ic { background: rgba(99,214,159,.15); }
+.j-entry b { color: #e6e8ee; }
+.j-entry p { margin: 2px 0 0; color: #aaaeba; }
+.j-entry .thanks { color: #a59fff; font-size: 12px; font-weight: 700; }
+
+/* Version A : tableau de bord */
+.grid-a { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 14px; }
+.grid-a .wide { grid-column: 1 / -1; }
+
+/* Version B : sous-onglets */
+.subnav { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; border-bottom: 1px solid #23262f; padding-bottom: 10px; }
+.subnav button { position: relative; border: none; background: none; color: #858a98; font: inherit; font-size: 14px; font-weight: 800; padding: 8px 12px; border-radius: 10px; cursor: pointer; }
+.subnav button.on { color: white; background: #1c202c; }
+.subnav button .n { margin-left: 4px; font-size: 11px; color: #a59fff; }
+.stack { display: flex; flex-direction: column; gap: 14px; max-width: 720px; }
+
+/* Version C : fil */
+.composer { display: flex; flex-direction: column; gap: 10px; }
+.composer .kinds { display: flex; gap: 6px; flex-wrap: wrap; }
+.feed { display: flex; flex-direction: column; gap: 14px; max-width: 680px; }
+.feed .card { position: relative; }
+.feed .when { position: absolute; top: 14px; right: 16px; color: #737887; font-size: 11px; }
+.filters { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Version D : deux colonnes */
+.split { display: grid; grid-template-columns: minmax(260px, 340px) 1fr; gap: 16px; align-items: start; }
+@media (max-width: 1250px) { .split { grid-template-columns: 1fr; } }
+.split .left { position: sticky; top: 80px; }
+.acc { border: 1px solid #2c3040; border-radius: 16px; overflow: hidden; background: #151821; }
+.acc + .acc { margin-top: 10px; }
+.acc > button { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 14px 16px; background: none; border: none; color: #e6e8ee; font: inherit; font-size: 15px; font-weight: 800; cursor: pointer; }
+.acc > button .arrow { color: #737887; transition: transform .25s; }
+.acc.open > button .arrow { transform: rotate(180deg); }
+.acc .body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .3s ease; }
+.acc.open .body { grid-template-rows: 1fr; }
+.acc .body > div { overflow: hidden; }
+.acc .body > div > .inner { padding: 0 16px 16px; }
+
+/* Accès refusé */
+.locked { text-align: center; padding: 60px 20px; color: #858a98; }
+.locked .big { font-size: 44px; }
+
+/* Petites animations */
+@keyframes pop-in { from { opacity: 0; transform: scale(.96); } }
+.pop { animation: pop-in .3s ease-out; }
+</style>
+</head>
+<body class="demo">
+
+<h1>Onglet « Aide app » pour les bêta-testeurs</h1>
+<p class="sub">
+    4 mises en page possibles pour le nouvel onglet. Toutes contiennent les mêmes sections :
+    <b>dilemmes de design</b>, <b>dilemmes de fonctionnalité</b>, <b>signaler un bug</b>, <b>idées de fonctionnalité</b>,
+    <b>idées de design</b> et le <b>journal de la semaine</b> avec les rendez-vous du lundi (annonce), du mercredi
+    (question de la semaine) et du vendredi (meilleure fonctionnalité). Tout est cliquable : vote, envoie un bug, propose
+    une idée. Le panneau de gauche règle presque tout ; le choix copié reprend tes réglages.
+</p>
+
+<div class="tabs">
+    <button class="tab active" data-v="A">A · Tableau de bord</button>
+    <button class="tab" data-v="B">B · Sous-onglets</button>
+    <button class="tab" data-v="C">C · Fil d'actualité</button>
+    <button class="tab" data-v="D">D · Journal + actions</button>
+    <button class="pick" id="choose">✅ Je choisis celle-ci (avec mes réglages)</button>
+</div>
+
+<div class="desc" id="desc"></div>
+
+<div class="stage">
+
+    <aside class="settings" id="settings">
+        <h2>⚙️ Réglages</h2>
+        <p class="hint">Change un réglage : l'aperçu se met à jour tout de suite.</p>
+
+        <details open>
+            <summary>Accès et onglet</summary>
+            <label class="set">Qui voit l'onglet
+                <select data-s="access">
+                    <option value="beta">Bêta-testeurs seulement (+ admin)</option>
+                    <option value="all">Tout le monde</option>
+                    <option value="invite">Bêta-testeurs invités par l'admin, sur demande</option>
+                </select>
+            </label>
+            <label class="set">Voir l'aperçu comme
+                <select data-s="viewAs">
+                    <option value="beta">Bêta-testeur</option>
+                    <option value="admin">Admin (toi)</option>
+                    <option value="normal">Joueur sans accès bêta</option>
+                </select>
+            </label>
+            <label class="set">Nom de l'onglet
+                <input type="text" data-s="tabName">
+            </label>
+            <label class="set row">Badge « BÊTA » sur l'onglet <input type="checkbox" data-s="badge"></label>
+            <label class="set row">Pastille rouge quand il y a du nouveau <input type="checkbox" data-s="dot"></label>
+            <label class="set">Couleur de l'onglet
+                <select data-s="accent">
+                    <option value="violet">Violet (couleur de l'app)</option>
+                    <option value="vert">Vert</option>
+                    <option value="orange">Orange</option>
+                    <option value="rose">Rose</option>
+                </select>
+            </label>
+        </details>
+
+        <details open>
+            <summary>Sections affichées</summary>
+            <label class="set row">Dilemmes de design <input type="checkbox" data-s="secDlgDesign"></label>
+            <label class="set row">Dilemmes de fonctionnalité <input type="checkbox" data-s="secDlgFeature"></label>
+            <label class="set row">Signaler un bug <input type="checkbox" data-s="secBug"></label>
+            <label class="set row">Idées de fonctionnalité <input type="checkbox" data-s="secIdeaFeature"></label>
+            <label class="set row">Idées de design <input type="checkbox" data-s="secIdeaDesign"></label>
+            <label class="set row">Journal de la semaine <input type="checkbox" data-s="secJournal"></label>
+            <label class="set row">Fusionner les 2 sortes de dilemmes <input type="checkbox" data-s="mergeDlg"></label>
+            <label class="set row">Fusionner les 2 sortes d'idées <input type="checkbox" data-s="mergeIdea"></label>
+        </details>
+
+        <details>
+            <summary>Dilemmes</summary>
+            <label class="set">Résultats du vote visibles
+                <select data-s="dlgResults">
+                    <option value="after">Après avoir voté</option>
+                    <option value="always">Tout le temps</option>
+                    <option value="end">Seulement à la fin du vote</option>
+                </select>
+            </label>
+            <label class="set row">Changer son vote <input type="checkbox" data-s="dlgChange"></label>
+            <label class="set row">Commentaire avec le vote <input type="checkbox" data-s="dlgComment"></label>
+            <label class="set row">Votes anonymes <input type="checkbox" data-s="dlgAnon"></label>
+            <label class="set">Durée du vote
+                <select data-s="dlgDuration">
+                    <option value="3 jours">3 jours</option>
+                    <option value="1 semaine">1 semaine</option>
+                    <option value="jusqu'à ce que l'admin ferme">Jusqu'à ce que l'admin ferme</option>
+                </select>
+            </label>
+            <label class="set row">Points gagnés par vote 🪙 <input type="number" min="0" step="5" data-s="dlgReward"></label>
+        </details>
+
+        <details>
+            <summary>Signaler un bug</summary>
+            <label class="set">Sujets proposés (séparés par des virgules)
+                <input type="text" data-s="bugTopics">
+            </label>
+            <label class="set row">Choisir la gravité <input type="checkbox" data-s="bugSeverity"></label>
+            <label class="set row">Joindre une capture d'écran <input type="checkbox" data-s="bugShot"></label>
+            <label class="set row">Suivi (reçu → en cours → corrigé) <input type="checkbox" data-s="bugStatus"></label>
+            <label class="set row">Voir les bugs des autres <input type="checkbox" data-s="bugPublic"></label>
+            <label class="set row">Points par bug confirmé 🪙 <input type="number" min="0" step="5" data-s="bugReward"></label>
+        </details>
+
+        <details>
+            <summary>Idées</summary>
+            <label class="set row">Voir les idées des autres <input type="checkbox" data-s="ideaPublic"></label>
+            <label class="set row">Voter « +1 » pour une idée <input type="checkbox" data-s="ideaVotes"></label>
+            <label class="set">Tri des idées
+                <select data-s="ideaSort">
+                    <option value="votes">Les plus votées</option>
+                    <option value="new">Les plus récentes</option>
+                </select>
+            </label>
+            <label class="set row">Points si l'idée est retenue 🪙 <input type="number" min="0" step="10" data-s="ideaReward"></label>
+        </details>
+
+        <details>
+            <summary>Journal et rendez-vous</summary>
+            <label class="set">Jour simulé (pour voir chaque rendez-vous)
+                <select data-s="day">
+                    <option value="lundi">Lundi</option>
+                    <option value="mardi">Mardi</option>
+                    <option value="mercredi">Mercredi</option>
+                    <option value="jeudi">Jeudi</option>
+                    <option value="vendredi">Vendredi</option>
+                </select>
+            </label>
+            <label class="set row">Lundi : annonce des nouveautés <input type="checkbox" data-s="ritMon"></label>
+            <label class="set row">Mercredi : question de la semaine <input type="checkbox" data-s="ritWed"></label>
+            <label class="set row">Vendredi : meilleure fonctionnalité <input type="checkbox" data-s="ritFri"></label>
+            <label class="set">Remerciement de l'auteur de l'idée
+                <select data-s="tagStyle">
+                    <option value="hash">idée de #Vincent</option>
+                    <option value="at">idée de @Vincent</option>
+                    <option value="badge">badge 💡 Vincent</option>
+                    <option value="none">ne pas afficher</option>
+                </select>
+            </label>
+            <label class="set">Classer le journal par
+                <select data-s="journalGroup">
+                    <option value="day">Jour</option>
+                    <option value="type">Type (fonctionnalité, design, correctif)</option>
+                </select>
+            </label>
+            <label class="set row">Annonce aussi dans le fil d'activité <input type="checkbox" data-s="ritFeed"></label>
+            <label class="set row">Récompense pour l'idée élue 🪙 <input type="number" min="0" step="10" data-s="fridayReward"></label>
+        </details>
+    </aside>
+
+    <div class="preview">
+        <div id="nav"></div>
+        <div class="page" id="page"></div>
+    </div>
+
+</div>
+
+
+<script>
+/* =========================================================
+   Réglages
+   ========================================================= */
+const S = {
+    access: "beta", viewAs: "beta", tabName: "Aide app", badge: true, dot: true, accent: "violet",
+    secDlgDesign: true, secDlgFeature: true, secBug: true, secIdeaFeature: true, secIdeaDesign: true, secJournal: true,
+    mergeDlg: false, mergeIdea: false,
+    dlgResults: "after", dlgChange: true, dlgComment: false, dlgAnon: true, dlgDuration: "1 semaine", dlgReward: 10,
+    bugTopics: "Créer un pari, Mise, Validation pari, Ticket / combiné, Affichage téléphone, Autre",
+    bugSeverity: true, bugShot: true, bugStatus: true, bugPublic: false, bugReward: 20,
+    ideaPublic: true, ideaVotes: true, ideaSort: "votes", ideaReward: 100,
+    day: "lundi", ritMon: true, ritWed: true, ritFri: true, tagStyle: "hash", journalGroup: "day", ritFeed: true, fridayReward: 150
+};
+
+const ACCENTS = {
+    violet: ["#6c63ff", "108, 99, 255", "#a59fff"],
+    vert: ["#2fa36f", "47, 163, 111", "#63d69f"],
+    orange: ["#e8792b", "232, 121, 43", "#ffb27a"],
+    rose: ["#d6489b", "214, 72, 155", "#f39acb"]
+};
+
+const DESCS = {
+    A: "<b>Tableau de bord</b> : toutes les sections visibles d'un coup, en tuiles. Le rendez-vous du jour (lundi, mercredi ou vendredi) est en bandeau tout en haut. Idéal pour voir d'un coup d'œil ce qu'il y a à faire.",
+    B: "<b>Sous-onglets</b> : une barre « Journal · Dilemmes · Bug · Idées » sous le titre, une seule section à la fois. Plus calme, chaque section a toute la place. Le petit chiffre indique ce qui attend une réponse.",
+    C: "<b>Fil d'actualité</b> : tout arrive dans un seul fil, du plus récent au plus ancien (annonces, dilemmes, nouveautés), avec une zone en haut pour écrire un bug ou une idée. Ressemble à un réseau social, avec des filtres.",
+    D: "<b>Journal + actions</b> : le journal de la semaine reste fixe à gauche, et à droite les actions (dilemmes, bug, idées) en blocs qu'on ouvre et referme. On voit toujours les nouveautés en participant."
+};
+
+let version = "A";
+let subTab = "journal";
+let feedFilter = "tout";
+const openAcc = new Set(["dlg", "dlgDesign"]);
+
+/* =========================================================
+   Données d'exemple
+   ========================================================= */
+const DILEMMAS = [
+    { id: "d1", kind: "design", q: "Quelle couleur pour le bouton « Miser » ?", ends: "dans 4 jours",
+      opts: [
+        { id: "a", label: "Violet (actuel)", swatch: "linear-gradient(135deg,#5b4fe0,#8c82ff)", votes: 9 },
+        { id: "b", label: "Vert", swatch: "linear-gradient(135deg,#2fa36f,#63d69f)", votes: 5 },
+        { id: "c", label: "Doré", swatch: "linear-gradient(135deg,#f5a623,#ffdf7e)", votes: 7 }
+      ] },
+    { id: "d2", kind: "feature", q: "Prochaine grosse fonctionnalité ?", ends: "dans 6 jours",
+      opts: [
+        { id: "a", label: "Paris en direct pendant un match", votes: 12 },
+        { id: "b", label: "Tournois entre groupes", votes: 8 },
+        { id: "c", label: "Défis 1 contre 1", votes: 15 }
+      ] }
+];
+const myVotes = {};
+const dlgComments = {};
+
+let bugs = [
+    { topic: "Mise", sev: "Gênant", text: "Le bouton Max ne prend pas mon solde quand il est sous 10 €.", status: "En cours", by: "Léa" },
+    { topic: "Affichage téléphone", sev: "Mineur", text: "Le ticket cache un peu le perroquet.", status: "Corrigé", by: "Hugo" }
+];
+let myBugs = [
+    { topic: "Créer un pari", sev: "Bloquant", text: "Impossible de choisir une date lointaine après avoir fermé la fenêtre.", status: "Corrigé" }
+];
+let bugTopic = null;
+let bugSev = "Gênant";
+let bugShot = false;
+
+let ideas = [
+    { id: "i1", kind: "feature", text: "Pouvoir parier en équipe avec un ami", by: "Vincent", votes: 14, mine: false, status: "Retenue" },
+    { id: "i2", kind: "design", text: "Un mode clair pour jouer dehors", by: "Sam", votes: 6, mine: false },
+    { id: "i3", kind: "feature", text: "Statistiques de mes paris par mois", by: "Léa", votes: 9, mine: false },
+    { id: "i4", kind: "design", text: "Des confettis quand on gagne un gros pari", by: "Hugo", votes: 11, mine: false, status: "Retenue" }
+];
+const ideaVoted = new Set();
+let ideaKind = "feature";
+
+const JOURNAL = [
+    { day: "Lundi", type: "feature", icon: "🚀", title: "Paris combinés", text: "Mets 2 à 4 paris dans le même ticket pour multiplier les cotes.", by: "Vincent" },
+    { day: "Lundi", type: "design", icon: "🎨", title: "Nouvelle barre du haut", text: "Niveau, série, solde et points dans des capsules colorées.", by: null },
+    { day: "Mardi", type: "fix", icon: "🛠️", title: "Date d'échéance", text: "Le choix d'une date lointaine ne reste plus bloqué.", by: "Léa", fixOf: true },
+    { day: "Mercredi", type: "feature", icon: "🚀", title: "N'importe quelle date de fin", text: "Le 7e bouton de l'échéance ouvre un calendrier.", by: "Hugo" },
+    { day: "Jeudi", type: "design", icon: "🎨", title: "Ticket qui apparaît en douceur", text: "Fondu et léger zoom à l'ouverture et à la fermeture.", by: "Sam" }
+];
+
+const QUESTION = { q: "Qu'est-ce qui te donne le plus envie de revenir chaque jour ?", opts: ["La série 🔥", "Les missions", "Les nouveaux paris", "Le classement"], votes: [7, 4, 9, 5], mine: null };
+const BEST = { opts: ["Paris combinés", "Nouvelle barre du haut", "N'importe quelle date de fin", "Ticket en douceur"], votes: [11, 6, 4, 3], mine: null };
+
+/* =========================================================
+   Outils
+   ========================================================= */
+const esc = t => String(t).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const topics = () => S.bugTopics.split(",").map(t => t.trim()).filter(Boolean);
+const isAdmin = () => S.viewAs === "admin";
+
+function credit(name) {
+    if (!name || S.tagStyle === "none") return "";
+    if (S.tagStyle === "badge") return `<span class="chip accent">💡 ${esc(name)}</span>`;
+    return `<span class="thanks">idée de <span class="tag">${S.tagStyle === "hash" ? "#" : "@"}${esc(name)}</span></span>`;
+}
+
+// Juste le nom tagué (#Vincent, @Vincent ou badge), sans « idée de ».
+function tagName(name) {
+    if (S.tagStyle === "badge") return `<span class="chip accent">💡 ${esc(name)}</span>`;
+    return `<span class="tag">${S.tagStyle === "hash" ? "#" : "@"}${esc(name)}</span>`;
+}
+
+function reward(n, what) {
+    return Number(n) > 0 ? `<span class="chip gold">+${n} 🪙 ${what}</span>` : "";
+}
+
+function pendingCount() {
+    let n = 0;
+    DILEMMAS.forEach(d => { if (!myVotes[d.id]) n++; });
+    if (S.ritWed && S.day === "mercredi" && QUESTION.mine === null) n++;
+    if (S.ritFri && S.day === "vendredi" && BEST.mine === null) n++;
+    return n;
+}
+
+/* =========================================================
+   Blocs (communs aux 4 versions)
+   ========================================================= */
+function ritualBanner() {
+    const day = S.day;
+    if (day === "lundi" && S.ritMon) {
+        const count = JOURNAL.filter(e => e.type !== "fix").length;
+        return `<div class="ritual monday pop"><span class="big">📣</span><div>
+            <h3>Annonce du lundi : ${count} nouveautés cette semaine</h3>
+            <p>Paris combinés, nouvelle barre du haut… ${S.tagStyle !== "none" ? "Merci à " + tagName("Vincent") + " pour l'idée des combinés !" : ""}</p>
+        </div><div class="actions"><button class="btn" data-go="journal">Voir le journal</button></div></div>`;
+    }
+    if (day === "mercredi" && S.ritWed) {
+        const total = QUESTION.votes.reduce((a, b) => a + b, 0);
+        const voted = QUESTION.mine !== null;
+        return `<div class="ritual wednesday pop" style="flex-wrap:wrap"><span class="big">❓</span><div style="flex:1;min-width:200px">
+            <h3>Question de la semaine</h3><p>${esc(QUESTION.q)}</p>
+        </div><div class="dlg-opts cols" style="flex-basis:100%">
+            ${QUESTION.opts.map((o, i) => `<button class="dlg-opt${QUESTION.mine === i ? " mine" : ""}" data-q="${i}">
+                ${voted ? `<i class="res" style="width:${Math.round(QUESTION.votes[i] / total * 100)}%"></i>` : ""}
+                <span><b>${esc(o)}</b>${voted ? `<span class="pct">${Math.round(QUESTION.votes[i] / total * 100)} %</span>` : ""}</span>
+            </button>`).join("")}
+        </div></div>`;
+    }
+    if (day === "vendredi" && S.ritFri) {
+        const total = BEST.votes.reduce((a, b) => a + b, 0);
+        const voted = BEST.mine !== null;
+        return `<div class="ritual friday pop" style="flex-wrap:wrap"><span class="big">🏆</span><div style="flex:1;min-width:200px">
+            <h3>Vendredi : la meilleure nouveauté de la semaine</h3><p>Vote pour ta préférée. ${Number(S.fridayReward) > 0 ? "L'auteur de l'idée élue gagne " + S.fridayReward + " 🪙." : ""}</p>
+        </div><div class="dlg-opts cols" style="flex-basis:100%">
+            ${BEST.opts.map((o, i) => `<button class="dlg-opt${BEST.mine === i ? " mine" : ""}" data-best="${i}">
+                ${voted ? `<i class="res" style="width:${Math.round(BEST.votes[i] / total * 100)}%"></i>` : ""}
+                <span><b>${esc(o)}</b>${voted ? `<span class="pct">${Math.round(BEST.votes[i] / total * 100)} %</span>` : ""}</span>
+            </button>`).join("")}
+        </div></div>`;
+    }
+    return "";
+}
+
+function dilemmaCard(d) {
+    const mine = myVotes[d.id];
+    const total = d.opts.reduce((a, o) => a + o.votes, 0);
+    const show = S.dlgResults === "always" || (S.dlgResults === "after" && mine);
+    const locked = mine && !S.dlgChange;
+    return `<div class="card pop">
+        <h3>${d.kind === "design" ? "🎨" : "🧩"} ${esc(d.q)}</h3>
+        <p class="meta"><span class="chip ${d.kind === "design" ? "accent" : "orange"}">${d.kind === "design" ? "Dilemme de design" : "Dilemme de fonctionnalité"}</span>
+            &nbsp;${S.dlgDuration === "jusqu'à ce que l'admin ferme" ? "ouvert jusqu'à décision de l'admin" : "se termine " + d.ends}</p>
+        <div class="dlg-opts${d.kind === "design" ? " cols" : ""}">
+            ${d.opts.map(o => {
+                const pct = Math.round(o.votes / total * 100);
+                return `<button class="dlg-opt${mine === o.id ? " mine" : ""}" data-dlg="${d.id}" data-opt="${o.id}" ${locked ? "disabled" : ""}>
+                    ${show ? `<i class="res" style="width:${pct}%"></i>` : ""}
+                    ${o.swatch ? `<div class="swatch" style="background:${o.swatch}"></div>` : ""}
+                    <span><b>${esc(o.label)}</b>${show ? `<span class="pct">${pct} %</span>` : ""}</span>
+                </button>`;
+            }).join("")}
+        </div>
+        ${S.dlgComment && mine ? `<textarea class="in" rows="2" style="margin-top:10px" placeholder="Pourquoi ce choix ? (facultatif)" data-dlg-comment="${d.id}">${esc(dlgComments[d.id] || "")}</textarea>` : ""}
+        <div class="dlg-foot">
+            <span>${total + (mine ? 0 : 0)} votes${S.dlgAnon ? " · anonymes" : " · noms visibles"}${S.dlgResults === "end" ? " · résultats à la fin" : ""}</span>
+            ${mine ? `<span class="chip green">✓ A voté${locked ? "" : " · tu peux changer"}</span>` : reward(S.dlgReward, "pour voter")}
+        </div>
+        ${isAdmin() ? `<div class="form-row"><button class="btn ghost">✏️ Modifier</button><button class="btn ghost">🔒 Fermer le vote</button></div>` : ""}
+    </div>`;
+}
+
+function dilemmaSection(kind) {
+    const list = DILEMMAS.filter(d => kind === "all" || d.kind === kind);
+    const title = kind === "design" ? "🎨 Dilemmes de design" : kind === "feature" ? "🧩 Dilemmes de fonctionnalité" : "⚖️ Dilemmes";
+    return `<div class="section-block">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:10px">
+            <h3 style="margin:0;font-size:17px">${title}</h3>
+            ${isAdmin() ? `<button class="btn">+ Nouveau dilemme</button>` : ""}
+        </div>
+        <div class="stack" style="max-width:none">${list.map(dilemmaCard).join("")}</div>
+    </div>`;
+}
+
+function bugSection() {
+    const tps = topics();
+    const others = S.bugPublic ? bugs : [];
+    const statusChip = s => s === "Corrigé" ? "green" : s === "En cours" ? "orange" : "accent";
+    return `<div class="card pop">
+        <h3>🐞 Signaler un bug</h3>
+        <p class="meta">Où as-tu vu le problème ? ${reward(S.bugReward, "si le bug est confirmé")}</p>
+        <div class="topics">${tps.map(t => `<button class="topic${bugTopic === t ? " on" : ""}" data-topic="${esc(t)}">${esc(t)}</button>`).join("")}</div>
+        <textarea class="in" rows="3" id="bug-text" placeholder="Explique ce qui s'est passé et ce que tu attendais…"></textarea>
+        ${S.bugSeverity ? `<div class="sev">${["Mineur", "Gênant", "Bloquant"].map(v => `<button class="topic${bugSev === v ? " on" : ""}" data-sev="${v}">${v === "Mineur" ? "🟢" : v === "Gênant" ? "🟠" : "🔴"} ${v}</button>`).join("")}</div>` : ""}
+        <div class="form-row">
+            ${S.bugShot ? `<span class="file" data-shot>${bugShot ? "🖼️ capture-ecran.png ✓" : "📎 Ajouter une capture d'écran"}</span>` : "<span></span>"}
+            <button class="btn" data-send-bug ${bugTopic ? "" : "disabled"}>Envoyer le bug</button>
+        </div>
+        <div class="list">
+            ${myBugs.length ? `<div class="j-day">Mes signalements</div>` : ""}
+            ${myBugs.map(b => `<div class="item"><span>🐞</span><div class="txt"><b>${esc(b.topic)}</b>${S.bugSeverity && b.sev ? ` <span class="chip">${esc(b.sev)}</span>` : ""}<p>${esc(b.text)}</p></div>${S.bugStatus ? `<span class="chip ${statusChip(b.status)}">${esc(b.status)}</span>` : ""}</div>`).join("")}
+            ${others.length ? `<div class="j-day">Signalés par les autres</div>` : ""}
+            ${others.map(b => `<div class="item"><span>🐞</span><div class="txt"><b>${esc(b.topic)}</b> · <span style="color:#858a98">${esc(b.by)}</span><p>${esc(b.text)}</p></div>${S.bugStatus ? `<span class="chip ${statusChip(b.status)}">${esc(b.status)}</span>` : ""}</div>`).join("")}
+        </div>
+    </div>`;
+}
+
+function ideaSection(kind) {
+    const merged = kind === "all";
+    let list = ideas.filter(i => merged || i.kind === kind);
+    if (!S.ideaPublic) list = list.filter(i => i.mine);
+    list = [...list].sort((a, b) => S.ideaSort === "votes" ? b.votes - a.votes : (b.t || 0) - (a.t || 0));
+    const title = kind === "feature" ? "💡 Idées de fonctionnalité" : kind === "design" ? "🎨 Idées de design" : "💡 Idées";
+    const formKind = merged ? ideaKind : kind;
+    return `<div class="card pop">
+        <h3>${title}</h3>
+        <p class="meta">${S.ideaPublic ? "Tout le monde voit les idées." : "Seul l'admin voit les idées."} ${reward(S.ideaReward, "si ton idée est retenue")}</p>
+        ${merged ? `<div class="topics">${[["feature", "🧩 Fonctionnalité"], ["design", "🎨 Design"]].map(([k, l]) => `<button class="topic${ideaKind === k ? " on" : ""}" data-idea-kind="${k}">${l}</button>`).join("")}</div>` : ""}
+        <div style="display:flex;gap:8px">
+            <input class="in" id="idea-${kind}" placeholder="${formKind === "design" ? "Ex. : un thème de nuit pour les cartes" : "Ex. : pouvoir parier en équipe"}">
+            <button class="btn" data-send-idea="${kind}">Proposer</button>
+        </div>
+        <div class="list">
+            ${list.length ? list.map(i => `<div class="item">
+                ${S.ideaVotes ? `<button class="vote-up${ideaVoted.has(i.id) ? " on" : ""}" data-up="${i.id}">▲<span>${i.votes}</span></button>` : ""}
+                <div class="txt"><b>${esc(i.text)}</b>${merged ? ` <span class="chip">${i.kind === "design" ? "Design" : "Fonctionnalité"}</span>` : ""}<p>par ${i.mine ? "toi" : esc(i.by)}</p></div>
+                ${i.status ? `<span class="chip green">✓ ${esc(i.status)}</span>` : ""}
+                ${isAdmin() && !i.status ? `<button class="btn ghost" data-keep="${i.id}">Retenir</button>` : ""}
+            </div>`).join("") : `<div class="empty">Aucune idée pour l'instant. Lance-toi !</div>`}
+        </div>
+    </div>`;
+}
+
+function journalSection(compact) {
+    const days = ["lundi", "mardi", "mercredi", "jeudi", "vendredi"];
+    const groups = S.journalGroup === "day"
+        ? ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"].map(d => [d, JOURNAL.filter(e => e.day === d)])
+        : [["🚀 Nouvelles fonctionnalités", JOURNAL.filter(e => e.type === "feature")], ["🎨 Design", JOURNAL.filter(e => e.type === "design")], ["🛠️ Correctifs", JOURNAL.filter(e => e.type === "fix")]];
+    const label = e => e.type === "feature" ? "Nouvelle fonctionnalité débloquée" : e.type === "design" ? "Nouveau design" : "Bug corrigé";
+    return `<div class="card pop">
+        <h3>📖 Journal de la semaine</h3>
+        <p class="meta">Du lundi 5 au vendredi 9 octobre</p>
+        <div class="week-days">${days.map(d => `<span class="${S.day === d ? "today" : ""}">${d.slice(0, 3)}.${d === "lundi" && S.ritMon ? " 📣" : d === "mercredi" && S.ritWed ? " ❓" : d === "vendredi" && S.ritFri ? " 🏆" : ""}</span>`).join("")}</div>
+        <div class="journal">
+            ${groups.filter(([, l]) => l.length).map(([g, l]) => `<div class="j-day">${g}</div>
+                ${l.map(e => `<div class="j-entry ${e.type}"><span class="ic">${e.icon}</span><div>
+                    <b>${label(e)} : ${esc(e.title)}</b>${compact ? "" : `<p>${esc(e.text)}</p>`}
+                    ${e.by ? `<div>${e.fixOf ? credit(e.by).replace("idée de", "signalé par") : credit(e.by)}</div>` : ""}
+                </div></div>`).join("")}`).join("")}
+        </div>
+        ${isAdmin() ? `<div class="form-row"><button class="btn">+ Ajouter une nouveauté</button><span class="meta" style="margin:0">L'annonce du lundi se remplit toute seule.</span></div>` : ""}
+    </div>`;
+}
+
+/* =========================================================
+   Les 4 mises en page
+   ========================================================= */
+function blocks() {
+    const out = [];
+    if (S.mergeDlg) { if (S.secDlgDesign || S.secDlgFeature) out.push(["dlg", "⚖️ Dilemmes", () => dilemmaSection("all")]); }
+    else {
+        if (S.secDlgDesign) out.push(["dlgDesign", "🎨 Dilemmes design", () => dilemmaSection("design")]);
+        if (S.secDlgFeature) out.push(["dlgFeature", "🧩 Dilemmes fonction.", () => dilemmaSection("feature")]);
+    }
+    if (S.secBug) out.push(["bug", "🐞 Signaler un bug", bugSection]);
+    if (S.mergeIdea) { if (S.secIdeaFeature || S.secIdeaDesign) out.push(["idea", "💡 Idées", () => ideaSection("all")]); }
+    else {
+        if (S.secIdeaFeature) out.push(["ideaFeature", "💡 Idées fonction.", () => ideaSection("feature")]);
+        if (S.secIdeaDesign) out.push(["ideaDesign", "🎨 Idées design", () => ideaSection("design")]);
+    }
+    return out;
+}
+
+function layoutA() {
+    const b = blocks();
+    return `${ritualBanner()}
+        <div class="grid-a">
+            ${S.secJournal ? `<div class="wide">${journalSection(true)}</div>` : ""}
+            ${b.map(([, , f]) => `<div>${f()}</div>`).join("")}
+        </div>`;
+}
+
+function layoutB() {
+    const tabs = [];
+    if (S.secJournal) tabs.push(["journal", "📖 Journal", 0]);
+    const dl = DILEMMAS.filter(d => !myVotes[d.id]).length;
+    blocks().forEach(([k, l]) => tabs.push([k, l, k.startsWith("dlg") ? DILEMMAS.filter(d => !myVotes[d.id] && (k === "dlg" || d.kind === (k === "dlgDesign" ? "design" : "feature"))).length : 0]));
+    if (!tabs.find(t => t[0] === subTab)) subTab = tabs[0]?.[0];
+    const current = blocks().find(([k]) => k === subTab);
+    return `${ritualBanner()}
+        <div class="subnav">${tabs.map(([k, l, n]) => `<button class="${subTab === k ? "on" : ""}" data-sub="${k}">${l}${n ? `<span class="n">${n}</span>` : ""}</button>`).join("")}</div>
+        <div class="stack">${subTab === "journal" ? journalSection(false) : current ? current[2]() : ""}</div>`;
+}
+
+function layoutC() {
+    const filters = ["tout", "nouveautés", "dilemmes", "idées", "bugs"];
+    const items = [];
+    if (S.secJournal && ["tout", "nouveautés"].includes(feedFilter)) {
+        JOURNAL.slice().reverse().forEach(e => items.push(`<div class="card pop"><span class="when">${e.day}</span>
+            <div class="j-entry ${e.type}"><span class="ic">${e.icon}</span><div><b>${e.type === "feature" ? "Nouvelle fonctionnalité débloquée" : e.type === "design" ? "Nouveau design" : "Bug corrigé"} : ${esc(e.title)}</b><p>${esc(e.text)}</p>${e.by ? `<div>${e.fixOf ? credit(e.by).replace("idée de", "signalé par") : credit(e.by)}</div>` : ""}</div></div></div>`));
+    }
+    const dl = DILEMMAS.filter(d => (S.secDlgDesign || d.kind !== "design") && (S.secDlgFeature || d.kind !== "feature"));
+    if (["tout", "dilemmes"].includes(feedFilter)) dl.forEach(d => items.splice(1, 0, dilemmaCard(d)));
+    if (["tout", "idées"].includes(feedFilter) && (S.secIdeaFeature || S.secIdeaDesign)) items.push(ideaSection(S.secIdeaFeature && S.secIdeaDesign ? "all" : S.secIdeaFeature ? "feature" : "design"));
+    if (["tout", "bugs"].includes(feedFilter) && S.secBug) items.push(bugSection());
+    return `<div class="feed">
+        ${ritualBanner()}
+        <div class="filters">${filters.map(f => `<button class="topic${feedFilter === f ? " on" : ""}" data-filter="${f}">${f.charAt(0).toUpperCase() + f.slice(1)}</button>`).join("")}</div>
+        ${items.join("") || `<div class="empty">Rien dans ce filtre.</div>`}
+    </div>`;
+}
+
+function layoutD() {
+    const b = blocks();
+    return `${ritualBanner()}
+        <div class="split">
+            <div class="left">${S.secJournal ? journalSection(false) : `<div class="empty">Journal désactivé.</div>`}</div>
+            <div>${b.map(([k, l, f]) => `<div class="acc${openAcc.has(k) ? " open" : ""}">
+                <button data-acc="${k}"><span>${l}</span><span class="arrow">▼</span></button>
+                <div class="body"><div><div class="inner">${f()}</div></div></div>
+            </div>`).join("")}</div>
+        </div>`;
+}
+
+/* =========================================================
+   Rendu
+   ========================================================= */
+function render() {
+    const [hex, rgb, light] = ACCENTS[S.accent];
+    document.documentElement.style.setProperty("--accent", hex);
+    document.documentElement.style.setProperty("--accent-rgb", rgb);
+    document.documentElement.style.setProperty("--accent-light", light);
+
+    const hasAccess = S.access === "all" || S.viewAs !== "normal";
+    const name = esc(S.tabName || "Aide app");
+    document.getElementById("nav").innerHTML = `<header class="navbar">
+        <div class="logo"><span>BET</span>LAB</div>
+        <nav>
+            <button class="nav-button">Paris</button>
+            <button class="nav-button">Historique</button>
+            <button class="nav-button">Missions</button>
+            <button class="nav-button">Boutique</button>
+            ${hasAccess ? `<button class="nav-button active nav-help">🧪 ${name}${S.badge ? `<span class="beta-badge">BÊTA</span>` : ""}${S.dot && pendingCount() ? `<span class="nav-dot"></span>` : ""}</button>` : ""}
+        </nav>
+    </header>`;
+
+    const page = document.getElementById("page");
+    if (!hasAccess) {
+        page.innerHTML = `<div class="locked"><div class="big">🔒</div>
+            <h3 style="color:#e6e8ee">Pas d'onglet « ${name} » pour ce joueur</h3>
+            <p>Il n'a pas l'accès bêta-testeur : l'onglet n'apparaît pas dans son menu.</p>
+            ${S.access === "invite" ? `<button class="btn" style="margin-top:10px">🙋 Demander à devenir bêta-testeur</button><p style="font-size:12px">(Avec « sur demande », un bouton apparaît dans son profil.)</p>` : ""}
+        </div>`;
+        return;
+    }
+
+    const layouts = { A: layoutA, B: layoutB, C: layoutC, D: layoutD };
+    page.innerHTML = `
+        <h1 class="page-title">🧪 ${name} ${S.badge ? `<span class="beta-badge" style="font-size:11px">BÊTA</span>` : ""}</h1>
+        <p class="page-sub">${isAdmin() ? "Vue admin : tu crées les dilemmes, retiens les idées et remplis le journal." : "Merci de tester BetLab ! Vote, signale les bugs et propose tes idées."}</p>
+        ${layouts[version]()}`;
+    document.getElementById("desc").innerHTML = DESCS[version];
+}
+
+/* =========================================================
+   Clics dans l'aperçu
+   ========================================================= */
+document.getElementById("page").addEventListener("click", e => {
+    const t = e.target.closest("button, [data-shot]");
+    if (!t) return;
+    const d = t.dataset;
+    if (d.dlg) {
+        const dlg = DILEMMAS.find(x => x.id === d.dlg);
+        const prev = myVotes[d.dlg];
+        if (prev && !S.dlgChange) return;
+        if (prev) dlg.opts.find(o => o.id === prev).votes--;
+        myVotes[d.dlg] = d.opt;
+        dlg.opts.find(o => o.id === d.opt).votes++;
+    } else if (d.q !== undefined) {
+        if (QUESTION.mine !== null) QUESTION.votes[QUESTION.mine]--;
+        QUESTION.mine = Number(d.q); QUESTION.votes[QUESTION.mine]++;
+    } else if (d.best !== undefined) {
+        if (BEST.mine !== null) BEST.votes[BEST.mine]--;
+        BEST.mine = Number(d.best); BEST.votes[BEST.mine]++;
+    } else if (d.topic) {
+        bugTopic = d.topic;
+    } else if (d.sev) {
+        bugSev = d.sev;
+    } else if (d.shot !== undefined) {
+        bugShot = !bugShot;
+    } else if (d.sendBug !== undefined) {
+        const text = document.getElementById("bug-text").value.trim() || "(sans description)";
+        myBugs.unshift({ topic: bugTopic, sev: S.bugSeverity ? bugSev : null, text, status: "Reçu" });
+        bugTopic = null; bugShot = false;
+    } else if (d.sendIdea) {
+        const input = document.getElementById("idea-" + d.sendIdea);
+        const text = input.value.trim();
+        if (!text) { input.focus(); return; }
+        const kind = d.sendIdea === "all" ? ideaKind : d.sendIdea;
+        ideas.push({ id: "n" + Date.now(), kind, text, by: "toi", votes: 1, mine: true, t: Date.now() });
+    } else if (d.ideaKind) {
+        ideaKind = d.ideaKind;
+    } else if (d.up) {
+        const idea = ideas.find(i => i.id === d.up);
+        if (ideaVoted.has(d.up)) { ideaVoted.delete(d.up); idea.votes--; } else { ideaVoted.add(d.up); idea.votes++; }
+    } else if (d.keep) {
+        ideas.find(i => i.id === d.keep).status = "Retenue";
+    } else if (d.sub) {
+        subTab = d.sub;
+    } else if (d.filter) {
+        feedFilter = d.filter;
+    } else if (d.acc) {
+        openAcc.has(d.acc) ? openAcc.delete(d.acc) : openAcc.add(d.acc);
+        t.closest(".acc").classList.toggle("open");
+        return;
+    } else if (d.go) {
+        if (version === "B") subTab = "journal";
+        else { document.querySelector(".j-day, .journal")?.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
+    } else return;
+    render();
+});
+
+document.getElementById("page").addEventListener("input", e => {
+    if (e.target.dataset.dlgComment) dlgComments[e.target.dataset.dlgComment] = e.target.value;
+});
+
+/* =========================================================
+   Réglages
+   ========================================================= */
+document.querySelectorAll("[data-s]").forEach(el => {
+    const key = el.dataset.s;
+    if (el.type === "checkbox") el.checked = S[key]; else el.value = S[key];
+    el.addEventListener(el.type === "text" ? "input" : "change", () => {
+        S[key] = el.type === "checkbox" ? el.checked : el.type === "number" ? Number(el.value) : el.value;
+        render();
+    });
+});
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === t));
+    version = t.dataset.v;
+    render();
+});
+
+document.getElementById("choose").onclick = () => {
+    const yes = v => v ? "oui" : "non";
+    const lines = [
+        `Onglet « ${S.tabName} » : je choisis la version ${version}`,
+        `Accès : ${document.querySelector('[data-s="access"]').selectedOptions[0].text} · badge BÊTA ${yes(S.badge)} · pastille ${yes(S.dot)} · couleur ${S.accent}`,
+        `Sections : dilemmes design ${yes(S.secDlgDesign)}, dilemmes fonctionnalité ${yes(S.secDlgFeature)}, bug ${yes(S.secBug)}, idées fonctionnalité ${yes(S.secIdeaFeature)}, idées design ${yes(S.secIdeaDesign)}, journal ${yes(S.secJournal)} · fusion dilemmes ${yes(S.mergeDlg)} · fusion idées ${yes(S.mergeIdea)}`,
+        `Dilemmes : résultats ${document.querySelector('[data-s="dlgResults"]').selectedOptions[0].text.toLowerCase()} · changer son vote ${yes(S.dlgChange)} · commentaire ${yes(S.dlgComment)} · anonymes ${yes(S.dlgAnon)} · durée ${S.dlgDuration} · ${S.dlgReward} 🪙 par vote`,
+        `Bugs : sujets « ${S.bugTopics} » · gravité ${yes(S.bugSeverity)} · capture ${yes(S.bugShot)} · suivi ${yes(S.bugStatus)} · bugs des autres visibles ${yes(S.bugPublic)} · ${S.bugReward} 🪙 par bug confirmé`,
+        `Idées : visibles par tous ${yes(S.ideaPublic)} · vote +1 ${yes(S.ideaVotes)} · tri ${S.ideaSort === "votes" ? "les plus votées" : "les plus récentes"} · ${S.ideaReward} 🪙 si retenue`,
+        `Journal : lundi annonce ${yes(S.ritMon)} · mercredi question ${yes(S.ritWed)} · vendredi meilleure nouveauté ${yes(S.ritFri)} (${S.fridayReward} 🪙) · remerciement ${document.querySelector('[data-s="tagStyle"]').selectedOptions[0].text} · classement par ${S.journalGroup === "day" ? "jour" : "type"} · annonce dans le fil ${yes(S.ritFeed)}`
+    ];
+    const text = lines.join("\n");
+    navigator.clipboard && navigator.clipboard.writeText(text).catch(() => {});
+    const t = document.createElement("div");
+    t.className = "copied";
+    t.textContent = "✅ Copié (colle-le à Claude) :\n" + lines[0];
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3500);
+};
+
+// Ouvrir directement une version : demo-aide-app.html#C
+if (/^#[A-D]$/.test(location.hash)) {
+    document.querySelector(`.tab[data-v="${location.hash[1]}"]`).click();
+} else {
+    render();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Pseudos bêta-testeur</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body.demo { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; margin: 0; display: block; min-height: 0; }
+.demo h1 { font-size: 26px; margin: 0 0 6px; }
+.demo .sub { color: #858a98; margin: 0 0 18px; max-width: 900px; font-size: 14px; line-height: 1.5; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; max-width: 1200px; }
+.card { border: 1px solid #2c3040; background: #151821; border-radius: 16px; padding: 14px 16px; cursor: pointer; transition: border-color .15s, transform .15s; position: relative; }
+.card:hover { border-color: #4a4f60; transform: translateY(-2px); }
+.card.on { border-color: #6c63ff; box-shadow: 0 0 0 1px #6c63ff inset; }
+.card .top { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.card h3 { margin: 0; font-size: 16px; }
+.card .num { color: #737887; font-size: 12px; font-weight: 800; }
+.card .check { margin-left: auto; width: 22px; height: 22px; border-radius: 50%; border: 2px solid #4a4f60; display: grid; place-items: center; font-size: 12px; color: transparent; }
+.card.on .check { background: #6c63ff; border-color: #6c63ff; color: white; }
+.card .why { margin: 0 0 10px; font-size: 13px; color: #aaaeba; }
+.board { display: grid; gap: 4px; margin-bottom: 8px; }
+.board .leaderboard-row { margin: 0; }
+.dim { opacity: .5; }
+.bet-line { margin: 0; font-size: 13px; color: #aaaeba; }
+.bet-line b { font-weight: 900; }
+.bar { position: sticky; bottom: 16px; margin-top: 20px; max-width: 1200px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-radius: 14px; border: 1px solid #2c3040; background: rgba(21,24,33,.95); backdrop-filter: blur(6px); }
+.bar .chosen { flex: 1; font-size: 14px; color: #aaaeba; }
+.bar .chosen b { color: #fff; }
+.pick { border: none; border-radius: 12px; padding: 12px 18px; font: inherit; font-weight: 900; color: white; background: linear-gradient(135deg, #2fb37a, #4fd39a); cursor: pointer; }
+.pick:disabled { opacity: .4; cursor: default; }
+.copied { color: #63d69f; font-size: 13px; font-weight: 800; }
+
+/* =========================================================
+   Propositions de pseudos bêta-testeur
+   ========================================================= */
+.nb { position: relative; display: inline-block; font-weight: 900; }
+
+/* 1. Ruban chantier : rayures jaunes et noires qui défilent */
+.nb-chantier { background: repeating-linear-gradient(-45deg, #ffd34d 0 6px, #c98a12 6px 9px); background-size: 25.5px 25.5px; -webkit-background-clip: text; background-clip: text; color: transparent; animation: nb-tape 1.2s linear infinite; }
+@keyframes nb-tape { to { background-position: 26px 0; } }
+
+/* 2. Terminal : police de code, curseur qui clignote */
+.nb-terminal { font-family: Consolas, "Courier New", monospace; color: #63f59a; text-shadow: 0 0 6px rgba(99,245,154,.5); }
+.nb-terminal::before { content: "> "; opacity: .6; }
+.nb-terminal::after { content: "_"; animation: nb-blink 1s steps(1) infinite; }
+@keyframes nb-blink { 50% { opacity: 0; } }
+
+/* 3. Glitch : décalage rouge / bleu de temps en temps */
+.nb-glitch { color: #f2f3f7; animation: nb-glitch 3s infinite; }
+@keyframes nb-glitch {
+    0%, 86%, 100% { text-shadow: none; transform: none; }
+    88% { text-shadow: -2px 0 #ff4f7b, 2px 0 #3fd0ff; transform: translateX(1px); }
+    90% { text-shadow: 2px 0 #ff4f7b, -2px 0 #3fd0ff; transform: translateX(-1px) skewX(-8deg); }
+    92% { text-shadow: -1px 0 #ff4f7b, 1px 0 #3fd0ff; transform: none; }
+}
+
+/* 4. Scanner : un trait de lumière balaie le pseudo */
+.nb-scan { background: linear-gradient(90deg, #8f89e8 0 40%, #ffffff 50%, #8f89e8 60% 100%); background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: nb-scan 2.4s ease-in-out infinite; }
+@keyframes nb-scan { 0% { background-position: 100% 0; } 100% { background-position: -50% 0; } }
+
+/* 5. Fiole : vert labo avec des bulles qui montent */
+.nb-fiole { color: #7dff9b; text-shadow: 0 0 8px rgba(125,255,155,.55); }
+.nb-fiole i { position: absolute; bottom: 2px; width: 4px; height: 4px; border-radius: 50%; border: 1px solid #7dff9b; opacity: 0; animation: nb-bubble 2.2s ease-in infinite; }
+.nb-fiole i:nth-of-type(1) { left: 15%; }
+.nb-fiole i:nth-of-type(2) { left: 50%; animation-delay: .7s; width: 3px; height: 3px; }
+.nb-fiole i:nth-of-type(3) { left: 80%; animation-delay: 1.4s; }
+@keyframes nb-bubble { 0% { transform: translateY(0); opacity: 0; } 20% { opacity: .9; } 100% { transform: translateY(-16px); opacity: 0; } }
+
+/* 6. Plan d'architecte : bleu plan, cote mesurée en dessous */
+.nb-plan { color: #9cc7ff; letter-spacing: .5px; padding-bottom: 3px; }
+.nb-plan::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; border-left: 1px solid #9cc7ff; border-right: 1px solid #9cc7ff; background: linear-gradient(#9cc7ff, #9cc7ff) center / 100% 1px no-repeat; opacity: .7; }
+
+/* 7. Petite bête : une coccinelle traverse le pseudo de temps en temps */
+.nb-bug { color: #ffb3b3; }
+.nb-bug::after { content: "🐞"; position: absolute; top: -9px; left: 0; font-size: 10px; animation: nb-walk 5s linear infinite; }
+@keyframes nb-walk { 0% { left: -12px; opacity: 0; } 8% { opacity: 1; } 60% { left: 100%; opacity: 1; } 66%, 100% { left: 100%; opacity: 0; } }
+
+/* 8. Prototype : pseudo en fil de fer dans un cadre pointillé */
+.nb-proto { color: rgba(201,197,255,.18); -webkit-text-stroke: .6px #d9d6ff; letter-spacing: .5px; padding: 0 4px; outline: 1px dashed rgba(201,197,255,.5); outline-offset: 1px; border-radius: 3px; }
+</style>
+</head>
+<body class="demo">
+
+<h1>Pseudos réservés aux bêta-testeurs</h1>
+<p class="sub">8 idées, toutes sur le thème « on construit l'app ensemble », pour qu'on reconnaisse un bêta-testeur au premier coup d'œil. Aucune n'existe dans la boutique : elles ne s'achètent pas, elles se débloquent en contribuant. Chaque carte montre le rendu dans le classement et sur une carte de pari. <b>Clique pour en choisir une ou plusieurs.</b></p>
+
+<div class="grid" id="grid"></div>
+
+<div class="bar">
+    <span class="chosen" id="chosen">Aucune choisie</span>
+    <span class="copied" id="copied"></span>
+    <button class="pick" id="choose" disabled>✅ Je choisis</button>
+</div>
+
+<script>
+const ME = "Vincent";
+const IDEAS = [
+    { id: "chantier", name: "Ruban chantier", why: "Rayures jaunes qui défilent, comme un ruban « travaux en cours ». Va avec le skin chantier." },
+    { id: "terminal", name: "Terminal", why: "Écrit comme du code, en vert, avec un curseur qui clignote. Look « développeur »." },
+    { id: "glitch", name: "Glitch", why: "Le pseudo « bugue » une seconde de temps en temps. Clin d'œil aux bugs signalés." },
+    { id: "scan", name: "Scanner", why: "Un trait de lumière passe sur le pseudo en boucle, comme une machine qui teste." },
+    { id: "fiole", name: "Fiole qui bouillonne", why: "Vert labo lumineux avec de petites bulles qui montent. Thème « expérience »." },
+    { id: "plan", name: "Plan d'architecte", why: "Bleu plan avec une cote mesurée dessous, comme sur un plan de construction." },
+    { id: "bug", name: "Petite bête", why: "Une coccinelle 🐞 traverse le pseudo de temps en temps. Pour les chasseurs de bugs." },
+    { id: "proto", name: "Prototype", why: "Pseudo en fil de fer dans un cadre pointillé, comme une maquette pas finie." }
+];
+const chosen = new Set();
+const esc = t => String(t).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const nameHtml = id => `<span class="nb nb-${id}">${esc(ME)}${id === "fiole" ? "<i></i><i></i><i></i>" : ""}</span>`;
+
+function render() {
+    document.getElementById("grid").innerHTML = IDEAS.map((idea, i) => `
+        <div class="card${chosen.has(idea.id) ? " on" : ""}" data-id="${idea.id}">
+            <div class="top"><span class="num">${i + 1}</span><h3>${idea.name}</h3><span class="check">✓</span></div>
+            <p class="why">${idea.why}</p>
+            <div class="board">
+                <div class="leaderboard-row dim"><span class="leaderboard-rank">2</span><span class="leaderboard-medal">🥈</span><span class="leaderboard-pseudo">Emma</span><span class="leaderboard-balance">1 840 €</span></div>
+                <div class="leaderboard-row leaderboard-row--me"><span class="leaderboard-rank">3</span><span class="leaderboard-medal">🥉</span><span class="leaderboard-pseudo">${nameHtml(idea.id)}</span><span class="leaderboard-balance">1 520 €</span></div>
+            </div>
+            <p class="bet-line">Sur une carte de pari : 🏆 Créé par ${nameHtml(idea.id)}</p>
+        </div>`).join("");
+    const names = IDEAS.filter(i => chosen.has(i.id)).map(i => i.name);
+    document.getElementById("chosen").innerHTML = names.length ? `Choisi : <b>${names.join(", ")}</b>` : "Aucune choisie";
+    document.getElementById("choose").disabled = !names.length;
+}
+
+document.getElementById("grid").addEventListener("click", e => {
+    const card = e.target.closest(".card");
+    if (!card) return;
+    chosen.has(card.dataset.id) ? chosen.delete(card.dataset.id) : chosen.add(card.dataset.id);
+    render();
+});
+
+document.getElementById("choose").onclick = () => {
+    const names = IDEAS.filter(i => chosen.has(i.id)).map(i => i.name);
+    const text = `Pseudos bêta-testeur : je choisis ${names.join(", ")}.`;
+    navigator.clipboard?.writeText(text).then(
+        () => document.getElementById("copied").textContent = "Copié ! Colle-le à Claude.",
+        () => document.getElementById("copied").textContent = text
+    );
+};
+
+render();
+</script>
+</body>
+</html>
