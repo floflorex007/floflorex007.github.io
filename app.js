@@ -3220,10 +3220,13 @@ function renderAdminAccounts() {
                     <small>Créé le ${created} · ${seen}</small>
                     <small>${account.group_names ? "👥 " + escapeHtml(account.group_names) : "Aucun groupe"}</small>
                 </div>
-                ${account.is_admin
-                    ? ""
-                    : `<button type="button" class="admin-account-delete" data-account-delete="${account.user_id}">Supprimer</button>`
-                }
+                <div class="admin-account-actions">
+                    <button type="button" class="admin-account-password" data-account-password="${account.user_id}">Mot de passe</button>
+                    ${account.is_admin
+                        ? ""
+                        : `<button type="button" class="admin-account-delete" data-account-delete="${account.user_id}">Supprimer</button>`
+                    }
+                </div>
             </div>
         `;
 
@@ -3234,6 +3237,143 @@ function renderAdminAccounts() {
         button.addEventListener("click", () => adminDeleteAccount(button.dataset.accountDelete, button));
 
     });
+
+    list.querySelectorAll("[data-account-password]").forEach(button => {
+
+        const account = adminAccounts.find(item => item.user_id === button.dataset.accountPassword);
+
+        button.addEventListener("click", () => adminSetPassword(account?.user_id, account?.username, button));
+
+    });
+
+}
+
+
+/*
+    Admin : demandes « mot de passe oublié » (voir mot-de-passe-oublie.sql).
+    Pas de vrai e-mail : l'admin choisit un nouveau mot de passe
+    et le donne lui-même au joueur.
+*/
+
+async function displayAdminPasswordRequests() {
+
+    const box = document.getElementById("admin-password-requests");
+
+    if (!box) {
+        return;
+    }
+
+    const { data, error } = await supabaseClient.rpc("admin_list_password_resets");
+
+    if (error) {
+
+        console.error("Demandes de mot de passe indisponibles (mot-de-passe-oublie.sql lancé ?)", error);
+
+        box.classList.add("hidden");
+
+        return;
+
+    }
+
+    const requests = data || [];
+
+    box.classList.toggle("hidden", requests.length === 0);
+
+    box.innerHTML = `
+        <strong>🔑 Mot de passe oublié (${requests.length})</strong>
+        ${requests.map(request => `
+            <div class="admin-balance-row admin-account-row">
+                <div class="admin-account-main">
+                    <span class="admin-balance-name">${escapeHtml(request.username || "—")}</span>
+                    <small>Demandé ${typeof toastTimeLabel === "function" ? toastTimeLabel(request.created_at) : ""}</small>
+                </div>
+                <div class="admin-account-actions">
+                    <button type="button" class="admin-account-password" data-reset-user="${request.user_id}">Nouveau mot de passe</button>
+                    <button type="button" class="admin-account-delete" data-reset-dismiss="${request.user_id}">Ignorer</button>
+                </div>
+            </div>
+        `).join("")}
+    `;
+
+    box.querySelectorAll("[data-reset-user]").forEach(button => {
+
+        const request = requests.find(item => item.user_id === button.dataset.resetUser);
+
+        button.addEventListener("click", () => adminSetPassword(request.user_id, request.username, button));
+
+    });
+
+    box.querySelectorAll("[data-reset-dismiss]").forEach(button => {
+
+        button.addEventListener("click", async () => {
+
+            button.disabled = true;
+
+            const { error: dismissError } = await supabaseClient.rpc("admin_dismiss_password_reset", {
+                p_user: button.dataset.resetDismiss
+            });
+
+            if (dismissError) {
+
+                console.error(dismissError);
+
+                button.disabled = false;
+
+                return;
+
+            }
+
+            await displayAdminPasswordRequests();
+
+        });
+
+    });
+
+}
+
+async function adminSetPassword(userId, username, button) {
+
+    const message = document.getElementById("admin-accounts-message");
+
+    if (!userId) {
+        return;
+    }
+
+    const password = window.prompt(
+        `Nouveau mot de passe pour « ${username} » (4 caractères minimum).\n\n` +
+        "Donne-le ensuite au joueur."
+    );
+
+    if (password === null) {
+        return;
+    }
+
+    button.disabled = true;
+
+    message.textContent = "";
+
+    const { error } = await supabaseClient.rpc("admin_set_password", {
+        p_user: userId,
+        p_password: password
+    });
+
+    button.disabled = false;
+
+    if (error) {
+
+        message.className = "admin-balance-message error";
+
+        message.textContent = error.message || "Changement impossible.";
+
+        return;
+
+    }
+
+    message.className = "admin-balance-message success";
+
+    message.textContent = `Mot de passe de « ${username} » changé : « ${password} ».`;
+
+    await displayAdminPasswordRequests();
 
 }
 
@@ -14541,6 +14681,11 @@ function showPage(pageId, skipCascade = false) {
             "hidden"
         );
 
+        // Admin : les demandes « mot de passe oublié » arrivent à tout moment.
+        if (pageId === "admin-page") {
+            displayAdminPasswordRequests();
+        }
+
         // Téléphone : chaque changement d'onglet repart du haut de la page.
         if (PHONE_LAYOUT.matches) {
 
@@ -14970,6 +15115,72 @@ function escapeHtml(value) {
    14. INITIALISATION PAGE CONNEXION
 ========================================================= */
 
+/*
+    Bouton œil sur chaque champ mot de passe :
+    affiche / masque ce qu'on tape.
+*/
+
+const EYE_OPEN_ICON = `
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/>
+        <circle cx="12" cy="12" r="3"/>
+    </svg>
+`;
+
+const EYE_CLOSED_ICON = `
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 19c-6.5 0-10-7-10-7a18.5 18.5 0 0 1 5.06-5.94"/>
+        <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c6.5 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19"/>
+        <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/>
+        <line x1="2" y1="2" x2="22" y2="22"/>
+    </svg>
+`;
+
+function setupPasswordEyes() {
+
+    document
+        .querySelectorAll(".auth-card input[type='password']")
+        .forEach(input => {
+
+            const wrapper = document.createElement("div");
+
+            wrapper.className = "password-field";
+
+            input.parentNode.insertBefore(wrapper, input);
+
+            wrapper.appendChild(input);
+
+            const button = document.createElement("button");
+
+            button.type = "button";
+
+            button.className = "password-eye";
+
+            button.innerHTML = EYE_OPEN_ICON;
+
+            button.setAttribute("aria-label", "Afficher le mot de passe");
+
+            button.addEventListener("click", () => {
+
+                const visible = input.type === "password";
+
+                input.type = visible ? "text" : "password";
+
+                button.innerHTML = visible ? EYE_CLOSED_ICON : EYE_OPEN_ICON;
+
+                button.setAttribute(
+                    "aria-label",
+                    visible ? "Masquer le mot de passe" : "Afficher le mot de passe"
+                );
+
+            });
+
+            wrapper.appendChild(button);
+
+        });
+
+}
+
 async function initAuthPage() {
 
     const loginForm =
@@ -15019,14 +15230,60 @@ async function initAuthPage() {
     } = await supabaseClient.auth.getSession();
 
 
+    /*
+        Session ouverte avec un mot de passe provisoire de l'admin
+        (voir mot-de-passe-oublie.sql) : on reste ici pour le changer.
+    */
+
+    let mustChangePassword = false;
+
+
     if (data.session) {
 
-        window.location.href =
-            "app.html";
+        currentUser =
+            data.session.user;
 
-        return;
+
+        try {
+
+            await loadCurrentProfile();
+
+            mustChangePassword =
+                Boolean(currentProfile?.must_change_password);
+
+        } catch (error) {
+
+            console.error(error);
+
+        }
+
+
+        if (!mustChangePassword) {
+
+            window.location.href =
+                "app.html";
+
+            return;
+
+        }
 
     }
+
+
+    const showAuthSection = id => {
+
+        ["login-section", "register-section", "forgot-section", "new-password-section"].forEach(section => {
+
+            document
+                .getElementById(section)
+                ?.classList.toggle("hidden", section !== id);
+
+        });
+
+    };
+
+
+    setupPasswordEyes();
 
 
     /*
@@ -15127,6 +15384,18 @@ async function initAuthPage() {
                 );
 
 
+                // Mot de passe provisoire de l'admin : à changer avant d'entrer.
+                if (currentProfile?.must_change_password) {
+
+                    showAuthSection("new-password-section");
+
+                    document.getElementById("new-password").focus();
+
+                    return;
+
+                }
+
+
                 window.location.href =
                     "app.html";
 
@@ -15175,7 +15444,23 @@ async function initAuthPage() {
                 );
 
 
+            const passwordConfirm =
+                document.getElementById(
+                    "register-password-confirm"
+                ).value;
+
+
             errorElement.textContent = "";
+
+
+            if (password !== passwordConfirm) {
+
+                errorElement.textContent =
+                    "Les deux mots de passe ne sont pas identiques.";
+
+                return;
+
+            }
 
 
             try {
@@ -15203,6 +15488,168 @@ async function initAuthPage() {
 
         }
     );
+
+
+    /*
+        MOT DE PASSE OUBLIÉ (voir mot-de-passe-oublie.sql)
+        Pas de vrai e-mail : la demande part chez l'admin,
+        qui choisit un nouveau mot de passe.
+    */
+
+    document
+        .getElementById("show-forgot")
+        ?.addEventListener("click", () => {
+
+            document.getElementById("forgot-username").value =
+                document.getElementById("login-username").value;
+
+            document.getElementById("forgot-error").textContent = "";
+
+            document.getElementById("forgot-success").classList.add("hidden");
+
+            showAuthSection("forgot-section");
+
+        });
+
+
+    document
+        .getElementById("forgot-back")
+        ?.addEventListener("click", () => showAuthSection("login-section"));
+
+
+    document
+        .getElementById("forgot-form")
+        ?.addEventListener("submit", async event => {
+
+            event.preventDefault();
+
+            const username = document.getElementById("forgot-username").value.trim();
+
+            const errorElement = document.getElementById("forgot-error");
+
+            const successElement = document.getElementById("forgot-success");
+
+            const button = event.target.querySelector("button[type='submit']");
+
+            errorElement.textContent = "";
+
+            successElement.classList.add("hidden");
+
+            if (!username) {
+                return;
+            }
+
+            button.disabled = true;
+
+            const { error } = await supabaseClient.rpc("request_password_reset", {
+                p_username: username
+            });
+
+            button.disabled = false;
+
+            if (error) {
+
+                console.error(error);
+
+                errorElement.textContent = "Impossible d'envoyer la demande pour le moment.";
+
+                return;
+
+            }
+
+            successElement.textContent =
+                `Demande envoyée pour « ${username} ». ` +
+                "Si ce compte existe, l'admin va te donner un nouveau mot de passe.";
+
+            successElement.classList.remove("hidden");
+
+        });
+
+
+    /*
+        NOUVEAU MOT DE PASSE (après le mot de passe provisoire de l'admin)
+    */
+
+    document
+        .getElementById("new-password-form")
+        ?.addEventListener("submit", async event => {
+
+            event.preventDefault();
+
+            const password = document.getElementById("new-password").value;
+
+            const passwordConfirm = document.getElementById("new-password-confirm").value;
+
+            const errorElement = document.getElementById("new-password-error");
+
+            const button = event.target.querySelector("button[type='submit']");
+
+            errorElement.textContent = "";
+
+            if (password.length < 4) {
+
+                errorElement.textContent = "Le mot de passe doit contenir au moins 4 caractères.";
+
+                return;
+
+            }
+
+            if (password !== passwordConfirm) {
+
+                errorElement.textContent = "Les deux mots de passe ne sont pas identiques.";
+
+                return;
+
+            }
+
+            button.disabled = true;
+
+            const { error } = await supabaseClient.auth.updateUser({ password: password });
+
+            if (error) {
+
+                console.error(error);
+
+                button.disabled = false;
+
+                errorElement.textContent = error.code === "same_password"
+                    ? "Choisis un mot de passe différent de celui donné par l'admin."
+                    : "Impossible de changer le mot de passe.";
+
+                return;
+
+            }
+
+            const { error: finishError } = await supabaseClient.rpc("finish_password_change");
+
+            if (finishError) {
+                console.error(finishError);
+            }
+
+            window.location.href =
+                "app.html";
+
+        });
+
+
+    document
+        .getElementById("new-password-cancel")
+        ?.addEventListener("click", async () => {
+
+            await supabaseClient.auth.signOut();
+
+            document.getElementById("login-password").value = "";
+
+            showAuthSection("login-section");
+
+        });
+
+
+    if (mustChangePassword) {
+
+        showAuthSection("new-password-section");
+
+    }
 
 }
 
@@ -15258,6 +15705,17 @@ async function initAppPage() {
     try {
 
         await loadCurrentProfile();
+
+
+        // Mot de passe provisoire de l'admin pas encore changé (mot-de-passe-oublie.sql).
+        if (currentProfile?.must_change_password) {
+
+            window.location.href =
+                "index.html";
+
+            return;
+
+        }
 
         setupWelcome();
 
@@ -15353,6 +15811,8 @@ async function initAppPage() {
             setupAdminAccounts();
 
             await displayAdminAccounts();
+
+            await displayAdminPasswordRequests();
 
         }
 

@@ -205,6 +205,38 @@ input {
     cursor: not-allowed;
 }
 
+/* Champ mot de passe avec le bouton œil (setupPasswordEyes dans app.js). */
+.password-field {
+    position: relative;
+}
+
+.password-field input {
+    padding-right: 46px;
+}
+
+.password-eye {
+    position: absolute;
+    top: 50%;
+    right: 6px;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #858a98;
+    cursor: pointer;
+}
+
+.password-eye:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.06);
+}
+
 .auth-card input:focus,
 .create-card input:focus,
 .modal-content input:focus,
@@ -6219,6 +6251,50 @@ body.parrot-phenix #parrot {
 .admin-account-delete:disabled {
     opacity: 0.5;
     cursor: wait;
+}
+
+.admin-account-actions {
+    flex-shrink: 0;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.admin-account-password {
+    padding: 8px 12px;
+    border: 1px solid rgba(245, 196, 81, 0.45);
+    border-radius: 10px;
+    background: rgba(245, 196, 81, 0.1);
+    color: #f5c451;
+    font-family: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.admin-account-password:hover {
+    background: rgba(245, 196, 81, 0.2);
+}
+
+.admin-account-password:disabled {
+    opacity: 0.5;
+    cursor: wait;
+}
+
+/* Admin : demandes « mot de passe oublié » (mot-de-passe-oublie.sql). */
+.admin-password-requests {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 14px;
+    padding: 12px;
+    border: 1px solid rgba(245, 196, 81, 0.35);
+    border-radius: 14px;
+    background: rgba(245, 196, 81, 0.06);
+}
+
+.admin-password-requests > strong {
+    color: #f5c451;
 }
 
 #admin-accounts-count {
