@@ -18,10 +18,24 @@
 
     <link rel="stylesheet" href="style.css">
 
+    <!-- Version bêta : toutes les règles commencent par body.beta -->
+    <link rel="stylesheet" href="beta.css">
+
 </head>
 
 
 <body class="app-loading">
+
+
+    <!-- Version choisie dans le Profil (bêta-testeurs et admin, voir displayVersionCard).
+         Posée tout de suite pour éviter un clignotement de la version classique. -->
+    <script>
+        try {
+            if (localStorage.getItem("betlab-version") === "beta") {
+                document.body.classList.add("beta");
+            }
+        } catch {}
+    </script>
 
 
     <!-- =========================================
@@ -144,6 +158,22 @@
 
 
         <div class="user-area">
+
+            <!-- Bêta-testeurs et admin : passer de la version classique à la bêta
+                 (voir displayVersionSwitch dans app.js) -->
+            <button
+                type="button"
+                id="version-switch"
+                class="version-switch hidden"
+                role="switch"
+                aria-checked="false"
+                title="Passer à la version bêta"
+            >
+                <span class="version-switch-label">Bêta</span>
+                <span class="version-switch-track">
+                    <span class="version-switch-knob"></span>
+                </span>
+            </button>
 
             <div
                 id="streak-widget"
@@ -910,6 +940,13 @@
             <div
                 id="beta-request-card"
                 class="profile-card beta-request-card hidden"
+            ></div>
+
+
+            <!-- Choix de la version classique / bêta (contenu dessiné par displayVersionCard) -->
+            <div
+                id="version-card"
+                class="profile-card hidden"
             ></div>
 
 
@@ -2443,6 +2480,9 @@
     <script src="animations.js"></script>
 
     <script src="parrot.js"></script>
+
+    <!-- Version bêta (ne fait rien dans la version classique, voir beta.js) -->
+    <script src="beta.js"></script>
 
 </body>
 

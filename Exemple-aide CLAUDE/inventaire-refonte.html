@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inventaire refonte</title>
+<style>
+    :root {
+        --bg: #0f1220;
+        --card: #191d30;
+        --line: #2a3050;
+        --text: #e8eaf4;
+        --muted: #8d93b0;
+        --keep: #2ecc71;
+        --simple: #f5a623;
+        --remove: #e74c3c;
+        --accent: #7c5cff;
+    }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: system-ui, "Segoe UI", sans-serif;
+        line-height: 1.4;
+    }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 24px 16px 120px; }
+    h1 { margin: 0 0 4px; font-size: 26px; }
+    .intro { color: var(--muted); margin: 0 0 20px; }
+    .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 14px; color: var(--muted); margin-bottom: 20px; }
+    .legend b { color: var(--text); }
+    h2 {
+        font-size: 15px;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        color: var(--accent);
+        margin: 28px 0 10px;
+    }
+    .item {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-left: 4px solid var(--line);
+        border-radius: 10px;
+        padding: 12px 14px;
+        margin-bottom: 8px;
+    }
+    .item.keep { border-left-color: var(--keep); }
+    .item.simple { border-left-color: var(--simple); }
+    .item.remove { border-left-color: var(--remove); opacity: .75; }
+    .row { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
+    .name { font-weight: 600; }
+    .desc { color: var(--muted); font-size: 13px; margin-top: 2px; }
+    .tag { font-size: 11px; background: #33284f; color: #c9b8ff; padding: 1px 6px; border-radius: 6px; margin-left: 6px; }
+    .choices { display: flex; gap: 6px; flex-shrink: 0; }
+    .choices button {
+        background: transparent;
+        color: var(--muted);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 6px 10px;
+        font-size: 13px;
+        cursor: pointer;
+    }
+    .choices button.on[data-v="keep"] { background: var(--keep); border-color: var(--keep); color: #08210f; }
+    .choices button.on[data-v="simple"] { background: var(--simple); border-color: var(--simple); color: #2b1a00; }
+    .choices button.on[data-v="remove"] { background: var(--remove); border-color: var(--remove); color: #fff; }
+    .note {
+        width: 100%;
+        margin-top: 8px;
+        background: #12152a;
+        color: var(--text);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 6px 8px;
+        font: inherit;
+        font-size: 13px;
+        display: none;
+    }
+    .item.simple .note, .item.has-note .note { display: block; }
+    .add-note { background: none; border: none; color: var(--muted); font-size: 12px; cursor: pointer; padding: 4px 0 0; }
+    .q { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; }
+    .q label { font-weight: 600; display: block; margin-bottom: 6px; }
+    .q textarea { width: 100%; min-height: 54px; background: #12152a; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: inherit; font-size: 14px; }
+    .bar {
+        position: fixed;
+        left: 0; right: 0; bottom: 0;
+        background: #0b0e1a;
+        border-top: 1px solid var(--line);
+        padding: 12px 16px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    .count { font-size: 14px; color: var(--muted); }
+    .count b.k { color: var(--keep); } .count b.s { color: var(--simple); } .count b.r { color: var(--remove); }
+    .copy { background: var(--accent); color: #fff; border: none; border-radius: 10px; padding: 10px 18px; font-weight: 600; cursor: pointer; font-size: 15px; }
+    @media (max-width: 600px) {
+        .choices { width: 100%; }
+        .choices button { flex: 1; }
+    }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <h1>Inventaire de la refonte</h1>
+    <p class="intro">Pour chaque fonctionnalité actuelle, choisis ce qu'elle devient dans la nouvelle version. « Simplifier » ouvre une case pour dire comment. Tes choix sont gardés si tu fermes la page. À la fin, clique « Copier mes choix » et colle le texte dans la conversation.</p>
+    <div class="legend">
+        <span><b style="color:var(--keep)">Garder</b> : telle quelle</span>
+        <span><b style="color:var(--simple)">Simplifier</b> : garder mais changer</span>
+        <span><b style="color:var(--remove)">Supprimer</b> : disparaît de la nouvelle version</span>
+    </div>
+    <div id="list"></div>
+
+    <h2>Questions sur les monnaies et le passe</h2>
+    <div id="questions"></div>
+</div>
+
+<div class="bar">
+    <span class="count" id="count"></span>
+    <button class="copy" id="copy">Copier mes choix</button>
+</div>
+
+<script>
+const SECTIONS = [
+    ["Compte et profil", [
+        ["Connexion par pseudo", "Inscription, connexion, mot de passe oublié, bouton œil"],
+        ["Onglet Profil", "Changer de pseudo, déconnexion, suppression du compte"],
+        ["Fenêtre d'un joueur", "Clic sur un pseudo : ses infos et ses stats"],
+        ["Joueurs AFK", "Absent 2 jours ouvrés = retiré du jury des contestations"]
+    ]],
+    ["Groupes", [
+        ["Groupes privés", "Créer, rejoindre par code, renommer, régénérer le code"],
+        ["Demandes d'adhésion", "Le gérant accepte ou refuse les nouveaux"],
+        ["Gérants, retrait, quitter un groupe", "Nommer un gérant, retirer un membre, partir"],
+        ["Page de bienvenue", "Affichée quand on n'a aucun groupe"]
+    ]],
+    ["Paris : créer", [
+        ["Création de pari en fenêtre", "Question, choix, cotes, échéance"],
+        ["Cote complémentaire", "Pari à 2 choix : la 2e cote se calcule toute seule"],
+        ["Parieur concerné", "Désigner le joueur visé par le pari"],
+        ["Brouillon jusqu'à la mise du créateur", "Le pari n'est publié qu'après la mise du créateur"],
+        ["Cote max 20", "Limite sur les cotes"]
+    ]],
+    ["Paris : miser", [
+        ["Cartes de pari", "Barres de %, nombre de parieurs, total misé"],
+        ["Fenêtre de mise avec jauge", "Boutons 50 / 100 / 200 / ½ Bank / All in"],
+        ["Mise min 10 € / max 5 000 €", "Avec mise max décroissante et mises rondes"],
+        ["1 mise par pari", "Un seul ticket par joueur et par pari"],
+        ["Échéance et clôture", "Mises closes 1 h avant, carte rouge, LAST CHANCE / TROP TARD"],
+        ["Paris combinés (ticket)", "Combiner plusieurs paris dans un ticket"],
+        ["Cote ≥ 10 enflammée", "Étincelles sur les grosses cotes"],
+        ["Détail des parieurs", "Fenêtre : qui a misé quoi"],
+        ["Paris en direct", "Les nouvelles mises apparaissent sans recharger"]
+    ]],
+    ["Paris : résultat", [
+        ["Validation sur la carte", "Le créateur choisit le gagnant, bilan gagnants / perdants"],
+        ["Validation par un autre joueur", "Un autre joueur peut valider"],
+        ["Récupération manuelle des gains", "Carte « Récupérer / Perdre la mise » à cliquer"],
+        ["Commission du créateur", "10 % des mises perdues pour le créateur"],
+        ["Contestations avec jury", "Contester une validation, vote, amende"],
+        ["Historique", "Mes paris + filtre Mes créations"]
+    ]],
+    ["Monnaies et progression", [
+        ["Argent (solde du groupe)", "Sert à parier", "garder"],
+        ["Pièces / points 🪙", "Gagnés aux missions, servent à la boutique", "supprimer"],
+        ["Diamants 💎", "Objets exclusifs, échange contre des pièces", "supprimer"],
+        ["XP et niveaux", "XP par mise, bouton de niveau, animation façon Call of Duty", "garder"],
+        ["Flamme (série de connexions)", "Jours d'affilée", "garder"],
+        ["Bouclier et rattrapage de série", "Protéger ou rattraper sa série"],
+        ["Phénix et pseudo enflammé", "Récompenses à 15 et 30 jours de série"],
+        ["Missions", "Quotidiennes et hebdo (dont Last chance)"],
+        ["Coffre quotidien", "Récompense à ouvrir chaque jour"],
+        ["Remises à zéro", "Points, missions, XP réinitialisés à date"]
+    ]],
+    ["Boutique et cosmétiques", [
+        ["Boutique de cosmétiques", "Cadres, couleurs, pseudos animés, thèmes de carte (à remplacer par le passe ?)"],
+        ["Skins du perroquet", "Apparences du perroquet"],
+        ["Boosts clic du perroquet ×2 / ×3", "Articles qui ne sont pas cosmétiques"]
+    ]],
+    ["Perroquet et animations", [
+        ["Perroquet", "Pile de billets selon l'argent en jeu, poses gagné / perdu"],
+        ["Clic du perroquet", "1 €/clic, plafond par jour selon le meilleur solde"],
+        ["Confettis, billets volants", "Enchaînement quand on gagne"],
+        ["Classement animé", "Le classement bouge après un gain"],
+        ["Fil en direct", "Activité des autres joueurs"]
+    ]],
+    ["Social et infos", [
+        ["Classement Top Parieurs", "Barre de gauche"],
+        ["Messages admin", "Popup et message permanent"],
+        ["Journal des nouveautés + vote", "Sous le classement, vote du week-end"],
+        ["Onglet Aide app (bêta)", "Idées, bugs, récompenses des bêta-testeurs"],
+        ["Pseudos bêta Terminal / Glitch", "Récompenses de l'Aide app"]
+    ]],
+    ["Admin", [
+        ["Page admin", "Comptes, soldes, stats des joueurs"],
+        ["Admin illimité", "Solde, points, niveau et série illimités"]
+    ]]
+];
+
+const QUESTIONS = [
+    "Sans pièces, comment obtient-on des cosmétiques ? (seulement le passe ? une boutique en argent ?)",
+    "À quoi sert la flamme dans la nouvelle version ? (bonus d'XP, récompenses, juste un compteur ?)",
+    "L'XP fait-elle avancer le passe de combat ? Qu'est-ce qui rapporte de l'XP ?",
+    "Durée d'une saison du passe (1 mois ? 6 semaines ?) et nombre de paliers ?",
+    "Exemples de récompenses : passe classique / passe Gold",
+    "Autres fonctionnalités à AJOUTER"
+];
+
+const KEY = "betlab-inventaire-refonte";
+let state = {};
+try { state = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { state = {}; }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
+
+const LABELS = { keep: "Garder", simple: "Simplifier", remove: "Supprimer" };
+const list = document.getElementById("list");
+
+SECTIONS.forEach(([title, items], si) => {
+    const h = document.createElement("h2");
+    h.textContent = title;
+    list.appendChild(h);
+    items.forEach(([name, desc, decided], ii) => {
+        const id = si + "-" + ii;
+        if (!state[id]) state[id] = { v: decided === "garder" ? "keep" : decided === "supprimer" ? "remove" : "", note: "" };
+        const el = document.createElement("div");
+        el.className = "item";
+        el.innerHTML =
+            '<div class="row"><div><div class="name"></div><div class="desc"></div></div>' +
+            '<div class="choices">' +
+            Object.keys(LABELS).map(v => '<button data-v="' + v + '">' + LABELS[v] + '</button>').join("") +
+            '</div></div>' +
+            '<button class="add-note">+ ajouter une remarque</button>' +
+            '<input class="note" placeholder="Comment ? / remarque">';
+        el.querySelector(".name").textContent = name;
+        if (decided) {
+            const t = document.createElement("span");
+            t.className = "tag";
+            t.textContent = "déjà décidé";
+            el.querySelector(".name").appendChild(t);
+        }
+        el.querySelector(".desc").textContent = desc;
+        const note = el.querySelector(".note");
+        note.value = state[id].note;
+        const refresh = () => {
+            el.className = "item " + state[id].v + (state[id].note ? " has-note" : "");
+            el.querySelectorAll(".choices button").forEach(b => b.classList.toggle("on", b.dataset.v === state[id].v));
+            updateCount();
+        };
+        el.querySelectorAll(".choices button").forEach(b => b.onclick = () => {
+            state[id].v = state[id].v === b.dataset.v ? "" : b.dataset.v;
+            save(); refresh();
+        });
+        el.querySelector(".add-note").onclick = () => { el.classList.add("has-note"); note.focus(); };
+        note.oninput = () => { state[id].note = note.value; save(); };
+        state[id].name = name;
+        state[id].section = title;
+        list.appendChild(el);
+        refresh();
+    });
+});
+
+const qBox = document.getElementById("questions");
+QUESTIONS.forEach((q, i) => {
+    const id = "q" + i;
+    const el = document.createElement("div");
+    el.className = "q";
+    el.innerHTML = '<label></label><textarea></textarea>';
+    el.querySelector("label").textContent = q;
+    const ta = el.querySelector("textarea");
+    ta.value = state[id] || "";
+    ta.oninput = () => { state[id] = ta.value; save(); };
+    qBox.appendChild(el);
+});
+
+function updateCount() {
+    const items = Object.keys(state).filter(k => !k.startsWith("q"));
+    const c = { keep: 0, simple: 0, remove: 0, "": 0 };
+    items.forEach(k => c[state[k].v || ""]++);
+    document.getElementById("count").innerHTML =
+        '<b class="k">' + c.keep + '</b> gardées · <b class="s">' + c.simple + '</b> à simplifier · <b class="r">' + c.remove + '</b> supprimées · ' + c[""] + ' sans choix';
+}
+
+document.getElementById("copy").onclick = () => {
+    let out = "INVENTAIRE REFONTE\n";
+    let current = "";
+    Object.keys(state).filter(k => !k.startsWith("q")).forEach(k => {
+        const s = state[k];
+        if (s.section !== current) { current = s.section; out += "\n## " + current + "\n"; }
+        out += "- " + s.name + " : " + (LABELS[s.v] || "?") + (s.note ? " (" + s.note + ")" : "") + "\n";
+    });
+    out += "\n## Questions\n";
+    QUESTIONS.forEach((q, i) => { out += "- " + q + "\n  → " + (state["q" + i] || "") + "\n"; });
+    const done = () => { const b = document.getElementById("copy"); b.textContent = "Copié ✓"; setTimeout(() => b.textContent = "Copier mes choix", 1500); };
+    if (navigator.clipboard) navigator.clipboard.writeText(out).then(done, () => prompt("Copie ce texte :", out));
+    else prompt("Copie ce texte :", out);
+};
+</script>
+</body>
+</html>

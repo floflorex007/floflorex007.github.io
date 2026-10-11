@@ -4090,8 +4090,6 @@ function renderBetSummaryHtml(
 
                             ${isTargetBlocked
                                 ? ""
-                                : isClosed
-                                ? `<div class="choice-closed-label">Mises closes</div>`
                                 : `
                                     <div class="choice-bar-track">
                                         <div class="choice-bar-fill" style="width:${pct}%"></div>
@@ -4682,6 +4680,25 @@ function isMyOpenBet(bet) {
         currentUser &&
         bet.author_id === currentUser.id &&
         bet.status === "open"
+    );
+
+}
+
+/*
+    Pari publié resté sans autre parieur, mises closes (la carte vient de
+    passer en bloqué, voir isBetClosed) : son créateur (ou l'admin) peut le
+    supprimer, sa mise lui est remboursée (voir suppression-pari-expire.sql).
+*/
+
+function canDeleteExpiredBet(bet) {
+
+    return Boolean(
+        currentUser &&
+        bet.status === "open" &&
+        isBetClosed(bet) &&
+        (bet.author_id === currentUser.id || currentProfile?.is_admin) &&
+        !hasOtherStake(bet) &&
+        !(bet.combo_legs || []).length
     );
 
 }
@@ -5631,7 +5648,10 @@ async function displayBets({ quiet = false, force = false } = {}) {
                 }
 
                 card.innerHTML =
-                    (mine
+                    (canDeleteExpiredBet(bet)
+                        // Terminé sans autre parieur : pastille rouge « Supprimer » (créateur ou admin).
+                        ? `<button type="button" class="validate-fab validate-fab-delete" data-delete-bet="${bet.id}">✕<span>Supprimer</span></button>`
+                        : mine
                         ? `<button type="button" class="validate-fab${validating ? " open" : ""}${animateHint ? " validate-enter" : ""}" data-validate-toggle="${bet.id}">${validating ? "✕<span>Annuler</span>" : "✓<span>Valider</span>"}</button>`
                         : waitingOther
                         // Pas encore validable : pastille vide, elle fait « non » au clic.
@@ -5926,6 +5946,70 @@ async function displayBets({ quiet = false, force = false } = {}) {
             playDraftFlips(container, draftFlips);
 
         }
+
+
+        /*
+            Supprimer un pari terminé sans parieur :
+            un premier clic demande confirmation, le second supprime.
+        */
+
+        container
+            .querySelectorAll("[data-delete-bet]")
+            .forEach(button => {
+
+                button.addEventListener("click", async event => {
+
+                    event.stopPropagation();
+
+                    if (!button.classList.contains("confirm")) {
+
+                        button.classList.add("confirm");
+
+                        button.querySelector("span").textContent = "Confirmer ?";
+
+                        // Sans second clic, la pastille revient à « Supprimer ».
+                        setTimeout(() => {
+
+                            button.classList.remove("confirm");
+
+                            button.querySelector("span").textContent = "Supprimer";
+
+                        }, 4000);
+
+                        return;
+
+                    }
+
+                    button.disabled = true;
+
+                    const { data, error } = await supabaseClient.rpc("delete_expired_bet", {
+                        p_bet_id: button.dataset.deleteBet
+                    });
+
+                    if (error) {
+
+                        alertToast(escapeHtml(error.message || "Impossible de supprimer ce pari."));
+
+                        button.disabled = false;
+
+                        return;
+
+                    }
+
+                    alertToast(
+                        Number(data) > 0
+                            ? `🗑 Pari supprimé, ta mise de ${formatMoney(Number(data))} t'est remboursée.`
+                            : "🗑 Pari supprimé.",
+                        { type: "create" }
+                    );
+
+                    await loadCurrentProfile();
+
+                    displayBets({ quiet: true });
+
+                });
+
+            });
 
 
         /*
@@ -9266,7 +9350,7 @@ async function openStakesModal(bet, card) {
 
     // Le bouton de validation reste dans la copie dépliée (voir plus bas) ;
     // le reste du mode validation n'en fait pas partie.
-    pop.querySelectorAll(".validate-bilan, .validate-hint, .validate-tag")
+    pop.querySelectorAll(".validate-bilan, .validate-hint, .validate-tag, [data-delete-bet]")
         .forEach(element => element.remove());
 
     // La pastille de validation ne rejoue pas, à l'ouverture, une animation
@@ -11227,7 +11311,7 @@ function displayShop() {
 
         </div>
 
-    ` + diamondShopHtml() + SHOP_CATEGORIES.map(category => `
+    ` + SHOP_CATEGORIES.map(category => `
 
         <section
             class="shop-category${shopFilter !== "all" && shopFilter !== category.kind ? " hidden" : ""}"
@@ -11244,7 +11328,7 @@ function displayShop() {
 
         </section>
 
-    `).join("");
+    `).join("") + diamondShopHtml(); // diamants en dernier, avec leur bandeau « Obtenir des 💎 »
 
     savedTilts.forEach((transform, itemId) => {
 
@@ -12372,6 +12456,8 @@ function markBetaTabVisited() {
 
 function refreshBetaNav() {
 
+    displayVersionSwitch();
+
     const button =
         document.getElementById("beta-nav-button");
 
@@ -12491,10 +12577,134 @@ function openBetaPage() {
 
 
 /*
+    Version de l'app : classique ou bêta (beta.css, beta.js, saison.sql).
+    Le choix est gardé dans localStorage « betlab-version » ; la classe
+    « beta » est posée sur <body> dès le chargement (app.html).
+    Réservé aux bêta-testeurs acceptés et à l'admin.
+*/
+
+function isBetaVersion() {
+
+    return document.body.classList.contains("beta");
+
+}
+
+function setAppVersion(beta) {
+
+    try {
+
+        if (beta) {
+            localStorage.setItem("betlab-version", "beta");
+        } else {
+            localStorage.removeItem("betlab-version");
+        }
+
+    } catch {}
+
+    window.location.reload();
+
+}
+
+// Plus bêta-testeur (ou jamais été) : retour à la version classique.
+function checkAppVersion() {
+
+    if (isBetaVersion() && !hasBetaAccess()) {
+
+        setAppVersion(false);
+
+        return false;
+
+    }
+
+    return true;
+
+}
+
+// Interrupteur « Bêta » de la barre du haut (même choix que la carte du Profil).
+function displayVersionSwitch() {
+
+    const button =
+        document.getElementById("version-switch");
+
+    if (!button) {
+        return;
+    }
+
+    const beta = isBetaVersion();
+
+    button.classList.toggle("hidden", !hasBetaAccess());
+
+    button.classList.toggle("on", beta);
+
+    button.setAttribute("aria-checked", String(beta));
+
+    button.title = beta ? "Revenir à la version classique" : "Passer à la version bêta";
+
+    if (!button.dataset.ready) {
+
+        button.dataset.ready = "1";
+
+        button.addEventListener("click", () => {
+
+            // Le bouton glisse avant le rechargement de la page.
+            button.classList.toggle("on");
+
+            setTimeout(() => setAppVersion(!isBetaVersion()), 200);
+
+        });
+
+    }
+
+}
+
+function displayVersionCard() {
+
+    const card =
+        document.getElementById("version-card");
+
+    if (!card) {
+        return;
+    }
+
+    if (!hasBetaAccess()) {
+
+        card.classList.add("hidden");
+
+        return;
+
+    }
+
+    const beta = isBetaVersion();
+
+    card.classList.remove("hidden");
+
+    card.innerHTML = `
+        <h2>🧪 Version de l'app</h2>
+
+        <p class="version-state">
+            ${beta
+                ? "Tu utilises la <b>version bêta</b> : passe de combat, cartes épurées, plus de pièces ni de diamants."
+                : "Tu utilises la <b>version classique</b>. La version bêta est réservée aux bêta-testeurs."
+            }
+        </p>
+
+        <button type="button" class="primary-button" id="version-switch-button">
+            ${beta ? "Revenir à la version classique" : "Essayer la version bêta"}
+        </button>
+    `;
+
+    card.querySelector("#version-switch-button").addEventListener("click", () => setAppVersion(!beta));
+
+}
+
+
+/*
     Carte du Profil : demander à devenir bêta-testeur.
 */
 
 function displayBetaRequestCard() {
+
+    displayVersionCard();
 
     const card =
         document.getElementById("beta-request-card");
@@ -15761,6 +15971,11 @@ async function initAppPage() {
             loadBetaStatus(),
             loadWeekNews()
         ]);
+
+        // Version bêta sans accès : on recharge en version classique.
+        if (!checkAppVersion()) {
+            return;
+        }
 
         // Groupe connu : on prépare les paris et le classement avant d'afficher
         // la page, pour que les cartes arrivent d'un coup, une seule fois.

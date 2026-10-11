@@ -661,13 +661,6 @@ input {
     text-align: center;
 }
 
-.choice-closed-label {
-    color: #858a98;
-    font-size: 11px;
-    margin-top: 6px;
-    text-align: center;
-}
-
 .bet-footer {
     display: flex;
     align-items: center;
@@ -11716,4 +11709,136 @@ body.ticket-combo .ticket-go.ticket-go--blocked {
     margin: 0;
     color: #858a98;
     font-size: 12px;
+}
+
+
+/* ================================
+   INTERRUPTEUR VERSION BÊTA (barre du haut)
+   Bêta-testeurs et admin : displayVersionSwitch dans app.js.
+================================ */
+
+.version-switch {
+    order: -3;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+    padding: 0 12px;
+    border: 1px solid #2c3040;
+    border-radius: 999px;
+    background: #181b24;
+    color: #858a98;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.version-switch:hover {
+    border-color: #6c63ff;
+}
+
+.version-switch.on {
+    color: #c9b8ff;
+    border-color: #6c63ff;
+}
+
+.version-switch-track {
+    position: relative;
+    width: 34px;
+    height: 20px;
+    border-radius: 999px;
+    background: #343846;
+    transition: background 0.2s;
+}
+
+.version-switch.on .version-switch-track {
+    background: #6c63ff;
+}
+
+.version-switch-knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: white;
+    transition: transform 0.2s;
+}
+
+.version-switch.on .version-switch-knob {
+    transform: translateX(14px);
+}
+
+/* Téléphone : juste l'interrupteur, sans le mot « Bêta ». */
+@media (max-width: 800px) {
+
+    .version-switch {
+        height: 34px;
+        padding: 0 8px;
+    }
+
+    .version-switch-label {
+        display: none;
+    }
+
+}
+
+
+
+/* ================================
+   SUPPRIMER UN PARI TERMINÉ SANS PARIEUR
+   Pastille rouge à la place de la pastille « Valider » (canDeleteExpiredBet
+   dans app.js, suppression-pari-expire.sql) : elle se déplie au survol
+   (« Supprimer »), un clic demande confirmation, le second supprime.
+================================ */
+
+.validate-fab.validate-fab-delete {
+    background: linear-gradient(135deg, #d93a3a, #ff6b6b);
+    color: white;
+    box-shadow: 0 6px 18px rgba(255, 92, 92, 0.4);
+    font-size: 13px;
+}
+
+.validate-fab.validate-fab-delete.confirm {
+    max-width: 180px;
+    padding: 0 12px 0 8px;
+    animation: delete-fab-pulse 0.9s ease-in-out infinite;
+}
+
+.validate-fab.validate-fab-delete.confirm span {
+    opacity: 1;
+}
+
+.validate-fab.validate-fab-delete:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+@keyframes delete-fab-pulse {
+    50% { box-shadow: 0 0 0 5px rgba(255, 92, 92, 0.25), 0 6px 18px rgba(255, 92, 92, 0.4); }
+}
+
+/* Carte grisée (échéance passée) : la pastille rouge garde sa couleur. */
+.bet-card.bet-card-locked:has(.validate-fab-delete) {
+    filter: none;
+}
+
+.bet-card.bet-card-locked > .validate-fab-delete {
+    opacity: 1;
+}
+
+/* Pastille repliée : la croix bien au centre (le texte caché ne prend plus de place). */
+.validate-fab.validate-fab-delete:not(.near):not(.confirm) {
+    justify-content: center;
+    width: 30px;
+    padding: 0;
+}
+
+.validate-fab.validate-fab-delete:not(.near):not(.confirm) span {
+    max-width: 0;
+    margin-left: 0;
+    overflow: hidden;
 }

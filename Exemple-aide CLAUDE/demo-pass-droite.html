@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Pass à droite des paris</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="beta.css">
+<style>
+body.demo { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 80px; margin: 0; display: block; min-height: 0; }
+.demo h1 { font-size: 26px; margin: 0 0 6px; }
+.demo .sub { color: #858a98; margin: 0 0 16px; max-width: 1000px; font-size: 14px; line-height: 1.5; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 12px 14px; margin-bottom: 18px; max-width: 1240px; border-radius: 14px; border: 1px solid #2c3040; background: #151821; }
+.tab { border: 1px solid #343846; background: #11131a; color: #aaaeba; border-radius: 10px; padding: 8px 12px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.tab.on { border-color: #6c63ff; background: #2a2850; color: #fff; }
+.pick { margin-left: auto; border: none; border-radius: 12px; padding: 10px 16px; font: inherit; font-weight: 900; color: white; background: linear-gradient(135deg, #2fb37a, #4fd39a); cursor: pointer; }
+.copied { color: #63d69f; font-size: 13px; font-weight: 800; }
+.vdesc { width: 100%; color: #858a98; font-size: 13px; }
+
+/* Page Paris simplifiée */
+.page { display: flex; gap: 20px; align-items: flex-start; max-width: 1240px; }
+.fake-left { width: 260px; flex-shrink: 0; border: 1px solid #2c3040; border-radius: 18px; background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); padding: 16px; font-size: 13px; color: #aaaeba; display: grid; gap: 8px; }
+.fake-left b { color: #fff; font-size: 14px; }
+.mid { flex: 1; min-width: 0; display: grid; gap: 24px; }
+.mid .bet-card { max-width: 480px; }
+.right { width: 280px; flex-shrink: 0; display: grid; gap: 16px; position: sticky; top: 16px; }
+.parrot-img { width: 200px; justify-self: center; opacity: .95; }
+
+/* Boîte commune de la colonne de droite */
+.side { border: 1px solid #2c3040; border-radius: 18px; background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); padding: 14px; display: grid; gap: 10px; }
+.side-head { display: flex; align-items: center; gap: 8px; font-weight: 900; font-size: 14px; }
+.side-head .lvl { margin-left: auto; font-size: 12px; color: #c86bff; }
+.side-bar { height: 8px; border-radius: 99px; background: #262a38; overflow: hidden; }
+.side-bar i { display: block; height: 100%; background: linear-gradient(90deg, #6c63ff, #c86bff); }
+.side-muted { color: #858a98; font-size: 12px; }
+.side-open { border: 1px solid #343846; background: #181b24; color: #c9ccd6; border-radius: 10px; padding: 8px; font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
+.side-open:hover { border-color: #6c63ff; }
+
+/* A : pass complet étroit */
+.side .pass-track { padding: 8px; border-radius: 12px; }
+.side .pass-lane { grid-auto-columns: 84px; }
+.side .pass-reward { height: 80px; }
+.side .pass-gauge { margin: 30px 0 8px; }
+
+/* B : résumé */
+.next-list { display: grid; gap: 6px; }
+.next-row { display: grid; grid-template-columns: 34px 1fr; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 12px; background: #181b24; border: 1px solid #2c3040; }
+.next-row.gold { border-color: #7a6526; background: linear-gradient(180deg, #3a2f12, #221d10); }
+.next-row.ready { border-color: #63d69f; }
+.next-row .n { font-size: 11px; font-weight: 900; color: #737887; text-align: center; }
+.next-row .what { display: grid; gap: 2px; min-width: 0; }
+.next-row .what .pass-preview { min-height: 26px; justify-items: start; }
+.next-row .lbl { font-size: 11px; color: #aaaeba; }
+.next-row button { grid-column: 1 / -1; border: none; border-radius: 8px; padding: 5px; background: #63d69f; color: #062012; font: inherit; font-size: 12px; font-weight: 900; cursor: pointer; }
+
+/* C : carte Ma saison */
+.right .season-card { grid-template-columns: auto 1fr; }
+.right .season-card-next { grid-column: 1 / -1; max-width: none; display: flex; align-items: center; gap: 8px; text-align: left; }
+.right .season-card-next .season-icon { font-size: 22px; }
+</style>
+</head>
+<body class="demo beta">
+
+<h1>Pass à droite des paris</h1>
+<p class="sub">
+    La carte « Ma saison » disparaît de la liste des paris, l'onglet « Pass » reste dans le menu.
+    À droite des cartes, au-dessus du perroquet, trois façons de montrer le pass.
+</p>
+
+<div class="controls" id="controls">
+    <button class="tab on" data-v="A">A · Pass complet, en étroit</button>
+    <button class="tab" data-v="B">B · Résumé du pass</button>
+    <button class="tab" data-v="C">C · Carte « Ma saison »</button>
+    <button class="pick">Je choisis celle-ci</button>
+    <span class="copied"></span>
+    <div class="vdesc"></div>
+</div>
+
+<div class="page">
+    <div class="fake-left">
+        <b>🏆 Top Parieurs</b>
+        <span>🥇 Julie · 4 820 €</span>
+        <span>🥈 Florian · 3 950 €</span>
+        <span>🥉 Kevin · 2 310 €</span>
+        <span>4 Marc · 1 870 €</span>
+    </div>
+
+    <div class="mid" id="mid"></div>
+
+    <div class="right">
+        <div id="side"></div>
+        <img class="parrot-img" src="assets/perroquet/skins/classique/thumb.png" alt="">
+    </div>
+</div>
+
+<script>
+const ME = "Florian";
+const XP = 845;
+const LEVEL = 8;
+
+// Mêmes récompenses que le pass actuel (saison.sql, partie 9).
+const REWARDS = [
+    [4, "classique", "Emoji 🍀", '<span class="user-name">Florian <span class="name-emoji">🍀</span></span>'],
+    [8, "classique", "Pseudo bronze", '<span class="user-name"><span class="name-metal metal-bronze">Florian</span></span>'],
+    [12, "classique", "Pseudo argent", '<span class="user-name"><span class="name-metal metal-argent">Florian</span></span>'],
+    [16, "classique", "Pseudo or", '<span class="user-name"><span class="name-metal metal-or">Florian</span></span>'],
+    [20, "classique", "Skin Flamant", '<img class="pass-preview-skin" src="assets/perroquet/skins/flamant/thumb.png" alt="">'],
+    [24, "classique", "Étincelles", '<span class="user-name"><span class="name-sparkle">Florian<i>✦</i><i>✦</i><i>✦</i><i>✦</i></span></span>'],
+    [28, "classique", "Skin Bleu nuit", '<img class="pass-preview-skin" src="assets/perroquet/skins/nuit/thumb.png" alt="">'],
+    [30, "classique", "Arc-en-ciel", '<span class="user-name"><span class="pseudo-color">Florian</span></span>'],
+    [2, "gold", "Emoji 🔥", '<span class="user-name">Florian <span class="name-emoji">🔥</span></span>'],
+    [4, "gold", "Néon rose", '<span class="user-name"><span class="name-neon neon-rose">Florian</span></span>'],
+    [6, "gold", "Pseudo rose gold", '<span class="user-name"><span class="name-metal metal-rose">Florian</span></span>'],
+    [8, "gold", "Pseudo cristal", '<span class="user-name"><span class="name-cristal">Florian</span></span>'],
+    [10, "gold", "Diamant 💎", '<span class="user-name">Florian <span class="name-emoji name-diamond">💎</span></span>'],
+    [12, "gold", "Néon animé", '<span class="user-name"><span class="name-anim anim-neon_anime">Florian</span></span>'],
+    [14, "gold", "Skin Violet royal", '<img class="pass-preview-skin" src="assets/perroquet/skins/violet/thumb.png" alt="">'],
+    [16, "gold", "Fiole", '<span class="user-name"><span class="name-anim anim-fiole">Florian<i></i><i></i><i></i></span></span>'],
+    [18, "gold", "Skin Noir et or", '<img class="pass-preview-skin" src="assets/perroquet/skins/noir/thumb.png" alt="">'],
+    [20, "gold", "Aura", '<div class="leaderboard-row leaderboard-row--aura pass-preview-aura">Florian</div>'],
+    [22, "gold", "Skin Arctique", '<img class="pass-preview-skin" src="assets/perroquet/skins/arctique/thumb.png" alt="">'],
+    [24, "gold", "Thème Diamant", '<div class="bet-card bet-card-theme bet-theme-diamant pass-preview-theme">Pari</div>'],
+    [26, "gold", "Pseudo enflammé", '<span class="user-name"><span class="name-flame">Florian<i>🔥</i><i>🔥</i></span></span>'],
+    [28, "gold", "Cadre diamant", '<div class="leaderboard-row leaderboard-row--diamond pass-preview-aura">Florian</div>'],
+    [30, "gold", "Skin Cristal", '<img class="pass-preview-skin" src="assets/perroquet/skins/cristal/thumb.png" alt="">']
+].map(([tier, track, label, html]) => ({ tier, track, label, html }));
+
+const claimed = new Set(["4classique"]);
+const state = r => r.track === "gold" ? "locked" : claimed.has(r.tier + r.track) ? "claimed" : r.tier <= LEVEL ? "claimable" : "";
+
+// Cartes de pari (version bêta épurée)
+document.getElementById("mid").innerHTML = [
+    ["Qui arrive en dernier à la réunion de lundi ?", "Kevin", 1.8, "Julie", 2.4, "Lun. 09:00"],
+    ["La machine à café sera réparée avant vendredi ?", "Oui", 2.1, "Non", 1.7, "Ven. 12:00"],
+    ["Le BE gagne le tournoi de babyfoot ?", "Oui", 1.5, "Non", 3.2, "Sam. 18:00"]
+].map(([q, a, oa, b, ob, end]) => `
+    <div class="bet-card">
+        <div class="bet-card-header"><span class="bet-author">Créé par <span class="user-name">Julie</span></span></div>
+        <div class="bet-question-row"><h3>${q}</h3><span class="bet-deadline">${end}</span></div>
+        <div class="bet-choices">
+            <div class="bet-choice-wrapper"><button class="bet-choice-button"><span>${a}</span><strong>${oa.toFixed(2)}</strong></button></div>
+            <div class="bet-choice-wrapper"><button class="bet-choice-button"><span>${b}</span><strong>${ob.toFixed(2)}</strong></button></div>
+        </div>
+    </div>`).join("");
+
+function cell(tier, track) {
+    const r = REWARDS.find(x => x.tier === tier && x.track === track);
+    if (!r) return `<div class="pass-cell in-view"><div class="pass-reward empty"></div></div>`;
+    const st = state(r);
+    return `<div class="pass-cell in-view"><button class="pass-reward${track === "gold" ? " gold" : ""} ${st}">
+        <span class="pass-tag">${st === "locked" ? "🔒" : st === "claimed" ? "✓" : ""}</span>
+        <span class="pass-preview">${r.html}</span><span class="pass-label">${r.label}</span></button></div>`;
+}
+
+function passHtml() {
+    const COL = 84;
+    const x = n => (n - 0.5) * COL;
+    let classic = "", gold = "", dots = "";
+    for (let n = 1; n <= 30; n++) {
+        classic += cell(n, "classique");
+        gold += cell(n, "gold");
+        dots += `<span class="pass-dot${n <= LEVEL ? " on" : ""}" style="left:${x(n)}px"></span><span class="pass-num${n <= LEVEL ? " on" : ""}" style="left:${x(n)}px">${n}</span>`;
+    }
+    return `<div class="pass-track" id="track">
+        <div class="pass-band classic"><div class="pass-row-label">Classique</div><div class="pass-lane">${classic}</div></div>
+        <div class="pass-gauge" style="width:${30 * COL}px"><div class="pass-rail"></div><div class="pass-fill" style="width:${x(XP / 100)}px"></div>${dots}
+            <span class="pass-me" style="left:${x(XP / 100)}px">Toi · 45/100 XP</span></div>
+        <div class="pass-band gold"><div class="pass-lane">${gold}</div><div class="pass-row-label gold">👑 Gold</div></div>
+    </div>`;
+}
+
+const VIEWS = {
+    A: () => `
+        <div class="side">
+            <div class="side-head">⭐ Pass de combat <span class="lvl">Niv. ${LEVEL}</span></div>
+            ${passHtml()}
+            <button class="side-open">Voir le pass en grand</button>
+        </div>`,
+    B: () => {
+        const ready = REWARDS.filter(r => state(r) === "claimable");
+        const next = REWARDS.filter(r => r.tier > LEVEL).sort((a, b) => a.tier - b.tier).slice(0, 3);
+        const row = r => `
+            <div class="next-row${r.track === "gold" ? " gold" : ""}${state(r) === "claimable" ? " ready" : ""}">
+                <span class="n">${r.track === "gold" ? "👑" : ""} ${r.tier}</span>
+                <div class="what"><span class="pass-preview">${r.html}</span><span class="lbl">${r.label}${state(r) === "locked" ? " · 🔒" : ""}</span></div>
+                ${state(r) === "claimable" ? "<button>Récupérer</button>" : ""}
+            </div>`;
+        return `
+            <div class="side">
+                <div class="side-head">⭐ Pass de combat <span class="lvl">Niv. ${LEVEL}</span></div>
+                <div class="side-bar"><i style="width:45%"></i></div>
+                <span class="side-muted">45/100 XP · encore 55 XP pour le niveau ${LEVEL + 1}</span>
+                <div class="next-list">
+                    ${ready.length ? `<span class="side-muted">À récupérer</span>${ready.map(row).join("")}` : ""}
+                    <span class="side-muted">Prochaines récompenses</span>
+                    ${next.map(row).join("")}
+                </div>
+                <button class="side-open">Voir tout le pass</button>
+            </div>`;
+    },
+    C: () => `
+        <div class="season-card">
+            <div class="season-card-level">${LEVEL}</div>
+            <div class="season-card-info">
+                <b>Saison d'octobre · niveau ${LEVEL}/30</b>
+                <div class="season-bar"><i style="width:45%"></i></div>
+                <span>45/100 XP · 🔥 7 jours : ×1,5 XP</span>
+                <span class="season-card-ready">🎁 1 récompense à récupérer</span>
+            </div>
+            <div class="season-card-next"><span class="season-icon">🥉</span>Niveau 8 : Pseudo bronze</div>
+        </div>`
+};
+
+const DESC = {
+    A: "La vraie piste (classique / jauge / Gold) dans la colonne : environ 3 niveaux visibles, on la fait défiler. Récupérer directement dedans.",
+    B: "Le niveau, la jauge, ce qui est à récupérer (avec le bouton) et les 3 prochaines récompenses avec leur aperçu. « Voir tout le pass » ouvre l'onglet.",
+    C: "La carte « Ma saison » actuelle, simplement déplacée à droite. Un clic ouvre l'onglet Pass."
+};
+
+const S = { v: "A" };
+const box = document.getElementById("controls");
+function render() {
+    box.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.v === S.v));
+    box.querySelector(".vdesc").textContent = DESC[S.v];
+    document.getElementById("side").innerHTML = VIEWS[S.v]();
+    const track = document.getElementById("track");
+    if (track) track.scrollLeft = (LEVEL - 1.5) * 84 - track.clientWidth / 2 + 42;
+}
+box.querySelectorAll(".tab").forEach(b => b.onclick = () => { S.v = b.dataset.v; render(); });
+box.querySelector(".pick").onclick = () => {
+    const txt = "Pass à droite des paris : variante " + S.v + " (" + box.querySelector(".tab.on").textContent.split("· ")[1] + ")";
+    const done = () => box.querySelector(".copied").textContent = "Copié : colle-le dans la conversation";
+    if (navigator.clipboard) navigator.clipboard.writeText(txt).then(done, () => prompt("Copie ce texte :", txt));
+    else prompt("Copie ce texte :", txt);
+};
+render();
+</script>
+</body>
+</html>

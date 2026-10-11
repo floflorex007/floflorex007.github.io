@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BetLab – Passe simplifié</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; background: #0f1117; color: #e6e8ee; font-family: system-ui, "Segoe UI", sans-serif; padding: 24px 16px 80px; }
+h1 { font-size: 26px; margin: 0 0 6px; }
+.sub { color: #858a98; margin: 0 0 18px; max-width: 860px; font-size: 14px; line-height: 1.5; }
+.wrap { max-width: 860px; margin: 0 auto; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 12px 14px; margin-bottom: 16px; border-radius: 14px; border: 1px solid #2c3040; background: #151821; }
+.tab { border: 1px solid #343846; background: #11131a; color: #aaaeba; border-radius: 10px; padding: 8px 12px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.tab.on { border-color: #6c63ff; background: #2a2850; color: #fff; }
+.pick { margin-left: auto; border: none; border-radius: 12px; padding: 10px 16px; font: inherit; font-weight: 900; color: white; background: linear-gradient(135deg, #2fb37a, #4fd39a); cursor: pointer; }
+.copied { color: #63d69f; font-size: 13px; font-weight: 800; }
+.vdesc { width: 100%; color: #858a98; font-size: 13px; }
+.sim { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: #aaaeba; }
+.sim label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+.sim button { border: 1px solid #343846; background: #11131a; color: #c9ccd6; border-radius: 8px; padding: 5px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+
+.box { border: 1px solid #2c3040; border-radius: 18px; background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); padding: 20px; display: grid; gap: 18px; }
+.bar { height: 12px; border-radius: 99px; background: #262a38; overflow: hidden; }
+.bar i { display: block; height: 100%; background: linear-gradient(90deg, #6c63ff, #c86bff); transition: width .5s; }
+.muted { color: #858a98; font-size: 13px; }
+.flame { color: #ffb37a; font-weight: 800; font-size: 13px; }
+.claim-all { border: none; border-radius: 14px; padding: 14px 18px; background: #63d69f; color: #062012; font: inherit; font-weight: 900; font-size: 16px; cursor: pointer; box-shadow: 0 0 18px rgba(99,214,159,.35); }
+.claim-all:disabled { background: #222631; color: #737887; box-shadow: none; cursor: default; }
+.gold-tag { display: inline-block; padding: 1px 7px; border-radius: 99px; background: #2b2614; color: #f5c451; font-size: 11px; font-weight: 900; border: 1px solid #4a3f1c; }
+
+/* A : une seule carte */
+.a-top { display: flex; align-items: center; gap: 16px; }
+.a-level { width: 72px; height: 72px; border-radius: 18px; background: #6c63ff; display: grid; place-items: center; font-size: 30px; font-weight: 900; flex-shrink: 0; }
+.a-info { flex: 1; display: grid; gap: 8px; }
+.a-info b { font-size: 17px; }
+.a-next { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 14px; background: #11131a; border: 1px solid #2c3040; }
+.a-next .ico { font-size: 34px; }
+.a-next b { display: block; font-size: 15px; }
+.a-strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.a-chip { flex: 0 0 auto; width: 74px; padding: 8px 4px; border-radius: 12px; background: #181b24; border: 1px solid #2c3040; text-align: center; font-size: 10px; color: #aaaeba; display: grid; gap: 2px; }
+.a-chip .ico { font-size: 22px; }
+.a-chip.gold { border-color: #4a3f1c; }
+.a-chip.done { opacity: .45; }
+.a-chip.ready { border-color: #63d69f; }
+
+/* B : liste */
+.b-head { display: grid; gap: 8px; }
+.b-head b { font-size: 17px; }
+.b-list { display: grid; gap: 6px; }
+.b-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: #181b24; border: 1px solid #2c3040; }
+.b-row .n { width: 36px; text-align: center; font-weight: 900; color: #737887; font-size: 13px; }
+.b-row .ico { font-size: 24px; }
+.b-row .lbl { flex: 1; font-weight: 700; font-size: 14px; }
+.b-row .st { font-size: 12px; font-weight: 800; color: #737887; }
+.b-row.ready { border-color: #63d69f; }
+.b-row.ready .st { color: #63d69f; }
+.b-row.done { opacity: .45; }
+.b-row.locked { opacity: .55; }
+.b-sep { font-size: 12px; color: #858a98; font-weight: 800; margin: 6px 0 0; }
+.more { border: none; background: none; color: #858a98; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; padding: 6px; }
+
+/* C : piste à une ligne */
+.c-track { display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 8px; }
+.c-cell { flex: 0 0 auto; width: 92px; display: grid; gap: 6px; text-align: center; }
+.c-n { font-size: 12px; font-weight: 900; color: #737887; padding-bottom: 4px; border-bottom: 3px solid #262a38; }
+.c-cell.reached .c-n { color: #fff; border-bottom-color: #6c63ff; }
+.c-rw { height: 88px; border-radius: 12px; background: #181b24; border: 1px solid #2c3040; display: grid; place-items: center; align-content: center; gap: 2px; font-size: 10px; color: #aaaeba; position: relative; padding: 4px; }
+.c-rw .ico { font-size: 26px; }
+.c-rw.gold { border-color: #4a3f1c; background: linear-gradient(180deg, #221d10, #181b24); }
+.c-rw.ready { border-color: #63d69f; }
+.c-rw.done { opacity: .45; }
+.c-rw.locked { opacity: .45; }
+.c-rw .tag { position: absolute; top: 4px; right: 6px; font-size: 11px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <h1>Passe simplifié</h1>
+    <p class="sub">
+        Trois façons plus simples de montrer le passe. Points communs : <b>un seul bouton « Tout récupérer »</b>
+        (plus besoin de cliquer chaque case), la flamme résumée en <b>une ligne</b>, plus de cases vides,
+        et le Gold mélangé à la piste avec une petite étiquette 👑.
+    </p>
+
+    <div class="controls" id="controls">
+        <button class="tab on" data-v="A">A · Une seule carte</button>
+        <button class="tab" data-v="B">B · Liste simple</button>
+        <button class="tab" data-v="C">C · Piste à une ligne</button>
+        <button class="pick">Je choisis celle-ci</button>
+        <span class="copied"></span>
+        <div class="vdesc"></div>
+        <div class="sim">
+            <label><input type="checkbox" id="gold"> Simuler le Gold</label>
+            <button id="plus">+ 60 XP (simuler une mise)</button>
+        </div>
+    </div>
+
+    <div id="view"></div>
+</div>
+
+<script>
+const REWARDS = [
+    [1,"gold","🔥","Emoji 🔥"],[2,"classique","💰","+200 €"],[3,"gold","🏷️","Titre « Outsider »"],[4,"classique","🍀","Emoji 🍀"],
+    [5,"gold","💙","Néon bleu"],[6,"classique","💰","+300 €"],[7,"gold","🥉","Pseudo bronze"],[8,"classique","💰","+300 €"],
+    [9,"gold","✨","Étincelles"],[10,"classique","💰","+500 €"],[10,"gold","🃏","Thème Carbone"],[11,"gold","⚡","Emoji ⚡"],
+    [12,"classique","🏷️","Titre « Débutant »"],[13,"gold","🦈","Titre « Requin »"],[14,"classique","💰","+400 €"],[15,"gold","💗","Néon rose"],
+    [16,"classique","💰","+500 €"],[17,"gold","🥈","Pseudo argent"],[18,"classique","💰","+500 €"],[19,"gold","🦊","Emoji 🦊"],
+    [20,"classique","💚","Néon vert"],[20,"gold","🌅","Thème Sunset"],[21,"gold","🌀","Aura"],[22,"classique","💰","+600 €"],
+    [23,"gold","🏷️","Titre « Chanceux »"],[24,"classique","💰","+700 €"],[25,"gold","💛","Néon jaune"],[26,"classique","💰","+800 €"],
+    [27,"gold","💎","Emoji 💎"],[28,"classique","🌸","Pseudo or rose"],[29,"gold","🥇","Pseudo or"],[30,"classique","💰","+1 000 €"],[30,"gold","🌌","Thème Galaxie"]
+].map(([tier, track, icon, label]) => ({ tier, track, icon, label }));
+
+const S = { xp: 845, gold: false, claimed: new Set(["2classique"]), streak: 7, v: "A" };
+const mult = () => S.streak >= 30 ? 2 : S.streak >= 15 ? 1.75 : S.streak >= 7 ? 1.5 : S.streak >= 3 ? 1.2 : 1;
+const tier = () => Math.min(30, Math.floor(S.xp / 100));
+const inTier = () => tier() >= 30 ? 100 : S.xp % 100;
+const key = r => r.tier + r.track;
+function state(r) {
+    if (r.track === "gold" && !S.gold) return "locked";
+    if (S.claimed.has(key(r))) return "done";
+    return r.tier <= tier() ? "ready" : "";
+}
+const ready = () => REWARDS.filter(r => state(r) === "ready");
+const flameLine = () => `<span class="flame">🔥 ${S.streak} jours d'affilée : ton XP compte ×${mult().toLocaleString("fr-FR")}</span>`;
+const claimBtn = () => {
+    const n = ready().length;
+    return `<button class="claim-all" onclick="claimAll()" ${n ? "" : "disabled"}>${n ? "🎁 Tout récupérer (" + n + ")" : "Rien à récupérer pour l'instant"}</button>`;
+};
+const goldTag = r => r.track === "gold" ? ' <span class="gold-tag">👑 Gold</span>' : "";
+const nextReward = () => REWARDS.find(r => r.tier > tier() && (S.gold || r.track === "classique"));
+
+function claimAll() {
+    ready().forEach(r => S.claimed.add(key(r)));
+    render();
+}
+
+const DESC = {
+    A: "Une seule carte : ton niveau, ta barre, la prochaine récompense en grand et le bouton. Les récompenses suivantes défilent en petit dessous.",
+    B: "Une liste de haut en bas : d'abord ce qui est à récupérer, puis les 5 prochaines récompenses. « Voir tout » montre le reste.",
+    C: "La piste horizontale actuelle, mais sur une seule ligne (classique et Gold mélangés), sans cases vides."
+};
+
+function render() {
+    const v = document.getElementById("view");
+    const nx = nextReward();
+    const head = `
+        <div class="a-info">
+            <b>Niveau ${tier()} sur 30</b>
+            <div class="bar"><i style="width:${inTier()}%"></i></div>
+            <span class="muted">${tier() >= 30 ? "Passe terminé 🎉" : "Encore " + (100 - inTier()) + " XP pour le niveau " + (tier() + 1)} · fin du mois dans 20 jours</span>
+            ${flameLine()}
+        </div>`;
+
+    if (S.v === "A") {
+        const upcoming = REWARDS.filter(r => r.tier > tier() && (S.gold || r.track === "classique")).slice(1, 9);
+        v.innerHTML = `
+            <div class="box">
+                <div class="a-top"><div class="a-level">${tier()}</div>${head}</div>
+                ${nx ? `<div class="a-next"><span class="ico">${nx.icon}</span><div><span class="muted">Prochaine récompense · niveau ${nx.tier}</span><b>${nx.label}${goldTag(nx)}</b></div></div>` : ""}
+                ${claimBtn()}
+                <div>
+                    <p class="muted" style="margin:0 0 8px">Ensuite</p>
+                    <div class="a-strip">
+                        ${upcoming.map(r => `<div class="a-chip ${r.track === "gold" ? "gold" : ""}"><span class="ico">${r.icon}</span>Niveau ${r.tier}</div>`).join("")}
+                    </div>
+                </div>
+            </div>`;
+    } else if (S.v === "B") {
+        const list = ready();
+        const upcoming = REWARDS.filter(r => r.tier > tier()).slice(0, S.all ? 99 : 5);
+        const row = r => `<div class="b-row ${state(r)}"><span class="n">${r.tier}</span><span class="ico">${r.icon}</span><span class="lbl">${r.label}${goldTag(r)}</span><span class="st">${state(r) === "ready" ? "À récupérer" : state(r) === "locked" ? "🔒 Gold" : state(r) === "done" ? "✓" : ""}</span></div>`;
+        v.innerHTML = `
+            <div class="box">
+                <div class="b-head">${head}</div>
+                ${claimBtn()}
+                <div class="b-list">
+                    ${list.length ? `<p class="b-sep">À récupérer</p>${list.map(row).join("")}` : ""}
+                    <p class="b-sep">Prochaines récompenses</p>
+                    ${upcoming.map(row).join("")}
+                    <button class="more" onclick="S.all=!S.all;render()">${S.all ? "Voir moins ▲" : "Voir tout le passe ▼"}</button>
+                </div>
+            </div>`;
+    } else {
+        v.innerHTML = `
+            <div class="box">
+                <div class="b-head">${head}</div>
+                ${claimBtn()}
+                <div class="c-track" id="ctrack">
+                    ${REWARDS.map(r => `
+                        <div class="c-cell ${r.tier <= tier() ? "reached" : ""}">
+                            <span class="c-n">${r.tier}</span>
+                            <div class="c-rw ${r.track === "gold" ? "gold" : ""} ${state(r)}">
+                                <span class="tag">${state(r) === "locked" ? "🔒" : state(r) === "done" ? "✓" : r.track === "gold" ? "👑" : ""}</span>
+                                <span class="ico">${r.icon}</span><span>${r.label}</span>
+                            </div>
+                        </div>`).join("")}
+                </div>
+            </div>`;
+        const first = document.querySelector(".c-rw.ready, .c-cell:not(.reached)");
+        const tr = document.getElementById("ctrack");
+        if (first && tr && !S.cScrolled) { tr.scrollLeft = first.closest(".c-cell").offsetLeft - 20; S.cScrolled = true; }
+    }
+}
+
+const box = document.getElementById("controls");
+const show = () => {
+    box.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.v === S.v));
+    box.querySelector(".vdesc").textContent = DESC[S.v];
+};
+box.querySelectorAll(".tab").forEach(b => b.onclick = () => { S.v = b.dataset.v; S.cScrolled = false; show(); render(); });
+box.querySelector(".pick").onclick = () => {
+    const txt = "Passe simplifié : variante " + S.v + " (" + box.querySelector(".tab.on").textContent.split("· ")[1] + ")";
+    const done = () => box.querySelector(".copied").textContent = "Copié : colle-le dans la conversation";
+    if (navigator.clipboard) navigator.clipboard.writeText(txt).then(done, () => prompt("Copie ce texte :", txt));
+    else prompt("Copie ce texte :", txt);
+};
+document.getElementById("gold").onchange = e => { S.gold = e.target.checked; render(); };
+document.getElementById("plus").onclick = () => { S.xp += 60; render(); };
+show();
+render();
+</script>
+</body>
+</html>

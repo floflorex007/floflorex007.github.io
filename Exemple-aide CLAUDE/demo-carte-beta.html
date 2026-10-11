@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Carte de pari bêta</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body.demo { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 80px; margin: 0; display: block; min-height: 0; }
+.demo h1 { font-size: 26px; margin: 0 0 6px; }
+.demo .sub { color: #858a98; margin: 0 0 22px; max-width: 900px; font-size: 14px; line-height: 1.5; }
+.cols { display: flex; gap: 40px; flex-wrap: wrap; max-width: 1100px; }
+.col { flex: 1; min-width: 300px; }
+.col-title { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; font-weight: 900; margin: 0 0 14px; color: #858a98; }
+.col-title.beta { color: #a59fff; }
+.demo .bets-list { gap: 24px; }
+.demo .bets-list .bet-card { margin-left: 0; }
+
+/* ===== Carte bêta : ce qui disparaît de la carte fermée ===== */
+.beta-cards .bet-card:not(.stakes-pop) .choice-bar-track,
+.beta-cards .bet-card:not(.stakes-pop) .choice-pct,
+.beta-cards .bet-card:not(.stakes-pop) .bet-total-footer,
+.beta-cards .bet-card:not(.stakes-pop) .choice-badge {
+    display: none;
+}
+
+/* Le pied de carte vide (sans « Concerne… ») disparaît aussi, avec sa ligne. */
+.beta-cards .bet-card:not(.stakes-pop) .bet-footer:not(:has(.bet-target-footer)) {
+    display: none;
+}
+
+/* Carte dépliée (copie par-dessus la page, comme dans la version classique) */
+.demo-backdrop { position: fixed; inset: 0; z-index: 96; background: rgba(0, 0, 0, .7); animation: demo-fade .25s ease-out; }
+@keyframes demo-fade { from { opacity: 0; } }
+.demo-pop { position: fixed; z-index: 97; margin: 0; max-width: none; cursor: default; transform-origin: top center; animation: demo-unfold .3s ease-out; }
+@keyframes demo-unfold { from { opacity: .6; transform: scaleY(.92); } }
+.demo-pop .stakes-pop-list { max-height: 40vh; overflow-y: auto; }
+</style>
+</head>
+<body class="demo">
+
+<h1>Carte de pari : version bêta</h1>
+<p class="sub">
+    À gauche, la carte classique d'aujourd'hui. À droite, la carte bêta : même structure, mêmes animations et même style
+    (le vrai <code>style.css</code> est chargé), mais sans 🏆 devant « Créé par », sans 🎲 devant la question,
+    sans pastilles rouges, sans pourcentages sous les cotes et sans « Solde misé ». <b>Clique sur une carte</b> pour la déplier :
+    dans la version bêta, les pastilles rouges, les pourcentages et le solde misé réapparaissent à ce moment-là, avec le détail des parieurs.
+</p>
+
+<div class="cols">
+    <div class="col">
+        <p class="col-title">Classique (aujourd'hui)</p>
+        <div class="bets-list" id="classic"></div>
+    </div>
+    <div class="col">
+        <p class="col-title beta">Bêta</p>
+        <div class="bets-list beta-cards" id="beta"></div>
+    </div>
+</div>
+
+<script>
+const BETS = [
+    {
+        q: "Qui arrive en dernier à la réunion de lundi ?", by: "Florian", end: "Lun. 09:00",
+        ch: [["Kevin", 1.8], ["Julie", 2.4]],
+        st: [["Julie", 0, 300], ["Marc", 0, 200], ["Sophie", 1, 150], ["Kevin", 1, 50], ["Léa", 0, 100]]
+    },
+    {
+        q: "La machine à café sera réparée avant vendredi ?", by: "Julie", end: "Ven. 12:00",
+        ch: [["Oui", 2.1], ["Non", 1.7]],
+        st: [["Florian", 1, 400], ["Kevin", 0, 250], ["Marc", 1, 120]]
+    },
+    {
+        q: "Le BE gagne le tournoi de babyfoot ?", by: "Kevin", end: "Sam. 18:00",
+        ch: [["Oui", 1.5], ["Non", 12]],
+        st: [["Sophie", 0, 500], ["Léa", 1, 20]]
+    }
+];
+
+const money = n => n.toLocaleString("fr-FR") + " €";
+const name = n => `<span class="user-name">${n}</span>`;
+
+function cardHtml(bet, beta) {
+    const total = bet.st.reduce((s, x) => s + x[2], 0);
+    const by = bet.ch.map((c, i) => {
+        const list = bet.st.filter(x => x[1] === i);
+        return { count: list.length, amount: list.reduce((s, x) => s + x[2], 0) };
+    });
+    const maxCount = Math.max(0, ...by.map(b => b.count));
+    return `
+        <div class="bet-card-header">
+            ${beta ? "" : "<span>🏆</span>"}
+            <span class="bet-author">Créé par ${name(bet.by)}</span>
+        </div>
+        <div class="bet-question-row">
+            ${beta ? "" : '<span class="bet-question-icon">🎲</span>'}
+            <h3>${bet.q}</h3>
+            <span class="bet-deadline">${bet.end}</span>
+        </div>
+        <div class="bet-choices">
+            ${bet.ch.map((c, i) => {
+                const pct = total > 0 ? Math.round(by[i].amount / total * 100) : 0;
+                return `
+                <div class="bet-choice-wrapper">
+                    ${maxCount > 0 && by[i].count === maxCount ? `<span class="choice-badge">${by[i].count}</span>` : ""}
+                    <button class="bet-choice-button${c[1] >= 10 ? " odds-fire" : ""}">
+                        <span>${c[0]}</span>
+                        <strong>${c[1].toFixed(2)}</strong>
+                    </button>
+                    <div class="choice-bar-track"><div class="choice-bar-fill" style="width:${pct}%"></div></div>
+                    <div class="choice-pct">${pct}%</div>
+                </div>`;
+            }).join("")}
+        </div>
+        <div class="bet-footer">
+            <div class="bet-total-footer">
+                <span>Solde misé</span>
+                <strong>${money(total)}</strong>
+            </div>
+        </div>`;
+}
+
+function stakesHtml(bet) {
+    return `
+        <div class="stakes-pop-more">
+            <h3 class="stakes-pop-title">Détail des parieurs</h3>
+            <div class="stakes-pop-list">
+                ${bet.st.map(([who, ci, amount]) => `
+                    <div class="stake-row">
+                        <div class="stake-row-header">
+                            <strong>${name(who)}</strong>
+                            <span class="stake-choice-badge">${bet.ch[ci][0]}</span>
+                        </div>
+                        <div class="stake-row-details">
+                            <span>💰 ${amount} €</span>
+                            <span>🎲 ${bet.ch[ci][1].toFixed(2)}</span>
+                            <span>🏆 ${money(Math.round(amount * bet.ch[ci][1]))}</span>
+                        </div>
+                    </div>`).join("")}
+            </div>
+            <div class="stakes-pop-close-row">
+                <button type="button" class="stakes-pop-close">Réduire ▲</button>
+            </div>
+        </div>`;
+}
+
+// Dépliage simplifié : copie de la carte posée par-dessus, au même endroit
+// (dans le vrai site, on garde l'animation classique d'openStakesModal).
+function unfold(card, bet) {
+    const rect = card.getBoundingClientRect();
+    const back = document.createElement("div");
+    back.className = "demo-backdrop";
+    const pop = document.createElement("div");
+    pop.className = card.className + " stakes-pop demo-pop";
+    pop.innerHTML = card.innerHTML + stakesHtml(bet);
+    pop.style.left = rect.left + "px";
+    pop.style.width = rect.width + "px";
+    pop.style.top = "0px";
+    pop.style.visibility = "hidden";
+    document.body.append(back, pop);
+    const h = pop.getBoundingClientRect().height;
+    pop.style.top = Math.max(20, Math.min(rect.top, innerHeight - h - 20)) + "px";
+    pop.style.visibility = "";
+    card.style.visibility = "hidden";
+    const close = () => { back.remove(); pop.remove(); card.style.visibility = ""; };
+    back.onclick = close;
+    pop.querySelector(".stakes-pop-close").onclick = close;
+}
+
+[["classic", false], ["beta", true]].forEach(([id, beta]) => {
+    const box = document.getElementById(id);
+    BETS.forEach(bet => {
+        const card = document.createElement("div");
+        card.className = "bet-card";
+        card.innerHTML = cardHtml(bet, beta);
+        card.addEventListener("click", e => { if (!e.target.closest(".bet-choice-button")) unfold(card, bet); });
+        box.appendChild(card);
+    });
+});
+
+// demo-carte-beta.html#auto : la première carte bêta s'ouvre toute seule (vérification).
+if (location.hash === "#auto") document.querySelector("#beta .bet-card").click();
+</script>
+</body>
+</html>

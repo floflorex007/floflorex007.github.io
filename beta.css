@@ -1,0 +1,691 @@
+/* =========================================================
+   BETLAB — VERSION BÊTA
+   Chargé pour tout le monde, mais chaque règle commence par
+   body.beta : sans cette classe (version classique), rien ne change.
+   Classe posée par app.html (choix gardé dans localStorage
+   « betlab-version »), réservée aux bêta-testeurs et à l'admin.
+========================================================= */
+
+
+/* ----- Monnaies : plus de pièces ni de diamants ----- */
+
+body.beta #points-widget,
+body.beta #diamond-widget,
+body.beta #xp-mini {
+    display: none !important;
+}
+
+/* Missions et boutique (payées en pièces) : remplacées par le passe. */
+body.beta .nav-button[data-page="missions-page"],
+body.beta .nav-button[data-page="shop-page"] {
+    display: none !important;
+}
+
+
+/* ----- Cartes de pari épurées ----- */
+
+/* Plus de 🏆 devant « Créé par » ni de 🎲 devant la question. */
+body.beta .bet-card-header > span:first-child:not(.bet-author),
+body.beta .bet-question-icon {
+    display: none;
+}
+
+/* Pastilles rouges, pourcentages et solde misé : seulement quand la carte est dépliée. */
+body.beta .bet-card:not(.stakes-pop) .choice-badge,
+body.beta .bet-card:not(.stakes-pop) .choice-bar-track,
+body.beta .bet-card:not(.stakes-pop) .choice-pct,
+body.beta .bet-card:not(.stakes-pop) .bet-total-footer {
+    display: none;
+}
+
+/* Pied de carte vide (sans « Concerne… ») : caché avec sa ligne. */
+body.beta .bet-card:not(.stakes-pop) .bet-footer:not(:has(.bet-target-footer)) {
+    display: none;
+}
+
+
+/* ----- Capsule du palier (barre du haut) ----- */
+
+/* Même capsule que la jauge d'XP classique (classe xp-mini), remplie par beta.js. */
+body:not(.beta) #season-mini {
+    display: none !important;
+}
+
+#season-mini .xp-mini-bar > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #6c63ff, #c86bff);
+    transition: width 0.8s ease-out;
+}
+
+
+/* ----- Carte « Ma saison » (colonne de droite de la page Paris) ----- */
+
+/* Elle remplace la carte « Ton niveau » de la version classique. */
+body.beta #level-sidebar {
+    display: none !important;
+}
+
+.season-card {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 14px;
+    align-items: center;
+    padding: 16px 18px;
+    border-radius: 18px;
+    border: 1px solid #3d3a73;
+    background: linear-gradient(135deg, #2a2850, #1c202c 60%);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.season-card:hover {
+    border-color: #6c63ff;
+}
+
+.season-card-level {
+    width: 54px;
+    height: 54px;
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+    background: #6c63ff;
+    font-size: 22px;
+    font-weight: 900;
+}
+
+.season-card-info {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+    font-size: 13px;
+    color: #c9ccd6;
+}
+
+.season-card-info b {
+    color: white;
+    font-size: 15px;
+}
+
+.season-bar {
+    height: 8px;
+    border-radius: 99px;
+    background: #262a38;
+    overflow: hidden;
+}
+
+.season-bar i {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, #6c63ff, #c86bff);
+    transition: width 0.5s;
+}
+
+
+/* ----- Page du pass de combat (demo-passe-jauge.html) ----- */
+
+.pass-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.pass-ready-count {
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: rgba(99, 214, 159, 0.12);
+    border: 1px solid rgba(99, 214, 159, 0.4);
+    color: #63d69f;
+    font-weight: 900;
+    font-size: 14px;
+}
+
+.pass-box {
+    border: 1px solid #2c3040;
+    border-radius: 18px;
+    background: linear-gradient(180deg, #1c202c 0%, #14161e 100%);
+    overflow: hidden;
+    margin-bottom: 18px;
+}
+
+/* Défilement fluide : la piste a son propre calque (le navigateur la fait glisser
+   sans tout redessiner), fond opaque, et elle ne pousse pas la page au bout. */
+.pass-track {
+    overflow-x: auto;
+    padding: 18px;
+    background: #171a23;
+    will-change: scroll-position;
+    overscroll-behavior-x: contain;
+    contain: paint;
+}
+
+.pass-track > * {
+    contain: layout paint;
+}
+
+/* Rangées : classique (gris-bleu) au-dessus de la jauge, Gold (jaune) en dessous */
+.pass-band {
+    width: max-content;
+    padding: 10px 0;
+    border-radius: 16px;
+}
+
+.pass-band.classic {
+    background: linear-gradient(180deg, #232838, #1a1e2b);
+    border: 1px solid #343a52;
+}
+
+.pass-band.gold {
+    background: linear-gradient(180deg, rgba(255, 204, 64, 0.32), rgba(245, 180, 40, 0.16));
+    border: 1px solid rgba(255, 204, 64, 0.6);
+}
+
+.pass-row-label {
+    position: sticky;
+    left: 10px;
+    width: max-content;
+    margin: 0 0 8px 10px;
+    font-size: 12px;
+    font-weight: 900;
+    color: #c9ccd6;
+}
+
+.pass-row-label.gold {
+    margin: 8px 0 0 10px;
+    color: #f5c451;
+}
+
+.pass-lane {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 100px;
+    width: max-content;
+}
+
+.pass-cell {
+    padding: 0 5px;
+}
+
+.pass-reward {
+    position: relative;
+    width: 100%;
+    height: 92px;
+    border-radius: 12px;
+    border: 1px solid #2c3040;
+    background: #181b24;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 3px;
+    padding: 4px;
+    text-align: center;
+    font-family: inherit;
+    font-size: 10px;
+    color: #aaaeba;
+    transition: transform 0.15s;
+}
+
+/* Aperçu du cosmétique (sur son propre pseudo) */
+.pass-preview {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    min-height: 44px;
+    overflow: hidden;
+}
+
+.pass-preview-name {
+    max-width: 100%;
+    font-size: 13px;
+    font-weight: 800;
+    color: white;
+    white-space: nowrap;
+}
+
+.pass-preview-aura {
+    position: relative;
+    display: inline-block;
+    padding: 5px 9px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 800;
+    color: white;
+}
+
+.pass-preview-theme.bet-card {
+    width: 70px;
+    height: 40px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    box-shadow: none;
+    font-size: 11px;
+    font-weight: 800;
+    color: white;
+    cursor: inherit;
+}
+
+.pass-label {
+    font-size: 10px;
+}
+
+/* Les animations des aperçus tournent dans les cases visibles de la piste
+   (classe in-view posée par watchPassAnimations dans beta.js) : celles hors
+   de l'écran restent figées pour que la piste ne rame pas. */
+.pass-preview,
+.pass-preview *,
+.pass-preview *::before,
+.pass-preview *::after {
+    animation-play-state: paused !important;
+}
+
+.pass-cell.in-view .pass-preview,
+.pass-cell.in-view .pass-preview *,
+.pass-cell.in-view .pass-preview *::before,
+.pass-cell.in-view .pass-preview *::after,
+.pass-picker .pass-preview,
+.pass-picker .pass-preview *,
+.pass-picker .pass-preview *::before,
+.pass-picker .pass-preview *::after {
+    animation-play-state: running !important;
+}
+
+.pass-band.gold .pass-reward.gold {
+    background: linear-gradient(180deg, #3a2f12, #221d10);
+    border-color: #7a6526;
+    color: #e8d39a;
+}
+
+.pass-reward.empty {
+    background: transparent;
+    border: 1px dashed rgba(255, 255, 255, 0.06);
+}
+
+.pass-band.gold .pass-reward.empty {
+    border-color: rgba(245, 196, 81, 0.18);
+}
+
+.pass-reward.locked,
+.pass-reward.claimed {
+    opacity: 0.45;
+}
+
+.pass-tag {
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    font-size: 11px;
+    color: #63d69f;
+    font-weight: 900;
+}
+
+/* Récompense atteinte : verte, bande « Récupérer », un clic la récupère */
+.pass-band .pass-reward.claimable {
+    border-color: #63d69f;
+    outline: 2px solid rgba(99, 214, 159, 0.35);
+    cursor: pointer;
+    padding-bottom: 20px;
+}
+
+.pass-reward.claimable:hover {
+    transform: translateY(-2px);
+}
+
+.pass-reward.claimable::after {
+    content: "Récupérer";
+    position: absolute;
+    left: -1px;
+    right: -1px;
+    bottom: -1px;
+    padding: 3px 0;
+    border-radius: 0 0 12px 12px;
+    background: #63d69f;
+    color: #062012;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+/* Jauge fine : points des niveaux et bulle « Toi » */
+.pass-gauge {
+    position: relative;
+    height: 46px;
+    margin: 36px 0 10px;
+}
+
+.pass-rail,
+.pass-fill {
+    position: absolute;
+    left: 0;
+    top: 10px;
+    height: 8px;
+    border-radius: 99px;
+}
+
+.pass-rail {
+    right: 0;
+    background: #262a38;
+}
+
+.pass-fill {
+    background: linear-gradient(90deg, #6c63ff, #c86bff);
+    transition: width 1s ease-out;
+}
+
+.pass-dot {
+    position: absolute;
+    top: 14px;
+    width: 16px;
+    height: 16px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: #262a38;
+    border: 2px solid #343846;
+}
+
+.pass-dot.on {
+    background: #c86bff;
+    border-color: white;
+}
+
+.pass-num {
+    position: absolute;
+    top: 28px;
+    transform: translateX(-50%);
+    font-size: 11px;
+    font-weight: 900;
+    color: #737887;
+}
+
+.pass-num.on {
+    color: white;
+}
+
+.pass-me {
+    position: absolute;
+    top: -26px;
+    z-index: 2;
+    transform: translateX(-50%);
+    padding: 3px 8px;
+    border-radius: 8px;
+    background: #6c63ff;
+    color: white;
+    font-size: 11px;
+    font-weight: 900;
+    white-space: nowrap;
+    transition: left 1s ease-out;
+}
+
+.pass-me::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -5px;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-bottom: 0;
+    border-top-color: #6c63ff;
+}
+
+/* Admin : activer le Gold */
+.pass-admin {
+    display: grid;
+    gap: 10px;
+    padding: 18px;
+}
+
+.pass-admin .pass-hint {
+    margin: 0;
+    color: #858a98;
+    font-size: 13px;
+}
+
+.pass-admin h3 {
+    margin: 0;
+    font-size: 15px;
+}
+
+.pass-admin-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.pass-admin-list button {
+    border: 1px solid #343846;
+    background: #11131a;
+    color: #c9ccd6;
+    border-radius: 10px;
+    padding: 6px 10px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.pass-admin-list button.on {
+    border-color: #f5c451;
+    background: #2b2614;
+    color: #f5c451;
+}
+
+
+/* ----- Choix de la version (Profil) ----- */
+
+.version-state {
+    color: #aaaeba;
+    font-size: 14px;
+}
+
+
+/* ----- Téléphone ----- */
+
+
+
+/* ----- Admin : choisir les récompenses du pass ----- */
+
+.pass-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.pass-edit-button {
+    border: 1px solid #343846;
+    background: #181b24;
+    color: #c9ccd6;
+    border-radius: 12px;
+    padding: 8px 14px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.pass-edit-button:hover {
+    border-color: #6c63ff;
+}
+
+.pass-edit-button.on {
+    background: #6c63ff;
+    border-color: #6c63ff;
+    color: white;
+}
+
+.pass-edit-hint {
+    margin: -18px 0 14px;
+    color: #a59fff;
+    font-size: 13px;
+}
+
+.pass-reward.editing {
+    cursor: pointer;
+    border-style: dashed;
+    border-color: #6c63ff;
+}
+
+.pass-reward.editing:hover {
+    transform: translateY(-2px);
+    border-style: solid;
+}
+
+.pass-edit-plus {
+    font-size: 24px;
+    font-weight: 900;
+    color: #6c63ff;
+}
+
+.pass-picker-back {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.65);
+}
+
+.pass-picker {
+    position: relative;
+    width: min(640px, 100%);
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 20px;
+    border-radius: 18px;
+    border: 1px solid #343846;
+    background: #181b24;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+}
+
+.pass-picker h3 {
+    margin: 0 0 14px;
+    font-size: 17px;
+}
+
+.pass-picker-close {
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    border: none;
+    background: none;
+    color: #858a98;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.pass-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 8px;
+}
+
+.pass-picker-choice {
+    display: grid;
+    place-items: center;
+    gap: 4px;
+    min-height: 86px;
+    padding: 8px 4px;
+    border-radius: 12px;
+    border: 1px solid #2c3040;
+    background: #11131a;
+    color: #aaaeba;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.pass-picker-choice:hover {
+    border-color: #6c63ff;
+}
+
+.pass-picker-choice.selected {
+    border-color: #63d69f;
+    background: rgba(99, 214, 159, 0.08);
+}
+
+
+.pass-picker-cat {
+    margin: 16px 0 8px;
+    font-size: 13px;
+    color: #a59fff;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.pass-preview-skin {
+    width: 52px;
+    height: 52px;
+    object-fit: contain;
+}
+
+/* Article déjà placé dans le pass : grisé, avec sa place (classique ou Gold) */
+.pass-picker-choice {
+    position: relative;
+}
+
+.pass-picker-choice.used {
+    padding-top: 22px;
+    filter: grayscale(1);
+    opacity: 0.45;
+}
+
+.pass-picker-choice.used:hover {
+    opacity: 0.8;
+}
+
+.pass-used-tag {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    right: 4px;
+    padding: 1px 4px;
+    border-radius: 6px;
+    background: #2a2e3b;
+    color: #c9ccd6;
+    font-size: 9px;
+    font-weight: 900;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pass-picker-choice.used-gold .pass-used-tag {
+    background: #3a2f12;
+    color: #f5c451;
+}
+
+/* Récompense « Pass Gold » : étiquette dorée, texte bien centré dans la case */
+.pass-preview-gold {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    width: 72px;
+    min-height: 34px;
+    padding: 4px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #f5c451, #ffdf8a 50%, #d9a520);
+    color: #2b1d00;
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 0.03em;
+    text-align: center;
+}
+
+.pass-preview-gold small {
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: 0;
+}
+
+/* L'étiquette dit déjà « Pass Gold » : pas de texte en dessous dans la piste. */
+.pass-reward:has(.pass-preview-gold) .pass-label {
+    display: none;
+}
