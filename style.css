@@ -12678,3 +12678,212 @@ body:not(.beta) .bet-card:not(.stakes-pop) .bet-question-icon {
 .bet-choices:has(> :nth-child(3)) {
     grid-template-columns: repeat(3, 1fr);
 }
+
+
+/* =========================================================
+   DONS ENTRE JOUEURS
+========================================================= */
+
+.pp-gift {
+    display: block;
+    margin: 6px 0 0 auto;
+    padding: 6px 12px;
+    border: 1px solid rgba(99, 214, 159, 0.45);
+    border-radius: 10px;
+    background: rgba(99, 214, 159, 0.1);
+    color: #63d69f;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+}
+
+.pp-gift:hover {
+    background: rgba(99, 214, 159, 0.18);
+    transform: translateY(-1px);
+}
+
+.gift-modal-content,
+.gift-received-content {
+    position: relative;
+    max-width: 380px;
+    display: grid;
+    gap: 12px;
+    text-align: center;
+}
+
+.gift-received-content {
+    border-color: rgba(99, 214, 159, 0.45);
+    background: linear-gradient(180deg, rgba(99, 214, 159, 0.14), #171a23 60%);
+}
+
+.gift-emoji {
+    font-size: 46px;
+    line-height: 1;
+}
+
+.gift-pop {
+    animation: giftPop 0.6s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+
+@keyframes giftPop {
+    from { transform: scale(0.3) rotate(-20deg); }
+    to { transform: none; }
+}
+
+.gift-who {
+    margin: 0;
+    color: #858a98;
+    font-size: 13px;
+}
+
+.gift-who b {
+    display: block;
+    margin-top: 2px;
+    color: white;
+    font-size: 18px;
+}
+
+.gift-chips {
+    display: flex;
+    gap: 6px;
+}
+
+.gift-chips button {
+    flex: 1;
+    padding: 8px 4px;
+    border: 1px solid #2c3040;
+    border-radius: 10px;
+    background: #1c202c;
+    color: #e6e8ee;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.gift-chips button.on {
+    border-color: #63d69f;
+    background: rgba(99, 214, 159, 0.16);
+    color: #63d69f;
+}
+
+.gift-amount {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.gift-amount input {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid #2c3040;
+    border-radius: 10px;
+    background: #14161e;
+    color: white;
+    font: inherit;
+    font-size: 18px;
+    font-weight: 900;
+}
+
+.gift-amount span {
+    color: #858a98;
+    font-weight: 900;
+}
+
+.gift-message {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px 12px;
+    border: 1px solid #2c3040;
+    border-radius: 10px;
+    background: #14161e;
+    color: #e6e8ee;
+    font: inherit;
+    font-size: 13px;
+}
+
+.gift-error {
+    margin: 0;
+    min-height: 0;
+    color: #ff8a8a;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.gift-error:empty {
+    display: none;
+}
+
+.gift-after {
+    display: flex;
+    justify-content: space-between;
+    color: #858a98;
+    font-size: 12px;
+}
+
+.gift-after b {
+    color: #e6e8ee;
+}
+
+.gift-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.gift-actions button {
+    flex: 1;
+    padding: 11px;
+    border: none;
+    border-radius: 10px;
+    font: inherit;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.gift-cancel {
+    background: #23262f;
+    color: #aaaeba;
+}
+
+.gift-send {
+    background: linear-gradient(135deg, #2fa36f, #63d69f);
+    color: #0b1f15;
+}
+
+.gift-send.confirm {
+    background: linear-gradient(135deg, #f0a030, #ffd166);
+}
+
+.gift-send:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.gift-received-content p {
+    margin: 0;
+}
+
+.gift-received-amount {
+    color: #63d69f;
+    font-size: 32px;
+    font-weight: 900;
+}
+
+.gift-received-message {
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: #14161e;
+    color: #cfd2da;
+    font-style: italic;
+}
+
+.gift-received-group {
+    color: #858a98;
+    font-size: 12px;
+}
+
+.gift-received-group:empty {
+    display: none;
+}

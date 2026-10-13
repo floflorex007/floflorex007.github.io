@@ -1868,6 +1868,184 @@
 
 
 
+    <!-- ==========================================
+         DON À UN JOUEUR (bouton « 🎁 Don » du profil)
+    ========================================== -->
+
+    <div
+        id="gift-modal"
+        class="modal hidden"
+    >
+
+        <div class="modal-content gift-modal-content">
+
+            <button
+                id="close-gift-modal"
+                class="close-modal"
+                type="button"
+            >
+                ×
+            </button>
+
+
+            <div class="gift-emoji">
+                🎁
+            </div>
+
+
+            <p class="gift-who">
+                Faire un don à
+                <b id="gift-target"></b>
+            </p>
+
+
+            <div
+                id="gift-chips"
+                class="gift-chips"
+            >
+
+                <button
+                    type="button"
+                    data-gift-amount="50"
+                >
+                    50 €
+                </button>
+
+                <button
+                    type="button"
+                    data-gift-amount="100"
+                >
+                    100 €
+                </button>
+
+                <button
+                    type="button"
+                    data-gift-amount="200"
+                >
+                    200 €
+                </button>
+
+                <button
+                    type="button"
+                    data-gift-amount="500"
+                >
+                    500 €
+                </button>
+
+            </div>
+
+
+            <div class="gift-amount">
+
+                <input
+                    id="gift-amount"
+                    type="number"
+                    min="10"
+                    step="10"
+                    inputmode="numeric"
+                >
+
+                <span>€</span>
+
+            </div>
+
+
+            <input
+                id="gift-message"
+                class="gift-message"
+                type="text"
+                maxlength="80"
+                placeholder="Un petit mot ? (facultatif)"
+            >
+
+
+            <p
+                id="gift-error"
+                class="gift-error"
+            ></p>
+
+
+            <div class="gift-after">
+
+                <span>Ton solde après le don</span>
+
+                <b id="gift-after"></b>
+
+            </div>
+
+
+            <div class="gift-actions">
+
+                <button
+                    id="gift-cancel"
+                    class="gift-cancel"
+                    type="button"
+                >
+                    Annuler
+                </button>
+
+                <button
+                    id="gift-send"
+                    class="gift-send"
+                    type="button"
+                >
+                    🎁 Envoyer
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- ==========================================
+         DON REÇU (affiché à la connexion)
+    ========================================== -->
+
+    <div
+        id="gift-received-modal"
+        class="modal hidden"
+    >
+
+        <div class="modal-content gift-received-content">
+
+            <div class="gift-emoji gift-pop">
+                🎁
+            </div>
+
+            <p id="gift-received-from"></p>
+
+            <div
+                id="gift-received-amount"
+                class="gift-received-amount"
+            ></div>
+
+            <p
+                id="gift-received-message"
+                class="gift-received-message"
+            ></p>
+
+            <p
+                id="gift-received-group"
+                class="gift-received-group"
+            ></p>
+
+            <button
+                id="gift-received-ok"
+                class="primary-button"
+                type="button"
+            >
+                Merci !
+            </button>
+
+        </div>
+
+    </div>
+
+
+
     <!-- =========================================
          MODAL : PIÈCES (clic sur la capsule 🪙)
          Comment gagner des pièces, échange de diamants

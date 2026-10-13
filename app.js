@@ -12622,7 +12622,7 @@ function openShopPreview(itemId, option) {
 function setupModalBackdrops() {
 
     document
-        .querySelectorAll(".modal:not(#announcement-modal):not(#removed-modal):not(#notice-modal)")
+        .querySelectorAll(".modal:not(#announcement-modal):not(#removed-modal):not(#notice-modal):not(#gift-received-modal)")
         .forEach(modal => {
 
             modal.addEventListener("mousedown", event => {
@@ -15718,6 +15718,9 @@ const PARROT_SKIN_NAMES = {
 // Paris de la fenêtre ouverte, pour retrouver ce qu'on copie.
 let playerProfileItems = [];
 
+// Joueur dont la fenêtre de profil est ouverte (pour le don).
+let playerProfileTarget = null;
+
 
 /*
     Peut-on copier ces sélections ([{ betId, choiceId }]) ?
@@ -15886,6 +15889,9 @@ function playerProfileHtml(data) {
 
     const medal = ["🥇", "🥈", "🥉"][data.rank - 1] || "🏅";
 
+    // Dons : pas à soi-même, et ni l'admin ni vers l'admin (solde illimité).
+    const canGive = !isMe && !admin && !currentProfile?.is_admin;
+
     return `
         <div class="pp-head">
             <img class="pp-parrot" src="assets/perroquet/skins/${skin}/thumb.png" alt="">
@@ -15894,7 +15900,7 @@ function playerProfileHtml(data) {
                 <div class="pp-sub">🦜 Perroquet ${escapeHtml(PARROT_SKIN_NAMES[skin])}</div>
                 <div class="pp-sub">Membre depuis le ${new Date(data.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}</div>
             </div>
-            ${admin ? "" : `<div class="pp-rank"><b>${medal} ${data.rank}<sup>${data.rank === 1 ? "er" : "e"}</sup></b><span>du groupe</span></div>`}
+            ${admin ? "" : `<div class="pp-rank"><b>${medal} ${data.rank}<sup>${data.rank === 1 ? "er" : "e"}</sup></b><span>du groupe</span>${canGive ? `<button type="button" class="pp-gift" data-gift-open>🎁 Don</button>` : ""}</div>`}
         </div>
 
         <div class="pp-stats">
@@ -15960,6 +15966,8 @@ async function openPlayerProfile(username) {
 
     }
 
+    playerProfileTarget = { id: profile.id, username };
+
     body.innerHTML = playerProfileHtml(data);
 
 }
@@ -16002,6 +16010,14 @@ function setupPlayerProfile() {
 
     modal.addEventListener("click", event => {
 
+        if (event.target.closest("[data-gift-open]")) {
+
+            openGiftModal();
+
+            return;
+
+        }
+
         const button = event.target.closest("[data-copy-bet]");
 
         if (!button || button.disabled) {
@@ -16018,6 +16034,283 @@ function setupPlayerProfile() {
 
 }
 
+
+
+/* =========================================================
+   DONS ENTRE JOUEURS (dons.sql)
+   Bouton « 🎁 Don » dans la fenêtre d'un joueur : on lui envoie
+   de l'argent de son solde du groupe. Celui qui reçoit voit
+   une fenêtre « don reçu » à sa prochaine visite.
+========================================================= */
+
+const GIFT_MIN = 10;
+
+let giftConfirmTimer = null;
+
+
+function giftAmount() {
+
+    return Math.floor(Number(document.getElementById("gift-amount").value) || 0);
+
+}
+
+
+function giftError(amount) {
+
+    if (amount < GIFT_MIN) {
+        return `${GIFT_MIN} € minimum.`;
+    }
+
+    if (amount > Number(currentProfile?.balance || 0)) {
+        return `Tu n'as que ${formatMoney(currentProfile?.balance || 0)}.`;
+    }
+
+    return "";
+
+}
+
+
+// Remet le bouton « Envoyer » à sa première étape (avant « Confirmer ? »).
+function resetGiftConfirm() {
+
+    clearTimeout(giftConfirmTimer);
+
+    const send = document.getElementById("gift-send");
+
+    send.classList.remove("confirm");
+
+    send.textContent = `🎁 Envoyer ${formatMoney(Math.max(0, giftAmount()))}`;
+
+}
+
+
+function refreshGiftModal() {
+
+    const amount = giftAmount();
+
+    const error = giftError(amount);
+
+    document.getElementById("gift-error").textContent = error;
+
+    document.getElementById("gift-after").textContent =
+        formatMoney(Number(currentProfile?.balance || 0) - Math.max(0, amount));
+
+    document.getElementById("gift-send").disabled = Boolean(error);
+
+    document.querySelectorAll("[data-gift-amount]").forEach(chip => {
+        chip.classList.toggle("on", Number(chip.dataset.giftAmount) === amount);
+    });
+
+    resetGiftConfirm();
+
+}
+
+
+function openGiftModal() {
+
+    if (!playerProfileTarget) {
+        return;
+    }
+
+    document.getElementById("gift-target").textContent = playerProfileTarget.username;
+
+    document.getElementById("gift-amount").value = 100;
+
+    document.getElementById("gift-message").value = "";
+
+    refreshGiftModal();
+
+    document.getElementById("gift-modal").classList.remove("hidden");
+
+}
+
+
+function closeGiftModal() {
+
+    clearTimeout(giftConfirmTimer);
+
+    document.getElementById("gift-modal").classList.add("hidden");
+
+}
+
+
+async function sendGift() {
+
+    const send = document.getElementById("gift-send");
+
+    const amount = giftAmount();
+
+    if (giftError(amount) || !playerProfileTarget || !currentGroup) {
+        return;
+    }
+
+    // Premier clic : « Confirmer ? » pendant 4 secondes.
+    if (!send.classList.contains("confirm")) {
+
+        send.classList.add("confirm");
+
+        send.textContent = "Confirmer ?";
+
+        giftConfirmTimer = setTimeout(resetGiftConfirm, 4000);
+
+        return;
+
+    }
+
+    clearTimeout(giftConfirmTimer);
+
+    send.disabled = true;
+
+    send.textContent = "Envoi…";
+
+    const target = playerProfileTarget;
+
+    const { error } = await supabaseClient.rpc("give_money", {
+        p_group: currentGroup.id,
+        p_to: target.id,
+        p_amount: amount,
+        p_message: document.getElementById("gift-message").value.trim() || null
+    });
+
+    if (error) {
+
+        console.error("Erreur give_money :", error);
+
+        send.disabled = false;
+
+        resetGiftConfirm();
+
+        document.getElementById("gift-error").textContent =
+            error.message || "Le don n'a pas pu être envoyé.";
+
+        return;
+
+    }
+
+    closeGiftModal();
+
+    await loadCurrentProfile();
+
+    await displayLeaderboard();
+
+    // Le profil du joueur se recharge avec son nouveau solde.
+    await openPlayerProfile(target.username);
+
+}
+
+
+function setupGiftModal() {
+
+    const modal = document.getElementById("gift-modal");
+
+    if (!modal) {
+        return;
+    }
+
+    document.getElementById("close-gift-modal").addEventListener("click", closeGiftModal);
+
+    document.getElementById("gift-cancel").addEventListener("click", closeGiftModal);
+
+    document.getElementById("gift-send").addEventListener("click", sendGift);
+
+    document.getElementById("gift-amount").addEventListener("input", refreshGiftModal);
+
+    document.getElementById("gift-chips").addEventListener("click", event => {
+
+        const chip = event.target.closest("[data-gift-amount]");
+
+        if (!chip) {
+            return;
+        }
+
+        document.getElementById("gift-amount").value = chip.dataset.giftAmount;
+
+        refreshGiftModal();
+
+    });
+
+}
+
+
+// Dons reçus pas encore vus : une fenêtre par don, « Merci ! » pour passer au suivant.
+async function checkReceivedGifts() {
+
+    const { data, error } = await supabaseClient.rpc("unseen_gifts");
+
+    if (error) {
+
+        console.error("Dons indisponibles (dons.sql lancé ?)", error);
+
+        return;
+
+    }
+
+    const modal = document.getElementById("gift-received-modal");
+
+    const okButton = document.getElementById("gift-received-ok");
+
+    if (!modal || !okButton) {
+        return;
+    }
+
+    const gifts = data || [];
+
+    const showNext = () => {
+
+        const gift = gifts.shift();
+
+        if (!gift) {
+
+            modal.classList.add("hidden");
+
+            return;
+
+        }
+
+        document.getElementById("gift-received-from").innerHTML =
+            `<b>${escapeHtml(gift.from_name)}</b> t'a fait un don`;
+
+        document.getElementById("gift-received-amount").textContent =
+            "+" + formatMoney(gift.amount);
+
+        const message = document.getElementById("gift-received-message");
+
+        message.textContent = gift.message ? `« ${gift.message} »` : "";
+
+        message.classList.toggle("hidden", !gift.message);
+
+        // Le groupe n'est précisé que si le don vient d'un autre groupe.
+        document.getElementById("gift-received-group").textContent =
+            gift.group_id === currentGroup?.id ? "" : `Dans le groupe « ${gift.group_name} »`;
+
+        // On rejoue le petit saut du cadeau à chaque don.
+        const emoji = modal.querySelector(".gift-emoji");
+
+        emoji.classList.remove("gift-pop");
+
+        void emoji.offsetWidth;
+
+        emoji.classList.add("gift-pop");
+
+        modal.classList.remove("hidden");
+
+        okButton.onclick = async () => {
+
+            okButton.disabled = true;
+
+            await supabaseClient.rpc("mark_gift_seen", { p_gift: gift.id });
+
+            okButton.disabled = false;
+
+            showNext();
+
+        };
+
+    };
+
+    showNext();
+
+}
 
 
 /* =========================================================
@@ -17251,6 +17544,8 @@ async function initAppPage() {
 
         await checkPlayerNotices();
 
+        await checkReceivedGifts();
+
         setupDeleteAccount();
 
         setupProfilePage();
@@ -17262,6 +17557,8 @@ async function initAppPage() {
         setupPointsModal();
 
         setupPlayerProfile();
+
+        setupGiftModal();
 
         setupXpModal();
 

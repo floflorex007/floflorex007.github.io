@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Dons entre joueurs</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body.demo { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; margin: 0; display: block; min-height: 0; }
+.demo h1 { font-size: 26px; margin: 0 0 6px; }
+.demo .sub { color: #858a98; margin: 0 0 16px; max-width: 900px; font-size: 14px; line-height: 1.5; }
+.demo .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; align-items: center; }
+.demo .tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; font: inherit; }
+.demo .tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.demo .pick { margin-left: auto; background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; padding: 10px 16px; border-radius: 12px; cursor: pointer; font: inherit; font-weight: 900; }
+.copied { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1c202c; border: 1px solid #63d69f; padding: 12px 18px; border-radius: 14px; font-weight: 700; z-index: 99; max-width: calc(100% - 32px); }
+.stage { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+.stage .modal-content { position: relative; margin: 0; max-width: 480px; width: 100%; }
+.col-title { font-size: 12px; color: #858a98; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; margin: 0 0 8px; }
+
+/* ---------- Bouton et panneau de don ---------- */
+.don-btn { width: 100%; margin: 0 0 16px; padding: 12px; border: 1px solid rgba(99,214,159,.45); border-radius: 12px; background: rgba(99,214,159,.1); color: #63d69f; font: inherit; font-weight: 900; font-size: 15px; cursor: pointer; transition: background .2s, transform .15s; }
+.don-btn:hover { background: rgba(99,214,159,.18); transform: translateY(-1px); }
+.don-btn.small { width: auto; margin: 0; padding: 7px 12px; font-size: 13px; }
+
+.don-panel { margin: 0 0 16px; padding: 14px; border-radius: 14px; border: 1px solid rgba(99,214,159,.35); background: rgba(99,214,159,.06); display: grid; gap: 10px; animation: donIn .25s ease; }
+@keyframes donIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+.don-title { font-weight: 900; font-size: 15px; display: flex; justify-content: space-between; align-items: center; }
+.don-title small { color: #858a98; font-weight: 700; font-size: 12px; }
+.don-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.don-chips button { flex: 1; min-width: 60px; padding: 8px 6px; border-radius: 10px; border: 1px solid #2c3040; background: #1c202c; color: #e6e8ee; font: inherit; font-weight: 800; cursor: pointer; }
+.don-chips button.on { border-color: #63d69f; background: rgba(99,214,159,.16); color: #63d69f; }
+.don-amount { display: flex; align-items: center; gap: 8px; }
+.don-amount input { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 10px; border: 1px solid #2c3040; background: #14161e; color: white; font: inherit; font-size: 18px; font-weight: 900; }
+.don-amount span { font-weight: 900; color: #858a98; }
+.don-msg { width: 100%; box-sizing: border-box; padding: 9px 12px; border-radius: 10px; border: 1px solid #2c3040; background: #14161e; color: #e6e8ee; font: inherit; font-size: 13px; }
+.don-after { font-size: 12px; color: #858a98; display: flex; justify-content: space-between; }
+.don-after b { color: #e6e8ee; }
+.don-actions { display: flex; gap: 8px; }
+.don-actions button { flex: 1; padding: 11px; border-radius: 10px; font: inherit; font-weight: 900; cursor: pointer; border: none; }
+.don-cancel { background: #23262f; color: #aaaeba; }
+.don-send { background: linear-gradient(135deg, #2fa36f, #63d69f); color: #0b1f15; }
+.don-send.confirm { background: linear-gradient(135deg, #f0a030, #ffd166); }
+.don-send:disabled { opacity: .45; cursor: not-allowed; }
+.don-err { color: #ff8a8a; font-size: 12px; font-weight: 700; }
+
+/* Variante B : jauge */
+.don-gauge { width: 100%; accent-color: #63d69f; }
+.don-big { text-align: center; font-size: 34px; font-weight: 900; color: #63d69f; }
+
+/* Variante C : fenêtre dédiée */
+.don-modal { position: relative; max-width: 380px; width: 100%; padding: 22px; border-radius: 20px; background: #171a23; border: 1px solid #2c3040; box-shadow: 0 20px 60px rgba(0,0,0,.5); display: grid; gap: 12px; text-align: center; }
+.don-modal .who { font-size: 13px; color: #858a98; }
+.don-modal .who b { color: white; font-size: 18px; display: block; margin-top: 2px; }
+.don-modal .gift { font-size: 46px; line-height: 1; }
+
+/* Message reçu */
+.don-received { position: relative; max-width: 380px; width: 100%; padding: 22px; border-radius: 20px; background: linear-gradient(180deg, rgba(99,214,159,.14), #171a23 60%); border: 1px solid rgba(99,214,159,.45); text-align: center; display: grid; gap: 8px; }
+.don-received .gift { font-size: 50px; animation: giftPop .6s cubic-bezier(.2,1.6,.4,1); }
+@keyframes giftPop { from { transform: scale(.3) rotate(-20deg); } to { transform: none; } }
+.don-received .amount { font-size: 32px; font-weight: 900; color: #63d69f; }
+.don-received .quote { font-style: italic; color: #cfd2da; background: #14161e; border-radius: 10px; padding: 8px 12px; }
+.don-received button { margin-top: 6px; padding: 11px; border-radius: 10px; border: none; font: inherit; font-weight: 900; background: #6c63ff; color: white; cursor: pointer; }
+</style>
+</head>
+<body class="demo">
+
+<h1>🎁 Dons entre joueurs</h1>
+<p class="sub">
+    On ouvre la fenêtre d'un joueur (clic sur son pseudo) et on lui envoie de l'argent de <b>ton solde du groupe</b>.
+    Règles proposées : <b>10 € minimum</b>, jamais plus que ton solde, un petit mot facultatif, <b>pas de don à soi-même</b>.
+    Le joueur qui reçoit voit une fenêtre « Tu as reçu un don » à sa prochaine visite (colonne de droite).
+</p>
+
+<div class="tabs">
+    <button class="tab active" data-v="a">A · Panneau qui se déplie dans le profil</button>
+    <button class="tab" data-v="b">B · Jauge comme la fenêtre de mise</button>
+    <button class="tab" data-v="c">C · Petite fenêtre dédiée</button>
+    <button class="pick" id="choose">✅ Je choisis celle-ci</button>
+</div>
+
+<div class="stage">
+    <div>
+        <p class="col-title">Celui qui donne</p>
+        <div class="modal-content xp-modal-content player-modal-content" id="pop"></div>
+    </div>
+    <div id="side"></div>
+</div>
+
+<script>
+let variant = "a";
+let open = false;
+let amount = 100;
+let confirmStep = false;
+let sent = null;
+const MY_BALANCE = 1240;
+const euros = v => Math.round(v).toLocaleString("fr-FR") + " €";
+
+function head() {
+    return `
+        <div class="pp-head">
+            <img class="pp-parrot" src="assets/perroquet/skins/flamant/thumb.png" alt="">
+            <div class="pp-who">
+                <div class="pp-name">Julien</div>
+                <div class="pp-sub">🦜 Perroquet Flamant</div>
+                <div class="pp-sub">Membre depuis le 2 octobre</div>
+            </div>
+            <div class="pp-rank"><b>🏅 6<sup>e</sup></b><span>du groupe</span></div>
+        </div>`;
+}
+
+function stats() {
+    return `
+        <div class="pp-stats">
+            <div class="pp-stat xp wide"><span>Niveau</span><b>Niv. 4 <small>60 / 250 XP</small></b></div>
+            <div class="pp-stat fire"><span>Série</span><b>🔥 3</b></div>
+            <div class="pp-stat money"><span>Solde</span><b>${euros(85 + (sent || 0))}</b></div>
+            <div class="pp-stat coins"><span>Pièces</span><b>40 🪙</b></div>
+            <div class="pp-stat gems"><span>Diamants</span><b>2 💎</b></div>
+            <div class="pp-stat play wide"><span>Argent en jeu</span><b>300 €</b></div>
+        </div>`;
+}
+
+function history() {
+    return `
+        <p class="level-sidebar-title">⏳ Paris en cours</p>
+        <div class="pp-history"><p class="pp-empty">Aucun pari en cours.</p></div>`;
+}
+
+function err() {
+    if (amount < 10) return "10 € minimum.";
+    if (amount > MY_BALANCE) return "Tu n'as que " + euros(MY_BALANCE) + ".";
+    return "";
+}
+
+function actions() {
+    const e = err();
+    return `
+        ${e ? `<span class="don-err">${e}</span>` : ""}
+        <div class="don-after"><span>Ton solde après le don</span><b>${euros(MY_BALANCE - Math.max(0, amount))}</b></div>
+        <div class="don-actions">
+            <button class="don-cancel" data-act="cancel">Annuler</button>
+            <button class="don-send ${confirmStep ? "confirm" : ""}" data-act="send" ${e ? "disabled" : ""}>
+                ${confirmStep ? "Confirmer ?" : "🎁 Envoyer " + euros(Math.max(0, amount))}
+            </button>
+        </div>`;
+}
+
+function chips() {
+    return `<div class="don-chips">${[50, 100, 200, 500].map(v =>
+        `<button data-chip="${v}" class="${amount === v ? "on" : ""}">${v} €</button>`).join("")}</div>`;
+}
+
+function panelA() {
+    if (!open) return `<button class="don-btn" data-act="open">🎁 Faire un don à Julien</button>`;
+    return `
+        <div class="don-panel">
+            <div class="don-title">🎁 Don à Julien <small>Ton solde : ${euros(MY_BALANCE)}</small></div>
+            ${chips()}
+            <div class="don-amount"><input type="number" min="10" step="10" value="${amount}" data-input="amount"><span>€</span></div>
+            <input class="don-msg" maxlength="80" placeholder="Un petit mot ? (facultatif)">
+            ${actions()}
+        </div>`;
+}
+
+function panelB() {
+    if (!open) return `<button class="don-btn" data-act="open">🎁 Faire un don à Julien</button>`;
+    return `
+        <div class="don-panel">
+            <div class="don-title">🎁 Don à Julien <small>Ton solde : ${euros(MY_BALANCE)}</small></div>
+            <div class="don-big">${euros(amount)}</div>
+            <input class="don-gauge" type="range" min="10" max="${MY_BALANCE}" step="10" value="${amount}" data-input="amount">
+            <div class="don-chips">
+                <button data-chip="50">50 €</button><button data-chip="100">100 €</button>
+                <button data-chip="${Math.floor(MY_BALANCE / 20) * 10}">½ Bank</button><button data-chip="${MY_BALANCE}">Tout</button>
+            </div>
+            <input class="don-msg" maxlength="80" placeholder="Un petit mot ? (facultatif)">
+            ${actions()}
+        </div>`;
+}
+
+function render() {
+    document.querySelectorAll(".tab[data-v]").forEach(t => t.classList.toggle("active", t.dataset.v === variant));
+    const pop = document.getElementById("pop");
+    const side = document.getElementById("side");
+
+    if (variant === "c") {
+        // Le bouton est dans l'en-tête, la saisie se fait dans une petite fenêtre à part.
+        pop.innerHTML = `<button class="close-modal">×</button>` + head().replace(
+            `<div class="pp-rank">`, `<div class="pp-rank"><button class="don-btn small" data-act="open">🎁 Don</button><br>`) + stats() + history();
+    } else {
+        pop.innerHTML = `<button class="close-modal">×</button>` + head() + stats() + (variant === "a" ? panelA() : panelB()) + history();
+    }
+
+    let html = "";
+    if (variant === "c" && open) {
+        html += `<p class="col-title">Fenêtre de don (par-dessus le profil)</p>
+            <div class="don-modal">
+                <div class="gift">🎁</div>
+                <div class="who">Faire un don à <b>Julien</b></div>
+                ${chips()}
+                <div class="don-amount"><input type="number" min="10" step="10" value="${amount}" data-input="amount"><span>€</span></div>
+                <input class="don-msg" maxlength="80" placeholder="Un petit mot ? (facultatif)">
+                ${actions()}
+            </div><br>`;
+    }
+    html += `<p class="col-title">Celui qui reçoit (à sa prochaine visite)</p>
+        <div class="don-received">
+            <div class="gift">🎁</div>
+            <div><b>Florian</b> t'a fait un don</div>
+            <div class="amount">+${euros(sent || 100)}</div>
+            <div class="quote">« Allez, relance-toi 😄 »</div>
+            <button>Merci !</button>
+        </div>`;
+    side.innerHTML = html;
+}
+
+function toast(text) {
+    document.querySelector(".copied")?.remove();
+    const t = document.createElement("div");
+    t.className = "copied";
+    t.innerHTML = text;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 4200);
+}
+
+document.addEventListener("click", e => {
+    const tab = e.target.closest(".tab[data-v]");
+    if (tab) { variant = tab.dataset.v; open = false; confirmStep = false; render(); return; }
+    const chip = e.target.closest("[data-chip]");
+    if (chip) { amount = Number(chip.dataset.chip); confirmStep = false; render(); return; }
+    const act = e.target.closest("[data-act]");
+    if (!act || act.disabled) return;
+    if (act.dataset.act === "open") { open = true; render(); }
+    if (act.dataset.act === "cancel") { open = false; confirmStep = false; render(); }
+    if (act.dataset.act === "send") {
+        if (!confirmStep) { confirmStep = true; render(); setTimeout(() => { if (confirmStep) { confirmStep = false; render(); } }, 4000); return; }
+        sent = amount; open = false; confirmStep = false; render();
+        toast(`🎁 ${euros(sent)} envoyés à Julien ! Ton solde baisse, le sien monte, et il verra la fenêtre « Tu as reçu un don ».`);
+    }
+});
+document.addEventListener("input", e => {
+    if (e.target.dataset.input === "amount") {
+        amount = Number(e.target.value) || 0;
+        confirmStep = false;
+        const pos = e.target.selectionStart;
+        render();
+        const again = document.querySelector("[data-input=amount]");
+        again?.focus();
+        if (again?.type === "number") try { again.setSelectionRange(pos, pos); } catch (_) {}
+    }
+});
+document.getElementById("choose").onclick = () => {
+    const names = { a: "A, panneau qui se déplie dans le profil", b: "B, jauge comme la fenêtre de mise", c: "C, petite fenêtre dédiée" };
+    const text = `Dons entre joueurs : version ${names[variant]}.`;
+    navigator.clipboard?.writeText(text).catch(() => {});
+    toast("✅ Copié : " + text);
+};
+render();
+</script>
+</body>
+</html>
