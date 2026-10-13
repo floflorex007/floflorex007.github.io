@@ -603,6 +603,9 @@
 
                 <div class="right-column">
 
+                    <!-- « Ton niveau » et « Ta série » côte à côte (classique, ordinateur) -->
+                    <div class="level-streak-row">
+
                     <aside
                         id="level-sidebar"
                         class="admin-message-sidebar level-sidebar"
@@ -641,6 +644,44 @@
                         </button>
 
                     </aside>
+
+
+                    <!-- Carte « Ta série » (version classique, ordinateur) :
+                         remplace la flamme de la barre du haut, ouvre la fenêtre de la série -->
+                    <aside
+                        id="streak-sidebar"
+                        class="admin-message-sidebar streak-sidebar"
+                        tabindex="0"
+                        title="Ta série de connexions"
+                    >
+
+                        <div class="leaderboard-header">
+                            <span>🔥</span>
+                            <span>Série</span>
+                        </div>
+
+                        <div class="streak-sidebar-current">
+
+                            <strong id="streak-sidebar-count">
+                                0
+                            </strong>
+
+                            <span id="streak-sidebar-unit">
+                                jour
+                            </span>
+
+                        </div>
+
+                        <p
+                            id="streak-sidebar-note"
+                            class="streak-sidebar-note"
+                        >
+                            Reviens chaque jour pour la faire grandir.
+                        </p>
+
+                    </aside>
+
+                    </div>
 
 
                     <aside
@@ -1098,7 +1139,7 @@
                                             class="duel-value"
                                             min="1.01"
                                             max="20"
-                                            step="0.01"
+                                            step="any"
                                             placeholder="auto"
                                             readonly
                                             required
@@ -1110,9 +1151,51 @@
 
                                 </div>
 
+
+                                <!-- 3e choix (bouton « Ajouter un 3e choix ») : sa cote se calcule toute seule -->
+                                <div
+                                    id="duel-third"
+                                    class="duel-side duel-third hidden"
+                                >
+
+                                    <input
+                                        type="text"
+                                        id="choice-three"
+                                        class="duel-name"
+                                        placeholder="Choix 3 : Peut-être"
+                                    >
+
+                                    <div class="duel-value-row">
+
+                                        <input
+                                            type="number"
+                                            id="odds-three"
+                                            class="duel-value"
+                                            step="0.01"
+                                            placeholder="auto"
+                                            readonly
+                                        >
+
+                                        <em class="duel-auto">auto</em>
+
+                                    </div>
+
+                                </div>
+
                             </div>
 
-                            <p class="create-hint">
+                            <button
+                                type="button"
+                                id="toggle-third-choice"
+                                class="secondary-button duel-third-toggle"
+                            >
+                                + Ajouter un 3e choix
+                            </button>
+
+                            <p
+                                id="odds-hint"
+                                class="create-hint"
+                            >
                                 La cote du choix 2 se calcule toute seule.
                                 Cote maximum : 20.
                             </p>
@@ -2237,6 +2320,41 @@
             <p id="announcement-content">
                 Contenu
             </p>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =========================================
+         MODAL : MESSAGE EXCEPTIONNEL (un joueur, une fois)
+    ========================================== -->
+
+    <div
+        id="notice-modal"
+        class="modal hidden"
+    >
+
+        <div class="modal-content">
+
+            <h2 id="notice-title">
+                Message
+            </h2>
+
+
+            <p id="notice-content">
+                Contenu
+            </p>
+
+
+            <button
+                id="notice-ok"
+                class="primary-button"
+                type="button"
+            >
+                J'ai compris
+            </button>
 
         </div>
 

@@ -504,7 +504,7 @@ async function loadGroupStyles() {
 
     const { data, error } = await supabaseClient
         .from("group_members")
-        .select("cosmetics, gold_frame_until, name_color_until, profiles ( username, streak_days, last_checkin, flame_name_off, diamond_items )")
+        .select("cosmetics, gold_frame_until, name_color_until, profiles ( username, is_admin, streak_days, last_checkin, flame_name_off, diamond_items )")
         .eq("group_id", currentGroup.id);
 
     if (error) {
@@ -525,6 +525,8 @@ async function loadGroupStyles() {
                     streak_days: member.profiles.streak_days,
                     last_checkin: member.profiles.last_checkin,
                     flame_name_off: member.profiles.flame_name_off,
+                    // L'admin a une série illimitée : pseudo enflammé d'office.
+                    is_admin: member.profiles.is_admin,
                     // Objets exclusifs achetés en diamants (communs à tous les groupes).
                     diamond_items: member.profiles.diamond_items || {}
                 }
@@ -2664,7 +2666,16 @@ function flameNameOn(profile) {
     const player =
         isMe ? currentProfile : profile;
 
-    if (!player || player.flame_name_off || !player.last_checkin) {
+    if (!player || player.flame_name_off) {
+        return false;
+    }
+
+    // Série illimitée de l'admin (affichée ∞) : le pseudo est enflammé d'office.
+    if (player.is_admin) {
+        return true;
+    }
+
+    if (!player.last_checkin) {
         return false;
     }
 
@@ -2813,7 +2824,6 @@ function leaderboardRowHtml(profile, { rank, medal, balance, extraClass = "", ef
     `;
 
 }
-
 
 /*
     Survol du classement : un seul surligneur glisse d'un joueur à l'autre
@@ -3074,6 +3084,89 @@ async function checkAnnouncementPopup() {
     document
         .getElementById("announcement-modal")
         .classList.remove("hidden");
+
+}
+
+
+/*
+    Messages exceptionnels pour un joueur (table player_notices),
+    par exemple une correction de solde. Affichés l'un après l'autre
+    à la connexion, marqués lus par « J'ai compris ».
+*/
+
+async function checkPlayerNotices() {
+
+    const {
+        data,
+        error
+    } = await supabaseClient
+        .from("player_notices")
+        .select("id, title, content")
+        .eq("user_id", currentUser.id)
+        .is("seen_at", null)
+        .order("created_at", { ascending: true });
+
+
+    if (error) {
+
+        console.error("Erreur checkPlayerNotices :", error);
+
+        return;
+
+    }
+
+
+    const modal =
+        document.getElementById("notice-modal");
+
+    const okButton =
+        document.getElementById("notice-ok");
+
+
+    if (!modal || !okButton) {
+        return;
+    }
+
+
+    const notices =
+        data || [];
+
+    const showNext = () => {
+
+        const notice =
+            notices.shift();
+
+        if (!notice) {
+
+            modal.classList.add("hidden");
+
+            return;
+
+        }
+
+        document.getElementById("notice-title").textContent =
+            notice.title;
+
+        document.getElementById("notice-content").textContent =
+            notice.content;
+
+        modal.classList.remove("hidden");
+
+        okButton.onclick = async () => {
+
+            okButton.disabled = true;
+
+            await supabaseClient.rpc("mark_notice_seen", { p_notice: notice.id });
+
+            okButton.disabled = false;
+
+            showNext();
+
+        };
+
+    };
+
+    showNext();
 
 }
 
@@ -4674,11 +4767,12 @@ function setupValidateFabProximity() {
 }
 
 
+// Pari ouvert que je peux valider : le mien, ou n'importe lequel pour l'admin.
 function isMyOpenBet(bet) {
 
     return Boolean(
         currentUser &&
-        bet.author_id === currentUser.id &&
+        (bet.author_id === currentUser.id || currentProfile?.is_admin) &&
         bet.status === "open"
     );
 
@@ -4738,11 +4832,11 @@ function creatorCommission(bet, winnerChoiceId, stakes = bet.stakes || []) {
 
 }
 
-function commissionLineHtml(amount) {
+function commissionLineHtml(amount, mine = true) {
 
     return `
         <div class="validate-commission">
-            <span>💼 Ta commission <small>10 % des mises perdues</small></span>
+            <span>💼 ${mine ? "Ta commission" : "Commission du créateur"} <small>10 % des mises perdues</small></span>
             <b>+${formatMoney(amount)}</b>
         </div>
     `;
@@ -4860,7 +4954,7 @@ function validationBilanHtml(bet, winnerChoiceId) {
                 ? `<p class="validate-combo-legend">🔗 en combiné · « ✓ suite » : ce pari passe, le combiné attend ses autres paris</p>`
                 : ""}
 
-            ${commissionLineHtml(creatorCommission(bet, winnerChoiceId))}
+            ${commissionLineHtml(creatorCommission(bet, winnerChoiceId), bet.author_id === currentUser.id)}
 
             <p class="validate-error"></p>
 
@@ -4872,6 +4966,71 @@ function validationBilanHtml(bet, winnerChoiceId) {
     `;
 
 }
+
+/*
+    Admin : annuler un pari (admin_cancel_bet dans admin-annulation.sql).
+    Premier clic « Confirmer ? » (4 s), second clic annule : mises rendues,
+    combinés qui le contiennent perdus, joueurs et créateur prévenus.
+*/
+
+async function adminCancelBet(betId, button) {
+
+    const errorElement = button.parentElement.querySelector(".validate-admin-error");
+
+    errorElement.textContent = "";
+
+    if (!button.classList.contains("confirm")) {
+
+        button.classList.add("confirm");
+
+        button.textContent = "⚠️ Confirmer l'annulation ?";
+
+        setTimeout(() => {
+
+            if (button.isConnected && !button.disabled) {
+
+                button.classList.remove("confirm");
+
+                button.textContent = "🚫 Annuler le pari (admin)";
+
+            }
+
+        }, 4000);
+
+        return;
+
+    }
+
+    button.disabled = true;
+
+    const { error } = await supabaseClient.rpc("admin_cancel_bet", { p_bet_id: betId });
+
+    if (error) {
+
+        console.error(error);
+
+        errorElement.textContent = error.message || "Impossible d'annuler le pari.";
+
+        button.disabled = false;
+
+        return;
+
+    }
+
+    cardValidation = null;
+
+    await loadCurrentProfile();
+
+    await displayBets({ quiet: true });
+
+    await displayLeaderboard();
+
+    await displayMyBets();
+
+    await displayMyCreatedBets();
+
+}
+
 
 async function confirmCardValidation(betId, button) {
 
@@ -5648,6 +5807,8 @@ async function displayBets({ quiet = false, force = false } = {}) {
                 }
 
                 card.innerHTML =
+                    // Thème Diamant : couche d'étoiles qui scintillent (style.css).
+                    (authorTheme === "diamant" ? `<span class="dia-stars" aria-hidden="true"></span>` : "") +
                     (canDeleteExpiredBet(bet)
                         // Terminé sans autre parieur : pastille rouge « Supprimer » (créateur ou admin).
                         ? `<button type="button" class="validate-fab validate-fab-delete" data-delete-bet="${bet.id}">✕<span>Supprimer</span></button>`
@@ -5663,7 +5824,10 @@ async function displayBets({ quiet = false, force = false } = {}) {
                     renderBetSummaryHtml(bet, validating ? {
                         validating: true,
                         headerExtra: `<span class="validate-tag${animateHint ? " validate-enter" : ""}">Mode validation</span>`,
-                        beforeChoices: `<div class="validate-reveal${animateHint ? "" : " show"}"><div class="validate-reveal-inner"><div class="validate-hint">👆 Clique la cote qui a gagné</div></div></div>`
+                        beforeChoices: `<div class="validate-reveal${animateHint ? "" : " show"}"><div class="validate-reveal-inner"><div class="validate-hint">👆 Clique la cote qui a gagné</div>${currentProfile?.is_admin
+                            // Admin : annuler le pari au lieu de le valider (admin-annulation.sql).
+                            ? `<button type="button" class="validate-admin-cancel" data-admin-cancel="${bet.id}">🚫 Annuler le pari (admin)</button><p class="validate-error validate-admin-error"></p>`
+                            : ""}</div></div>`
                     } : {}) + `
 
                     <div class="bet-footer">
@@ -5921,6 +6085,18 @@ async function displayBets({ quiet = false, force = false } = {}) {
 
                 // Vibration finie : la classe part, pour ne pas rejouer en dépliant la carte.
                 button.addEventListener("animationend", () => button.classList.remove("validate-fab-no"), { once: true });
+
+            });
+
+        });
+
+        container.querySelectorAll("[data-admin-cancel]").forEach(button => {
+
+            button.addEventListener("click", event => {
+
+                event.stopPropagation();
+
+                adminCancelBet(button.dataset.adminCancel, button);
 
             });
 
@@ -7502,8 +7678,8 @@ async function loadMyCombos() {
 
 
 /*
-    État d'un combiné : open (en attente), lost, won, refunded (tous ses paris annulés).
-    Un pari annulé après contestation sort du combiné (cote 1).
+    État d'un combiné : open (en attente), lost, won.
+    Un pari annulé après contestation fait perdre le combiné.
     Même calcul côté base : combo_state().
 */
 
@@ -7535,7 +7711,11 @@ function comboState(combo) {
 
             }
 
-        } else if (status !== "cancelled") {
+        } else if (status === "cancelled") {
+
+            lost++;
+
+        } else {
 
             pending++;
 
@@ -7651,7 +7831,8 @@ function renderComboClaimCard({ combo, state }) {
     if (state.status === "lost") {
 
         const lostLeg = legs.find(leg =>
-            leg.bets?.status === "resolved" && leg.bets.winner_choice_id !== leg.choice_id
+            leg.bets?.status === "cancelled" ||
+            (leg.bets?.status === "resolved" && leg.bets.winner_choice_id !== leg.choice_id)
         );
 
         card.className = "bet-card claim-card claim-card--combo claim-card--lose";
@@ -7671,7 +7852,7 @@ function renderComboClaimCard({ combo, state }) {
                     const bet = leg.bets || {};
 
                     const mark =
-                        bet.status === "cancelled" ? "↺"
+                        bet.status === "cancelled" ? "✗"
                         : bet.status !== "resolved" ? "⏳"
                         : bet.winner_choice_id === leg.choice_id ? "✓"
                         : "✗";
@@ -7681,7 +7862,7 @@ function renderComboClaimCard({ combo, state }) {
                 }).join(" · ")}
             </p>
 
-            ${lostLeg ? `<p class="claim-card-note">Perdu sur « ${escapeHtml(lostLeg.bets.question)} »</p>` : ""}
+            ${lostLeg ? `<p class="claim-card-note">Perdu sur « ${escapeHtml(lostLeg.bets.question)} »${lostLeg.bets.status === "cancelled" ? " (annulé après contestation)" : ""}</p>` : ""}
 
             <button class="claim-card-button">
                 Perdre la mise (${formatMoney(combo.stake)})
@@ -7730,7 +7911,8 @@ function comboLegResult(leg) {
 
     const bet = leg.bets || {};
 
-    return bet.status === "cancelled" ? "cancelled"
+    // Un pari annulé fait perdre le combiné : il s'affiche comme perdu.
+    return bet.status === "cancelled" ? "lose"
         : bet.status !== "resolved" ? "open"
         : bet.winner_choice_id === leg.choice_id ? "win"
         : "lose";
@@ -8722,6 +8904,11 @@ function openContestView(betId) {
 
         </div>
 
+        <div class="contest-jury" id="contest-jury">
+            <h4>👥 ${contest.status === "open" ? "Qui peut voter" : "Qui a voté"}</h4>
+            <p class="contest-hint">Chargement…</p>
+        </div>
+
         ${roleNote ? `<p class="contest-hint">${roleNote}</p>` : ""}
 
         ${canVote
@@ -8780,6 +8967,59 @@ function openContestView(betId) {
     });
 
     showContestModal();
+
+    loadContestJury(contest);
+
+}
+
+/*
+    Liste du jury dans la fenêtre de contestation (contest_jury_names,
+    contest-jury-noms.sql) : qui peut voter et qui l'a déjà fait.
+    Le sens de chaque vote reste secret.
+*/
+async function loadContestJury(contest) {
+
+    const { data, error } = await supabaseClient.rpc("contest_jury_names", {
+        p_bet_id: contest.bet_id
+    });
+
+    const box = document.getElementById("contest-jury");
+
+    if (!box) {
+        return;
+    }
+
+    const list = box.querySelector(".contest-hint");
+
+    if (error) {
+
+        console.error(error);
+
+        list.textContent = "Impossible de charger le jury.";
+
+        return;
+
+    }
+
+    const jury = data || [];
+
+    if (!jury.length) {
+
+        list.textContent = contest.status === "open" ? "Personne pour l'instant." : "Personne n'a voté.";
+
+        return;
+
+    }
+
+    list.outerHTML = `
+        <div class="contest-jury-list">
+            ${jury.map(member => `
+                <span class="contest-jury-member${member.voted ? " voted" : ""}">
+                    ${member.voted ? "✓" : "⏳"} ${escapeHtml(member.username)}
+                </span>
+            `).join("")}
+        </div>
+    `;
 
 }
 
@@ -9874,6 +10114,139 @@ function setupCreateModal() {
 
 }
 
+/*
+    Pari à 3 choix : le créateur fixe les cotes 1 et 2, la 3e se calcule
+    pour que 1/cote1 + 1/cote2 + 1/cote3 = 1 (même équilibre qu'à 2 choix).
+*/
+function threeChoicesOn() {
+
+    return !document.getElementById("duel-third")?.classList.contains("hidden");
+
+}
+
+function calculerCoteTroisieme(oddsOne, oddsTwo) {
+
+    if (!oddsOne || !oddsTwo || oddsOne <= 1 || oddsTwo <= 1) {
+        return 0;
+    }
+
+    const left = 1 - 1 / oddsOne - 1 / oddsTwo;
+
+    if (left <= 0) {
+        return Infinity;
+    }
+
+    return Math.round((1 / left) * 100) / 100;
+
+}
+
+function oddsProblemThree(oddsOne, oddsTwo, oddsThree) {
+
+    if (!oddsOne || !oddsTwo) {
+        return "";
+    }
+
+    if (oddsOne > ODDS_MAX || oddsTwo > ODDS_MAX) {
+        return "Cote trop haute : 20 maximum.";
+    }
+
+    if (oddsOne < ODDS_MIN || oddsTwo < ODDS_MIN) {
+        return "Cote trop basse : 1,01 minimum.";
+    }
+
+    if (oddsThree === Infinity) {
+        return "Cotes 1 et 2 trop basses : le choix 3 n'aurait plus aucune chance. Monte-les un peu.";
+    }
+
+    if (oddsThree > ODDS_MAX) {
+        return "Avec ces cotes, le choix 3 dépasserait 20 : monte un peu les cotes 1 ou 2.";
+    }
+
+    return "";
+
+}
+
+// Cotes calculées et message d'erreur, à chaque saisie (2 ou 3 choix).
+function updateCreateOdds() {
+
+    const oddsOne = Number(document.getElementById("odds-one").value);
+
+    const oddsTwoInput = document.getElementById("odds-two");
+
+    const oddsThreeInput = document.getElementById("odds-three");
+
+    let problem;
+
+    if (threeChoicesOn()) {
+
+        const oddsTwo = Number(oddsTwoInput.value);
+
+        const oddsThree = calculerCoteTroisieme(oddsOne, oddsTwo);
+
+        oddsThreeInput.value = oddsThree && oddsThree !== Infinity ? oddsThree.toFixed(2) : "";
+
+        problem = oddsProblemThree(oddsOne, oddsTwo, oddsThree);
+
+    } else {
+
+        const cote = calculerCoteComplementaire(oddsOne);
+
+        oddsTwoInput.value = cote ? cote.toFixed(2) : "";
+
+        problem = oddsProblem(oddsOne, cote);
+
+    }
+
+    const oddsError = document.getElementById("odds-error");
+
+    oddsError.textContent = problem;
+
+    oddsError.classList.toggle("hidden", !problem);
+
+}
+
+// Bouton « Ajouter / Retirer le 3e choix ».
+function setThreeChoices(on) {
+
+    const third = document.getElementById("duel-third");
+
+    if (!third) {
+        return;
+    }
+
+    third.classList.toggle("hidden", !on);
+
+    document.querySelector(".duel")?.classList.toggle("duel--three", on);
+
+    const oddsTwoInput = document.getElementById("odds-two");
+
+    // À 3 choix, la cote 2 se saisit ; la 3e est automatique.
+    oddsTwoInput.readOnly = !on;
+
+    oddsTwoInput.placeholder = on ? "2.50" : "auto";
+
+    oddsTwoInput.closest(".duel-side").classList.toggle("duel-side--manual", on);
+
+    if (on) {
+        oddsTwoInput.value = "";
+    }
+
+    document.getElementById("choice-three").required = on;
+
+    document.getElementById("odds-three").value = "";
+
+    document.getElementById("toggle-third-choice").textContent =
+        on ? "✕ Retirer le 3e choix" : "+ Ajouter un 3e choix";
+
+    document.getElementById("odds-hint").textContent = on
+        ? "Tu fixes les cotes 1 et 2, celle du choix 3 se calcule toute seule. Cote maximum : 20."
+        : "La cote du choix 2 se calcule toute seule. Cote maximum : 20.";
+
+    updateCreateOdds();
+
+}
+
+
 async function createBet() {
 
     const question =
@@ -9907,8 +10280,23 @@ async function createBet() {
         (pas d'arbitrage possible entre les deux choix).
     */
 
+    const three =
+        threeChoicesOn();
+
     const oddsTwo =
-        calculerCoteComplementaire(oddsOne);
+        three
+            ? Number(document.getElementById("odds-two").value)
+            : calculerCoteComplementaire(oddsOne);
+
+    const choiceThree =
+        three
+            ? document.getElementById("choice-three").value.trim()
+            : "";
+
+    const oddsThree =
+        three
+            ? calculerCoteTroisieme(oddsOne, oddsTwo)
+            : 0;
 
 
     const hasTarget =
@@ -9993,7 +10381,7 @@ async function createBet() {
     }
 
 
-    if (!choiceOne || !choiceTwo) {
+    if (!choiceOne || !choiceTwo || (three && !choiceThree)) {
 
         return;
 
@@ -10012,8 +10400,10 @@ async function createBet() {
     }
 
 
-    // Cotes limitées à 20 (les deux choix).
-    const oddsMessage = oddsProblem(oddsOne, oddsTwo);
+    // Cotes limitées à 20 (tous les choix).
+    const oddsMessage = three
+        ? oddsProblemThree(oddsOne, oddsTwo, oddsThree)
+        : oddsProblem(oddsOne, oddsTwo);
 
     if (oddsMessage) {
 
@@ -10076,7 +10466,7 @@ async function createBet() {
 
 
         /*
-            Création des deux choix.
+            Création des choix (2 ou 3).
         */
 
         const {
@@ -10101,7 +10491,17 @@ async function createBet() {
 
                     odds: oddsTwo
 
-                }
+                },
+
+                ...(three
+                    ? [{
+                        bet_id: bet.id,
+
+                        label: choiceThree,
+
+                        odds: oddsThree
+                    }]
+                    : [])
 
             ]);
 
@@ -10139,6 +10539,8 @@ async function createBet() {
         ).classList.add("hidden");
 
         resetDeadlinePicker();
+
+        setThreeChoices(false);
 
 
         /*
@@ -10770,28 +11172,38 @@ const NAME_ANIMATIONS = ["ruban_chantier", "fiole", "neon_anime", "scanner"];
     Mélange les avantages historiques (REWARDS) et les cosmétiques.
 */
 
+// combine : se cumule avec tout ; replace : un seul équipé dans la section
+// (même groupes que EXCLUSIVE_GROUPS).
 const SHOP_CATEGORIES = [
     {
-        icon: "✨",
-        title: "Additionnels au pseudo",
+        icon: "➕",
+        title: "Bonus du pseudo",
+        hint: "Se cumulent avec tout : tu peux les équiper en même temps que n'importe quel autre objet.",
+        mode: "combine",
         kind: "cosmetic",
         items: ["emoji", "etincelles"]
     },
     {
         icon: "🎨",
-        title: "Couleurs et animations du pseudo",
+        title: "Style du pseudo",
+        hint: "Un seul à la fois : en équiper un remplace celui que tu portes (avec le Pseudo cristal en diamants et le pseudo enflammé).",
+        mode: "replace",
         kind: "cosmetic",
         items: ["neon", "scanner", "metal_rose", "metal_bronze", "metal_argent", "neon_anime", "metal_or", "fiole", "ruban_chantier", "couleur"]
     },
     {
         icon: "🖼️",
-        title: "Cadres",
+        title: "Cadre du classement",
+        hint: "Un seul à la fois : en équiper un remplace l'autre (avec le Cadre diamant).",
+        mode: "replace",
         kind: "cosmetic",
         items: ["cadre", "aura"]
     },
     {
         icon: "🃏",
-        title: "Thèmes de cartes",
+        title: "Thème de carte",
+        hint: "Un seul à la fois (avec le thème Diamant).",
+        mode: "replace",
         kind: "cosmetic",
         items: ["theme"]
     },
@@ -11185,6 +11597,545 @@ function hasMyReward(field) {
 }
 
 
+/* =========================================================
+   COFFRE ALÉATOIRE (boutique, version B de demo-coffre-aleatoire.html)
+   100 🪙 = un article permanent pas encore possédé, chance ∝ 1 / prix.
+   Tirage côté base : open_random_chest (coffre-aleatoire.sql).
+========================================================= */
+
+const CHEST_PRICE = 100;
+
+// Coffre caché pour le moment (2026-10-13) : passer à true pour le remettre dans la boutique.
+const CHEST_ENABLED = false;
+
+const CHEST_ICONS = {
+    emoji: "😀",
+    neon: "💡",
+    metal_rose: "🌸",
+    etincelles: "✦",
+    metal_bronze: "🥉",
+    metal_argent: "🥈",
+    metal_or: "🥇",
+    aura: "🌀",
+    theme: "🃏",
+    clic_perroquet: "🦜",
+    clic_perroquet_x3: "🦜",
+    scanner: "📡",
+    neon_anime: "🌈",
+    fiole: "🧪",
+    ruban_chantier: "🚧"
+};
+
+// Dernier gain, affiché sous la roulette après le rechargement de la boutique.
+let chestLastWin = null;
+
+let chestSpinning = false;
+
+function chestRarity(price) {
+
+    return price >= 300 ? ["legendaire", "Légendaire"]
+        : price >= 200 ? ["epique", "Épique"]
+        : price >= 80 ? ["rare", "Rare"]
+        : ["commun", "Commun"];
+
+}
+
+// Articles que je n'ai pas encore (même liste que shop_catalogue()).
+function chestPool() {
+
+    return COSMETICS.filter(item => !isRewardActive(currentProfile?.cosmetics?.[item.id]?.until));
+
+}
+
+function chestDraw(pool) {
+
+    const total = pool.reduce((sum, item) => sum + 1 / item.price, 0);
+
+    let roll = Math.random() * total;
+
+    for (const item of pool) {
+
+        roll -= 1 / item.price;
+
+        if (roll <= 0) {
+            return item;
+        }
+
+    }
+
+    return pool[pool.length - 1];
+
+}
+
+function chestIcon(item, option) {
+
+    return item.id === "emoji" && option ? escapeHtml(option) : CHEST_ICONS[item.id] || "🎁";
+
+}
+
+function chestLabel(item, option) {
+
+    return item.title + (option && item.id !== "emoji" ? " · " + cosmeticOptionLabel(option) : "");
+
+}
+
+/*
+    Aperçu animé de l'article dans sa case de la roulette, sur mon pseudo
+    (mêmes effets que l'aperçu de la boutique, openShopPreview).
+*/
+function chestPreviewHtml(item, option) {
+
+    const me = { username: currentProfile?.username || "Toi" };
+
+    if (item.id === "theme") {
+
+        return `<div class="bet-card bet-card-theme bet-theme-${escapeHtml(option || item.options[0])} rchest-theme">Pari</div>`;
+
+    }
+
+    if (item.id === "aura") {
+
+        return `<div class="leaderboard-row leaderboard-row--aura rchest-aura">${nameHtml(me, {})}</div>`;
+
+    }
+
+    // Clic du perroquet ×3 : pas d'aperçu, juste son nom dans la case.
+    if (item.id === "clic_perroquet_x3") {
+
+        return "";
+
+    }
+
+    if (item.id === "clic_perroquet") {
+
+        return `<span class="rchest-parrot"><img src="assets/perroquet/skins/classique/thumb.png" alt=""><b>×2</b></span>`;
+
+    }
+
+    const effects = {
+        metal: item.id.startsWith("metal_") ? item.id.slice(6) : null,
+        anim: NAME_ANIMATIONS.includes(item.id) ? item.id : null,
+        neon: item.id === "neon" ? option || item.options[0] : null,
+        emoji: item.id === "emoji" ? option || item.options[0] : null,
+        sparkle: item.id === "etincelles"
+    };
+
+    return `<span class="user-name rchest-name">${nameHtml(me, effects)}</span>`;
+
+}
+
+function chestCellHtml(item, option = null) {
+
+    // Case décorative : une option au hasard, pour varier les couleurs.
+    const shown = option || (item.options ? item.options[Math.floor(Math.random() * item.options.length)] : null);
+
+    return `
+        <div class="rchest-cell rchest-cell--${chestRarity(item.price)[0]}">
+            <div class="rchest-cell-preview">${chestPreviewHtml(item, shown).trim()}</div>
+            <div class="rchest-cell-label">${escapeHtml(chestLabel(item, option))}</div>
+        </div>
+    `;
+
+}
+
+function randomChestHtml() {
+
+    if (!CHEST_ENABLED) {
+        return "";
+    }
+
+    const pool = chestPool();
+
+    const total = pool.reduce((sum, item) => sum + 1 / item.price, 0);
+
+    // Chance totale par rareté, parmi ce qu'il me reste à gagner.
+    const order = ["commun", "rare", "epique", "legendaire"];
+
+    const tiers = [];
+
+    pool.forEach(item => {
+
+        const [key, label] = chestRarity(item.price);
+
+        let tier = tiers.find(other => other.key === key);
+
+        if (!tier) {
+
+            tier = { key, label, chance: 0 };
+
+            tiers.push(tier);
+
+        }
+
+        tier.chance += (1 / item.price) / total * 100;
+
+    });
+
+    tiers.sort((x, y) => order.indexOf(x.key) - order.indexOf(y.key));
+
+    const cells = pool.length
+        ? Array.from({ length: 12 }, () => chestCellHtml(chestDraw(pool))).join("")
+        : "";
+
+    const win = chestLastWin
+        ? COSMETICS.find(item => item.id === chestLastWin.item)
+        : null;
+
+    return `
+        <section class="rshop-chest">
+
+            <h2 class="missions-title">🎁 Coffre aléatoire</h2>
+
+            <div class="rchest-card">
+
+                <div class="rchest-head">
+                    <div>
+                        <h3>Un article au hasard</h3>
+                        <p>Parmi ceux que tu n'as pas encore. Plus c'est cher, plus c'est rare.</p>
+                    </div>
+                    <button
+                        type="button"
+                        class="rchest-open-button"
+                        data-chest-open
+                        ${pool.length ? "" : "disabled"}
+                    >
+                        ${pool.length ? `${chestLastWin ? "Rouvrir" : "Ouvrir"} · ${CHEST_PRICE} 🪙` : "Tout est débloqué"}
+                    </button>
+                </div>
+
+                <div class="rchest-window">
+                    <div class="rchest-needle"></div>
+                    <div class="rchest-strip">${cells}</div>
+                </div>
+
+                <div class="rchest-legend">
+                    ${tiers.map(tier => `<span class="rchest-tier--${tier.key}">${tier.label} ${tier.chance < 1 ? tier.chance.toFixed(1) : Math.round(tier.chance)} %</span>`).join("")}
+                </div>
+
+                <p class="rchest-result">${win
+                    ? `${chestIcon(win, chestLastWin.option)} Tu as gagné <b>${escapeHtml(chestLabel(win, chestLastWin.option))}</b> · ${chestRarity(win.price)[1]} !`
+                    : ""}</p>
+
+                ${chestEquipQuestionHtml(win)}
+
+                <p class="rchest-error"></p>
+
+            </div>
+
+        </section>
+    `;
+
+}
+
+/*
+    Article gagné : il arrive non équipé (open_random_chest), on demande
+    si on veut l'équiper tout de suite. Les clics du perroquet n'ont
+    rien à équiper.
+*/
+function chestEquipQuestionHtml(win) {
+
+    if (!win || chestLastWin.answered || win.id.startsWith("clic_perroquet")) {
+        return "";
+    }
+
+    if (!currentProfile?.cosmetics?.[win.id]?.off) {
+        return "";
+    }
+
+    return `
+        <div class="rchest-equip">
+            <span>L'équiper maintenant ?</span>
+            <button type="button" class="rchest-equip-yes" data-chest-equip="yes">✓ Équiper</button>
+            <button type="button" class="rchest-equip-no" data-chest-equip="no">Plus tard</button>
+        </div>
+    `;
+
+}
+
+async function answerChestEquip(answer, button) {
+
+    if (!chestLastWin) {
+        return;
+    }
+
+    if (answer === "yes") {
+
+        button.disabled = true;
+
+        const { error } = await supabaseClient.rpc("toggle_cosmetic", {
+            p_group: currentGroup.id,
+            p_item: chestLastWin.item,
+            p_on: true
+        });
+
+        if (error) {
+
+            console.error(error);
+
+            button.disabled = false;
+
+            button.closest(".rshop-chest").querySelector(".rchest-error").textContent =
+                error.message || "Impossible d'équiper l'article.";
+
+            return;
+
+        }
+
+        await unequipConflicts(chestLastWin.item);
+
+    }
+
+    chestLastWin.answered = true;
+
+    await loadCurrentProfile();
+
+    displayShop();
+
+    if (answer === "yes") {
+
+        await displayLeaderboard();
+
+        await displayBets({ quiet: true });
+
+    }
+
+}
+
+async function openRandomChest(button) {
+
+    if (chestSpinning) {
+        return;
+    }
+
+    const section = button.closest(".rshop-chest");
+
+    const errorElement = section.querySelector(".rchest-error");
+
+    errorElement.textContent = "";
+
+    const pool = chestPool();
+
+    const points = Number(currentProfile?.points || 0);
+
+    if (!currentProfile?.is_admin && points < CHEST_PRICE) {
+
+        errorElement.textContent = `Il te manque ${CHEST_PRICE - points} 🪙 pour ouvrir le coffre.`;
+
+        return;
+
+    }
+
+    chestSpinning = true;
+
+    button.disabled = true;
+
+    const buttonRect = button.getBoundingClientRect();
+
+    const { data, error } = await supabaseClient.rpc("open_random_chest", { p_group: currentGroup.id });
+
+    if (error) {
+
+        console.error(error);
+
+        errorElement.textContent = error.message || "Impossible d'ouvrir le coffre.";
+
+        chestSpinning = false;
+
+        button.disabled = false;
+
+        return;
+
+    }
+
+    const won = COSMETICS.find(item => item.id === data.item);
+
+    section.querySelector(".rchest-result").textContent = "";
+
+    // Les pièces partent du compteur vers le bouton pendant que la roulette tourne.
+    if (typeof spendCoins === "function" && !currentProfile.is_admin) {
+
+        currentProfile.points = points - CHEST_PRICE;
+
+        spendCoins(buttonRect, CHEST_PRICE, points);
+
+    }
+
+    // Roulette : 45 cases, l'article gagné en 41e, arrêté sous l'aiguille.
+    const strip = section.querySelector(".rchest-strip");
+
+    const cells = Array.from({ length: 45 }, () => chestCellHtml(chestDraw(pool.length ? pool : COSMETICS)));
+
+    cells[40] = chestCellHtml(won, data.option);
+
+    strip.style.transition = "none";
+
+    strip.style.transform = "translateX(0)";
+
+    strip.innerHTML = cells.join("");
+
+    const winCell = strip.children[40];
+
+    const offset =
+        winCell.offsetLeft + winCell.offsetWidth / 2
+        - strip.parentElement.clientWidth / 2
+        + (Math.random() * 60 - 30);
+
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+    strip.style.transition = "transform 4.2s cubic-bezier(0.1, 0.7, 0.15, 1)";
+
+    strip.style.transform = `translateX(${-offset}px)`;
+
+    await new Promise(resolve => setTimeout(resolve, 4400));
+
+    winCell.classList.add("win");
+
+    section.querySelector(".rchest-result").innerHTML =
+        `${chestIcon(won, data.option)} Tu as gagné <b>${escapeHtml(chestLabel(won, data.option))}</b> · ${chestRarity(won.price)[1]} !`;
+
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    chestLastWin = data;
+
+    chestSpinning = false;
+
+    await loadCurrentProfile();
+
+    displayShop();
+
+    await displayLeaderboard();
+
+    await displayBets({ quiet: true });
+
+}
+
+
+/* =========================================================
+   BOUTIQUE : « TON LOOK » (ma ligne du vrai classement du groupe,
+   entre mes deux voisins grisés, comme dans les aperçus)
+   Elle suit tout de suite ce que j'équipe ou retire.
+========================================================= */
+
+// Classement complet du groupe (gardé pour redessiner sans attendre).
+let shopLookRanking = null;
+
+async function loadShopLookRanking() {
+
+    const { data, error } = await supabaseClient
+        .from("group_members")
+        .select("balance, profiles!inner ( username, is_admin )")
+        .eq("group_id", currentGroup?.id)
+        .eq("profiles.is_admin", false)
+        .order("balance", { ascending: false });
+
+    if (error) {
+
+        console.error(error);
+
+        return;
+
+    }
+
+    shopLookRanking = (data || []).map(member => ({
+        username: member.profiles.username,
+        balance: member.balance
+    }));
+
+    renderShopLook();
+
+}
+
+function shopLookRowsHtml() {
+
+    const ranking = shopLookRanking || [];
+
+    const medals = ["🥇", "🥈", "🥉"];
+
+    const row = (player, index, mine) => leaderboardRowHtml(
+        mine ? currentProfile : { username: player.username },
+        {
+            rank: index + 1,
+            medal: medals[index] || "",
+            balance: formatBalance(player.balance),
+            // Les voisins sans leurs effets : l'œil va sur ma ligne.
+            effects: mine ? getEffects(currentProfile) : {},
+            extraClass: mine ? " shop-look-me" : " shop-preview-dim"
+        }
+    );
+
+    // L'admin n'est pas classé : sa ligne épinglée, au-dessus des deux premiers.
+    if (currentProfile.is_admin) {
+
+        return leaderboardRowHtml(currentProfile, {
+            rank: "—",
+            medal: "👑",
+            balance: "∞",
+            effects: getEffects(currentProfile),
+            extraClass: " shop-look-me"
+        }) + ranking.slice(0, 2).map((player, index) => row(player, index, false)).join("");
+
+    }
+
+    const myIndex = ranking.findIndex(player => player.username === currentProfile.username);
+
+    if (myIndex < 0) {
+
+        return row({ username: currentProfile.username, balance: currentProfile.balance }, 0, true);
+
+    }
+
+    const from = Math.max(0, Math.min(myIndex - 1, ranking.length - 3));
+
+    return ranking
+        .slice(from, from + 3)
+        .map((player, offset) => row(player, from + offset, from + offset === myIndex))
+        .join("");
+
+}
+
+function renderShopLook() {
+
+    const box = document.getElementById("shop-look");
+
+    if (!box || !currentProfile) {
+        return;
+    }
+
+    const effects = getEffects(currentProfile);
+
+    box.innerHTML = `
+        <div class="shop-preview-board shop-look-board">
+            ${shopLookRanking ? shopLookRowsHtml() : `<p class="shop-category-hint">Chargement du classement…</p>`}
+        </div>
+
+        <div class="shop-look-bet">
+            <div class="bet-card${effects.theme ? " bet-card-theme bet-theme-" + escapeHtml(effects.theme) : ""} shop-look-card">
+                ${effects.theme === "diamant" ? `<span class="dia-stars" aria-hidden="true"></span>` : ""}
+                <span class="shop-look-card-author">🏆 Créé par <span class="user-name${effects.gold ? " name-gold" : ""}">${nameHtml(currentProfile, effects)}</span></span>
+                <b>Qui gagne le match ce soir ?</b>
+            </div>
+        </div>
+    `;
+
+}
+
+function shopLookHtml() {
+
+    return `
+        <section class="shop-look-section">
+
+            <h2 class="missions-title">👀 Ton look</h2>
+
+            <p class="shop-category-hint">Ce que les autres voient de toi en ce moment, avec ce que tu as équipé.</p>
+
+            <div class="mission-card shop-look" id="shop-look"></div>
+
+        </section>
+    `;
+
+}
+
+
 function displayShop() {
 
     const container =
@@ -11227,8 +12178,9 @@ function displayShop() {
                 <button
                     class="reward-preview-toggle${previewOn ? " on" : ""}"
                     data-preview="${reward.field}"
+                    data-preview-item="${reward.id}"
                 >
-                    👁 Aperçu : ${previewOn ? "activé" : "désactivé"}
+                    ${equipLabel(reward.id, previewOn)}
                 </button>
             `
             : "";
@@ -11311,7 +12263,7 @@ function displayShop() {
 
         </div>
 
-    ` + SHOP_CATEGORIES.map(category => `
+    ` + shopLookHtml() + randomChestHtml() + SHOP_CATEGORIES.map(category => `
 
         <section
             class="shop-category${shopFilter !== "all" && shopFilter !== category.kind ? " hidden" : ""}"
@@ -11320,7 +12272,12 @@ function displayShop() {
 
             <h2 class="missions-title">
                 ${category.icon} ${escapeHtml(category.title)}
+                ${category.mode
+                    ? `<span class="shop-mode shop-mode--${category.mode}">${category.mode === "combine" ? "Se cumulent" : "Un seul à la fois"}</span>`
+                    : ""}
             </h2>
+
+            ${category.hint ? `<p class="shop-category-hint">${escapeHtml(category.hint)}</p>` : ""}
 
             <div class="missions-grid">
                 ${category.items.map(cardOf).join("")}
@@ -11329,6 +12286,23 @@ function displayShop() {
         </section>
 
     `).join("") + diamondShopHtml(); // diamants en dernier, avec leur bandeau « Obtenir des 💎 »
+
+    // « Ton look » : dessiné tout de suite avec le classement gardé, puis rafraîchi.
+    renderShopLook();
+
+    loadShopLookRanking();
+
+    container.querySelector("[data-chest-open]")?.addEventListener("click", event => {
+
+        openRandomChest(event.currentTarget);
+
+    });
+
+    container.querySelectorAll("[data-chest-equip]").forEach(button => {
+
+        button.addEventListener("click", () => answerChestEquip(button.dataset.chestEquip, button));
+
+    });
 
     savedTilts.forEach((transform, itemId) => {
 
@@ -11374,20 +12348,28 @@ function displayShop() {
 
 
     container
-        .querySelectorAll(".reward-preview-toggle")
+        .querySelectorAll(".reward-preview-toggle[data-preview]")
         .forEach(button => {
 
             button.addEventListener(
                 "click",
-                () => {
+                async () => {
 
                     const field = button.dataset.preview;
 
-                    setAdminPreview(field, !hasMyReward(field));
+                    const turnOn = !hasMyReward(field);
+
+                    if (turnOn) {
+                        await unequipConflicts(button.dataset.previewItem);
+                    }
+
+                    setAdminPreview(field, turnOn);
 
                     displayShop();
 
                     displayLeaderboard();
+
+                    displayBets({ quiet: true });
 
                 }
             );
@@ -11436,22 +12418,30 @@ function displayShop() {
         .querySelectorAll(".cosmetic-preview-toggle")
         .forEach(button => {
 
-            button.addEventListener("click", () => {
+            button.addEventListener("click", async () => {
 
                 const id = button.dataset.cosmetic;
 
                 const item = COSMETICS.find(c => c.id === id);
 
+                const turnOn = !hasMyCosmetic(id);
+
+                if (turnOn) {
+                    await unequipConflicts(id);
+                }
+
                 setAdminPreview(
                     "cosmetic:" + id,
-                    hasMyCosmetic(id)
-                        ? false
-                        : (item.options ? shopSelections[id] || item.options[0] : true)
+                    turnOn
+                        ? (item.options ? shopSelections[id] || item.options[0] : true)
+                        : false
                 );
 
                 displayShop();
 
                 displayLeaderboard();
+
+                displayBets({ quiet: true });
 
             });
 
@@ -11625,14 +12615,14 @@ function openShopPreview(itemId, option) {
 /*
     Toutes les fenêtres (pari, parieurs, validation...) se ferment
     aussi en cliquant sur le fond sombre, hors de la carte.
-    Sauf l'annonce admin, qui doit être fermée avec son bouton
-    pour être marquée comme lue.
+    Sauf l'annonce admin et le message exceptionnel, qui doivent
+    être fermés avec leur bouton pour être marqués comme lus.
 */
 
 function setupModalBackdrops() {
 
     document
-        .querySelectorAll(".modal:not(#announcement-modal):not(#removed-modal)")
+        .querySelectorAll(".modal:not(#announcement-modal):not(#removed-modal):not(#notice-modal)")
         .forEach(modal => {
 
             modal.addEventListener("mousedown", event => {
@@ -11914,9 +12904,143 @@ function equipToggleHtml(itemId, owned) {
             data-item="${itemId}"
             data-on="${on}"
         >
-            ${on ? "✓ Équipé · cliquer pour retirer" : "Retiré · cliquer pour équiper"}
+            ${equipLabel(itemId, on)}
         </button>
     `;
+
+}
+
+
+/*
+    Objets qui ne se cumulent pas : un seul style de pseudo, un seul cadre,
+    un seul thème de carte. Équiper l'un retire les autres du même groupe
+    (boutique, diamants, coffre aléatoire, passe, pseudo enflammé).
+    Emoji et étincelles se cumulent avec tout.
+*/
+const EXCLUSIVE_GROUPS = [
+    {
+        label: "style de pseudo",
+        items: [
+            "metal_or", "metal_argent", "metal_bronze", "metal_rose", "couleur",
+            "neon", "neon_anime", "fiole", "ruban_chantier", "scanner",
+            "diamond:cristal", "flame"
+        ]
+    },
+    {
+        label: "cadre",
+        items: ["cadre", "aura", "diamond:cadre_diamant"]
+    },
+    {
+        label: "thème de carte",
+        items: ["theme", "diamond:theme_diamant"]
+    }
+];
+
+// Champ de l'avantage pour le cadre doré et l'arc-en-ciel (aperçu admin).
+const EXCLUSIVE_REWARD_FIELDS = {
+    cadre: "gold_frame_until",
+    couleur: "name_color_until"
+};
+
+// Groupe d'un objet (style de pseudo, cadre, thème), ou null s'il se cumule.
+function exclusiveGroupOf(key) {
+
+    return EXCLUSIVE_GROUPS.find(entry => entry.items.includes(key)) || null;
+
+}
+
+// Cet objet est-il possédé et équipé en ce moment (pour moi) ?
+// Pour l'admin, « équipé » = son aperçu est activé.
+function exclusiveItemOn(key) {
+
+    if (key === "flame") {
+        return flameNameOn(currentProfile);
+    }
+
+    if (key.startsWith("diamond:")) {
+        return diamondItemOn(currentProfile, key.slice(8));
+    }
+
+    if (currentProfile?.is_admin) {
+        return EXCLUSIVE_REWARD_FIELDS[key] ? hasMyReward(EXCLUSIVE_REWARD_FIELDS[key]) : hasMyCosmetic(key);
+    }
+
+    const owned =
+        key === "cadre" ? isRewardActive(currentProfile?.gold_frame_until)
+        : key === "couleur" ? isRewardActive(currentProfile?.name_color_until)
+        : isRewardActive(currentProfile?.cosmetics?.[key]?.until);
+
+    return owned && !currentProfile?.cosmetics?.[key]?.off;
+
+}
+
+// Retire les objets du même groupe que celui qu'on vient d'équiper.
+// itemId : id de la boutique, « diamond:<id> » pour un objet en diamants,
+// ou « flame » pour le pseudo enflammé. Renvoie le nombre d'objets retirés.
+async function unequipConflicts(itemId) {
+
+    if (!currentProfile) {
+        return 0;
+    }
+
+    const group = exclusiveGroupOf(itemId);
+
+    if (!group) {
+        return 0;
+    }
+
+    let removed = 0;
+
+    for (const key of group.items) {
+
+        if (key === itemId || !exclusiveItemOn(key)) {
+            continue;
+        }
+
+        // Admin : ses objets de boutique sont des aperçus locaux.
+        if (currentProfile.is_admin && !key.startsWith("diamond:") && key !== "flame") {
+
+            setAdminPreview(EXCLUSIVE_REWARD_FIELDS[key] || "cosmetic:" + key, false);
+
+            removed++;
+
+            continue;
+
+        }
+
+        const { error } =
+            key === "flame"
+                ? await supabaseClient.rpc("toggle_flame_name", { p_on: false })
+            : key.startsWith("diamond:")
+                ? await supabaseClient.rpc("toggle_diamond_item", { p_item: key.slice(8), p_on: false })
+            : await supabaseClient.rpc("toggle_cosmetic", { p_group: currentGroup.id, p_item: key, p_on: false });
+
+        if (error) {
+
+            console.error(error);
+
+            continue;
+
+        }
+
+        if (key === "flame") {
+            currentProfile.flame_name_off = true;
+        }
+
+        removed++;
+
+    }
+
+    return removed;
+
+}
+
+
+// Texte du bouton d'équipement : « Équiper » (il remplace l'objet du même
+// groupe, voir unequipConflicts) ou « ✓ Équipé · Retirer ».
+function equipLabel(key, on) {
+
+    return on ? "✓ Équipé · Retirer" : "Équiper";
 
 }
 
@@ -11949,6 +13073,10 @@ async function toggleEquip(itemId, turnOn, button) {
 
         return;
 
+    }
+
+    if (turnOn) {
+        await unequipConflicts(itemId);
     }
 
     await loadCurrentProfile();
@@ -12033,7 +13161,7 @@ function cosmeticCardHtml(item) {
                 class="reward-preview-toggle cosmetic-preview-toggle${previewOn ? " on" : ""}"
                 data-cosmetic="${item.id}"
             >
-                👁 Aperçu : ${previewOn ? "activé" : "désactivé"}
+                ${equipLabel(item.id, previewOn)}
             </button>
         `
         : "";
@@ -12144,6 +13272,10 @@ async function buyCosmetic(id, button) {
         // et filent vers le bouton, puis le reste se met à jour.
         const spent = data === "option" ? 0 : item.price;
 
+        if (data !== "option") {
+            await unequipConflicts(id);
+        }
+
         if (spent > 0 && typeof spendCoins === "function") {
 
             if (currentProfile) {
@@ -12212,6 +13344,9 @@ async function buyReward(rewardId, button) {
 
         const spent = REWARDS.find(reward => reward.id === rewardId)?.price || 0;
 
+        // L'avantage arrive équipé : il remplace le cadre ou le style de pseudo porté.
+        await unequipConflicts(rewardId);
+
         if (spent > 0 && typeof spendCoins === "function") {
 
             if (currentProfile) {
@@ -12268,8 +13403,9 @@ async function refreshMissions() {
 
 const BETA_POINTS = {
     send: 10,
+    ideaSend: 5,
     bugFixed: 50,
-    ideaKept: 150,
+    ideaKept: 80,
     vote: 5,
     elected: 100
 };
@@ -12796,9 +13932,8 @@ async function loadBetaData() {
             .from("beta_ideas")
             .select("id, user_id, kind, text, status, created_at, profiles!beta_ideas_user_id_fkey ( username )")
             .order("created_at", { ascending: false }),
-        supabaseClient
-            .from("beta_idea_likes")
-            .select("idea_id, user_id")
+        // Votes anonymes : les totaux et mon vote seulement (beta-votes-idees.sql).
+        supabaseClient.rpc("beta_idea_votes")
     ]);
 
     [bugs, ideas, likes].forEach(result => {
@@ -13169,16 +14304,16 @@ function betaIdeasHtml() {
     const isAdmin =
         Boolean(currentProfile?.is_admin);
 
-    const likesOf = id =>
-        betaLikes.filter(like => like.idea_id === id).length;
+    // Votes anonymes : { idea_id, likes, dislikes, my_vote } par idée.
+    const votesOf = id =>
+        betaLikes.find(vote => vote.idea_id === id) || { likes: 0, dislikes: 0, my_vote: null };
 
-    const iLike = id =>
-        betaLikes.some(like => like.idea_id === id && like.user_id === currentUser.id);
+    const scoreOf = id => votesOf(id).likes - votesOf(id).dislikes;
 
-    // Les idées encore en attente d'abord, puis les plus aimées.
+    // Les idées encore en attente d'abord, puis les mieux notées.
     const sorted = [...betaIdeas].sort((a, b) =>
         (a.status === "sent" ? 0 : 1) - (b.status === "sent" ? 0 : 1) ||
-        likesOf(b.id) - likesOf(a.id)
+        scoreOf(b.id) - scoreOf(a.id)
     );
 
     return `
@@ -13201,7 +14336,7 @@ function betaIdeasHtml() {
                             placeholder="${betaIdeaKind === "design" ? "Ex. : un thème de nuit pour les cartes" : "Ex. : pouvoir parier en équipe"}"
                         >
                         <button type="button" class="primary-button" data-beta-send-idea>
-                            Proposer ${betaGainHtml(BETA_POINTS.send)}
+                            Proposer ${betaGainHtml(BETA_POINTS.ideaSend)}
                         </button>
                     </div>
                 </div>
@@ -13209,7 +14344,7 @@ function betaIdeasHtml() {
 
             <div class="beta-card">
                 <h3>🗳️ Les idées de tout le monde</h3>
-                <p class="beta-meta">❤️ « J'aime » sur celles que tu veux voir arriver.</p>
+                <p class="beta-meta">👍 J'aime / 👎 J'aime pas : les votes sont anonymes, personne ne voit qui a voté quoi.</p>
                 <div class="beta-list">
                     ${sorted.length
                         ? sorted.map(idea => {
@@ -13217,21 +14352,28 @@ function betaIdeasHtml() {
                             const mine = idea.user_id === currentUser.id;
                             return `
                                 <div class="beta-item beta-item--${status.className}">
-                                    <button
-                                        type="button"
-                                        class="beta-like${iLike(idea.id) ? " on" : ""}"
-                                        data-beta-like="${idea.id}"
-                                        ${mine || isAdmin ? "disabled" : ""}
-                                        title="${mine ? "Ta propre idée" : "J'aime"}"
-                                    >
-                                        <span class="beta-like-icon">❤️</span>${likesOf(idea.id)}
-                                    </button>
                                     <div class="beta-item-text">
                                         <b>${escapeHtml(idea.text)}</b>
                                         <p>${idea.kind === "design" ? "🎨 Design" : "🧩 Fonctionnalité"} · par ${mine ? "toi" : styledName(idea.profiles)}</p>
                                     </div>
                                     <div class="beta-item-side">
-                                        <span class="beta-status beta-status--${status.className}">${status.icon} ${status.label}</span>
+                                        <div class="beta-item-status-row">
+                                            <div class="beta-votes">
+                                                ${[[1, "👍", "J'aime", "likes"], [-1, "👎", "J'aime pas", "dislikes"]].map(([value, icon, label, field]) => `
+                                                    <button
+                                                        type="button"
+                                                        class="beta-like beta-vote${value < 0 ? " beta-vote--down" : ""}${votesOf(idea.id).my_vote === value ? " on" : ""}"
+                                                        data-beta-vote="${idea.id}"
+                                                        data-vote="${value}"
+                                                        ${mine || isAdmin ? "disabled" : ""}
+                                                        title="${mine ? "Ta propre idée" : label}"
+                                                    >
+                                                        <span class="beta-like-icon">${icon}</span>${votesOf(idea.id)[field]}
+                                                    </button>
+                                                `).join("")}
+                                            </div>
+                                            <span class="beta-status beta-status--${status.className}">${status.icon} ${status.label}</span>
+                                        </div>
                                         ${isAdmin && idea.status === "sent" ? `
                                             <div class="beta-item-buttons">
                                                 <button type="button" class="primary-button" data-beta-keep="${idea.id}">★ Retenir ${betaGainHtml(BETA_POINTS.ideaKept)}</button>
@@ -13327,7 +14469,7 @@ function burstLikes(button) {
 
     const rect = button.getBoundingClientRect();
 
-    const icons = ["❤️", "💖", "✨"];
+    const icons = ["👍", "💚", "✨"];
 
     for (let i = 0; i < 7; i++) {
 
@@ -13459,25 +14601,31 @@ function setupBetaPage() {
 
                 renderBetaPage();
 
-            } else if (data.betaLike) {
+            } else if (data.betaVote) {
 
-                const id = Number(data.betaLike);
+                const id = Number(data.betaVote);
 
-                const { data: liked, error } = await supabaseClient.rpc("beta_toggle_like", { p_idea: id });
+                const { data: vote, error } = await supabaseClient.rpc("beta_vote_idea", {
+                    p_idea: id,
+                    p_vote: Number(data.vote)
+                });
 
                 if (error) {
                     throw error;
                 }
 
-                betaLikes = liked
-                    ? [...betaLikes, { idea_id: id, user_id: currentUser.id }]
-                    : betaLikes.filter(like => !(like.idea_id === id && like.user_id === currentUser.id));
+                // Totaux à jour (les autres ont pu voter entre-temps).
+                const votes = await supabaseClient.rpc("beta_idea_votes");
+
+                if (!votes.error) {
+                    betaLikes = votes.data || [];
+                }
 
                 renderBetaPage();
 
-                if (liked) {
+                if (vote === 1) {
 
-                    const again = container.querySelector(`[data-beta-like="${id}"]`);
+                    const again = container.querySelector(`[data-beta-vote="${id}"][data-vote="1"]`);
 
                     if (again) {
 
@@ -13979,12 +15127,6 @@ const DIAMOND_ITEMS = [
         id: "cadre_diamant",
         title: "Cadre diamant",
         description: "Ta ligne du classement brille d'un contour de diamant.",
-        price: 8
-    },
-    {
-        id: "emoji_diamant",
-        title: "💎 à côté du pseudo",
-        description: "Un petit diamant à côté de ton pseudo, partout sur le site.",
         price: 2
     },
     {
@@ -14067,15 +15209,23 @@ function diamondPreviewHtml(item) {
         return row({ diamondFrame: true });
     }
 
-    if (item.id === "emoji_diamant") {
-        return row({ diamondEmoji: true });
-    }
-
     if (item.id === "theme_diamant") {
-        return `<div class="dia-theme-peek bet-theme-diamant">🏆 Qui gagne le match ce soir ?</div>`;
+        return `<div class="dia-theme-peek bet-theme-diamant"><span class="dia-stars" aria-hidden="true"></span>🏆 Qui gagne le match ce soir ?</div>`;
     }
 
     return `<div class="dia-skin-peek"><img src="assets/perroquet/skins/cristal/thumb.png" alt=""></div>`;
+
+}
+
+
+// Diamants : à quel groupe l'objet appartient (il remplace, ou se cumule).
+function exclusiveTagHtml(key) {
+
+    const group = exclusiveGroupOf(key);
+
+    return group
+        ? `<span class="shop-mode shop-mode--replace dia-mode">Remplace ton ${group.label}</span>`
+        : "";
 
 }
 
@@ -14108,7 +15258,7 @@ function diamondShopHtml() {
 
         } else {
 
-            button = `<button type="button" class="secondary-button" data-diamond-toggle="${item.id}" data-on="${on ? "0" : "1"}">${on ? "Retirer" : "Équiper"}</button>`;
+            button = `<button type="button" class="secondary-button" data-diamond-toggle="${item.id}" data-on="${on ? "0" : "1"}">${equipLabel("diamond:" + item.id, on)}</button>`;
 
         }
 
@@ -14119,6 +15269,7 @@ function diamondShopHtml() {
                     <span class="mission-points dia-price">${item.price} 💎</span>
                 </div>
                 <p class="mission-description">${escapeHtml(item.description)}</p>
+                ${exclusiveTagHtml("diamond:" + item.id)}
                 ${diamondPreviewHtml(item)}
                 <div class="mission-footer">
                     <span class="mission-state${owned ? " done" : ""}">
@@ -14137,15 +15288,6 @@ function diamondShopHtml() {
             data-kind="cosmetic"
         >
 
-            <div class="dia-banner">
-                <span class="dia-banner-icon">💎</span>
-                <div class="dia-banner-text">
-                    <b>${admin ? "∞" : diamonds} diamant${diamonds > 1 || admin ? "s" : ""}</b>
-                    <p>Objets exclusifs, introuvables avec les pièces. Communs à tous tes groupes.</p>
-                </div>
-                <button type="button" class="dia-button" data-diamond-packs>Obtenir des 💎</button>
-            </div>
-
             <h2 class="missions-title">💎 Exclusivités diamant</h2>
 
             <div class="missions-grid">${cards}</div>
@@ -14154,6 +15296,15 @@ function diamondShopHtml() {
                 id="diamond-message"
                 class="missions-message hidden"
             ></p>
+
+            <div class="dia-banner">
+                <span class="dia-banner-icon">💎</span>
+                <div class="dia-banner-text">
+                    <b>${admin ? "∞" : diamonds} diamant${diamonds > 1 || admin ? "s" : ""}</b>
+                    <p>Objets exclusifs, introuvables avec les pièces. Communs à tous tes groupes.</p>
+                </div>
+                <button type="button" class="dia-button" data-diamond-packs>Obtenir des 💎</button>
+            </div>
 
         </section>
     `;
@@ -14206,6 +15357,8 @@ function setupDiamonds() {
 
                 const item = DIAMOND_ITEMS.find(entry => entry.id === data.diamondBuy);
 
+                await unequipConflicts("diamond:" + data.diamondBuy);
+
                 await afterDiamondChange(`« ${item.title} » est à toi !`);
 
             } else if (data.diamondToggle) {
@@ -14217,6 +15370,10 @@ function setupDiamonds() {
 
                 if (error) {
                     throw error;
+                }
+
+                if (data.on === "1") {
+                    await unequipConflicts("diamond:" + data.diamondToggle);
                 }
 
                 await afterDiamondChange();
@@ -14314,9 +15471,8 @@ function pointsModalHtml() {
 
     const ways = [
         ["🎯", "Missions", "De 5 à 30 🪙 par mission réussie. Récupère-les dans l'onglet Missions.", "missions-page", "Voir les missions"],
-        ["🎁", "Coffre du jour", "Ouvre-le une fois par jour (barre du haut sur ordinateur, page Paris sur téléphone) : de 5 à 20 🪙.", null, null],
         ["🏆", "Vote du vendredi", "Vote pour la nouveauté de la semaine dans le journal de la page Paris : +5 🪙.", null, null],
-        ...(beta ? [["🧪", "Aide app", "Bêta-testeur : +10 🪙 par bug ou idée envoyé, +50 si ton bug est corrigé, +150 si ton idée est retenue.", "beta-page", "Ouvrir l'Aide app"]] : []),
+        ...(beta ? [["🧪", "Aide app", "Bêta-testeur : +10 🪙 par bug signalé (5 par jour), +5 🪙 par idée proposée (10 par jour), +50 si ton bug est corrigé, +80 si ton idée est retenue.", "beta-page", "Ouvrir l'Aide app"]] : []),
         ["💎", "Diamants", `Échange tes diamants juste en dessous : 1 💎 = ${DIAMOND_RATE} 🪙.`, null, null]
     ];
 
@@ -15111,6 +16267,65 @@ function setupPhoneNav() {
     PHONE_LAYOUT.addEventListener?.("change", moveNavIndicator);
 
     moveNavIndicator();
+
+    setupNavHover(nav);
+
+}
+
+
+/*
+    Ordinateur : au survol des onglets, un surligneur glisse de l'un à l'autre,
+    comme dans le classement (setupLeaderboardHover).
+*/
+
+function setupNavHover(nav) {
+
+    const glow = document.createElement("span");
+
+    glow.className = "nav-hover";
+
+    glow.setAttribute("aria-hidden", "true");
+
+    nav.prepend(glow);
+
+    nav.addEventListener("mouseover", event => {
+
+        const tab = event.target.closest(".nav-button");
+
+        if (!tab || PHONE_LAYOUT.matches) {
+            return;
+        }
+
+        const visible = glow.classList.contains("on");
+
+        // Il apparaît sur place la première fois, puis glisse d'un onglet à l'autre.
+        glow.style.transition = visible ? "" : "none";
+
+        glow.style.transform = `translateX(${tab.offsetLeft}px)`;
+
+        glow.style.width = tab.offsetWidth + "px";
+
+        glow.style.top = tab.offsetTop + "px";
+
+        glow.style.height = tab.offsetHeight + "px";
+
+        if (!visible) {
+
+            void glow.offsetWidth;
+
+            glow.style.transition = "";
+
+        }
+
+        glow.classList.add("on");
+
+    });
+
+    nav.addEventListener("mouseleave", () => {
+
+        glow.classList.remove("on");
+
+    });
 
 }
 
@@ -16034,6 +17249,8 @@ async function initAppPage() {
 
         await checkAnnouncementPopup();
 
+        await checkPlayerNotices();
+
         setupDeleteAccount();
 
         setupProfilePage();
@@ -16177,29 +17394,20 @@ async function initAppPage() {
 
     if (oddsOneInput && oddsTwoInput) {
 
-        oddsOneInput.addEventListener(
-            "input",
-            () => {
+        // Cotes calculées et message (cote max 20) tout de suite sous les cotes.
+        oddsOneInput.addEventListener("input", updateCreateOdds);
 
-                const cote =
-                    calculerCoteComplementaire(
-                        Number(oddsOneInput.value)
-                    );
+        oddsTwoInput.addEventListener("input", () => {
 
-                oddsTwoInput.value =
-                    cote ? cote.toFixed(2) : "";
-
-                // Cote max 20 : message tout de suite sous les cotes.
-                const problem = oddsProblem(Number(oddsOneInput.value), cote);
-
-                const oddsError = document.getElementById("odds-error");
-
-                oddsError.textContent = problem;
-
-                oddsError.classList.toggle("hidden", !problem);
-
+            if (threeChoicesOn()) {
+                updateCreateOdds();
             }
-        );
+
+        });
+
+        document
+            .getElementById("toggle-third-choice")
+            ?.addEventListener("click", () => setThreeChoices(!threeChoicesOn()));
 
     }
 

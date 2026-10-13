@@ -317,8 +317,36 @@ input {
 }
 
 .nav-button:hover {
-    background: #222631;
     color: white;
+}
+
+/* Survol : un surligneur qui glisse d'un onglet à l'autre (setupNavHover),
+   comme celui du classement. */
+.navbar nav {
+    position: relative;
+}
+
+.navbar nav .nav-button {
+    position: relative;
+    z-index: 1;
+}
+
+.nav-hover {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    border-radius: 7px;
+    background: rgba(108, 99, 255, 0.12);
+    box-shadow: inset 0 0 0 1px rgba(108, 99, 255, 0.35);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), width 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease;
+}
+
+.nav-hover.on {
+    opacity: 1;
 }
 
 .nav-button.active {
@@ -7119,6 +7147,11 @@ body.parrot-phenix #parrot {
         animation: nav-pop 0.35s ease-out;
     }
 
+    /* Pas de surligneur au survol sur téléphone. */
+    .nav-hover {
+        display: none;
+    }
+
     /* Trait lumineux qui glisse au-dessus de l'onglet actif (placé par app.js). */
     .nav-indicator {
         display: block;
@@ -10938,6 +10971,10 @@ body.ticket-combo .ticket-go.ticket-go--blocked {
     box-shadow: 0 0 0 1px #8fd0ff inset, 0 0 14px rgba(92, 182, 255, 0.35);
 }
 
+/* Thème Diamant : le fond cristal, et par-dessus une couche d'étoiles
+   qui scintillent (span.dia-stars ajouté par displayBets ; ::before et
+   ::after de la carte servent déjà). Deux groupes d'étoiles s'allument
+   à tour de rôle (--dia-a / --dia-b). */
 .bet-card.bet-theme-diamant,
 .dia-theme-peek.bet-theme-diamant {
     background:
@@ -10948,6 +10985,46 @@ body.ticket-combo .ticket-go.ticket-go--blocked {
     border-color: rgba(143, 208, 255, 0.5);
 }
 
+.dia-theme-peek.bet-theme-diamant {
+    position: relative;
+}
+
+@property --dia-a {
+    syntax: "<number>";
+    initial-value: 0.9;
+    inherits: false;
+}
+
+@property --dia-b {
+    syntax: "<number>";
+    initial-value: 0.2;
+    inherits: false;
+}
+
+.dia-stars {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background:
+        radial-gradient(circle at 12% 20%, rgba(255, 255, 255, var(--dia-a)) 0 1.5px, transparent 3px),
+        radial-gradient(circle at 84% 30%, rgba(255, 255, 255, var(--dia-b)) 0 1.5px, transparent 3px),
+        radial-gradient(circle at 62% 86%, rgba(200, 230, 255, var(--dia-a)) 0 1.2px, transparent 2.6px),
+        radial-gradient(circle at 92% 12%, rgba(220, 200, 255, var(--dia-b)) 0 1px, transparent 2.4px),
+        radial-gradient(circle at 6% 70%, rgba(255, 255, 255, var(--dia-b)) 0 1px, transparent 2.2px),
+        radial-gradient(circle at 40% 10%, rgba(200, 230, 255, var(--dia-a)) 0 1px, transparent 2.2px),
+        radial-gradient(circle at 30% 55%, rgba(255, 255, 255, var(--dia-b)) 0 0.8px, transparent 1.8px),
+        radial-gradient(circle at 95% 78%, rgba(255, 255, 255, var(--dia-a)) 0 0.8px, transparent 1.8px);
+    animation: dia-twinkle 2.4s ease-in-out infinite;
+}
+
+@keyframes dia-twinkle {
+    0%, 100% { --dia-a: 0.95; --dia-b: 0.1; }
+    50% { --dia-a: 0.1; --dia-b: 0.95; }
+}
+
+
 /* Section Diamants de la boutique */
 .dia-banner {
     display: flex;
@@ -10955,7 +11032,7 @@ body.ticket-combo .ticket-go.ticket-go--blocked {
     align-items: center;
     gap: 14px;
     padding: 14px 16px;
-    margin-bottom: 16px;
+    margin-top: 16px;
     border: 1px solid rgba(92, 182, 255, 0.35);
     border-radius: 16px;
     background: linear-gradient(135deg, rgba(92, 182, 255, 0.12), rgba(170, 120, 255, 0.08));
@@ -11841,4 +11918,763 @@ body.ticket-combo .ticket-go.ticket-go--blocked {
     max-width: 0;
     margin-left: 0;
     overflow: hidden;
+}
+
+
+/* =========================================
+   MESSAGE EXCEPTIONNEL (player_notices)
+========================================= */
+
+#notice-content {
+    margin: 12px 0 20px;
+    line-height: 1.5;
+    white-space: pre-line;
+}
+
+#notice-ok {
+    width: 100%;
+}
+
+
+/* Admin : annuler le pari depuis le mode validation (adminCancelBet) */
+.validate-admin-cancel {
+    display: block;
+    margin: 8px auto 0;
+    padding: 6px 14px;
+    border: 1px solid rgba(230, 70, 70, 0.6);
+    border-radius: 999px;
+    background: rgba(230, 70, 70, 0.1);
+    color: #e64646;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.validate-admin-cancel:hover,
+.validate-admin-cancel.confirm {
+    background: #e64646;
+    color: white;
+}
+
+.validate-admin-error {
+    margin: 4px 0 0;
+    text-align: center;
+}
+
+
+/* Contestation : liste du jury (loadContestJury) */
+.contest-jury {
+    margin-top: 16px;
+}
+
+.contest-jury h4 {
+    margin: 0 0 8px;
+    color: #858a98;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.contest-jury-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.contest-jury-member {
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid #343846;
+    background: #1c1f2a;
+    color: #aaaeba;
+    font-size: 12px;
+}
+
+.contest-jury-member.voted {
+    border-color: rgba(99, 214, 159, 0.5);
+    background: rgba(99, 214, 159, 0.08);
+    color: #8fe6bb;
+}
+
+
+/* Version classique, ordinateur : la carte « Ton niveau » revient dans la
+   colonne de droite de la page Paris, et la jauge d'XP quitte la barre du
+   haut (2026-10-13). Le téléphone garde la petite jauge ; la bêta a sa
+   carte « Ma saison » (beta.css). */
+@media (min-width: 801px) {
+
+    body:not(.beta) #level-sidebar {
+        display: block;
+    }
+
+    body:not(.beta) #xp-mini {
+        display: none;
+    }
+
+}
+
+
+/* Flammes, sur ordinateur (classique et bêta) : le compteur quitte la barre
+   du haut et devient la carte « Série » à côté de « Ton niveau » / « Ma saison » (page Paris,
+   renderStreakCard dans animations.js). La capsule reste dans la page,
+   cachée : elle garde le compteur et ouvre la fenêtre de la série.
+   Téléphone : la capsule reste dans la barre. */
+@media (min-width: 801px) {
+
+    #streak-widget {
+        display: none !important;
+    }
+
+    .right-column #streak-sidebar {
+        display: block;
+    }
+
+}
+
+#streak-sidebar {
+    display: none;
+    cursor: pointer;
+}
+
+.streak-sidebar-current {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.streak-sidebar-current strong {
+    color: #ffb36b;
+    font-size: 26px;
+    font-weight: 900;
+}
+
+.streak-sidebar-current span {
+    color: #aaaeba;
+    font-size: 13px;
+}
+
+.streak-sidebar-note {
+    margin: 6px 0 0;
+    color: #858a98;
+    font-size: 12px;
+}
+
+#streak-sidebar:hover {
+    border-color: rgba(255, 159, 67, 0.45);
+}
+
+
+/* =========================================
+   BOUTIQUE : COFFRE ALÉATOIRE (roulette, version B
+   de demo-coffre-aleatoire.html, randomChestHtml dans app.js)
+========================================= */
+
+.rshop-chest {
+    --chest-commun: #9aa3b5;
+    --chest-rare: #4fa3ff;
+    --chest-epique: #c86bff;
+    --chest-legendaire: #ffc857;
+    margin-bottom: 26px;
+}
+
+.rchest-card {
+    padding: 20px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 200, 87, 0.3);
+    background: radial-gradient(120% 140% at 0% 0%, rgba(255, 200, 87, 0.1), #151821 55%);
+}
+
+.rchest-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.rchest-head h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.rchest-head p {
+    margin: 2px 0 0;
+    color: #aaaeba;
+    font-size: 13px;
+}
+
+.rchest-open-button {
+    border: none;
+    border-radius: 12px;
+    padding: 11px 18px;
+    background: linear-gradient(135deg, #ffd36b, #ff9f1c);
+    box-shadow: 0 6px 18px rgba(255, 159, 28, 0.3);
+    color: #2a1700;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.rchest-open-button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.rchest-window {
+    position: relative;
+    overflow: hidden;
+    padding: 12px 0;
+    border-radius: 14px;
+    background: #10121a;
+}
+
+.rchest-window::before,
+.rchest-window::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 2;
+    width: 70px;
+    pointer-events: none;
+}
+
+.rchest-window::before {
+    left: 0;
+    background: linear-gradient(90deg, #10121a, transparent);
+}
+
+.rchest-window::after {
+    right: 0;
+    background: linear-gradient(-90deg, #10121a, transparent);
+}
+
+.rchest-needle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    z-index: 3;
+    width: 3px;
+    margin-left: -1.5px;
+    background: #ffc857;
+    box-shadow: 0 0 12px #ffc857;
+}
+
+.rchest-strip {
+    display: flex;
+    gap: 8px;
+    will-change: transform;
+}
+
+.rchest-cell {
+    --rar: var(--chest-commun);
+    flex: 0 0 126px;
+    height: 112px;
+    display: grid;
+    grid-template-rows: 1fr auto;
+    gap: 4px;
+    padding: 8px 6px 6px;
+    box-sizing: border-box;
+    overflow: hidden;
+    border-radius: 12px;
+    border-bottom: 4px solid var(--rar);
+    background: color-mix(in srgb, var(--rar) 10%, #181b24);
+    color: #e6e8ee;
+    text-align: center;
+}
+
+/* Aperçu animé de l'article (chestPreviewHtml) */
+.rchest-cell-preview {
+    display: grid;
+    place-items: center;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.rchest-cell-label {
+    color: #aaaeba;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.rchest-name {
+    max-width: 100%;
+    overflow: hidden;
+    color: white;
+    font-size: 13px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.rchest-aura.leaderboard-row {
+    display: inline-block;
+    padding: 5px 9px;
+    border-bottom: none;
+    border-radius: 8px;
+    color: white;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.rchest-theme.bet-card {
+    display: grid;
+    place-items: center;
+    width: 76px;
+    height: 42px;
+    margin: 0;
+    padding: 0;
+    border-radius: 8px;
+    box-shadow: none;
+    color: white;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.rchest-parrot {
+    position: relative;
+    display: inline-block;
+}
+
+.rchest-parrot img {
+    width: 52px;
+    height: 52px;
+    object-fit: contain;
+}
+
+.rchest-parrot b {
+    position: absolute;
+    right: -10px;
+    bottom: 2px;
+    padding: 1px 5px;
+    border-radius: 6px;
+    background: #ffc857;
+    color: #2a1700;
+    font-size: 11px;
+}
+
+/* Case sans aperçu (clic du perroquet ×3) : le nom seul, au centre. */
+.rchest-cell-preview:empty {
+    display: none;
+}
+
+.rchest-cell:has(.rchest-cell-preview:empty) .rchest-cell-label {
+    grid-row: 1 / -1;
+    align-self: center;
+    color: #e6e8ee;
+    font-size: 12px;
+}
+
+.rchest-cell--rare { --rar: var(--chest-rare); }
+.rchest-cell--epique { --rar: var(--chest-epique); }
+.rchest-cell--legendaire { --rar: var(--chest-legendaire); }
+
+.rchest-cell.win {
+    box-shadow: 0 0 0 2px var(--rar), 0 0 24px var(--rar);
+}
+
+.rchest-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-top: 12px;
+    color: #aaaeba;
+    font-size: 12px;
+}
+
+.rchest-legend span::before {
+    content: "";
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 6px;
+    border-radius: 3px;
+    background: var(--chest-commun);
+    vertical-align: -1px;
+}
+
+.rchest-legend .rchest-tier--rare::before { background: var(--chest-rare); }
+.rchest-legend .rchest-tier--epique::before { background: var(--chest-epique); }
+.rchest-legend .rchest-tier--legendaire::before { background: var(--chest-legendaire); }
+
+.rchest-result {
+    min-height: 20px;
+    margin: 14px 0 0;
+    text-align: center;
+    font-weight: 700;
+}
+
+.rchest-result:empty {
+    display: none;
+}
+
+.rchest-error {
+    margin: 8px 0 0;
+    color: #ff8a8a;
+    font-size: 13px;
+}
+
+.rchest-error:empty {
+    display: none;
+}
+
+
+#streak-sidebar.streak-restorable {
+    border-color: rgba(255, 107, 107, 0.6);
+}
+
+#streak-sidebar.streak-restorable .streak-sidebar-note {
+    color: #ff9a9a;
+}
+
+
+/* « Ton niveau » et « Ta série » côte à côte (classique, ordinateur).
+   Ailleurs (téléphone, bêta) l'enveloppe s'efface : display contents. */
+.level-streak-row {
+    display: contents;
+}
+
+@media (min-width: 801px) {
+
+    .level-streak-row {
+        display: flex;
+        gap: 10px;
+        align-items: stretch;
+    }
+
+    .level-streak-row #level-sidebar {
+        flex: 1;
+        min-width: 0;
+        width: auto;
+    }
+
+    .level-streak-row #streak-sidebar {
+        flex: 0 0 82px;
+        width: auto;
+        padding: 18px 8px;
+        box-sizing: border-box;
+        text-align: center;
+    }
+
+    .level-streak-row #streak-sidebar .leaderboard-header {
+        justify-content: center;
+        gap: 4px;
+        font-size: 13px;
+    }
+
+    .level-streak-row .streak-sidebar-current {
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+    }
+
+    /* La phrase passe dans l'infobulle (trop étroit), sauf série à rattraper. */
+    .level-streak-row .streak-sidebar-note {
+        display: none;
+    }
+
+    .level-streak-row #streak-sidebar.streak-restorable .streak-sidebar-note {
+        display: block;
+        font-size: 10px;
+    }
+
+}
+
+
+/* Pseudo enflammé et pseudo étincelant dans le classement : le halo
+   (~20 px) et les étoiles (jusqu'à 8 px hors du pseudo, plus leur taille)
+   étaient coupés par la marge de 6 px. On leur laisse la place. */
+.leaderboard-pseudo.has-effect:has(.name-flame),
+.leaderboard-pseudo.has-effect:has(.name-sparkle) {
+    overflow-clip-margin: 24px;
+}
+
+
+/* Coffre aléatoire : « L'équiper maintenant ? » après un gain */
+.rchest-equip {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    color: #c9ccd6;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.rchest-equip button {
+    padding: 7px 14px;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.rchest-equip-yes {
+    border: none;
+    background: linear-gradient(135deg, #2fa36f, #63d69f);
+    color: #0b1f15;
+}
+
+.rchest-equip-no {
+    border: 1px solid #343846;
+    background: #1c202c;
+    color: #aaaeba;
+}
+
+.rchest-equip button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+
+/* Classement : toutes les lignes encadrées (cadre doré, aura, cadre diamant)
+   débordent de 8 px de chaque côté, pour que le rang, la médaille, le pseudo
+   et le solde restent alignés avec les lignes sans cadre. Leur trait de
+   séparation est masqué (le cadre suffit). */
+.leaderboard-row.leaderboard-row--aura,
+.leaderboard-row.leaderboard-row--gold,
+.leaderboard-row.leaderboard-row--diamond {
+    margin: 2px -8px;
+    padding: 9px 8px;
+    border-radius: 10px;
+}
+
+.leaderboard-row.leaderboard-row--aura,
+.leaderboard-row.leaderboard-row--diamond {
+    border-bottom-color: transparent;
+}
+
+.leaderboard-row--aura::before {
+    border-radius: 10px;
+}
+
+/* Lignes sans cadre : pas d'arrondi, le trait de séparation reste droit. */
+.leaderboard-row:not(.leaderboard-row--aura):not(.leaderboard-row--gold):not(.leaderboard-row--diamond) {
+    border-radius: 0;
+}
+
+
+/* Boutique : sections « Se cumulent » / « Un seul à la fois » */
+.shop-mode {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    vertical-align: middle;
+}
+
+.shop-mode--combine {
+    border: 1px solid rgba(99, 214, 159, 0.45);
+    background: rgba(99, 214, 159, 0.1);
+    color: #8fe6bb;
+}
+
+.shop-mode--replace {
+    border: 1px solid rgba(255, 200, 87, 0.45);
+    background: rgba(255, 200, 87, 0.1);
+    color: #ffc857;
+}
+
+.shop-category-hint {
+    margin: -6px 0 14px;
+    color: #858a98;
+    font-size: 13px;
+}
+
+.dia-mode {
+    margin: 0 0 10px;
+}
+
+/* « Équiper » bien visible (bouton plein) ; « ✓ Équipé · Retirer » reste discret. */
+.reward-preview-toggle.equip-toggle:not(.on),
+.cosmetic-preview-toggle:not(.on),
+.reward-preview-toggle[data-preview]:not(.on) {
+    border: none;
+    background: #6c63ff;
+    color: white;
+    font-weight: 800;
+}
+
+.reward-preview-toggle.equip-toggle:not(.on):hover,
+.cosmetic-preview-toggle:not(.on):hover,
+.reward-preview-toggle[data-preview]:not(.on):hover {
+    background: #7d75ff;
+}
+
+
+/* Boutique : « Ton look » (renderShopLook) — ma ligne du classement entre
+   mes voisins grisés, et une carte de pari créée par moi. */
+.shop-look-section {
+    margin-bottom: 26px;
+}
+
+.shop-look {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 18px;
+    align-items: center;
+}
+
+.shop-look-board {
+    padding: 0 8px;
+}
+
+.shop-look-me {
+    background: rgba(108, 99, 255, 0.1);
+}
+
+.shop-look-card.bet-card {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 16px 18px;
+    cursor: default;
+}
+
+.shop-look-card-author {
+    color: #aaaeba;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.shop-look-card b {
+    position: relative;
+    color: white;
+    font-size: 15px;
+}
+
+@media (max-width: 800px) {
+
+    .shop-look {
+        grid-template-columns: 1fr;
+    }
+
+}
+
+
+/* Version classique, ordinateur : colonne de droite plus large (370 px au
+   lieu de 280) : les fenêtres « Ton niveau » et « Série » s'élargissent et
+   viennent plus près des cartes de pari. */
+@media (min-width: 1101px) {
+
+    .right-column {
+        width: 370px;
+    }
+
+    .level-streak-row #streak-sidebar {
+        flex-basis: 104px;
+    }
+
+    .level-streak-row .streak-sidebar-current strong {
+        font-size: 30px;
+    }
+
+}
+
+
+/* Bêta : la carte « Ma saison » prend la place de « Ton niveau », à côté de la série. */
+.level-streak-row .season-card {
+    flex: 1;
+    min-width: 0;
+}
+
+
+/* Version classique : carte de pari repliée sans 🏆 devant « Créé par » ni
+   🎲 devant la question (ils restent sur la carte dépliée, .stakes-pop).
+   La bêta les retire partout (beta.css). */
+body:not(.beta) .bet-card:not(.stakes-pop) .bet-card-header > span:first-child:not(.bet-author),
+body:not(.beta) .bet-card:not(.stakes-pop) .bet-question-icon {
+    display: none;
+}
+
+
+/* Aide app : j'aime / j'aime pas anonymes sur les idées (beta-votes-idees.sql) */
+/* Les deux boutons sur une ligne, en petites pastilles : la liste reste compacte. */
+.beta-votes {
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+}
+
+.beta-vote {
+    flex-direction: row;
+    gap: 4px;
+    min-width: 0;
+    padding: 5px 8px;
+    border-radius: 999px;
+}
+
+.beta-vote .beta-like-icon {
+    font-size: 14px;
+}
+
+.beta-vote.on {
+    border-color: #63d69f;
+    background: rgba(99, 214, 159, 0.14);
+    color: #63d69f;
+}
+
+.beta-vote--down.on {
+    border-color: #ff6b6b;
+    background: rgba(255, 107, 107, 0.14);
+    color: #ff8a8a;
+}
+
+/* Votes à gauche du statut (Envoyée, Retenue…), sur la même ligne. */
+.beta-item-status-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Statut de largeur fixe : les votes restent alignés d'une ligne à l'autre. */
+.beta-item-status-row .beta-status {
+    min-width: 100px;
+    text-align: right;
+}
+
+
+/* Création : pari à 3 choix (setThreeChoices dans app.js) */
+.duel.duel--three {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.duel.duel--three .duel-vs {
+    display: none;
+}
+
+/* À 3 choix, la cote 2 se saisit : plus de pastille « auto » dessus. */
+.duel-side--manual .duel-auto {
+    display: none;
+}
+
+.duel-third-toggle {
+    margin-top: 10px;
+    padding: 7px 14px;
+    font-size: 13px;
+}
+
+@media (max-width: 560px) {
+
+    .duel.duel--three {
+        grid-template-columns: 1fr;
+    }
+
+}
+
+/* Carte de pari à 3 choix : les trois cases sur une ligne. */
+.bet-choices:has(> :nth-child(3)) {
+    grid-template-columns: repeat(3, 1fr);
 }

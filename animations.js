@@ -591,13 +591,79 @@ async function dailyCheckin() {
 
     placeChest();
 
-    // Le coffre n'apparaît que lorsqu'il peut être ouvert.
-    chest.classList.toggle("hidden", !row.chest_available);
+    // Coffre du jour retiré (2026-10-13) : remplacé par le coffre aléatoire
+    // de la boutique (coffre-aleatoire.sql). Il reste caché.
+    chest.classList.add("hidden");
 
-    chest.disabled = !row.chest_available;
+    chest.disabled = true;
 
 }
 
+
+/*
+    Carte « Ta série » de la page Paris (version classique, ordinateur) :
+    mêmes chiffres que la capsule de la barre, qu'elle remplace.
+    Un clic ouvre la fenêtre de la série (celle de la capsule).
+*/
+
+function renderStreakCard() {
+
+    const card = document.getElementById("streak-sidebar");
+
+    if (!card) {
+        return;
+    }
+
+    const count = document.getElementById("streak-count").textContent.trim();
+
+    const days = Number(count) || 0;
+
+    document.getElementById("streak-sidebar-count").textContent = count;
+
+    document.getElementById("streak-sidebar-unit").textContent =
+        count === "∞" ? "" : days > 1 ? "jours" : "jour";
+
+    document.getElementById("streak-sidebar-note").textContent =
+        streakState.canRestore
+            ? "Tu as perdu ta série de " + streakState.lost + " jours : clique pour la rattraper avant minuit !"
+        : streakState.shields > 0
+            ? "🛡️ " + streakState.shields + " bouclier" + (streakState.shields > 1 ? "s" : "") + " pour la protéger."
+        : "Reviens chaque jour pour la faire grandir.";
+
+    card.classList.toggle("streak-restorable", streakState.canRestore);
+
+    // Carte étroite à côté de « Ton niveau » : la phrase passe aussi dans l'infobulle.
+    card.title = document.getElementById("streak-sidebar-note").textContent;
+
+    if (streakState.canRestore) {
+
+        document.getElementById("streak-sidebar-note").textContent = "À rattraper !";
+
+    }
+
+    if (!card.dataset.ready) {
+
+        card.dataset.ready = "1";
+
+        const open = () => document.getElementById("streak-widget")?.click();
+
+        card.addEventListener("click", open);
+
+        card.addEventListener("keydown", event => {
+
+            if (event.key === "Enter" || event.key === " ") {
+
+                event.preventDefault();
+
+                open();
+
+            }
+
+        });
+
+    }
+
+}
 
 /*
     Ordinateur : le coffre est une capsule dorée dans la barre du haut,
@@ -1180,6 +1246,14 @@ function setupParrotSkins() {
 
             currentProfile.flame_name_off = !on;
 
+            if (on && typeof unequipConflicts === "function") {
+
+                await unequipConflicts("flame");
+
+                await loadCurrentProfile();
+
+            }
+
             renderParrotSkins();
 
             displayLeaderboard?.();
@@ -1289,6 +1363,9 @@ const streakState = { shields: 0, canRestore: false, lost: 0 };
 
 
 function renderStreakProtect() {
+
+    // La carte « Ta série » de la page Paris suit les mêmes chiffres.
+    renderStreakCard();
 
     const box = document.getElementById("streak-protect");
 
@@ -1598,13 +1675,26 @@ function applyProgression(info) {
     }
 
     // Niveau déjà débloqué par le joueur (au premier passage : son niveau actuel).
-    let claimed = readStorage("claimed-level");
+    // Retenu dans le navigateur et sur le compte (memoire-compte.sql) : on prend
+    // le plus avancé, pour qu'un autre appareil ne redemande pas un niveau déjà débloqué.
+    const local = Number(readStorage("claimed-level")) || 0;
+
+    const remote = Number(currentProfile?.claimed_level) || 0;
+
+    let claimed = Math.max(local, remote);
 
     if (!claimed || claimed > info.level) {
 
+        // Premier passage, ou XP remise à zéro : on repart du niveau actuel.
+        const reset = claimed > info.level;
+
         claimed = info.level;
 
-        writeStorage("claimed-level", claimed);
+        saveClaimedLevel(claimed, reset);
+
+    } else if (claimed !== local || claimed !== remote) {
+
+        saveClaimedLevel(claimed, false);
 
     }
 
@@ -1658,9 +1748,26 @@ function applyProgression(info) {
 
 }
 
+// Niveau débloqué : dans le navigateur et sur le compte.
+function saveClaimedLevel(level, reset) {
+
+    writeStorage("claimed-level", level);
+
+    if (!currentProfile || currentProfile.claimed_level === level) {
+        return;
+    }
+
+    currentProfile.claimed_level = level;
+
+    supabaseClient
+        .rpc("set_claimed_level", { p_level: level, p_reset: reset })
+        .then(({ error }) => error && console.error(error));
+
+}
+
 function claimNextLevel() {
 
-    const claimed = readStorage("claimed-level");
+    const claimed = Math.max(Number(readStorage("claimed-level")) || 0, Number(currentProfile?.claimed_level) || 0);
 
     if (!lastProgressInfo || !claimed || lastProgressInfo.level <= claimed) {
 
@@ -1668,7 +1775,7 @@ function claimNextLevel() {
 
     }
 
-    writeStorage("claimed-level", claimed + 1);
+    saveClaimedLevel(claimed + 1, false);
 
     // L'animation du niveau se joue maintenant, puis la barre repart du début.
     showLevelUp(claimed + 1);
@@ -2260,16 +2367,17 @@ function cascadeIn(root) {
 
     };
 
-    // Titres, filtres (boutique, Historique), contestations, carte « Créer un pari »,
-    // nombre de paris disponibles, cartes et messages « rien pour le moment », dans l'ordre de la page.
+    // Titres, filtres (boutique, Historique), coffre aléatoire, contestations, carte « Créer un pari »,
+    // nombre de paris disponibles, cartes et messages « rien pour le moment »,
+    // blocs de l'Aide app (demandes, jauge, onglets, cartes, bugs et idées) et du pass, dans l'ordre de la page.
     root
-        .querySelectorAll(".page-header, .shop-filters, .missions-title, .contests-block, .my-bets-summary, .my-bets-filters, .bet-create-card, .bets-count, .bet-card, .my-bet-item, .mission-card, .empty-state")
+        .querySelectorAll(".page-header, .shop-filters, .missions-title, .rchest-card, .contests-block, .my-bets-summary, .my-bets-filters, .bet-create-card, .bets-count, .bet-card, .my-bet-item, .mission-card, .empty-state, .beta-requests, .beta-progress, .beta-subnav, .beta-card, .beta-item, .bp-cascade")
         .forEach(play);
 
-    // Colonnes latérales (top parieurs, ticket, message, XP, coffre) : elles arrivent
+    // Colonnes latérales (saison, top parieurs, ticket, message, XP, coffre) : elles arrivent
     // tout de suite après le titre, l'une après l'autre.
     root
-        .querySelectorAll(".leaderboard-sidebar, .bet-ticket, .admin-message-sidebar, .chest-card")
+        .querySelectorAll(".season-card, .leaderboard-sidebar, .bet-ticket, .admin-message-sidebar, .chest-card")
         .forEach((element, index) => play(element, index + 1));
 
 }
@@ -2963,13 +3071,41 @@ function verdictCenter(element) {
     pas encore vus par ce joueur (mémorisés dans le navigateur).
 */
 
-function checkContestResults(contests) {
+// Verdicts déjà vus sur le compte (tous appareils), chargés une fois.
+let verdictSeenRemote = null;
+
+async function loadVerdictSeen() {
+
+    if (verdictSeenRemote) {
+        return verdictSeenRemote;
+    }
+
+    const { data, error } = await supabaseClient
+        .from("contest_verdicts_seen")
+        .select("bet_id")
+        .eq("user_id", currentUser.id);
+
+    if (error) {
+
+        console.error(error);
+
+        return [];
+
+    }
+
+    verdictSeenRemote = (data || []).map(row => row.bet_id);
+
+    return verdictSeenRemote;
+
+}
+
+async function checkContestResults(contests) {
 
     if (!currentUser) {
         return;
     }
 
-    const seen = readStorage("seen-contests") || [];
+    const seen = [...(readStorage("seen-contests") || []), ...await loadVerdictSeen()];
 
     const fresh = (contests || []).filter(contest =>
         contest.status !== "open" &&
@@ -2994,6 +3130,13 @@ function markVerdictSeen(betId) {
     const seen = readStorage("seen-contests") || [];
 
     writeStorage("seen-contests", [...seen.filter(id => id !== betId), betId].slice(-100));
+
+    // Aussi sur le compte : un autre appareil ne le rejouera pas.
+    verdictSeenRemote?.push(betId);
+
+    supabaseClient
+        .rpc("mark_verdict_seen", { p_bet_id: betId })
+        .then(({ error }) => error && console.error(error));
 
 }
 
