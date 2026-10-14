@@ -1039,12 +1039,15 @@ let lastProgressInfo = null;
 
 const PARROT_SKINS = [
     { id: "classique", name: "Classique", level: 0 },
-    { id: "flamant", name: "Flamant", level: 10 },
-    { id: "nuit", name: "Bleu nuit", level: 12 },
-    { id: "violet", name: "Violet royal", level: 14 },
-    { id: "arctique", name: "Arctique", level: 16 },
-    { id: "noir", name: "Noir et or", level: 18 },
+    // Octobre rose : offert à tous les comptes créés avant la fin d'octobre 2026.
+    { id: "flamant", name: "Flamant", october: true },
+    { id: "nuit", name: "Bleu nuit", level: 10 },
+    { id: "violet", name: "Violet royal", level: 12 },
+    { id: "arctique", name: "Arctique", level: 14 },
+    { id: "noir", name: "Noir et or", level: 16 },
     { id: "phenix", name: "Phénix", streak: 30 },
+    // Halloween : offert à qui se connecte du 25 au 31 octobre 2026 (halloween.sql).
+    { id: "corbeau", name: "Corbeau", event: "🎃 Halloween 2026" },
     // Exclusivité diamant (diamants.sql) : visible dans la fenêtre XP une fois achetée.
     { id: "cristal", name: "Cristal", diamond: "skin_cristal" }
 ];
@@ -1066,6 +1069,17 @@ function skinUnlocked(skin) {
 
     if (skin.diamond) {
         return Boolean(currentProfile?.diamond_items?.[skin.diamond]);
+    }
+
+    // Skin Flamant : compte créé avant le 1er novembre 2026 (heure de Paris).
+    if (skin.october) {
+        return Boolean(currentProfile?.created_at)
+            && new Date(currentProfile.created_at) < new Date("2026-11-01T00:00:00+01:00");
+    }
+
+    // Skins d'événement : retenus sur le compte (profiles.event_skins).
+    if (skin.event) {
+        return Boolean(currentProfile?.event_skins?.includes(skin.id));
     }
 
     return skin.streak
@@ -1091,6 +1105,11 @@ function activeParrotSkin() {
 function applyParrotSkin() {
 
     const id = activeParrotSkin();
+
+    // Retenu sur l'appareil : au prochain chargement, parrot.js l'affiche d'entrée.
+    try {
+        localStorage.setItem("betlab-parrot-skin-last", id);
+    } catch {}
 
     // Skin enregistré dans le profil : les autres le voient dans la fenêtre du joueur.
     if (currentProfile && currentProfile.parrot_skin !== id && typeof supabaseClient !== "undefined") {
@@ -1141,7 +1160,7 @@ function skinItemHtml(skin, active) {
                 : `<img src="assets/perroquet/skins/${skin.id}/thumb.png" alt="">`}
             <div class="xp-skin-text">
                 <strong>Skin ${escapeHtml(skin.name)}</strong>
-                <span>${skin.diamond ? "💎 Exclusivité diamant" : skin.streak ? "🔥 " + skin.streak + " jours de série" : skin.level ? "Niveau " + skin.level : "Dès le départ"}</span>
+                <span>${skin.diamond ? "💎 Exclusivité diamant" : skin.october ? "🎀 Offert pour Octobre rose" : skin.event ? skin.event : skin.streak ? "🔥 " + skin.streak + " jours de série" : skin.level ? "Niveau " + skin.level : "Dès le départ"}</span>
             </div>
             ${button}
         </li>
@@ -1199,7 +1218,7 @@ function renderParrotSkins() {
     if (xpList) {
 
         xpList.innerHTML = PARROT_SKINS
-            .filter(skin => !skin.streak && (!skin.diamond || skinUnlocked(skin)))
+            .filter(skin => !skin.streak && (!(skin.diamond || skin.october || skin.event) || skinUnlocked(skin)))
             .map(skin => skinItemHtml(skin, active))
             .join("");
 
@@ -2367,11 +2386,11 @@ function cascadeIn(root) {
 
     };
 
-    // Titres, filtres (boutique, Historique), coffre aléatoire, contestations, carte « Créer un pari »,
+    // Titres, filtres (boutique, Historique), phrases d'aide de la boutique, coffre aléatoire, contestations, carte « Créer un pari »,
     // nombre de paris disponibles, cartes et messages « rien pour le moment »,
     // blocs de l'Aide app (demandes, jauge, onglets, cartes, bugs et idées) et du pass, dans l'ordre de la page.
     root
-        .querySelectorAll(".page-header, .shop-filters, .missions-title, .rchest-card, .contests-block, .my-bets-summary, .my-bets-filters, .bet-create-card, .bets-count, .bet-card, .my-bet-item, .mission-card, .empty-state, .beta-requests, .beta-progress, .beta-subnav, .beta-card, .beta-item, .bp-cascade")
+        .querySelectorAll(".page-header, .shop-filters, .shop-category-hint, .missions-title, .rchest-card, .contests-block, .my-bets-summary, .my-bets-filters, .bet-create-card, .bets-count, .bet-card, .my-bet-item, .mission-card, .empty-state, .beta-requests, .beta-progress, .beta-subnav, .beta-card, .beta-item, .bp-cascade")
         .forEach(play);
 
     // Colonnes latérales (saison, top parieurs, ticket, message, XP, coffre) : elles arrivent
@@ -5583,35 +5602,7 @@ function balanceModalHtml() {
 
     const cap = parrotClick.cap || PARROT_TIERS[current][1];
 
-    const next = PARROT_TIERS[current + 1];
-
     const done = Math.min(parrotClick.today, cap);
-
-    // Avancement vers le palier suivant (0 à 1).
-    const progress = next
-        ? Math.min(1, Math.max(0, (best - PARROT_TIERS[current][0]) / (next[0] - PARROT_TIERS[current][0])))
-        : 0;
-
-    const count = PARROT_TIERS.length;
-
-    const fill = (current + progress) / (count - 1) * 100;
-
-    const tiers = PARROT_TIERS.map(([need, tierCap], index) => {
-
-        const state = index < current ? "done" : index === current ? "current" : index === current + 1 ? "next" : "locked";
-
-        return `
-            <li class="bal-tier bal-tier--${state}">
-                <span class="bal-tier-icon">${index <= current ? "✓" : "🔒"}</span>
-                <span class="bal-tier-need">
-                    ${index === 0 ? "Au départ" : `Palier <b>${euros(need)} €</b>`}
-                    ${state === "next" ? `<span class="bal-tier-progress"><i style="width: ${progress * 100}%"></i></span>` : ""}
-                </span>
-                <span class="bal-tier-cap">Clique jusqu'à ${euros(tierCap)} €/j</span>
-            </li>
-        `;
-
-    }).join("");
 
     const boosts = PARROT_BOOSTS.map(boost => {
 
@@ -5653,24 +5644,6 @@ function balanceModalHtml() {
                 <span><b>${euros(done)} €</b> / ${euros(cap)} €</span>
             </div>
             <div class="bal-today-bar"><i style="width: ${done / cap * 100}%"></i></div>
-        </div>
-
-        <p class="level-sidebar-title">🦜 Paliers du perroquet</p>
-
-        <p class="bal-hint">
-            Atteins un palier de solde une seule fois et tu peux cliquer plus chaque jour, pour toujours (dans ce groupe).
-        </p>
-
-        <div class="bal-tiers-wrap">
-            <div class="bal-gauge">
-                <div class="bal-gauge-track">
-                    <div class="bal-gauge-fill" style="height: ${fill}%"></div>
-                    ${PARROT_TIERS.map((tier, index) => `
-                        <span class="bal-gauge-dot${index <= current ? " done" : ""}${index === current ? " current" : ""}" style="top: ${index / (count - 1) * 100}%"></span>
-                    `).join("")}
-                </div>
-            </div>
-            <ul class="bal-tiers">${tiers}</ul>
         </div>
 
         <p class="level-sidebar-title bal-boost-title">🛍️ Booste tes clics</p>

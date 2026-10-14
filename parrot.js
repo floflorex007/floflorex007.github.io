@@ -416,7 +416,13 @@ const Parrot = (() => {
 
         build(root);
 
-        applySkin();
+        // Dernier skin affiché sur cet appareil (animations.js) : posé tout de suite,
+        // sans passer par le classique le temps que le compte se charge.
+        try {
+            skin = localStorage.getItem(LAST_SKIN_KEY) || "classique";
+        } catch {}
+
+        applySkin(true);
 
         new ResizeObserver(fit).observe(root);
         fit();
@@ -458,11 +464,15 @@ const Parrot = (() => {
 
     let skin = "classique";
 
+    // Même clé que applyParrotSkin dans animations.js.
+    const LAST_SKIN_KEY = "betlab-parrot-skin-last";
+
     function skinSrc(name, id) {
         return id === "classique" ? ASSETS + name + ".png" : ASSETS + "skins/" + id + "/" + name + ".png";
     }
 
-    function applySkin() {
+    // instant : au chargement (perroquet encore caché), on pose l'image directement.
+    function applySkin(instant) {
 
         if (!root) {
             return;
@@ -484,6 +494,11 @@ const Parrot = (() => {
             const src = skinSrc(name, id);
 
             if (img.getAttribute("src") === src) {
+                return;
+            }
+
+            if (instant) {
+                img.src = src;
                 return;
             }
 

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BetLab – Actions du chat</title>
+<style>
+* { box-sizing: border-box; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; margin: 0; }
+h1 { font-size: 26px; margin: 0 0 6px; }
+.sub { color: #858a98; margin: 0 0 16px; max-width: 900px; font-size: 14px; line-height: 1.5; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; align-items: center; }
+.tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; font: inherit; }
+.tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.pick { margin-left: auto; background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; padding: 10px 16px; border-radius: 12px; cursor: pointer; font: inherit; font-weight: 900; }
+.copied { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1c202c; border: 1px solid #63d69f; padding: 12px 18px; border-radius: 14px; font-weight: 700; z-index: 99; }
+.hidden { display: none !important; }
+.wrap { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+.help { max-width: 360px; color: #aaaeba; font-size: 14px; line-height: 1.6; }
+.help b { color: #e6e8ee; }
+.help button { margin-top: 8px; border: 1px solid #2c3040; background: #1c202c; color: #e6e8ee; border-radius: 10px; padding: 8px 12px; font: inherit; cursor: pointer; }
+
+/* ---------- Chat ---------- */
+.chat { width: 380px; max-width: 100%; height: 600px; display: flex; flex-direction: column; background: #171a23; border: 1px solid #262a38; border-radius: 16px; overflow: hidden; box-shadow: 0 16px 40px rgba(0,0,0,.5); }
+.chat-head { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid #23262f; }
+.chat-head b { font-size: 15px; }
+.chat-head small { margin-left: auto; color: #858a98; font-size: 11px; }
+.list { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.msg { max-width: 82%; align-self: flex-start; position: relative; }
+.msg.me { align-self: flex-end; }
+.who { font-size: 12px; font-weight: 800; color: #c86bff; margin: 0 0 3px 4px; }
+.msg.me .who { display: none; }
+.bub { position: relative; background: #1f2330; border-radius: 14px 14px 14px 4px; padding: 8px 12px; font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; cursor: default; user-select: none; transition: transform .15s; }
+.msg.me .bub { background: linear-gradient(135deg, #5b4fe0, #6c63ff); color: white; border-radius: 14px 14px 4px 14px; }
+.msg.deleted .bub { background: transparent; border: 1px dashed #2c3040; color: #737887; font-style: italic; }
+.quote { display: block; border-left: 3px solid #c86bff; background: rgba(0,0,0,.22); border-radius: 6px; padding: 4px 8px; margin: 0 0 6px; font-size: 12px; cursor: pointer; }
+.quote i { display: block; font-style: normal; font-weight: 800; color: #c86bff; }
+.msg.me .quote { border-left-color: #fff; }
+.msg.me .quote i { color: #fff; }
+.meta { font-size: 10px; color: #737887; margin: 3px 4px 0; }
+.msg.me .meta { text-align: right; }
+.reacts { display: flex; gap: 4px; flex-wrap: wrap; margin: -6px 6px 0; position: relative; z-index: 1; }
+.msg.me .reacts { justify-content: flex-end; }
+.react { background: #262a38; border: 1px solid #343a4d; border-radius: 99px; padding: 1px 7px; font-size: 12px; cursor: pointer; color: #e6e8ee; }
+.react.mine { border-color: #6c63ff; background: rgba(108,99,255,.25); }
+.flash .bub { animation: flash 1s; }
+@keyframes flash { 30% { box-shadow: 0 0 0 3px #ffd166; } }
+
+/* Barre d'actions (A et B) */
+.bar { position: absolute; top: -34px; display: flex; gap: 2px; background: #262a38; border: 1px solid #343a4d; border-radius: 99px; padding: 3px; z-index: 5; box-shadow: 0 6px 16px rgba(0,0,0,.4); }
+.msg:not(.me) .bar { left: 0; }
+.msg.me .bar { right: 0; }
+.bar button, .menu button { background: none; border: none; color: #e6e8ee; font-size: 16px; padding: 4px 6px; border-radius: 99px; cursor: pointer; }
+.bar button:hover, .menu button:hover { background: #343a4d; }
+.bar .sep { width: 1px; background: #343a4d; margin: 3px 2px; }
+/* Menu (B et C) */
+.menu { position: absolute; z-index: 6; background: #262a38; border: 1px solid #343a4d; border-radius: 14px; padding: 6px; display: grid; gap: 2px; min-width: 170px; box-shadow: 0 10px 24px rgba(0,0,0,.5); top: 100%; margin-top: 4px; }
+.msg:not(.me) .menu { left: 0; }
+.msg.me .menu { right: 0; }
+.menu .emojis { display: flex; gap: 2px; border-bottom: 1px solid #343a4d; padding-bottom: 6px; margin-bottom: 4px; }
+.menu .item { display: flex; gap: 10px; text-align: left; font-size: 14px; border-radius: 8px; padding: 8px 10px; }
+.menu .item.danger { color: #ff7a8a; }
+/* Bouton ⋯ (B) */
+.more { position: absolute; top: 50%; transform: translateY(-50%); width: 26px; height: 26px; border-radius: 50%; border: none; background: #262a38; color: #aaaeba; cursor: pointer; opacity: 0; transition: opacity .15s; }
+.msg:not(.me) .more { right: -32px; }
+.msg.me .more { left: -32px; }
+.msg:hover .more, .msg.open .more { opacity: 1; }
+/* C : glisser pour répondre */
+.swipe-hint { position: absolute; top: 50%; transform: translateY(-50%); font-size: 18px; opacity: 0; }
+.msg:not(.me) .swipe-hint { left: -26px; }
+.msg.me .swipe-hint { right: -26px; }
+
+/* Bulles « en train d'écrire » */
+.typing { align-self: flex-start; }
+.typing .who { color: #858a98; }
+.dots { display: inline-flex; gap: 4px; background: #1f2330; border-radius: 14px 14px 14px 4px; padding: 12px 14px; }
+.dots i { width: 7px; height: 7px; border-radius: 50%; background: #aaaeba; animation: dot 1.2s infinite; }
+.dots i:nth-child(2) { animation-delay: .2s; }
+.dots i:nth-child(3) { animation-delay: .4s; }
+@keyframes dot { 0%, 60%, 100% { transform: translateY(0); opacity: .45; } 30% { transform: translateY(-5px); opacity: 1; } }
+
+/* Zone d'écriture */
+.reply-box, .edit-box { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-top: 1px solid #23262f; background: #14161e; font-size: 12px; }
+.reply-box div, .edit-box div { flex: 1; min-width: 0; border-left: 3px solid #c86bff; padding-left: 8px; }
+.edit-box div { border-left-color: #ffd166; }
+.reply-box b, .edit-box b { display: block; color: #c86bff; }
+.edit-box b { color: #ffd166; }
+.reply-box span, .edit-box span { display: block; color: #aaaeba; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.reply-box button, .edit-box button { background: none; border: none; color: #858a98; font-size: 16px; cursor: pointer; }
+.form { display: flex; gap: 8px; padding: 10px; border-top: 1px solid #23262f; }
+.form input { flex: 1; min-width: 0; background: #12141b; border: 1px solid #2c3040; border-radius: 12px; padding: 10px 12px; color: #e6e8ee; font: inherit; font-size: 15px; }
+.form button { background: #6c63ff; border: none; color: white; border-radius: 12px; padding: 0 16px; font: inherit; font-weight: 800; cursor: pointer; }
+.confirm { color: #ff7a8a !important; font-weight: 800; }
+</style>
+</head>
+<body>
+
+<h1>💬 Chat : réactions, réponses, modifier, supprimer</h1>
+<p class="sub">
+    Les 3 versions font la même chose, seule la façon d'ouvrir les actions change.
+    Réactions : 👍 😂 😮 😢 🔥 ❤️ (une par personne, re-cliquer l'enlève).
+    Modifier / supprimer : seulement <b>ses propres messages</b>. Un message supprimé laisse « Message supprimé ».
+    Les bulles « … » s'affichent quand quelqu'un écrit (clique « Simuler » à droite).
+</p>
+
+<div class="tabs">
+    <button class="tab active" data-v="a">A · Barre au survol</button>
+    <button class="tab" data-v="b">B · Bouton ⋯ et menu</button>
+    <button class="tab" data-v="c">C · Clic sur le message</button>
+    <button class="pick" id="pick">Je choisis celle-ci</button>
+</div>
+
+<div class="wrap">
+    <div class="chat">
+        <div class="chat-head"><b>💬 Les Fous du BE</b><small>🧹 Effacé lundi à 0 h</small></div>
+        <div class="list" id="list"></div>
+        <div id="ctx"></div>
+        <form class="form" id="form"><input id="input" maxlength="300" placeholder="Écrire un message…" autocomplete="off"><button>Envoyer</button></form>
+    </div>
+    <div class="help" id="help"></div>
+</div>
+
+<div class="copied hidden" id="copied"></div>
+
+<script>
+const EMOJIS = ["👍", "😂", "😮", "😢", "🔥", "❤️"];
+let nextId = 10;
+let msgs = [
+    { id: 1, who: "Bertin", txt: "Qui pense que le PSG gagne ce soir ? 😏", time: "09:12", reacts: { "😂": ["Julie"] } },
+    { id: 2, who: "Julie", txt: "Moi j'ai tout mis sur le nul 😅", time: "09:15", reacts: {} },
+    { id: 3, me: true, who: "Moi", txt: "Cote à 4.5, j'ai pas pu résister", time: "09:17", reacts: { "🔥": ["Bertin", "Julie"] }, reply: 2 },
+    { id: 4, who: "Max", txt: "Nouveau pari posté, venez miser !", time: "10:02", reacts: {} }
+];
+let variant = "a", openId = null, replyTo = null, editId = null, typing = [], confirmId = null;
+
+const esc = s => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const find = id => msgs.find(m => m.id === id);
+
+const HELP = {
+    a: "<b>Ordinateur :</b> passe la souris sur un message → une petite barre apparaît au-dessus (réactions, ↩️ répondre, ✏️ modifier, 🗑️ supprimer).<br><b>Téléphone :</b> appui long sur le message.",
+    b: "<b>Ordinateur et téléphone :</b> un petit bouton ⋯ à côté du message ouvre un menu avec les réactions en haut et les actions en dessous.<br>Plus discret, mais un clic de plus.",
+    c: "<b>Un clic (ou appui) sur le message</b> ouvre le menu. <b>Double-clic</b> = ❤️ directement.<br>Pas de bouton visible : le plus épuré."
+};
+
+function quoteHtml(m) {
+    const r = find(m.reply);
+    if (!r) return "";
+    return `<span class="quote" data-jump="${r.id}"><i>${esc(r.me ? "Toi" : r.who)}</i>${r.deleted ? "Message supprimé" : esc(r.txt.slice(0, 60))}</span>`;
+}
+
+function actionsBar(m) {
+    const own = m.me ? `<span class="sep"></span><button data-act="edit" title="Modifier">✏️</button><button data-act="del" title="Supprimer" class="${confirmId === m.id ? "confirm" : ""}">${confirmId === m.id ? "Sûr ?" : "🗑️"}</button>` : "";
+    return `<div class="bar">${EMOJIS.map(e => `<button data-react="${e}">${e}</button>`).join("")}<span class="sep"></span><button data-act="reply" title="Répondre">↩️</button>${own}</div>`;
+}
+
+function actionsMenu(m) {
+    const own = m.me ? `<button class="item" data-act="edit">✏️ Modifier</button><button class="item danger" data-act="del">🗑️ ${confirmId === m.id ? "Confirmer la suppression ?" : "Supprimer"}</button>` : "";
+    return `<div class="menu"><div class="emojis">${EMOJIS.map(e => `<button data-react="${e}">${e}</button>`).join("")}</div><button class="item" data-act="reply">↩️ Répondre</button>${own}</div>`;
+}
+
+function render() {
+    const list = document.getElementById("list");
+    const keep = list.scrollTop, atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
+    list.innerHTML = msgs.map(m => {
+        const open = openId === m.id && !m.deleted;
+        const reacts = Object.entries(m.reacts).filter(([, w]) => w.length)
+            .map(([e, w]) => `<button class="react ${w.includes("Moi") ? "mine" : ""}" data-react="${e}" title="${esc(w.join(", "))}">${e} ${w.length}</button>`).join("");
+        return `<div class="msg ${m.me ? "me" : ""} ${m.deleted ? "deleted" : ""} ${open ? "open" : ""}" data-id="${m.id}">
+            <div class="who">${esc(m.who)}</div>
+            <div class="bub">${m.deleted ? "🚫 Message supprimé" : quoteHtml(m) + esc(m.txt)}</div>
+            ${reacts && !m.deleted ? `<div class="reacts">${reacts}</div>` : ""}
+            <div class="meta">${m.time}${m.edited && !m.deleted ? " · modifié" : ""}</div>
+            ${variant === "b" && !m.deleted ? `<button class="more" data-more>⋯</button>` : ""}
+            ${open ? (variant === "a" ? actionsBar(m) : actionsMenu(m)) : ""}
+        </div>`;
+    }).join("") + typing.map(w => `<div class="typing"><div class="who">${esc(w)} écrit…</div><div class="dots"><i></i><i></i><i></i></div></div>`).join("");
+    list.scrollTop = atBottom ? list.scrollHeight : keep;
+
+    const ctx = document.getElementById("ctx");
+    if (replyTo) {
+        const r = find(replyTo);
+        ctx.innerHTML = `<div class="reply-box"><div><b>↩️ Réponse à ${esc(r.me ? "toi" : r.who)}</b><span>${esc(r.txt)}</span></div><button data-cancel>✕</button></div>`;
+    } else if (editId) {
+        ctx.innerHTML = `<div class="edit-box"><div><b>✏️ Modifier le message</b><span>${esc(find(editId).txt)}</span></div><button data-cancel>✕</button></div>`;
+    } else ctx.innerHTML = "";
+    document.getElementById("help").innerHTML = HELP[variant] + `<br><br><button id="sim">Simuler « Julie écrit… »</button> <button id="sim2">Simuler 2 personnes</button>`;
+    document.getElementById("sim").onclick = () => simulate(["Julie"]);
+    document.getElementById("sim2").onclick = () => simulate(["Julie", "Max"]);
+}
+
+function simulate(names) {
+    typing = names; render();
+    setTimeout(() => {
+        typing = [];
+        names.forEach((n, i) => msgs.push({ id: nextId++, who: n, txt: i ? "Moi aussi je parie 💸" : "Je mise 200 sur l'OM 😎", time: new Date().toTimeString().slice(0, 5), reacts: {} }));
+        render();
+    }, 3000);
+}
+
+function react(m, e) {
+    const already = (m.reacts[e] || []).includes("Moi");
+    for (const k in m.reacts) m.reacts[k] = m.reacts[k].filter(w => w !== "Moi");
+    if (!already) (m.reacts[e] = m.reacts[e] || []).push("Moi");
+}
+
+const list = document.getElementById("list");
+let pressTimer = null;
+
+list.addEventListener("click", e => {
+    const el = e.target.closest(".msg");
+    const jump = e.target.closest("[data-jump]");
+    if (jump) {
+        const t = list.querySelector(`.msg[data-id="${jump.dataset.jump}"]`);
+        t?.scrollIntoView({ block: "center", behavior: "smooth" });
+        t?.classList.remove("flash"); void t?.offsetWidth; t?.classList.add("flash");
+        return;
+    }
+    if (!el) { openId = null; confirmId = null; return render(); }
+    const m = find(Number(el.dataset.id));
+    const r = e.target.closest("[data-react]");
+    if (r) { react(m, r.dataset.react); openId = null; return render(); }
+    const a = e.target.closest("[data-act]");
+    if (a) {
+        const act = a.dataset.act;
+        if (act === "reply") { replyTo = m.id; editId = null; openId = null; }
+        if (act === "edit") { editId = m.id; replyTo = null; openId = null; document.getElementById("input").value = m.txt; }
+        if (act === "del") {
+            if (confirmId !== m.id) { confirmId = m.id; return render(); }
+            m.deleted = true; m.reacts = {}; openId = null; confirmId = null;
+        }
+        render(); if (act !== "del") document.getElementById("input").focus();
+        return;
+    }
+    if (e.target.closest("[data-more]")) { openId = openId === m.id ? null : m.id; confirmId = null; return render(); }
+    if (variant === "c" && e.target.closest(".bub")) { openId = openId === m.id ? null : m.id; confirmId = null; return render(); }
+});
+list.addEventListener("dblclick", e => {
+    const el = e.target.closest(".msg");
+    if (variant !== "c" || !el) return;
+    const m = find(Number(el.dataset.id));
+    if (m.deleted) return;
+    react(m, "❤️"); openId = null; render();
+});
+list.addEventListener("mouseover", e => {
+    if (variant !== "a") return;
+    const el = e.target.closest(".msg");
+    const id = el ? Number(el.dataset.id) : null;
+    if (id !== openId) { openId = id; confirmId = null; render(); }
+});
+list.addEventListener("mouseleave", () => { if (variant === "a") { openId = null; confirmId = null; render(); } });
+list.addEventListener("touchstart", e => {
+    if (variant !== "a") return;
+    const el = e.target.closest(".msg");
+    if (!el) return;
+    pressTimer = setTimeout(() => { openId = Number(el.dataset.id); render(); }, 450);
+}, { passive: true });
+list.addEventListener("touchend", () => clearTimeout(pressTimer));
+
+document.getElementById("ctx").addEventListener("click", e => {
+    if (e.target.closest("[data-cancel]")) { if (editId) document.getElementById("input").value = ""; replyTo = editId = null; render(); }
+});
+
+document.getElementById("form").onsubmit = e => {
+    e.preventDefault();
+    const input = document.getElementById("input");
+    const txt = input.value.trim();
+    if (!txt) return;
+    if (editId) { const m = find(editId); m.txt = txt; m.edited = true; editId = null; }
+    else msgs.push({ id: nextId++, me: true, who: "Moi", txt, time: new Date().toTimeString().slice(0, 5), reacts: {}, reply: replyTo });
+    replyTo = null; input.value = ""; render();
+    const l = document.getElementById("list"); l.scrollTop = l.scrollHeight;
+};
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === t));
+    variant = t.dataset.v; openId = null; confirmId = null; render();
+});
+document.getElementById("pick").onclick = () => {
+    const text = "Actions du chat : je choisis la version " + document.querySelector(".tab.active").textContent;
+    navigator.clipboard?.writeText(text).catch(() => {});
+    const el = document.getElementById("copied");
+    el.textContent = "Copié : « " + text + " » — colle-le à Claude";
+    el.classList.remove("hidden");
+    setTimeout(() => el.classList.add("hidden"), 3500);
+};
+render();
+</script>
+</body>
+</html>

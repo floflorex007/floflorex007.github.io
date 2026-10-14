@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BetLab – Chat du groupe</title>
+<style>
+* { box-sizing: border-box; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; margin: 0; }
+h1 { font-size: 26px; margin: 0 0 6px; }
+.sub { color: #858a98; margin: 0 0 16px; max-width: 900px; font-size: 14px; line-height: 1.5; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; align-items: center; }
+.tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; font: inherit; }
+.tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.pick { margin-left: auto; background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; padding: 10px 16px; border-radius: 12px; cursor: pointer; font: inherit; font-weight: 900; }
+.copied { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1c202c; border: 1px solid #63d69f; padding: 12px 18px; border-radius: 14px; font-weight: 700; z-index: 99; }
+.hidden { display: none !important; }
+
+/* ---------- Faux site ---------- */
+.site { position: relative; border: 1px solid #23262f; border-radius: 18px; overflow: hidden; background: #12141b; min-height: 620px; }
+.bar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid #23262f; background: #161922; flex-wrap: wrap; }
+.logo { font-weight: 900; font-size: 18px; margin-right: 8px; }
+.grp { border: 1px solid #2c3040; background: #1c202c; color: #e6e8ee; border-radius: 10px; padding: 6px 10px; font-size: 13px; }
+.nav { display: flex; gap: 4px; flex-wrap: wrap; }
+.nav span { padding: 7px 12px; border-radius: 10px; color: #858a98; font-size: 14px; font-weight: 700; cursor: pointer; position: relative; }
+.nav span.on { color: white; background: #1c202c; }
+.dot { position: absolute; top: 3px; right: 3px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 99px; background: #ff4d6d; color: white; font-size: 10px; font-weight: 900; display: grid; place-items: center; }
+.body { display: grid; grid-template-columns: 1fr 340px; gap: 16px; padding: 16px; }
+.cards { display: grid; gap: 12px; align-content: start; }
+.card { background: #171a23; border: 1px solid #262a38; border-radius: 14px; padding: 14px; color: #aaaeba; font-size: 14px; }
+.card b { color: #e6e8ee; display: block; margin-bottom: 8px; }
+.side { display: grid; gap: 12px; align-content: start; }
+@media (max-width: 800px) { .body { grid-template-columns: 1fr; } }
+
+/* ---------- Chat (commun) ---------- */
+.chat { display: flex; flex-direction: column; background: #171a23; border: 1px solid #262a38; border-radius: 16px; overflow: hidden; }
+.chat-head { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid #23262f; }
+.chat-head b { font-size: 15px; }
+.chat-head small { margin-left: auto; color: #858a98; font-size: 11px; }
+.chat-list { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.msg { max-width: 82%; align-self: flex-start; }
+.msg .who { font-size: 11px; font-weight: 800; color: #c86bff; margin: 0 0 3px 4px; }
+.msg .txt { background: #1f2330; border-radius: 14px 14px 14px 4px; padding: 8px 12px; font-size: 14px; line-height: 1.4; word-wrap: break-word; }
+.msg .time { font-size: 10px; color: #737887; margin: 3px 0 0 4px; }
+.msg.me { align-self: flex-end; }
+.msg.me .who { display: none; }
+.msg.me .txt { background: linear-gradient(135deg, #5b4fe0, #6c63ff); color: white; border-radius: 14px 14px 4px 14px; }
+.msg.me .time { text-align: right; margin-right: 4px; }
+.day { align-self: center; font-size: 11px; color: #737887; background: #14161e; border-radius: 99px; padding: 3px 10px; }
+.chat-form { display: flex; gap: 8px; padding: 10px; border-top: 1px solid #23262f; }
+.chat-form input { flex: 1; min-width: 0; background: #12141b; border: 1px solid #2c3040; border-radius: 12px; padding: 10px 12px; color: #e6e8ee; font: inherit; font-size: 14px; }
+.chat-form button { background: #6c63ff; border: none; color: white; border-radius: 12px; padding: 0 16px; font: inherit; font-weight: 800; cursor: pointer; }
+.chat-note { font-size: 11px; color: #737887; text-align: center; padding: 0 10px 10px; }
+
+/* A : page entière */
+.va .chat { margin: 16px; height: 540px; }
+
+/* B : bulle flottante */
+.fab { position: absolute; left: 20px; bottom: 20px; width: 58px; height: 58px; border-radius: 50%; border: none; background: linear-gradient(135deg, #5b4fe0, #c86bff); color: white; font-size: 26px; cursor: pointer; box-shadow: 0 8px 24px rgba(108,99,255,.45); }
+.fab .dot { top: 0; right: 0; }
+.vb .chat { position: absolute; left: 20px; bottom: 90px; width: 360px; max-width: calc(100% - 40px); height: 440px; box-shadow: 0 16px 40px rgba(0,0,0,.5); }
+.close { margin-left: 8px; background: none; border: none; color: #858a98; font-size: 18px; cursor: pointer; }
+
+/* C : colonne de droite */
+.vc .chat { height: 400px; }
+.lb .row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #23262f; }
+</style>
+</head>
+<body>
+
+<h1>💬 Chat du groupe</h1>
+<p class="sub">
+    Un chat par groupe : seuls les membres du groupe voient les messages.
+    <b>Tous les messages sont effacés chaque lundi à 0 h</b> (le bandeau en haut du chat l'indique).
+    Messages de 300 caractères max, mis à jour en direct. Écris un message pour essayer.
+</p>
+
+<div class="tabs">
+    <button class="tab active" data-v="a">A · Onglet « Chat »</button>
+    <button class="tab" data-v="b">B · Bulle flottante</button>
+    <button class="tab" data-v="c">C · Colonne de droite</button>
+    <button class="pick" id="pick">Je choisis celle-ci</button>
+</div>
+
+<div class="site" id="site">
+    <div class="bar">
+        <span class="logo">BetLab</span>
+        <span class="grp">👥 Les Fous du BE ▾</span>
+        <div class="nav" id="nav"></div>
+    </div>
+    <div id="content"></div>
+</div>
+
+<div class="copied hidden" id="copied"></div>
+
+<script>
+const messages = [
+    { who: "Bertin", txt: "Qui pense que le PSG gagne ce soir ? 😏", time: "lun. 09:12" },
+    { who: "Julie", txt: "Moi j'ai tout mis sur le nul 😅", time: "lun. 09:15" },
+    { me: true, txt: "Cote à 4.5, j'ai pas pu résister", time: "lun. 09:17" },
+    { day: "Aujourd'hui" },
+    { who: "Max", txt: "Nouveau pari posté, venez miser !", time: "10:02" },
+    { who: "Bertin", txt: "Last chance dans 1 h ⏰", time: "10:30" }
+];
+let variant = "a", open = false, unread = 2;
+
+function esc(s) { return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+
+function chatHtml(closable) {
+    return `<div class="chat">
+        <div class="chat-head"><b>💬 Les Fous du BE</b><small>🧹 Effacé lundi à 0 h</small>${closable ? '<button class="close" id="close">✕</button>' : ""}</div>
+        <div class="chat-list" id="list">${messages.map(m => m.day
+            ? `<div class="day">${m.day}</div>`
+            : `<div class="msg ${m.me ? "me" : ""}"><div class="who">${esc(m.who || "")}</div><div class="txt">${esc(m.txt)}</div><div class="time">${m.time}</div></div>`).join("")}</div>
+        <form class="chat-form" id="form"><input id="input" maxlength="300" placeholder="Écrire un message…" autocomplete="off"><button>Envoyer</button></form>
+    </div>`;
+}
+
+const cards = `<div class="cards">
+    <div class="card"><b>PSG – OM : qui gagne ?</b>PSG 1.8 · Nul 4.5 · OM 3.2</div>
+    <div class="card"><b>Bertin arrive avant 9 h demain ?</b>Oui 2.1 · Non 1.6</div>
+    <div class="card"><b>Pluie vendredi midi ?</b>Oui 1.4 · Non 2.8</div>
+</div>`;
+const leaderboard = `<div class="card lb"><b>🏆 Classement</b>
+    <div class="row"><span>1. Bertin</span><span>2 340 €</span></div>
+    <div class="row"><span>2. Julie</span><span>1 980 €</span></div>
+    <div class="row"><span>3. Max</span><span>1 410 €</span></div></div>`;
+
+function render() {
+    const page = variant === "a" && open ? "chat" : "paris";
+    document.getElementById("nav").innerHTML =
+        `<span class="${page === "paris" ? "on" : ""}" data-go="paris">Paris</span><span>Historique</span>` +
+        (variant === "a" ? `<span class="${page === "chat" ? "on" : ""}" data-go="chat">Chat${unread ? `<i class="dot">${unread}</i>` : ""}</span>` : "") +
+        `<span>Missions</span><span>Boutique</span>`;
+
+    const c = document.getElementById("content");
+    c.className = "v" + variant;
+    if (variant === "a") {
+        c.innerHTML = page === "chat" ? chatHtml(false) : `<div class="body">${cards}<div class="side">${leaderboard}</div></div>`;
+    } else if (variant === "b") {
+        c.innerHTML = `<div class="body">${cards}<div class="side">${leaderboard}</div></div>` +
+            (open ? chatHtml(true) : "") +
+            `<button class="fab" id="fab">💬${unread && !open ? `<i class="dot">${unread}</i>` : ""}</button>`;
+    } else {
+        c.innerHTML = `<div class="body">${cards}<div class="side">${leaderboard}${chatHtml(false)}</div></div>`;
+        unread = 0;
+    }
+    bind();
+}
+
+function bind() {
+    document.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { open = b.dataset.go === "chat"; if (open) unread = 0; render(); });
+    const fab = document.getElementById("fab");
+    if (fab) fab.onclick = () => { open = !open; unread = 0; render(); };
+    const close = document.getElementById("close");
+    if (close) close.onclick = () => { open = false; render(); };
+    const list = document.getElementById("list");
+    if (list) list.scrollTop = list.scrollHeight;
+    const form = document.getElementById("form");
+    if (form) form.onsubmit = e => {
+        e.preventDefault();
+        const input = document.getElementById("input");
+        const txt = input.value.trim();
+        if (!txt) return;
+        const d = new Date();
+        messages.push({ me: true, txt, time: d.toTimeString().slice(0, 5) });
+        render();
+        document.getElementById("input").focus();
+        setTimeout(() => { messages.push({ who: "Julie", txt: "😂 vu !", time: new Date().toTimeString().slice(0, 5) }); if (variant === "a" && !open || variant === "b" && !open) unread++; render(); }, 1500);
+    };
+}
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === t));
+    variant = t.dataset.v; open = false; unread = 2; render();
+});
+document.getElementById("pick").onclick = () => {
+    const label = document.querySelector(".tab.active").textContent;
+    const text = "Chat du groupe : je choisis la version " + label;
+    navigator.clipboard?.writeText(text).catch(() => {});
+    const el = document.getElementById("copied");
+    el.textContent = "Copié : « " + text + " » — colle-le à Claude";
+    el.classList.remove("hidden");
+    setTimeout(() => el.classList.add("hidden"), 3500);
+};
+render();
+</script>
+</body>
+</html>

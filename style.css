@@ -1973,20 +1973,9 @@ input {
 }
 
 
-/* Paris perdus : secousse puis grisé */
-.my-bet-item.my-bet-lost {
-    animation: my-bet-lost 0.5s ease-out;
-}
-
-@keyframes my-bet-lost {
-    0% { filter: none; opacity: 1; }
-    20%, 60% { transform: translateX(-6px); }
-    40%, 80% { transform: translateX(6px); }
-    100% { transform: none; }
-}
-
+/* Paris perdus : plus de secousse (retirée le 2026-10-14), seulement l'arrivée en cascade. */
 .my-bet-item.my-bet-lost.cascade-in {
-    animation: cascade-in 0.45s ease-out backwards, my-bet-lost 0.5s 0.45s ease-out;
+    animation: cascade-in 0.45s ease-out backwards;
 }
 
 .leaderboard-row {
@@ -11935,6 +11924,47 @@ body.ticket-combo .ticket-go.ticket-go--blocked {
     width: 100%;
 }
 
+/* Message Octobre rose : aperçu du skin Flamant et bouton pour l'équiper */
+#notice-preview {
+    display: block;
+    width: 140px;
+    height: 140px;
+    margin: 12px auto 0;
+    object-fit: contain;
+    filter: drop-shadow(0 0 18px rgba(255, 120, 190, 0.55));
+}
+
+#notice-preview.hidden,
+#notice-action.hidden {
+    display: none;
+}
+
+#notice-action {
+    width: 100%;
+    margin-bottom: 10px;
+    background: linear-gradient(135deg, #ff7eb9, #e0458f);
+}
+
+/* Message Halloween : couleurs orange au lieu du rose */
+#notice-preview[data-skin="corbeau"] {
+    filter: drop-shadow(0 0 18px rgba(255, 122, 26, 0.6));
+}
+
+#notice-action[data-skin="corbeau"] {
+    background: linear-gradient(135deg, #ff9a3c, #d9580f);
+}
+
+/* Skin mis en avant à l'ouverture de la fenêtre XP (openXpModalOnSkin) */
+.xp-skin.xp-skin-highlight {
+    animation: xp-skin-highlight 1.6s ease-out 2;
+}
+
+@keyframes xp-skin-highlight {
+    0%   { border-color: #ff7eb9; box-shadow: 0 0 0 0 rgba(255, 126, 185, 0.7); }
+    60%  { border-color: #ff7eb9; box-shadow: 0 0 0 8px rgba(255, 126, 185, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 126, 185, 0); }
+}
+
 
 /* Admin : annuler le pari depuis le mode validation (adminCancelBet) */
 .validate-admin-cancel {
@@ -12886,4 +12916,1029 @@ body:not(.beta) .bet-card:not(.stakes-pop) .bet-question-icon {
 
 .gift-received-group:empty {
     display: none;
+}
+
+
+/* =========================================================
+   CHAT DU GROUPE (bulle flottante en bas à gauche, chat.sql)
+========================================================= */
+
+.chat-fab {
+    position: fixed;
+    left: 20px;
+    bottom: 20px;
+    z-index: 1900;
+    width: 58px;
+    height: 58px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #5b4fe0, #c86bff);
+    color: white;
+    font-size: 26px;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(108, 99, 255, 0.45);
+    transition: transform 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.chat-fab:hover {
+    transform: scale(1.06);
+}
+
+.chat-unread {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    border-radius: 99px;
+    background: #ff4d6d;
+    color: white;
+    font-size: 11px;
+    font-weight: 900;
+    display: grid;
+    place-items: center;
+}
+
+.chat-panel {
+    position: fixed;
+    left: 20px;
+    bottom: 90px;
+    z-index: 1950;
+    width: 360px;
+    max-width: calc(100vw - 32px);
+    height: min(480px, calc(100vh - 140px));
+    display: flex;
+    flex-direction: column;
+    background: #171a23;
+    border: 1px solid #262a38;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
+.chat-panel.hidden {
+    display: none;
+}
+
+.chat-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 14px;
+    border-bottom: 1px solid #23262f;
+}
+
+.chat-head b {
+    font-size: 15px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chat-head small {
+    margin-left: auto;
+    color: #858a98;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.chat-close {
+    background: none;
+    border: none;
+    color: #858a98;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0 0 0 4px;
+}
+
+.chat-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.chat-empty {
+    margin: auto;
+    color: #858a98;
+    font-size: 13px;
+    text-align: center;
+}
+
+.chat-day {
+    align-self: center;
+    font-size: 11px;
+    color: #737887;
+    background: #14161e;
+    border-radius: 99px;
+    padding: 3px 10px;
+}
+
+.chat-msg {
+    max-width: 82%;
+    align-self: flex-start;
+}
+
+.chat-who {
+    font-size: 12px;
+    font-weight: 800;
+    margin: 0 0 3px 4px;
+}
+
+.chat-txt {
+    background: #1f2330;
+    border-radius: 14px 14px 14px 4px;
+    padding: 8px 12px;
+    font-size: 14px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.chat-time {
+    font-size: 10px;
+    color: #737887;
+    margin: 3px 0 0 4px;
+}
+
+.chat-msg.me {
+    align-self: flex-end;
+}
+
+.chat-msg.me .chat-txt {
+    background: linear-gradient(135deg, #5b4fe0, #6c63ff);
+    color: white;
+    border-radius: 14px 14px 4px 14px;
+}
+
+.chat-msg.me .chat-time {
+    text-align: right;
+    margin-right: 4px;
+}
+
+.chat-form {
+    display: flex;
+    gap: 8px;
+    padding: 10px;
+    border-top: 1px solid #23262f;
+}
+
+.chat-form input {
+    flex: 1;
+    min-width: 0;
+    background: #12141b;
+    border: 1px solid #2c3040;
+    border-radius: 12px;
+    padding: 10px 12px;
+    color: #e6e8ee;
+    font: inherit;
+    font-size: 16px;
+}
+
+.chat-form button {
+    background: #6c63ff;
+    border: none;
+    color: white;
+    border-radius: 12px;
+    padding: 0 16px;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.chat-form button:disabled {
+    opacity: 0.5;
+}
+
+/* Le fil en direct (bas à gauche) passe au-dessus de la bulle. */
+body.has-chat .activity-feed {
+    bottom: 90px;
+}
+
+body.chat-open .activity-feed,
+body.no-group .chat-fab,
+body.no-group .chat-panel {
+    display: none;
+}
+
+@media (max-width: 800px) {
+
+    /* Téléphone : la bulle au-dessus de la cloche, la fenêtre sur toute la largeur. */
+    .chat-fab {
+        left: 12px;
+        bottom: calc(var(--phone-tabbar) + var(--phone-safe-bottom) + 64px);
+        width: 46px;
+        height: 46px;
+        font-size: 21px;
+    }
+
+    .chat-panel {
+        left: 8px;
+        right: 8px;
+        width: auto;
+        max-width: none;
+        bottom: calc(var(--phone-tabbar) + var(--phone-safe-bottom) + 8px);
+        height: min(520px, calc(100dvh - var(--phone-tabbar) - var(--phone-safe-bottom) - 80px));
+    }
+
+    body.chat-open .chat-fab,
+    body.chat-open .phone-bell {
+        display: none;
+    }
+
+    body.has-chat .activity-feed {
+        bottom: calc(var(--phone-tabbar) + var(--phone-safe-bottom) + 30px);
+    }
+
+}
+
+
+/* ----- Chat : réactions, réponses, modifier, supprimer (chat-actions.sql) ----- */
+
+.chat-list {
+    gap: 10px;
+}
+
+.chat-msg {
+    position: relative;
+}
+
+.chat-msg.deleted .chat-txt {
+    background: transparent;
+    border: 1px dashed #2c3040;
+    color: #737887;
+    font-style: italic;
+}
+
+.chat-msg.flash .chat-txt {
+    animation: chat-flash 1s;
+}
+
+@keyframes chat-flash {
+    30% { box-shadow: 0 0 0 3px #ffd166; }
+}
+
+.chat-quote {
+    display: block;
+    margin: 0 0 6px;
+    padding: 4px 8px;
+    border-left: 3px solid #c86bff;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.22);
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chat-quote i {
+    display: block;
+    font-style: normal;
+    font-weight: 800;
+    color: #c86bff;
+}
+
+.chat-msg.me .chat-quote {
+    border-left-color: white;
+}
+
+.chat-msg.me .chat-quote i {
+    color: white;
+}
+
+.chat-reacts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 4px 2px 0;
+}
+
+.chat-msg.me .chat-reacts {
+    justify-content: flex-end;
+}
+
+.chat-react {
+    padding: 1px 7px;
+    border: 1px solid #343a4d;
+    border-radius: 99px;
+    background: #262a38;
+    color: #e6e8ee;
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.chat-react.mine {
+    border-color: #6c63ff;
+    background: rgba(108, 99, 255, 0.25);
+}
+
+/* Une seule bulle « … », les noms sur la même ligne. */
+.chat-typing-who {
+    margin: 0 0 3px 4px;
+    color: #858a98;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.chat-dots {
+    display: inline-flex;
+    gap: 4px;
+    padding: 12px 14px;
+    border-radius: 14px 14px 14px 4px;
+    background: #1f2330;
+}
+
+.chat-dots i {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #aaaeba;
+    animation: chat-dot 1.2s infinite;
+}
+
+.chat-dots i:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.chat-dots i:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes chat-dot {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
+    30% { transform: translateY(-5px); opacity: 1; }
+}
+
+/* « Réponse à … » / « Modifier le message » */
+.chat-context {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-top: 1px solid #23262f;
+    background: #14161e;
+    font-size: 12px;
+}
+
+.chat-context.hidden {
+    display: none;
+}
+
+.chat-context div {
+    flex: 1;
+    min-width: 0;
+    padding-left: 8px;
+    border-left: 3px solid #c86bff;
+}
+
+.chat-context b {
+    display: block;
+    color: #c86bff;
+}
+
+.chat-context span {
+    display: block;
+    color: #aaaeba;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chat-context.editing div {
+    border-left-color: #ffd166;
+}
+
+.chat-context.editing b {
+    color: #ffd166;
+}
+
+.chat-context button {
+    border: none;
+    background: none;
+    color: #858a98;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+@media (max-width: 800px) {
+
+    /* Appui long : pas de menu « copier » du téléphone par-dessus la fenêtre ⋯. */
+    .chat-txt {
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+    }
+
+}
+
+
+
+/* ----- Chat : ⋯ à côté du message au survol → fenêtre 👍 ❤️ 😂 😮 + Répondre / Modifier / Supprimer ----- */
+
+.chat-txt {
+    position: relative;
+}
+
+.chat-more {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    display: none;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: #262a38;
+    color: #aaaeba;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 900;
+    font-style: normal;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.chat-more:hover {
+    background: #343a4d;
+    color: #e6e8ee;
+}
+
+.chat-msg:not(.me) .chat-more {
+    right: -34px;
+}
+
+.chat-msg.me .chat-more {
+    left: -34px;
+}
+
+.chat-msg.menu-open .chat-more {
+    display: block;
+}
+
+@media (hover: hover) {
+
+    .chat-msg:hover .chat-more {
+        display: block;
+    }
+
+}
+
+.chat-more-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    z-index: 6;
+    display: none;
+    min-width: 180px;
+    padding: 6px;
+    border: 1px solid #343a4d;
+    border-radius: 14px;
+    background: #262a38;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
+}
+
+.chat-msg:not(.me) .chat-more-menu {
+    left: 0;
+}
+
+.chat-msg.me .chat-more-menu {
+    right: 0;
+}
+
+.chat-msg.menu-open .chat-more-menu {
+    display: grid;
+    gap: 2px;
+}
+
+.chat-more-emojis {
+    display: flex;
+    justify-content: space-between;
+    gap: 2px;
+    margin-bottom: 4px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #343a4d;
+}
+
+.chat-more-menu button {
+    padding: 8px 10px;
+    border: none;
+    border-radius: 8px;
+    background: none;
+    color: #e6e8ee;
+    font: inherit;
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.chat-more-emojis button {
+    padding: 4px 6px;
+    border-radius: 99px;
+    font-size: 18px;
+    line-height: 1.2;
+}
+
+.chat-more-menu button:hover {
+    background: #343a4d;
+}
+
+.chat-more-menu button.danger {
+    color: #ff7a8a;
+}
+
+/* Zone de survol élargie : une bande invisible sur le côté du message
+   garde le ⋯ affiché quand la souris va de la bulle aux trois points. */
+.chat-msg:not(.deleted)::after {
+    content: "";
+    position: absolute;
+    top: -6px;
+    bottom: -6px;
+    width: 56px;
+}
+
+.chat-msg:not(.me)::after {
+    right: -56px;
+}
+
+.chat-msg.me::after {
+    left: -56px;
+}
+
+.chat-more {
+    z-index: 1;
+}
+
+/* La bande de survol ne doit jamais faire défiler le chat de côté. */
+.chat-list {
+    overflow-x: hidden;
+}
+
+
+/* ----- Chat : animations d'ouverture / fermeture et rebond de la bulle ----- */
+
+.chat-panel {
+    transform-origin: bottom left;
+}
+
+.chat-panel.opening {
+    animation: chat-open 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+.chat-panel.closing {
+    animation: chat-close 0.18s ease-in forwards;
+    pointer-events: none;
+}
+
+@keyframes chat-open {
+    from { opacity: 0; transform: translateY(14px) scale(0.92); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes chat-close {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0; transform: translateY(14px) scale(0.92); }
+}
+
+.chat-fab.bounce {
+    animation: chat-fab-bounce 0.6s ease;
+}
+
+.chat-fab.bounce .chat-unread {
+    animation: chat-unread-pop 0.4s ease;
+}
+
+@keyframes chat-fab-bounce {
+    0%, 100% { transform: translateY(0) scale(1); }
+    25% { transform: translateY(-10px) scale(1.05); }
+    45% { transform: translateY(0) scale(0.97); }
+    65% { transform: translateY(-4px); }
+    85% { transform: translateY(0); }
+}
+
+@keyframes chat-unread-pop {
+    0% { transform: scale(0.4); }
+    60% { transform: scale(1.25); }
+    100% { transform: scale(1); }
+}
+
+
+/* ----- Barre de défilement discrète (violet doux, plus visible au survol) :
+         chat et fenêtre « Créer un pari » ----- */
+
+.chat-list::-webkit-scrollbar,
+.create-modal-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.chat-list::-webkit-scrollbar-track,
+.create-modal-content::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 6px 0;
+}
+
+/* Fenêtre arrondie : la barre ne touche pas les coins. */
+.create-modal-content::-webkit-scrollbar-track {
+    margin: 16px 0;
+}
+
+.chat-list::-webkit-scrollbar-thumb,
+.create-modal-content::-webkit-scrollbar-thumb {
+    border-radius: 99px;
+    background: rgba(108, 99, 255, 0.35);
+}
+
+.chat-list:hover::-webkit-scrollbar-thumb,
+.create-modal-content:hover::-webkit-scrollbar-thumb {
+    background: rgba(140, 120, 255, 0.55);
+}
+
+.chat-list::-webkit-scrollbar-thumb:hover,
+.create-modal-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(160, 130, 255, 0.8);
+}
+
+/* Firefox (pas de ::-webkit-scrollbar) */
+@supports not selector(::-webkit-scrollbar) {
+
+    .chat-list,
+    .create-modal-content {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(108, 99, 255, 0.45) transparent;
+    }
+
+}
+
+
+/* ----- Barre du haut toujours visible (solde) quand on fait défiler — ordinateur ----- */
+/* (téléphone : déjà collée en haut, voir plus haut) */
+
+@media (min-width: 801px) {
+
+    .navbar {
+        position: sticky;
+        top: 0;
+        z-index: 90;
+    }
+
+    /* Les colonnes collantes se placent sous la barre (70 px) au lieu de passer dessous. */
+    .admin-message-sidebar,
+    .right-column,
+    .left-column {
+        top: 94px;
+    }
+
+    .right-column .admin-message-sidebar {
+        top: auto;
+    }
+
+    .left-column {
+        max-height: calc(100vh - 118px);
+    }
+
+    /* Défilement automatique vers une section : elle s'arrête sous la barre. */
+    .dia-section {
+        scroll-margin-top: 90px;
+    }
+
+}
+
+
+/* ----- Admin : supprimer des paris de l'historique (admin-suppression-historique.sql) ----- */
+
+.admin-history-question {
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.admin-account-main .admin-history-blocker {
+    color: #f5c451;
+}
+
+.admin-account-delete.confirm {
+    background: rgba(255, 107, 107, 0.18);
+    font-weight: 800;
+}
+
+
+/* ----- Cotes qui bougent (cotes-mouvantes.sql) : flèche en bas à droite de la case si la cote a changé depuis le départ ----- */
+
+.odds-move {
+    position: absolute;
+    bottom: 6px;
+    right: 8px;
+    font-size: 10px;
+    font-style: normal;
+    font-weight: 900;
+    line-height: 1;
+    pointer-events: none;
+}
+
+.odds-move.up {
+    color: #63d69f;
+}
+
+.odds-move.down {
+    color: #ff7a8a;
+}
+
+
+/* ----- Pastille verte « En attente » + pastille rouge « Supprimer » côte à côte
+         (mises encore ouvertes, personne d'autre n'a misé : suppression-pari-sans-parieur.sql) ----- */
+
+.validate-fab-pair {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.validate-fab-pair .validate-fab {
+    position: static;
+    transform: none;
+}
+
+.validate-fab-pair .validate-fab.validate-fab-no {
+    animation-name: validate-fab-no-pair;
+}
+
+@keyframes validate-fab-no-pair {
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(3px); }
+}
+
+
+/* ----- Chat : défilement fluide ----- */
+
+/* La fenêtre du chat a son propre calque : le site animé derrière
+   (perroquet, cotes enflammées) n'est pas redessiné à chaque défilement. */
+.chat-panel {
+    will-change: transform;
+}
+
+.chat-list {
+    overscroll-behavior: contain;
+}
+
+/* Pendant le défilement (classe posée par setupChat) : pseudos animés
+   en pause et pas d'effets de survol à recalculer. */
+.chat-list.scrolling *,
+.chat-list.scrolling *::before,
+.chat-list.scrolling *::after {
+    animation-play-state: paused !important;
+}
+
+.chat-list.scrolling .chat-msg {
+    pointer-events: none;
+}
+
+
+/* ----- Chat : flèche « nouveau message » quand on lit plus haut ----- */
+
+.chat-list-wrap {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-list-wrap .chat-list {
+    flex: 1;
+    min-height: 0;
+}
+
+.chat-new-arrow {
+    position: absolute;
+    left: 50%;
+    bottom: 10px;
+    z-index: 7;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 99px;
+    background: linear-gradient(135deg, #5b4fe0, #c86bff);
+    color: white;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(108, 99, 255, 0.45);
+    transform: translateX(-50%);
+    animation: chat-new-arrow-in 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.3);
+}
+
+.chat-new-arrow.hidden {
+    display: none;
+}
+
+@keyframes chat-new-arrow-in {
+    from { opacity: 0; transform: translate(-50%, 10px) scale(0.9); }
+    to { opacity: 1; transform: translateX(-50%); }
+}
+
+
+/* ----- Chat : repère « Nouveaux messages en dessous » à l'ouverture (6 s puis fondu) ----- */
+
+.chat-unread-marker {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0;
+    color: #c86bff;
+    font-size: 11px;
+    font-weight: 800;
+    animation: chat-unread-marker-out 0.6s ease forwards;
+}
+
+.chat-unread-marker::before,
+.chat-unread-marker::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(200, 107, 255, 0.6), transparent);
+}
+
+.chat-unread-marker span {
+    padding: 3px 10px;
+    border: 1px solid rgba(200, 107, 255, 0.45);
+    border-radius: 99px;
+    background: rgba(200, 107, 255, 0.12);
+    white-space: nowrap;
+}
+
+@keyframes chat-unread-marker-out {
+    to { opacity: 0; }
+}
+
+
+/* ----- Chat : « Supprimer » en mode confirmation (2e clic) bien en rouge ----- */
+
+.chat-more-menu button.danger.confirm,
+.chat-more-menu button.danger.confirm:hover {
+    background: linear-gradient(135deg, #d93a3a, #ff6b6b);
+    color: white;
+    font-weight: 900;
+    animation: delete-fab-pulse 0.9s ease-in-out infinite;
+}
+
+
+/* ----- Historique « Autres paris » : argent gagné / perdu à droite de la ligne ----- */
+
+.my-bet-amount.others-money {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.others-money .others-lost {
+    color: #ff7a8a;
+}
+
+
+/* ----- Aide app : l'admin supprime une idée (aide-app-suppression-idee.sql) ----- */
+
+.beta-idea-delete {
+    align-self: flex-end;
+    padding: 6px 10px;
+    border: 1px solid rgba(255, 107, 107, 0.45);
+    border-radius: 10px;
+    background: transparent;
+    color: #ff7a8a;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.beta-idea-delete:hover {
+    background: rgba(255, 107, 107, 0.12);
+}
+
+.beta-idea-delete.confirm {
+    border-color: transparent;
+    background: linear-gradient(135deg, #d93a3a, #ff6b6b);
+    color: white;
+    animation: delete-fab-pulse 0.9s ease-in-out infinite;
+}
+
+
+/* ----- Profil : changement de pseudo bloqué 48 h (pseudo-48h.sql) ----- */
+
+.username-lock {
+    margin: 0 0 10px;
+    padding: 8px 12px;
+    border: 1px solid rgba(245, 196, 81, 0.35);
+    border-radius: 10px;
+    background: rgba(245, 196, 81, 0.08);
+    color: #f5c451;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+
+/* ----- Ordinateur à fenêtre étroite : mode téléphone forcé (classe posée par app.js,
+         checkHorizontalOverflow) quand la version ordinateur déborderait sur le côté.
+         Le contenu reste à une largeur de téléphone confortable, centré. ----- */
+
+html.force-phone .main-container {
+    max-width: 820px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+
+/* ----- Téléphone : XP et série à gauche de « 🏆 Classement », Aide app dans la barre du haut
+         (éléments déplacés par placePhoneHeaderWidgets dans app.js) ----- */
+
+.phone-header-widgets {
+    display: none;
+}
+
+@media (max-width: 800px) {
+
+    .phone-header-widgets {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-left: auto;
+        margin-right: 6px;
+    }
+
+    .phone-header-widgets .xp-mini,
+    .phone-header-widgets .streak-widget {
+        height: 34px;
+    }
+
+    /* Jauge d'XP plus large, flamme de série plus petite. */
+    .phone-header-widgets .xp-mini {
+        min-width: 84px;
+    }
+
+    .phone-header-widgets .streak-widget .streak-flame {
+        font-size: 13px;
+    }
+
+    /* Aide app : capsule « 🧪 Aide app » au début de la barre du haut,
+       un peu à l'écart des autres stats. */
+    .user-area .nav-button[data-page="beta-page"] {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        flex-shrink: 0;
+        height: 30px;
+        margin-right: 8px;
+        padding: 0 8px;
+        border: 1px solid rgba(92, 182, 255, 0.35);
+        border-radius: 9px;
+        background: rgba(92, 182, 255, 0.1);
+        color: #8fcbff;
+        font-size: 11px;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .user-area .nav-button[data-page="beta-page"].hidden {
+        display: none;
+    }
+
+    .user-area .nav-button[data-page="beta-page"]::before {
+        content: "🧪";
+        font-size: 13px;
+    }
+
+    .user-area .nav-button[data-page="beta-page"].active {
+        border-color: rgba(92, 182, 255, 0.8);
+        background: rgba(92, 182, 255, 0.22);
+    }
+
+    .user-area .nav-button[data-page="beta-page"] .beta-nav-dot {
+        position: absolute;
+        top: -3px;
+        right: -3px;
+        margin: 0;
+    }
+
 }

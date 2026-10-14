@@ -2148,8 +2148,275 @@ const PARROT_GAP = 12;             // marge sous la colonne de droite
 
 const PARROT_MIN_WIDTH = 130;
 
-// Version téléphone (même seuil que le bloc « VERSION TÉLÉPHONE » de style.css).
-const PHONE_LAYOUT = window.matchMedia("(max-width: 800px)");
+/*
+    Version téléphone : écran de 800 px ou moins (même seuil que style.css),
+    OU ordinateur dont la fenêtre est trop étroite pour la version ordinateur
+    (il faudrait défiler de côté). Dans ce 2e cas, on « force » le mode
+    téléphone : les blocs @media (max-width: 800px) des feuilles de style
+    s'appliquent, ceux des grands écrans (min-width: 801px / 1101px) non.
+    PHONE_LAYOUT.matches / addEventListener("change") comme un matchMedia.
+*/
+
+const PHONE_MEDIA = window.matchMedia("(max-width: 800px)");
+
+let phoneForced = false;
+
+// Largeur de fenêtre qu'il faut pour revenir en version ordinateur.
+let phoneForcedWidth = 0;
+
+const phoneLayoutListeners = [];
+
+const PHONE_LAYOUT = {
+
+    get matches() {
+        return phoneForced || PHONE_MEDIA.matches;
+    },
+
+    addEventListener(type, listener) {
+
+        if (type === "change") {
+            phoneLayoutListeners.push(listener);
+        }
+
+    }
+
+};
+
+PHONE_MEDIA.addEventListener?.("change", () => {
+
+    phoneLayoutListeners.forEach(listener => listener({ matches: PHONE_LAYOUT.matches }));
+
+    checkHorizontalOverflow();
+
+});
+
+const PHONE_MEDIA_TEXT = "(max-width: 800px)";
+
+const DESKTOP_MEDIA_TEXTS = ["(min-width: 801px)", "(min-width: 1101px)"];
+
+// « jamais » ajouté à une requête ordinateur (et retiré pour la rétablir).
+const MEDIA_NEVER = " and (max-width: 0px)";
+
+function forcePhoneMedia(rules, on) {
+
+    for (const rule of rules) {
+
+        if (!(rule instanceof CSSMediaRule)) {
+            continue;
+        }
+
+        const text = rule.media.mediaText;
+
+        if (text === PHONE_MEDIA_TEXT || text === "all, " + PHONE_MEDIA_TEXT) {
+
+            // « all, … » = toujours vrai ; on retire « all, » pour revenir au seuil normal.
+            rule.media.mediaText = on ? "all, " + PHONE_MEDIA_TEXT : PHONE_MEDIA_TEXT;
+
+        } else {
+
+            const base = text.replace(MEDIA_NEVER, "");
+
+            if (DESKTOP_MEDIA_TEXTS.includes(base)) {
+                rule.media.mediaText = on ? base + MEDIA_NEVER : base;
+            }
+
+        }
+
+        forcePhoneMedia(rule.cssRules, on);
+
+    }
+
+}
+
+function setPhoneForced(on) {
+
+    if (on === phoneForced) {
+        return;
+    }
+
+    phoneForced = on;
+
+    document.documentElement.classList.toggle("force-phone", on);
+
+    for (const sheet of document.styleSheets) {
+
+        let rules;
+
+        // Feuilles d'un autre site (polices Google) : illisibles, et sans seuil à changer.
+        try {
+            rules = sheet.cssRules;
+        } catch {
+            continue;
+        }
+
+        forcePhoneMedia(rules, on);
+
+    }
+
+    phoneLayoutListeners.forEach(listener => listener({ matches: PHONE_LAYOUT.matches }));
+
+}
+
+function pageOverflowsSideways() {
+
+    const doc = document.documentElement;
+
+    return doc.scrollWidth > doc.clientWidth + 2;
+
+}
+
+let overflowConfirmTimer = null;
+
+function checkHorizontalOverflow() {
+
+    // Vrai téléphone (ou petite fenêtre) : le mode téléphone s'applique déjà tout seul.
+    if (PHONE_MEDIA.matches) {
+        setPhoneForced(false);
+        return;
+    }
+
+    if (phoneForced) {
+
+        if (window.innerWidth < phoneForcedWidth) {
+            return;
+        }
+
+        // Fenêtre élargie : on réessaie la version ordinateur (mesure immédiate, sans affichage entre-temps).
+        setPhoneForced(false);
+
+        if (!pageOverflowsSideways()) {
+            return;
+        }
+
+    } else if (!pageOverflowsSideways()) {
+        return;
+    }
+
+    const force = () => {
+
+        const doc = document.documentElement;
+
+        phoneForcedWidth = window.innerWidth + (doc.scrollWidth - doc.clientWidth);
+
+        setPhoneForced(true);
+
+    };
+
+    if (phoneForced === false && overflowConfirmTimer === null && document.readyState === "complete") {
+
+        // Débordement passager (animation) : on confirme 400 ms plus tard avant de basculer.
+        overflowConfirmTimer = setTimeout(() => {
+
+            overflowConfirmTimer = null;
+
+            if (!PHONE_MEDIA.matches && !phoneForced && pageOverflowsSideways()) {
+                force();
+            }
+
+        }, 400);
+
+        return;
+
+    }
+
+    force();
+
+}
+
+/*
+    Téléphone : la jauge d'XP et la flamme de série quittent la barre du haut
+    pour l'en-tête de la page des paris (à gauche de « 🏆 Classement »), et
+    l'onglet « Aide app » quitte le menu du bas pour la barre du haut.
+    Ordinateur : chacun reprend sa place d'origine (repérée par un commentaire).
+*/
+
+const phoneMoves = [];
+
+function placePhoneHeaderWidgets() {
+
+    const widgets = document.getElementById("phone-header-widgets");
+
+    const userArea = document.querySelector(".user-area");
+
+    if (!widgets || !userArea) {
+        return;
+    }
+
+    if (phoneMoves.length === 0) {
+
+        [
+            [document.getElementById("xp-mini"), widgets],
+            [document.getElementById("streak-widget"), widgets],
+            [document.getElementById("beta-nav-button"), userArea, true]
+        ].forEach(([element, target, first]) => {
+
+            if (!element) {
+                return;
+            }
+
+            const home = document.createComment("place de " + element.id);
+
+            element.before(home);
+
+            phoneMoves.push({ element, home, target, first });
+
+        });
+
+    }
+
+    const phone = PHONE_LAYOUT.matches;
+
+    phoneMoves.forEach(({ element, home, target, first }) => {
+
+        if (phone) {
+            if (first) {
+                target.prepend(element);
+            } else {
+                target.append(element);
+            }
+        } else {
+            home.after(element);
+        }
+
+    });
+
+    document.body.classList.toggle("phone-widgets-moved", phone);
+
+}
+
+PHONE_LAYOUT.addEventListener("change", placePhoneHeaderWidgets);
+
+document.addEventListener("DOMContentLoaded", placePhoneHeaderWidgets);
+
+
+let overflowCheckFrame = null;
+
+function scheduleOverflowCheck() {
+
+    cancelAnimationFrame(overflowCheckFrame);
+
+    overflowCheckFrame = requestAnimationFrame(checkHorizontalOverflow);
+
+}
+
+window.addEventListener("resize", scheduleOverflowCheck);
+
+document.addEventListener("DOMContentLoaded", () => {
+
+    checkHorizontalOverflow();
+
+    // La barre du haut grandit (solde, onglets admin…) : on revérifie.
+    const watched = [document.querySelector(".navbar"), document.querySelector(".user-area"), document.querySelector(".main-container")];
+
+    if (typeof ResizeObserver !== "undefined") {
+
+        const observer = new ResizeObserver(scheduleOverflowCheck);
+
+        watched.filter(Boolean).forEach(element => observer.observe(element));
+
+    }
+
+});
 
 const PHONE_PARROT_SCALE = 0.34;   // 350 → 119 px, 450 → 153 px
 
@@ -3088,6 +3355,43 @@ async function checkAnnouncementPopup() {
 }
 
 
+// Messages qui offrent un skin (repérés par leur titre) : skin montré et bouton.
+const NOTICE_SKINS = {
+    "🦩 Octobre rose": { id: "flamant", button: "🦩 Équiper le skin rose" },
+    "🎃 Halloween": { id: "corbeau", button: "🎃 Équiper le skin Corbeau" }
+};
+
+
+/*
+    Skins d'événement (halloween.sql) : donnés à la connexion pendant
+    l'événement, avec un message unique déposé dans player_notices.
+*/
+
+async function claimEventSkins() {
+
+    const { data, error } = await supabaseClient.rpc("claim_event_skins");
+
+    if (error) {
+
+        console.error("Erreur claimEventSkins :", error);
+
+        return;
+
+    }
+
+    if (!data?.length || !currentProfile) {
+        return;
+    }
+
+    currentProfile.event_skins = [...(currentProfile.event_skins || []), ...data];
+
+    if (typeof renderParrotSkins === "function") {
+        renderParrotSkins();
+    }
+
+}
+
+
 /*
     Messages exceptionnels pour un joueur (table player_notices),
     par exemple une correction de solde. Affichés l'un après l'autre
@@ -3150,17 +3454,68 @@ async function checkPlayerNotices() {
         document.getElementById("notice-content").textContent =
             notice.content;
 
+        // Message d'un skin offert (octobre-rose.sql, halloween.sql) : aperçu
+        // du skin et bouton qui ouvre la fenêtre XP, là où on l'équipe.
+        const giftSkin =
+            NOTICE_SKINS[notice.title];
+
+        const preview =
+            document.getElementById("notice-preview");
+
+        const actionButton =
+            document.getElementById("notice-action");
+
+        preview.src = giftSkin
+            ? "assets/perroquet/skins/" + giftSkin.id + "/win-main.png"
+            : "";
+
+        preview.dataset.skin = giftSkin?.id || "";
+
+        preview.classList.toggle("hidden", !giftSkin);
+
+        actionButton.textContent = giftSkin?.button || "";
+
+        actionButton.dataset.skin = giftSkin?.id || "";
+
+        actionButton.classList.toggle("hidden", !giftSkin);
+
+        okButton.classList.toggle("secondary-button", Boolean(giftSkin));
+
+        okButton.classList.toggle("primary-button", !giftSkin);
+
         modal.classList.remove("hidden");
 
-        okButton.onclick = async () => {
+        const markSeen = async () => {
 
             okButton.disabled = true;
+
+            actionButton.disabled = true;
 
             await supabaseClient.rpc("mark_notice_seen", { p_notice: notice.id });
 
             okButton.disabled = false;
 
+            actionButton.disabled = false;
+
+        };
+
+        okButton.onclick = async () => {
+
+            await markSeen();
+
             showNext();
+
+        };
+
+        actionButton.onclick = async () => {
+
+            await markSeen();
+
+            modal.classList.add("hidden");
+
+            openXpModalOnSkin(giftSkin.id);
+
+            // Les autres messages éventuels passeront à la prochaine connexion.
 
         };
 
@@ -3523,6 +3878,183 @@ function setupAdminAccounts() {
     document
         .getElementById("admin-accounts-search")
         ?.addEventListener("input", renderAdminAccounts);
+
+}
+
+
+/*
+    Admin : supprimer des paris terminés de l'historique
+    (voir admin-suppression-historique.sql). Soldes et XP inchangés.
+    1er clic « Confirmer ? » (4 s), 2e clic supprime.
+*/
+
+let adminHistory = [];
+
+async function displayAdminHistory() {
+
+    const select = document.getElementById("admin-history-group");
+
+    const list = document.getElementById("admin-history-list");
+
+    if (!select || !list) {
+        return;
+    }
+
+    const { data, error } = await supabaseClient.rpc("admin_list_finished_bets");
+
+    if (error) {
+
+        console.error(error);
+
+        list.innerHTML = `<p class="error-message">Impossible de charger l'historique (admin-suppression-historique.sql lancé ?).</p>`;
+
+        return;
+
+    }
+
+    adminHistory = data || [];
+
+    const groups = [...new Map(adminHistory.map(row => [row.group_id, row.group_name])).entries()];
+
+    const previous = select.value;
+
+    select.innerHTML = groups.map(([id, name]) =>
+        `<option value="${id}">${escapeHtml(name)}</option>`
+    ).join("");
+
+    select.value = groups.some(([id]) => id === previous)
+        ? previous
+        : currentGroup && groups.some(([id]) => id === currentGroup.id) ? currentGroup.id : groups[0]?.[0] || "";
+
+    if (!select.dataset.ready) {
+
+        select.dataset.ready = "1";
+
+        select.addEventListener("change", renderAdminHistory);
+
+        document.getElementById("admin-history-search").addEventListener("input", renderAdminHistory);
+
+    }
+
+    renderAdminHistory();
+
+}
+
+function renderAdminHistory() {
+
+    const list = document.getElementById("admin-history-list");
+
+    const groupId = document.getElementById("admin-history-group").value;
+
+    const search = document.getElementById("admin-history-search").value.trim().toLowerCase();
+
+    const bets = adminHistory.filter(bet =>
+        bet.group_id === groupId &&
+        (!search || (bet.question || "").toLowerCase().includes(search))
+    );
+
+    document.getElementById("admin-history-count").textContent = `(${bets.length})`;
+
+    if (bets.length === 0) {
+
+        list.innerHTML = `<p class="resolve-info">Aucun pari terminé trouvé.</p>`;
+
+        return;
+
+    }
+
+    list.innerHTML = bets.map(bet => {
+
+        const date = bet.finished_at
+            ? new Date(bet.finished_at).toLocaleDateString("fr-FR")
+            : "—";
+
+        const state = bet.status === "cancelled" ? "🚫 Annulé" : "✅ Validé";
+
+        const players = `${bet.players} joueur${bet.players > 1 ? "s" : ""} · ${formatMoney(bet.total_staked)} misés`;
+
+        const combos = bet.combos > 0 ? ` · dans ${bet.combos} combiné${bet.combos > 1 ? "s" : ""}` : "";
+
+        return `
+            <div class="admin-balance-row admin-account-row">
+                <div class="admin-account-main">
+                    <span class="admin-history-question">${escapeHtml(bet.question || "—")}</span>
+                    <small>${state} le ${date} · créé par ${escapeHtml(bet.author_name || "—")}</small>
+                    <small>${players}${combos}</small>
+                    ${bet.blocker ? `<small class="admin-history-blocker">⚠️ ${escapeHtml(bet.blocker)}</small>` : ""}
+                </div>
+                <div class="admin-account-actions">
+                    ${bet.blocker
+                        ? ""
+                        : `<button type="button" class="admin-account-delete" data-history-delete="${bet.bet_id}">Supprimer</button>`
+                    }
+                </div>
+            </div>
+        `;
+
+    }).join("");
+
+    list.querySelectorAll("[data-history-delete]").forEach(button => {
+
+        button.addEventListener("click", () => adminDeleteBet(button.dataset.historyDelete, button));
+
+    });
+
+}
+
+async function adminDeleteBet(betId, button) {
+
+    const message = document.getElementById("admin-history-message");
+
+    if (!button.classList.contains("confirm")) {
+
+        button.classList.add("confirm");
+
+        button.textContent = "Confirmer ?";
+
+        setTimeout(() => {
+
+            if (button.isConnected && !button.disabled) {
+
+                button.classList.remove("confirm");
+
+                button.textContent = "Supprimer";
+
+            }
+
+        }, 4000);
+
+        return;
+
+    }
+
+    button.disabled = true;
+
+    message.textContent = "";
+
+    const bet = adminHistory.find(item => item.bet_id === betId);
+
+    const { error } = await supabaseClient.rpc("admin_delete_bet", { p_bet_id: betId });
+
+    if (error) {
+
+        button.disabled = false;
+
+        message.className = "admin-balance-message error";
+
+        message.textContent = error.message || "Suppression impossible.";
+
+        return;
+
+    }
+
+    message.className = "admin-balance-message success";
+
+    message.textContent = `Pari « ${bet?.question || ""} » supprimé de l'historique.`;
+
+    await displayAdminHistory();
+
+    displayMyBets();
 
 }
 
@@ -4142,9 +4674,9 @@ function renderBetSummaryHtml(
                             ? "button"
                             : "div";
 
-                    // Cote de 10 ou plus : la case rougeoie et lâche des étincelles (animations.js).
+                    // Cote de 8 ou plus : la case rougeoie et lâche des étincelles (animations.js).
                     const onFire =
-                        Number(choice.odds) >= 10 &&
+                        Number(choice.odds) >= ODDS_FIRE_FROM &&
                         !validating &&
                         !isClosed &&
                         !isTargetBlocked;
@@ -4173,6 +4705,8 @@ function renderBetSummaryHtml(
                                 <strong>
                                     ${Number(choice.odds).toFixed(2)}
                                 </strong>
+
+                                ${oddsMoveHtml(choice)}
 
                             </${tag}>
 
@@ -4779,9 +5313,67 @@ function isMyOpenBet(bet) {
 }
 
 /*
-    Pari publié resté sans autre parieur, mises closes (la carte vient de
-    passer en bloqué, voir isBetClosed) : son créateur (ou l'admin) peut le
-    supprimer, sa mise lui est remboursée (voir suppression-pari-expire.sql).
+    Pastille rouge « Supprimer » (carte ou carte dépliée) : un premier clic
+    demande confirmation, le second supprime. Renvoie true si le pari est supprimé.
+*/
+
+async function deleteBetFromFab(button) {
+
+    if (!button.classList.contains("confirm")) {
+
+        button.classList.add("confirm");
+
+        button.querySelector("span").textContent = "Confirmer ?";
+
+        // Sans second clic, la pastille revient à « Supprimer ».
+        setTimeout(() => {
+
+            button.classList.remove("confirm");
+
+            button.querySelector("span").textContent = "Supprimer";
+
+        }, 4000);
+
+        return false;
+
+    }
+
+    button.disabled = true;
+
+    const { data, error } = await supabaseClient.rpc("delete_expired_bet", {
+        p_bet_id: button.dataset.deleteBet
+    });
+
+    if (error) {
+
+        alertToast(escapeHtml(error.message || "Impossible de supprimer ce pari."));
+
+        button.disabled = false;
+
+        return false;
+
+    }
+
+    alertToast(
+        Number(data) > 0
+            ? `🗑 Pari supprimé, ta mise de ${formatMoney(Number(data))} t'est remboursée.`
+            : "🗑 Pari supprimé.",
+        { type: "create" }
+    );
+
+    await loadCurrentProfile();
+
+    displayBets({ quiet: true });
+
+    return true;
+
+}
+
+
+/*
+    Pari publié sans autre parieur que son créateur, avant ou après la fin
+    des mises : son créateur (ou l'admin) peut le supprimer, sa mise lui est
+    remboursée (voir suppression-pari-sans-parieur.sql).
 */
 
 function canDeleteExpiredBet(bet) {
@@ -4789,7 +5381,7 @@ function canDeleteExpiredBet(bet) {
     return Boolean(
         currentUser &&
         bet.status === "open" &&
-        isBetClosed(bet) &&
+        // Plus besoin d'attendre la fin des mises (suppression-pari-sans-parieur.sql).
         (bet.author_id === currentUser.id || currentProfile?.is_admin) &&
         !hasOtherStake(bet) &&
         !(bet.combo_legs || []).length
@@ -5809,8 +6401,12 @@ async function displayBets({ quiet = false, force = false } = {}) {
                 card.innerHTML =
                     // Thème Diamant : couche d'étoiles qui scintillent (style.css).
                     (authorTheme === "diamant" ? `<span class="dia-stars" aria-hidden="true"></span>` : "") +
-                    (canDeleteExpiredBet(bet)
-                        // Terminé sans autre parieur : pastille rouge « Supprimer » (créateur ou admin).
+                    (canDeleteExpiredBet(bet) && waitingOther && !isBetClosed(bet)
+                        // Mises encore ouvertes, personne d'autre n'a misé : la pastille verte
+                        // en pointillé et, à côté, la pastille rouge « Supprimer ».
+                        ? `<div class="validate-fab-pair"><button type="button" class="validate-fab validate-fab-wait" data-validate-wait>✓<span>En attente d'un parieur</span></button><button type="button" class="validate-fab validate-fab-delete" data-delete-bet="${bet.id}">✕<span>Supprimer</span></button></div>`
+                        : canDeleteExpiredBet(bet)
+                        // Mises closes sans autre parieur (ou admin) : pastille rouge seule.
                         ? `<button type="button" class="validate-fab validate-fab-delete" data-delete-bet="${bet.id}">✕<span>Supprimer</span></button>`
                         : mine
                         ? `<button type="button" class="validate-fab${validating ? " open" : ""}${animateHint ? " validate-enter" : ""}" data-validate-toggle="${bet.id}">${validating ? "✕<span>Annuler</span>" : "✓<span>Valider</span>"}</button>`
@@ -6030,10 +6626,10 @@ async function displayBets({ quiet = false, force = false } = {}) {
 
                                 }
 
-                                // La cote enflammée (10 ou plus), coupée pendant la validation, revient.
+                                // La cote enflammée (8 ou plus), coupée pendant la validation, revient.
                                 const odds = Number(choiceButton.querySelector("strong")?.textContent);
 
-                                if (!closed && !choiceButton.disabled && odds >= 10 && !choiceButton.classList.contains("odds-fire")) {
+                                if (!closed && !choiceButton.disabled && odds >= ODDS_FIRE_FROM && !choiceButton.classList.contains("odds-fire")) {
 
                                     choiceButton.classList.add("odds-fire");
 
@@ -6133,55 +6729,11 @@ async function displayBets({ quiet = false, force = false } = {}) {
             .querySelectorAll("[data-delete-bet]")
             .forEach(button => {
 
-                button.addEventListener("click", async event => {
+                button.addEventListener("click", event => {
 
                     event.stopPropagation();
 
-                    if (!button.classList.contains("confirm")) {
-
-                        button.classList.add("confirm");
-
-                        button.querySelector("span").textContent = "Confirmer ?";
-
-                        // Sans second clic, la pastille revient à « Supprimer ».
-                        setTimeout(() => {
-
-                            button.classList.remove("confirm");
-
-                            button.querySelector("span").textContent = "Supprimer";
-
-                        }, 4000);
-
-                        return;
-
-                    }
-
-                    button.disabled = true;
-
-                    const { data, error } = await supabaseClient.rpc("delete_expired_bet", {
-                        p_bet_id: button.dataset.deleteBet
-                    });
-
-                    if (error) {
-
-                        alertToast(escapeHtml(error.message || "Impossible de supprimer ce pari."));
-
-                        button.disabled = false;
-
-                        return;
-
-                    }
-
-                    alertToast(
-                        Number(data) > 0
-                            ? `🗑 Pari supprimé, ta mise de ${formatMoney(Number(data))} t'est remboursée.`
-                            : "🗑 Pari supprimé.",
-                        { type: "create" }
-                    );
-
-                    await loadCurrentProfile();
-
-                    displayBets({ quiet: true });
+                    deleteBetFromFab(button);
 
                 });
 
@@ -6750,7 +7302,12 @@ async function placeBet() {
 
 const COMBO_MAX_LEGS = 4;
 
-const COMBO_MAX_ODDS = 100;
+// Plafond de cote d'un combiné (100 avant le 2026-10-14, voir cotes-et-combines.sql).
+const COMBO_MAX_ODDS = 30;
+
+// Mise max d'un combiné (aussi vérifiée côté base, voir cotes-et-combines.sql).
+// Gain max d'un combiné : 2 500 € × 30 = 75 000 €.
+const COMBO_STAKE_MAX = 2500;
 
 const COMBO_BOOST_PER_LEG = 0.05;
 
@@ -6780,6 +7337,7 @@ function comboBoost(legCount) {
 
 }
 
+// Produit des cotes + boost (+5 % par pari au-delà de 2), plafonné à 30.
 function comboOdds(product, legCount) {
 
     return Math.round(Math.min(COMBO_MAX_ODDS, product * (1 + comboBoost(legCount))) * 100) / 100;
@@ -6824,12 +7382,13 @@ function ticketOdds(entries = ticketEntries()) {
 
 }
 
-// Mise max du ticket : la plus petite mise max du moment parmi ses paris.
+// Mise max du ticket : la plus petite mise max du moment parmi ses paris
+// (et 1 000 € au plus pour un combiné).
 function ticketMaxStake(entries = ticketEntries()) {
 
     return entries.reduce(
         (max, entry) => Math.min(max, betMaxStake(entry.bet)),
-        STAKE_MAX
+        entries.length > 1 ? COMBO_STAKE_MAX : STAKE_MAX
     );
 
 }
@@ -6892,6 +7451,9 @@ function toggleTicketLeg(bet, choice) {
     } else if (ticketLegs.length < COMBO_MAX_LEGS) {
 
         ticketLegs.push({ betId: bet.id, choiceId: choice.id });
+
+        // Téléphone : le ticket s'ouvre directement (plus de barre repliée à toucher).
+        ticketOpen = true;
 
     } else {
 
@@ -6975,6 +7537,8 @@ function syncTicketHighlights() {
 // Paris rechargés : ceux qui ne sont plus jouables sortent du ticket.
 function pruneTicket(bets) {
 
+    const oddsBefore = ticketOdds();
+
     lastLoadedBets = bets;
 
     const before = ticketLegs.length;
@@ -6996,6 +7560,11 @@ function pruneTicket(bets) {
     if (ticketLegs.length !== before || (ticket && !ticket.firstElementChild)) {
 
         renderTicket();
+
+    } else if (ticketLegs.length > 0 && ticketOdds() !== oddsBefore) {
+
+        // Cotes qui bougent : la cote du ticket a changé.
+        renderTicket({ bump: true });
 
     }
 
@@ -7101,7 +7670,9 @@ function renderTicket({ bump = false } = {}) {
                     ? `<p class="ticket-note ticket-note-draft">📝 Ta mise publie ${entries.filter(entry => entry.bet.status === "draft").length > 1 ? "tes brouillons" : "ton brouillon"}.</p>`
                     : ""}
 
-                ${boost ? `<p class="ticket-boost">⚡ Boost +${Math.round(boost * 100)} % inclus${odds >= COMBO_MAX_ODDS ? " · cote max " + COMBO_MAX_ODDS : ""}</p>` : ""}
+                ${boost || (combo && odds >= COMBO_MAX_ODDS)
+                    ? `<p class="ticket-boost">${boost ? `⚡ Boost +${Math.round(boost * 100)} % inclus` : "⚡"}${odds >= COMBO_MAX_ODDS ? (boost ? " · " : " ") + "cote max " + COMBO_MAX_ODDS : ""}</p>`
+                    : ""}
 
                 ${ticketDuplicate(entries)
                     ? `<p class="ticket-note ticket-note-duplicate">Tu as déjà fait ce combiné (mêmes paris, mêmes choix). Change un choix ou un pari.</p>`
@@ -7523,7 +8094,9 @@ async function placeTicket() {
 
     if (stake > maxNow) {
 
-        showError("Mise max en ce moment" + (combo ? " pour ce combiné" : "") + " : " + formatMoney(maxNow) + " (elle baisse avec le temps).");
+        showError(combo && maxNow >= COMBO_STAKE_MAX
+            ? "Mise max d'un combiné : " + formatMoney(COMBO_STAKE_MAX) + "."
+            : "Mise max en ce moment" + (combo ? " pour ce combiné" : "") + " : " + formatMoney(maxNow) + " (elle baisse avec le temps).");
 
         return;
 
@@ -7563,18 +8136,29 @@ async function placeTicket() {
     try {
 
         // Solde et mise (ou combiné) calculés côté PostgreSQL.
+        // p_odds : la cote affichée. Cotes qui bougent (cotes-mouvantes.sql) :
+        // si elle a changé entre-temps, la base refuse la mise.
         const { error } = combo
             ? await supabaseClient.rpc("place_combo", {
                 p_choice_ids: entries.map(entry => entry.choice.id),
-                p_stake: stake
+                p_stake: stake,
+                p_odds: ticketOdds(entries)
             })
             : await supabaseClient.rpc("place_bet", {
                 p_choice_id: entries[0].choice.id,
-                p_stake: stake
+                p_stake: stake,
+                p_odds: Number(entries[0].choice.odds)
             });
 
         if (error) {
+
+            // Cote changée : on recharge les paris pour montrer la nouvelle cote.
+            if ((error.message || "").includes("a changé")) {
+                await displayBets({ quiet: true });
+            }
+
             throw error;
+
         }
 
         ticketLegs = [];
@@ -7735,9 +8319,12 @@ function comboState(combo) {
         return { status: "refunded", payout: Number(combo.stake) };
     }
 
+    // Gagné : la cote du ticket (plafond du moment où il a été pris, 100 avant le 2026-10-14).
+    const odds = Number(combo.odds) || comboOdds(product, won);
+
     return {
         status: "won",
-        payout: Math.round(Number(combo.stake) * comboOdds(product, won) * 100) / 100
+        payout: Math.round(Number(combo.stake) * odds * 100) / 100
     };
 
 }
@@ -8234,6 +8821,40 @@ async function displayMyBets({ cascade = false } = {}) {
         const created = createdData || [];
 
 
+        // Paris des autres sur lesquels je n'ai pas misé, validés depuis moins de 24 h :
+        // on peut quand même les contester (filtre « Autres paris », contestation-sans-mise.sql).
+        const { data: othersData, error: othersError } = await supabaseClient
+            .from("bets")
+            .select(`
+                id,
+                question,
+                status,
+                author_id,
+                resolved_at,
+                winner_choice_id,
+                bet_choices!bet_choices_bet_id_fkey ( id, label, odds ),
+                stakes ( user_id, stake, choice_id, potential_win ),
+                combo_legs ( combos ( user_id ) ),
+                bet_contests ( status, penalty )
+            `)
+            .eq("group_id", currentGroup?.id)
+            .eq("status", "resolved")
+            .neq("author_id", currentUser.id)
+            .gte("resolved_at", new Date(Date.now() - CONTEST_WINDOW_MS).toISOString())
+            .order("resolved_at", { ascending: false });
+
+        if (othersError) {
+
+            throw othersError;
+
+        }
+
+        const others = (othersData || []).filter(bet =>
+            !(bet.stakes || []).some(stake => stake.user_id === currentUser.id) &&
+            !(bet.combo_legs || []).some(leg => leg.combos?.user_id === currentUser.id)
+        );
+
+
         // Mes combinés (filtre « Combinés », et avec les mises dans les autres filtres).
         const comboRows =
             (await loadMyCombos()).map(combo => {
@@ -8287,50 +8908,20 @@ async function displayMyBets({ cascade = false } = {}) {
         const countOf = result =>
             result === "creation"
                 ? created.length
+                : result === "others"
+                ? others.length
                 : result === "combo"
                     ? comboRows.length
                     : stakes.filter(s => result === "all" || s.result === result).length +
                       comboRows.filter(row => result === "all" || row.result === result).length;
 
-        const totalStaked =
-            stakes.reduce((sum, s) => sum + Number(s.stake), 0) +
-            comboRows.reduce((sum, row) => sum + Number(row.combo.stake), 0);
-
-        const totalWon =
-            stakes
-                .filter(s => s.result === "win")
-                .reduce((sum, s) => sum + Number(s.potential_win), 0) +
-            comboRows
-                .filter(row => row.result === "win")
-                .reduce((sum, row) => sum + (row.combo.claimed_at ? Number(row.combo.claimed_amount) : row.state.payout), 0);
-
-
         /*
-            Mini bilan + filtres.
+            Filtres (le mini bilan gagnés / total misé / total gagné a été retiré le 2026-10-14).
         */
 
         container.innerHTML = `
 
             ${renderContestsBlock()}
-
-            <div class="my-bets-summary">
-
-                <div>
-                    <span>Gagnés</span>
-                    <b class="text-win">${countOf("win")} / ${countOf("win") + countOf("lose")}</b>
-                </div>
-
-                <div>
-                    <span>Total misé</span>
-                    <b>${formatMoney(totalStaked)}</b>
-                </div>
-
-                <div>
-                    <span>Total gagné</span>
-                    <b class="text-win">${formatMoney(totalWon)}</b>
-                </div>
-
-            </div>
 
 
             <div class="my-bets-filters">
@@ -8341,7 +8932,8 @@ async function displayMyBets({ cascade = false } = {}) {
                     ["win", "Gagnés"],
                     ["lose", "Perdus"],
                     ["combo", "Combinés"],
-                    ["creation", "Mes créations"]
+                    ["creation", "Mes créations"],
+                    ["others", "Autres paris"]
                 ].map(([key, label]) => `
                     <button
                         class="my-bets-filter${myBetsFilter === key ? " active" : ""}"
@@ -8444,7 +9036,7 @@ async function displayMyBets({ cascade = false } = {}) {
 
                         <p>
                             ${escapeHtml(choice.label)}
-                            · ${Number(choice.odds).toFixed(2)}
+                            · ${(Number(stake.potential_win) / Number(stake.stake) || Number(choice.odds)).toFixed(2)}
                             · mise ${formatMoney(stake.stake)}
                         </p>
 
@@ -8532,6 +9124,66 @@ async function displayMyBets({ cascade = false } = {}) {
         });
 
 
+        // Autres paris (sans mise de ma part) : contestables pendant 24 h.
+        others.forEach(bet => {
+
+            const contest = betContest(bet);
+
+            const winner = (bet.bet_choices || []).find(choice => choice.id === bet.winner_choice_id);
+
+            // Argent gagné (gains des gagnants) et perdu (mises des perdants), mises simples.
+            const winning = (bet.stakes || []).filter(stake => stake.choice_id === bet.winner_choice_id);
+
+            const won = winning.reduce((sum, stake) => sum + Number(stake.potential_win), 0);
+
+            const lost = (bet.stakes || [])
+                .filter(stake => stake.choice_id !== bet.winner_choice_id)
+                .reduce((sum, stake) => sum + Number(stake.stake), 0);
+
+            const item = document.createElement("div");
+
+            item.className = "my-bet-item my-bet-row my-bet-row--others";
+
+            item.dataset.result = "others";
+
+            item.innerHTML = `
+
+                <span class="my-bet-dot">👀</span>
+
+                <div class="my-bet-text">
+
+                    <h3>${escapeHtml(bet.question)}</h3>
+
+                    <p>
+                        ${winner ? "🏆 " + escapeHtml(winner.label) + " · " : ""}validé ${typeof toastTimeLabel === "function" ? toastTimeLabel(bet.resolved_at) : ""} · contestable encore ${timeLeftLabel(new Date(bet.resolved_at).getTime() + CONTEST_WINDOW_MS).replace("dans ", "")}
+                    </p>
+
+                    ${contest?.status === "open" ? `<span class="contest-tag">⚖️ Vote en cours</span>`
+                        : contest?.status === "upheld" ? `<span class="contest-tag">⚖️ Contestation rejetée</span>`
+                        : contest?.status === "annulled" ? `<span class="contest-tag">⚖️ Annulé après vote</span>`
+                        : canContest(bet) ? `<button type="button" class="contest-button" data-contest-bet="${bet.id}">⚖️ Contester</button>`
+                        : ""}
+
+                </div>
+
+                <span class="my-bet-amount others-money">
+                    <span class="text-win">+${formatMoney(won)}</span>
+                    <span class="others-lost">−${formatMoney(lost)}</span>
+                </span>
+
+            `;
+
+            item.querySelector(".contest-button")?.addEventListener("click", () => {
+
+                openContestForm(bet, winner?.label);
+
+            });
+
+            rows.appendChild(item);
+
+        });
+
+
         /*
             Filtres (le choix est gardé entre deux rechargements de la liste).
         */
@@ -8546,11 +9198,11 @@ async function displayMyBets({ cascade = false } = {}) {
                 .querySelectorAll(".my-bet-row")
                 .forEach(row => row.classList.toggle(
                     "hidden",
-                    // « Tous » montre les mises ; les créations n'apparaissent qu'avec leur filtre.
+                    // « Tous » montre les mises ; créations et autres paris n'apparaissent qu'avec leur filtre.
                     myBetsFilter === "combo"
                         ? row.dataset.combo !== "1"
                         : myBetsFilter === "all"
-                        ? row.dataset.result === "creation"
+                        ? row.dataset.result === "creation" || row.dataset.result === "others"
                         : row.dataset.result !== myBetsFilter
                 ));
 
@@ -9590,7 +10242,7 @@ async function openStakesModal(bet, card) {
 
     // Le bouton de validation reste dans la copie dépliée (voir plus bas) ;
     // le reste du mode validation n'en fait pas partie.
-    pop.querySelectorAll(".validate-bilan, .validate-hint, .validate-tag, [data-delete-bet]")
+    pop.querySelectorAll(".validate-bilan, .validate-hint, .validate-tag")
         .forEach(element => element.remove());
 
     // La pastille de validation ne rejoue pas, à l'ouverture, une animation
@@ -9637,7 +10289,7 @@ async function openStakesModal(bet, card) {
                             </div>
                             <div class="stake-row-details">
                                 <span>💰 ${amounts} €</span>
-                                <span>🎲 ${Number(choice?.odds || 0).toFixed(2)}</span>
+                                <span>🎲 ${(totalWin / group.stakes.reduce((sum, stake) => sum + Number(stake.stake), 0) || Number(choice?.odds || 0)).toFixed(2)}</span>
                                 <span>🏆 ${formatMoney(totalWin)}</span>
                             </div>
                         </div>
@@ -9757,6 +10409,17 @@ async function openStakesModal(bet, card) {
     });
 
     pop.querySelector(".stakes-pop-close").addEventListener("click", closeStakesPanel);
+
+    // Pastille rouge « Supprimer » : même chose que sur la carte ; le panneau se ferme après.
+    pop.querySelector("[data-delete-bet]")?.addEventListener("click", async event => {
+
+        event.stopPropagation();
+
+        if (await deleteBetFromFab(event.currentTarget)) {
+            closeStakesPanel();
+        }
+
+    });
 
     // Pastille « En attente d'un parieur » : pas encore validable, elle fait « non ».
     pop.querySelector("[data-validate-wait]")?.addEventListener("click", event => {
@@ -10147,7 +10810,7 @@ function oddsProblemThree(oddsOne, oddsTwo, oddsThree) {
     }
 
     if (oddsOne > ODDS_MAX || oddsTwo > ODDS_MAX) {
-        return "Cote trop haute : 20 maximum.";
+        return "Cote trop haute : " + ODDS_MAX + " maximum.";
     }
 
     if (oddsOne < ODDS_MIN || oddsTwo < ODDS_MIN) {
@@ -10159,7 +10822,7 @@ function oddsProblemThree(oddsOne, oddsTwo, oddsThree) {
     }
 
     if (oddsThree > ODDS_MAX) {
-        return "Avec ces cotes, le choix 3 dépasserait 20 : monte un peu les cotes 1 ou 2.";
+        return "Avec ces cotes, le choix 3 dépasserait " + ODDS_MAX + " : monte un peu les cotes 1 ou 2.";
     }
 
     return "";
@@ -10847,13 +11510,38 @@ function resetDeadlinePicker() {
 
 /*
     Cotes autorisées : de 1,01 à 20 (vérifié aussi par Supabase, voir securite-paris.sql).
-    La cote 2 étant calculée depuis la cote 1, la cote 1 doit rester entre 1,06 et 20
-    (en dessous de 1,06, la cote 2 dépasserait 20).
+    La cote 2 étant calculée depuis la cote 1, la cote 1 doit rester entre 1,12 et 10
+    (en dessous de 1,12, la cote 2 dépasserait 10).
+    Cote max aussi vérifiée côté base (cotes-et-combines.sql).
 */
 
 const ODDS_MIN = 1.01;
 
-const ODDS_MAX = 20;
+const ODDS_MAX = 10;
+
+// Cote enflammée (étincelles) à partir de 8.
+const ODDS_FIRE_FROM = 8;
+
+
+/*
+    Cotes qui bougent (cotes-mouvantes.sql) : petite flèche sur la carte
+    quand la cote n'est plus celle fixée par le créateur.
+*/
+function oddsMoveHtml(choice) {
+
+    const start = Number(choice.start_odds);
+
+    const odds = Number(choice.odds);
+
+    if (!start || Math.abs(odds - start) < 0.005) {
+        return "";
+    }
+
+    const up = odds > start;
+
+    return `<em class="odds-move ${up ? "up" : "down"}" title="Cote de départ : ${start.toFixed(2)}">${up ? "▲" : "▼"}</em>`;
+
+}
 
 function oddsProblem(oddsOne, oddsTwo) {
 
@@ -10862,11 +11550,11 @@ function oddsProblem(oddsOne, oddsTwo) {
     }
 
     if (oddsOne > ODDS_MAX) {
-        return "Cote trop haute : 20 maximum.";
+        return "Cote trop haute : " + ODDS_MAX + " maximum.";
     }
 
     if (oddsOne < ODDS_MIN || oddsTwo > ODDS_MAX) {
-        return "Cote trop basse : avec " + formatOdds(oddsOne) + ", le choix 2 dépasserait 20. Mets au moins 1,06.";
+        return "Cote trop basse : avec " + formatOdds(oddsOne) + ", le choix 2 dépasserait " + ODDS_MAX + ". Mets au moins 1,12.";
     }
 
     return "";
@@ -12646,6 +13334,39 @@ function setupModalBackdrops() {
 }
 
 
+let openXpModal = null;
+
+
+// Ouvre la fenêtre XP et met en avant un skin du perroquet (bouton d'un message).
+function openXpModalOnSkin(skinId) {
+
+    if (!openXpModal) {
+        return;
+    }
+
+    openXpModal();
+
+    const button =
+        document.querySelector(`#xp-skins [data-skin="${skinId}"]`);
+
+    const item =
+        button?.closest(".xp-skin");
+
+    if (!item) {
+        return;
+    }
+
+    item.scrollIntoView({ block: "center", behavior: "smooth" });
+
+    item.classList.remove("xp-skin-highlight");
+
+    void item.offsetWidth;
+
+    item.classList.add("xp-skin-highlight");
+
+}
+
+
 /*
     Carte « Ton niveau » : un clic ouvre la fenêtre XP
     (niveau actuel et façons de gagner de l'XP).
@@ -12684,6 +13405,8 @@ function setupXpModal() {
     };
 
     card.addEventListener("click", open);
+
+    openXpModal = open;
 
     card.addEventListener("keydown", event => {
         if (event.key === "Enter" || event.key === " ") {
@@ -12726,7 +13449,7 @@ function alignModalsWithCards() {
             .find(item => item.getBoundingClientRect().width > 0);
 
         // Téléphone, ou cartes pas affichées : la fenêtre reste centrée.
-        if (window.innerWidth <= 800 || !card) {
+        if (PHONE_LAYOUT.matches || !card) {
 
             modal.style.justifyContent = "";
 
@@ -13472,6 +14195,14 @@ function hasBetaAccess() {
 
 }
 
+// Version bêta de l'app (body.beta) : réservée à l'admin depuis le 2026-10-14
+// (les bêta-testeurs gardent l'onglet Aide app, mais plus la version bêta).
+function hasBetaVersionAccess() {
+
+    return Boolean(currentProfile?.is_admin);
+
+}
+
 
 // Pseudo bêta d'un joueur : celui du plus haut palier atteint.
 function betaStyleOf(username) {
@@ -13744,7 +14475,7 @@ function setAppVersion(beta) {
 // Plus bêta-testeur (ou jamais été) : retour à la version classique.
 function checkAppVersion() {
 
-    if (isBetaVersion() && !hasBetaAccess()) {
+    if (isBetaVersion() && !hasBetaVersionAccess()) {
 
         setAppVersion(false);
 
@@ -13768,7 +14499,7 @@ function displayVersionSwitch() {
 
     const beta = isBetaVersion();
 
-    button.classList.toggle("hidden", !hasBetaAccess());
+    button.classList.toggle("hidden", !hasBetaVersionAccess());
 
     button.classList.toggle("on", beta);
 
@@ -13802,7 +14533,7 @@ function displayVersionCard() {
         return;
     }
 
-    if (!hasBetaAccess()) {
+    if (!hasBetaVersionAccess()) {
 
         card.classList.add("hidden");
 
@@ -13820,7 +14551,7 @@ function displayVersionCard() {
         <p class="version-state">
             ${beta
                 ? "Tu utilises la <b>version bêta</b> : passe de combat, cartes épurées, plus de pièces ni de diamants."
-                : "Tu utilises la <b>version classique</b>. La version bêta est réservée aux bêta-testeurs."
+                : "Tu utilises la <b>version classique</b>. La version bêta est réservée à l'admin."
             }
         </p>
 
@@ -14383,6 +15114,10 @@ function betaIdeasHtml() {
                                         ${isAdmin && idea.status === "kept"
                                             ? `<button type="button" class="secondary-button" data-beta-to-news="${idea.id}">📖 Au journal</button>`
                                             : ""}
+                                        ${isAdmin
+                                            // Admin : supprimer l'idée (aide-app-suppression-idee.sql), 2 clics.
+                                            ? `<button type="button" class="beta-idea-delete" data-beta-idea-delete="${idea.id}">🗑️ Supprimer</button>`
+                                            : ""}
                                     </div>
                                 </div>
                             `;
@@ -14744,6 +15479,38 @@ function setupBetaPage() {
                 message("Nouveauté publiée dans le journal de la page Paris.");
 
                 await loadWeekNews();
+
+                renderBetaPage();
+
+            } else if (data.betaIdeaDelete) {
+
+                // 1er clic : « Confirmer ? » pendant 4 s, 2e clic : suppression.
+                if (!button.classList.contains("confirm")) {
+
+                    button.classList.add("confirm");
+
+                    button.textContent = "🗑️ Confirmer ?";
+
+                    setTimeout(() => {
+                        if (button.isConnected) {
+                            button.classList.remove("confirm");
+                            button.textContent = "🗑️ Supprimer";
+                        }
+                    }, 4000);
+
+                    return;
+
+                }
+
+                const { error } = await supabaseClient.rpc("beta_delete_idea", { p_idea: Number(data.betaIdeaDelete) });
+
+                if (error) {
+                    throw error;
+                }
+
+                message("Idée supprimée.");
+
+                await loadBetaData();
 
                 renderBetaPage();
 
@@ -15712,7 +16479,8 @@ const PARROT_SKIN_NAMES = {
     arctique: "Arctique",
     noir: "Noir et or",
     phenix: "Phénix",
-    cristal: "Cristal"
+    cristal: "Cristal",
+    corbeau: "Corbeau"
 };
 
 // Paris de la fenêtre ouverte, pour retrouver ce qu'on copie.
@@ -16314,6 +17082,1159 @@ async function checkReceivedGifts() {
 
 
 /* =========================================================
+   CHAT DU GROUPE (chat.sql, chat-actions.sql)
+   Bulle 💬 en bas à gauche : un chat par groupe, en direct.
+   Tous les messages sont effacés chaque lundi à 0 h.
+   Barre au survol (appui long sur téléphone) : réagir,
+   répondre, modifier et supprimer ses messages.
+   Bulle « … écrit » quand quelqu'un tape (broadcast).
+========================================================= */
+
+const CHAT_MAX = 300;
+
+// Fenêtre ⋯ : pouce, cœur, rire, choqué.
+const CHAT_BAR_EMOJIS = ["👍", "❤️", "😂", "😮"];
+
+// Ordre d'affichage sous les messages (😢 et 🔥 : anciennes réactions).
+const CHAT_EMOJIS = [...CHAT_BAR_EMOJIS, "😢", "🔥"];
+
+let chatMessages = [];
+
+// Réactions : id du message → (id du joueur → emoji).
+let chatReactions = new Map();
+
+let chatNames = new Map();
+
+let chatChannel = null;
+
+let chatUnread = 0;
+
+let chatReplyTo = null;
+
+let chatEditId = null;
+
+// Qui écrit en ce moment : id du joueur → { name, until }.
+let chatTyping = new Map();
+
+let chatTypingSentAt = 0;
+
+let chatConfirmTimer = null;
+
+
+function chatSeenKey() {
+
+    return "betlab-chat-seen-" + currentGroup.id;
+
+}
+
+
+function chatSeenId() {
+
+    try {
+        return Number(localStorage.getItem(chatSeenKey())) || 0;
+    } catch {
+        return 0;
+    }
+
+}
+
+
+function markChatSeen() {
+
+    const last = chatMessages[chatMessages.length - 1];
+
+    if (last) {
+        try {
+            localStorage.setItem(chatSeenKey(), String(last.id));
+        } catch {}
+    }
+
+    chatUnread = 0;
+
+    renderChatUnread();
+
+}
+
+
+function renderChatUnread() {
+
+    const badge = document.getElementById("chat-unread");
+
+    badge.textContent = chatUnread > 9 ? "9+" : String(chatUnread);
+
+    badge.classList.toggle("hidden", chatUnread === 0);
+
+}
+
+
+function isChatOpen() {
+
+    const panel = document.getElementById("chat-panel");
+
+    // Pendant l'animation de fermeture, le chat compte déjà comme fermé.
+    return !panel.classList.contains("hidden") && !panel.classList.contains("closing");
+
+}
+
+
+function findChatMessage(id) {
+
+    return chatMessages.find(message => message.id === id);
+
+}
+
+
+async function ensureChatName(userId) {
+
+    if (chatNames.has(userId)) {
+        return;
+    }
+
+    const { data } = await supabaseClient
+        .from("profiles")
+        .select("username")
+        .eq("id", userId)
+        .maybeSingle();
+
+    if (data?.username) {
+        chatNames.set(userId, data.username);
+    }
+
+}
+
+
+function chatDayLabel(date) {
+
+    const today = new Date();
+
+    if (date.toDateString() === today.toDateString()) {
+        return "Aujourd'hui";
+    }
+
+    const label = date.toLocaleDateString("fr-FR", { weekday: "long" });
+
+    return label.charAt(0).toUpperCase() + label.slice(1);
+
+}
+
+
+function chatAuthorLabel(message) {
+
+    if (message.user_id === currentUser.id) {
+        return "Toi";
+    }
+
+    return chatNames.get(message.user_id) || "Ancien membre";
+
+}
+
+
+function chatQuoteHtml(message) {
+
+    const quoted = message.reply_to ? findChatMessage(message.reply_to) : null;
+
+    if (!quoted) {
+        return "";
+    }
+
+    const text = quoted.deleted_at ? "Message supprimé" : quoted.content.slice(0, 80);
+
+    return `<span class="chat-quote" data-chat-jump="${quoted.id}"><i>${escapeHtml(chatAuthorLabel(quoted))}</i>${escapeHtml(text)}</span>`;
+
+}
+
+
+function chatReactionsHtml(message) {
+
+    const byUser = chatReactions.get(message.id);
+
+    if (!byUser || message.deleted_at) {
+        return "";
+    }
+
+    // Regroupe par emoji, dans l'ordre de la barre.
+    const groups = CHAT_EMOJIS
+        .map(emoji => ({
+            emoji,
+            users: [...byUser].filter(([, value]) => value === emoji).map(([userId]) => userId)
+        }))
+        .filter(group => group.users.length > 0);
+
+    if (groups.length === 0) {
+        return "";
+    }
+
+    return `<div class="chat-reacts">${groups.map(group => {
+
+        const mine = group.users.includes(currentUser.id);
+
+        const names = group.users.map(userId => userId === currentUser.id ? "Toi" : chatNames.get(userId) || "?").join(", ");
+
+        return `<button type="button" class="chat-react${mine ? " mine" : ""}" data-chat-react="${group.emoji}" title="${escapeHtml(names)}">${group.emoji} ${group.users.length}</button>`;
+
+    }).join("")}</div>`;
+
+}
+
+
+// ⋯ à côté du message (au survol) : il ouvre la fenêtre des réactions
+// et des actions (Répondre, + Modifier / Supprimer sur ses messages).
+function chatMoreHtml(message) {
+
+    const own = message.user_id === currentUser.id
+        ? `<button type="button" data-chat-act="edit">✏️ Modifier</button><button type="button" class="danger" data-chat-act="delete">🗑️ Supprimer</button>`
+        : "";
+
+    return `<div class="chat-more-menu"><div class="chat-more-emojis">${CHAT_BAR_EMOJIS.map(emoji => `<button type="button" data-chat-react="${emoji}">${emoji}</button>`).join("")}</div><button type="button" data-chat-act="reply">↩️ Répondre</button>${own}</div>`;
+
+}
+
+
+function chatMessageHtml(message) {
+
+    const mine = message.user_id === currentUser.id;
+
+    const time = new Date(message.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+
+    const name = chatNames.get(message.user_id);
+
+    const deleted = Boolean(message.deleted_at);
+
+    const body = deleted
+        ? "🚫 Message supprimé"
+        : chatQuoteHtml(message) + escapeHtml(message.content);
+
+    return `
+        <div class="chat-msg${mine ? " me" : ""}${deleted ? " deleted" : ""}" data-chat-id="${message.id}">
+            ${mine ? "" : `<div class="chat-who">${styledName(withGroupStyle(name ? { username: name } : null), "Ancien membre")}</div>`}
+            <div class="chat-txt">${body}${deleted ? "" : `<button type="button" class="chat-more" data-chat-more title="Réagir, répondre…">⋯</button>`}</div>
+            ${chatReactionsHtml(message)}
+            <div class="chat-time">${time}${message.edited_at && !deleted ? " · modifié" : ""}</div>
+            ${deleted ? "" : chatMoreHtml(message)}
+        </div>
+    `;
+
+}
+
+
+function renderChat() {
+
+    const list = document.getElementById("chat-list");
+
+    // On reste en bas si on y était, sinon on garde sa place.
+    const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 60;
+
+    const keep = list.scrollTop;
+
+    if (chatMessages.length === 0) {
+
+        list.innerHTML = `<p class="chat-empty">Aucun message cette semaine. Lance la discussion !</p><div id="chat-typing"></div>`;
+
+    } else {
+
+        let lastDay = "";
+
+        list.innerHTML = chatMessages.map(message => {
+
+            const date = new Date(message.created_at);
+
+            const day = date.toDateString();
+
+            const separator = day !== lastDay ? `<div class="chat-day">${chatDayLabel(date)}</div>` : "";
+
+            lastDay = day;
+
+            return separator + chatUnreadMarkerHtml(message) + chatMessageHtml(message);
+
+        }).join("") + `<div id="chat-typing"></div>`;
+
+    }
+
+    renderChatTyping();
+
+    list.scrollTop = atBottom ? list.scrollHeight : keep;
+
+}
+
+
+/* ----- Bulle « … écrit » : une seule bulle, noms sur la même ligne ----- */
+
+function chatTypingLabel(names) {
+
+    if (names.length === 1) {
+        return `${names[0]} écrit…`;
+    }
+
+    if (names.length <= 3) {
+        return `${names.slice(0, -1).join(", ")} et ${names[names.length - 1]} écrivent…`;
+    }
+
+    return `${names.slice(0, 2).join(", ")} et ${names.length - 2} autres écrivent…`;
+
+}
+
+
+function renderChatTyping() {
+
+    const box = document.getElementById("chat-typing");
+
+    if (!box) {
+        return;
+    }
+
+    const now = Date.now();
+
+    const names = [...chatTyping.values()]
+        .filter(entry => entry.until > now)
+        .map(entry => entry.name);
+
+    if (names.length === 0) {
+
+        box.innerHTML = "";
+
+        return;
+
+    }
+
+    const list = document.getElementById("chat-list");
+
+    const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 60;
+
+    box.innerHTML = `
+        <div class="chat-typing">
+            <div class="chat-typing-who">${escapeHtml(chatTypingLabel(names))}</div>
+            <div class="chat-dots"><i></i><i></i><i></i></div>
+        </div>
+    `;
+
+    if (atBottom) {
+        list.scrollTop = list.scrollHeight;
+    }
+
+}
+
+
+function onChatTyping({ payload }) {
+
+    if (!payload?.user_id || payload.user_id === currentUser.id) {
+        return;
+    }
+
+    if (payload.stop) {
+        chatTyping.delete(payload.user_id);
+    } else {
+        chatTyping.set(payload.user_id, { name: payload.username || "Quelqu'un", until: Date.now() + 4000 });
+    }
+
+    renderChatTyping();
+
+}
+
+
+function sendChatTyping(stop = false) {
+
+    if (!chatChannel) {
+        return;
+    }
+
+    // Pendant qu'on tape : un signal toutes les 2 s suffit.
+    if (!stop && Date.now() - chatTypingSentAt < 2000) {
+        return;
+    }
+
+    chatTypingSentAt = stop ? 0 : Date.now();
+
+    chatChannel.send({
+        type: "broadcast",
+        event: "typing",
+        payload: { user_id: currentUser.id, username: currentProfile?.username, stop }
+    });
+
+}
+
+
+/* ----- Chargement et direct ----- */
+
+async function loadChat() {
+
+    // La base ne renvoie que ce qui date de la semaine (depuis lundi 0 h).
+    const [messagesResult, reactionsResult] = await Promise.all([
+        supabaseClient
+            .from("chat_messages")
+            // Lien précisé : les réactions font un 2e chemin vers profiles.
+            .select("id, user_id, content, created_at, reply_to, edited_at, deleted_at, profiles!chat_messages_user_id_fkey ( username )")
+            .eq("group_id", currentGroup.id)
+            .order("id", { ascending: true })
+            .limit(500),
+        supabaseClient
+            .from("chat_reactions")
+            .select("message_id, user_id, emoji, profiles ( username )")
+            .eq("group_id", currentGroup.id)
+            .not("emoji", "is", null)
+    ]);
+
+    if (messagesResult.error || reactionsResult.error) {
+        console.error(messagesResult.error || reactionsResult.error);
+        return;
+    }
+
+    chatMessages = messagesResult.data || [];
+
+    chatReactions = new Map();
+
+    [...chatMessages, ...(reactionsResult.data || [])].forEach(row => {
+        if (row.profiles?.username) {
+            chatNames.set(row.user_id, row.profiles.username);
+        }
+    });
+
+    (reactionsResult.data || []).forEach(setChatReaction);
+
+    const seen = chatSeenId();
+
+    chatUnread = chatMessages.filter(message => message.id > seen && message.user_id !== currentUser.id).length;
+
+    renderChatUnread();
+
+    renderChat();
+
+}
+
+
+function setChatReaction(row) {
+
+    if (!chatReactions.has(row.message_id)) {
+        chatReactions.set(row.message_id, new Map());
+    }
+
+    const byUser = chatReactions.get(row.message_id);
+
+    if (row.emoji) {
+        byUser.set(row.user_id, row.emoji);
+    } else {
+        byUser.delete(row.user_id);
+    }
+
+}
+
+
+async function onChatMessage(payload) {
+
+    const message = payload.new;
+
+    await ensureChatName(message.user_id);
+
+    const existing = findChatMessage(message.id);
+
+    if (existing) {
+
+        // Modifié ou supprimé.
+        Object.assign(existing, message);
+
+        renderChat();
+
+        return;
+
+    }
+
+    if (payload.eventType !== "INSERT") {
+        return;
+    }
+
+    // On lisait plus haut ? (mesuré avant d'ajouter le message)
+    const readingAbove = !isChatAtBottom();
+
+    chatMessages.push(message);
+
+    // Celui qui écrit a fini : on enlève sa bulle « … ».
+    chatTyping.delete(message.user_id);
+
+    renderChat();
+
+    if (message.user_id === currentUser.id) {
+
+        // Mon message : direction le bas de la conversation.
+        scrollChatToBottom();
+
+    } else if (readingAbove) {
+
+        // Message d'un autre pendant que je lis plus haut : petite flèche.
+        chatNewIds.push(message.id);
+
+        renderChatNewArrow();
+
+    }
+
+    if (isChatOpen()) {
+
+        markChatSeen();
+
+    } else if (message.user_id !== currentUser.id) {
+
+        chatUnread++;
+
+        renderChatUnread();
+
+        bounceChatFab();
+
+    }
+
+}
+
+
+/* ----- Bas de la conversation et flèche « nouveau message » ----- */
+
+// Messages arrivés pendant qu'on lisait plus haut (le 1er = celui où la flèche emmène).
+let chatNewIds = [];
+
+function isChatAtBottom() {
+
+    const list = document.getElementById("chat-list");
+
+    return list.scrollHeight - list.scrollTop - list.clientHeight < 60;
+
+}
+
+function scrollChatToBottom() {
+
+    const list = document.getElementById("chat-list");
+
+    list.scrollTop = list.scrollHeight;
+
+    chatNewIds = [];
+
+    renderChatNewArrow();
+
+}
+
+function renderChatNewArrow() {
+
+    const arrow = document.getElementById("chat-new-arrow");
+
+    arrow.classList.toggle("hidden", chatNewIds.length === 0);
+
+    document.getElementById("chat-new-label").textContent = chatNewIds.length > 1
+        ? `${chatNewIds.length} nouveaux messages`
+        : "Nouveau message";
+
+}
+
+// Clic sur la flèche : on arrive sur le 1er nouveau message, prêt à le lire.
+function jumpToNewChatMessage() {
+
+    const target = document.querySelector(`.chat-msg[data-chat-id="${chatNewIds[0]}"]`);
+
+    chatNewIds = [];
+
+    renderChatNewArrow();
+
+    if (!target) {
+        scrollChatToBottom();
+        return;
+    }
+
+    target.scrollIntoView({ block: "start" });
+
+    target.classList.remove("flash");
+    void target.offsetWidth;
+    target.classList.add("flash");
+
+}
+
+
+async function onChatReaction(payload) {
+
+    await ensureChatName(payload.new.user_id);
+
+    setChatReaction(payload.new);
+
+    renderChat();
+
+}
+
+
+/* ----- Écrire, répondre, modifier ----- */
+
+function renderChatContext() {
+
+    const box = document.getElementById("chat-context");
+
+    const input = document.getElementById("chat-input");
+
+    const target = findChatMessage(chatReplyTo || chatEditId);
+
+    if (!target) {
+
+        chatReplyTo = null;
+
+        chatEditId = null;
+
+        box.classList.add("hidden");
+
+        input.placeholder = "Écrire un message…";
+
+        return;
+
+    }
+
+    const editing = Boolean(chatEditId);
+
+    box.classList.toggle("editing", editing);
+
+    box.classList.remove("hidden");
+
+    document.getElementById("chat-context-title").textContent = editing
+        ? "✏️ Modifier le message"
+        : "↩️ Réponse à " + (target.user_id === currentUser.id ? "toi" : chatAuthorLabel(target));
+
+    document.getElementById("chat-context-text").textContent = target.content;
+
+    input.placeholder = editing ? "Nouveau texte…" : "Ta réponse…";
+
+}
+
+
+function cancelChatContext() {
+
+    if (chatEditId) {
+        document.getElementById("chat-input").value = "";
+    }
+
+    chatReplyTo = null;
+
+    chatEditId = null;
+
+    renderChatContext();
+
+}
+
+
+async function sendChatMessage(event) {
+
+    event.preventDefault();
+
+    const input = document.getElementById("chat-input");
+
+    const content = input.value.trim().slice(0, CHAT_MAX);
+
+    if (!content) {
+        return;
+    }
+
+    const button = document.getElementById("chat-send");
+
+    button.disabled = true;
+
+    const editId = chatEditId;
+
+    const { error } = editId
+        ? await supabaseClient.rpc("edit_chat_message", { p_message: editId, p_content: content })
+        : await supabaseClient.rpc("send_chat_message", {
+            p_group: currentGroup.id,
+            p_content: content,
+            p_reply_to: chatReplyTo
+        });
+
+    button.disabled = false;
+
+    if (error) {
+
+        console.error(error);
+
+        alert(error.message || "Impossible d'envoyer le message.");
+
+        return;
+
+    }
+
+    sendChatTyping(true);
+
+    input.value = "";
+
+    chatReplyTo = null;
+
+    chatEditId = null;
+
+    renderChatContext();
+
+    input.focus();
+
+    if (!editId) {
+        scrollChatToBottom();
+    }
+
+    // Si le direct est lent, on recharge pour voir le changement tout de suite.
+    setTimeout(() => {
+        const done = editId
+            ? findChatMessage(editId)?.content === content
+            : chatMessages.some(message => message.user_id === currentUser.id && message.content === content);
+        if (!done) {
+            loadChat().then(() => {
+                if (!editId) {
+                    scrollChatToBottom();
+                }
+            });
+        }
+    }, 1500);
+
+}
+
+
+async function reactToChatMessage(messageId, emoji) {
+
+    const { data, error } = await supabaseClient.rpc("react_chat_message", {
+        p_message: messageId,
+        p_emoji: emoji
+    });
+
+    if (error) {
+        console.error(error);
+        return;
+    }
+
+    // Affichage immédiat, sans attendre le direct.
+    setChatReaction({ message_id: messageId, user_id: currentUser.id, emoji: data });
+
+    renderChat();
+
+}
+
+
+async function deleteChatMessage(messageId, button) {
+
+    // 1er clic : « Confirmer ? » pendant 4 s, 2e clic : suppression.
+    if (!button.classList.contains("confirm")) {
+
+        button.classList.add("confirm");
+
+        button.textContent = "🗑️ Confirmer ?";
+
+        clearTimeout(chatConfirmTimer);
+
+        chatConfirmTimer = setTimeout(() => {
+            button.classList.remove("confirm");
+            button.textContent = "🗑️ Supprimer";
+        }, 4000);
+
+        return;
+
+    }
+
+    clearTimeout(chatConfirmTimer);
+
+    const { error } = await supabaseClient.rpc("delete_chat_message", { p_message: messageId });
+
+    if (error) {
+
+        console.error(error);
+
+        alert(error.message || "Impossible de supprimer le message.");
+
+        return;
+
+    }
+
+    const message = findChatMessage(messageId);
+
+    if (message) {
+        message.deleted_at = new Date().toISOString();
+    }
+
+    if (chatEditId === messageId || chatReplyTo === messageId) {
+        cancelChatContext();
+    }
+
+    renderChat();
+
+}
+
+
+function onChatListClick(event) {
+
+    const jump = event.target.closest("[data-chat-jump]");
+
+    if (jump) {
+
+        const target = document.querySelector(`.chat-msg[data-chat-id="${jump.dataset.chatJump}"]`);
+
+        if (target) {
+            target.scrollIntoView({ block: "center", behavior: "smooth" });
+            target.classList.remove("flash");
+            void target.offsetWidth;
+            target.classList.add("flash");
+        }
+
+        return;
+
+    }
+
+    const element = event.target.closest(".chat-msg");
+
+    if (!element) {
+        closeChatBars();
+        return;
+    }
+
+    const messageId = Number(element.dataset.chatId);
+
+    const react = event.target.closest("[data-chat-react]");
+
+    if (react) {
+
+        closeChatBars();
+
+        reactToChatMessage(messageId, react.dataset.chatReact);
+
+        return;
+
+    }
+
+    if (event.target.closest("[data-chat-more]")) {
+
+        const wasOpen = element.classList.contains("menu-open");
+
+        closeChatBars();
+
+        element.classList.toggle("menu-open", !wasOpen);
+
+        // La fenêtre reste visible même sous le dernier message.
+        if (!wasOpen) {
+            element.querySelector(".chat-more-menu").scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }
+
+        return;
+
+    }
+
+    const action = event.target.closest("[data-chat-act]")?.dataset.chatAct;
+
+    if (!action) {
+
+        // Clic ailleurs sur un message : on referme la fenêtre ⋯ ouverte.
+        closeChatBars();
+
+        return;
+
+    }
+
+    const input = document.getElementById("chat-input");
+
+    if (action === "delete") {
+
+        deleteChatMessage(messageId, event.target.closest("[data-chat-act]"));
+
+        return;
+
+    }
+
+    closeChatBars();
+
+    if (action === "reply") {
+
+        chatReplyTo = messageId;
+
+        chatEditId = null;
+
+    }
+
+    if (action === "edit") {
+
+        chatEditId = messageId;
+
+        chatReplyTo = null;
+
+        input.value = findChatMessage(messageId)?.content || "";
+
+    }
+
+    renderChatContext();
+
+    input.focus();
+
+}
+
+
+function closeChatBars() {
+
+    if (Date.now() - chatLongPressAt < 600) {
+        return;
+    }
+
+    document.querySelectorAll(".chat-msg.menu-open").forEach(element => element.classList.remove("menu-open"));
+
+}
+
+
+// Téléphone : appui long sur un message = sa fenêtre ⋯.
+let chatLongPressAt = 0;
+
+function setupChatLongPress(list) {
+
+    let pressTimer = null;
+
+    list.addEventListener("touchstart", event => {
+
+        const element = event.target.closest(".chat-msg:not(.deleted)");
+
+        if (!element || event.target.closest(".chat-more, .chat-more-menu, .chat-react, [data-player]")) {
+            return;
+        }
+
+        pressTimer = setTimeout(() => {
+
+            closeChatBars();
+
+            element.classList.add("menu-open");
+
+            // Le clic qui suit le doigt levé ne doit pas la refermer.
+            chatLongPressAt = Date.now();
+
+            navigator.vibrate?.(15);
+
+        }, 450);
+
+    }, { passive: true });
+
+    ["touchend", "touchmove", "touchcancel"].forEach(type =>
+        list.addEventListener(type, () => clearTimeout(pressTimer), { passive: true })
+    );
+
+}
+
+
+/*
+    Ouverture du chat : on arrive au dernier message vu, avec un repère
+    temporaire « Nouveaux messages en dessous » juste avant le 1er non lu.
+*/
+
+const CHAT_UNREAD_MARKER_MS = 6000;
+
+let chatUnreadMarker = null;
+
+function chatUnreadMarkerHtml(message) {
+
+    if (!chatUnreadMarker || chatUnreadMarker.id !== message.id) {
+        return "";
+    }
+
+    const left = chatUnreadMarker.until - Date.now();
+
+    if (left <= 0) {
+        return "";
+    }
+
+    // Redessiné (message reçu, réaction…) : le fondu reprend où il en était.
+    return `<div class="chat-unread-marker" style="animation-delay: ${left - 600}ms"><span>Nouveaux messages en dessous ↓</span></div>`;
+
+}
+
+function openChatAtLastSeen() {
+
+    const list = document.getElementById("chat-list");
+
+    const marker = list.querySelector(".chat-unread-marker");
+
+    if (!marker) {
+        scrollChatToBottom();
+        return;
+    }
+
+    // Le repère un peu sous le haut : on voit encore le dernier message lu au-dessus.
+    list.scrollTop = Math.max(0, marker.offsetTop - list.offsetTop - 70);
+
+}
+
+
+// Petit rebond de la bulle 💬 quand un message arrive chat fermé.
+function bounceChatFab() {
+
+    const fab = document.getElementById("chat-fab");
+
+    fab.classList.remove("bounce");
+
+    void fab.offsetWidth;
+
+    fab.classList.add("bounce");
+
+}
+
+
+let chatCloseTimer = null;
+
+function toggleChat(open) {
+
+    const panel = document.getElementById("chat-panel");
+
+    clearTimeout(chatCloseTimer);
+
+    if (open) {
+
+        panel.classList.remove("hidden", "closing");
+
+        // Rejoue l'animation d'ouverture.
+        panel.classList.remove("opening");
+        void panel.offsetWidth;
+        panel.classList.add("opening");
+
+    } else if (!panel.classList.contains("hidden")) {
+
+        panel.classList.remove("opening");
+
+        panel.classList.add("closing");
+
+        // Caché à la fin de l'animation de fermeture (0,18 s).
+        chatCloseTimer = setTimeout(() => {
+            panel.classList.add("hidden");
+            panel.classList.remove("closing");
+        }, 180);
+
+    }
+
+    document.body.classList.toggle("chat-open", open);
+
+    if (open) {
+
+        // Premier message pas encore vu (d'un autre joueur), calculé avant de tout marquer lu.
+        const seen = chatSeenId();
+
+        const firstUnread = chatMessages.find(message => message.id > seen && message.user_id !== currentUser.id);
+
+        chatUnreadMarker = firstUnread
+            ? { id: firstUnread.id, until: Date.now() + CHAT_UNREAD_MARKER_MS }
+            : null;
+
+        renderChat();
+
+        openChatAtLastSeen();
+
+        markChatSeen();
+
+        // Pas de clavier qui surgit tout seul sur téléphone.
+        if (!PHONE_LAYOUT.matches) {
+            document.getElementById("chat-input").focus();
+        }
+
+    } else {
+
+        closeChatBars();
+
+    }
+
+}
+
+
+async function setupChat() {
+
+    if (!currentGroup || !currentUser) {
+        return;
+    }
+
+    document.getElementById("chat-title").textContent = "💬 " + currentGroup.name;
+
+    document.getElementById("chat-fab").classList.remove("hidden");
+
+    document.body.classList.add("has-chat");
+
+    document.getElementById("chat-fab").addEventListener("click", () => toggleChat(!isChatOpen()));
+
+    document.getElementById("chat-close").addEventListener("click", () => toggleChat(false));
+
+    document.getElementById("chat-form").addEventListener("submit", sendChatMessage);
+
+    document.getElementById("chat-context-cancel").addEventListener("click", cancelChatContext);
+
+    document.getElementById("chat-input").addEventListener("input", event => {
+        if (event.target.value.trim()) {
+            sendChatTyping();
+        }
+    });
+
+    const list = document.getElementById("chat-list");
+
+    list.addEventListener("click", onChatListClick);
+
+    document.getElementById("chat-new-arrow").addEventListener("click", jumpToNewChatMessage);
+
+    // Pendant le défilement : animations des pseudos en pause et pas de survol,
+    // pour un défilement fluide (style.css, .chat-list.scrolling).
+    let chatScrollTimer = null;
+
+    list.addEventListener("scroll", () => {
+
+        // Arrivé en bas : les nouveaux messages sont lus, la flèche part.
+        if (chatNewIds.length > 0 && isChatAtBottom()) {
+            chatNewIds = [];
+            renderChatNewArrow();
+        }
+
+        list.classList.add("scrolling");
+
+        clearTimeout(chatScrollTimer);
+
+        chatScrollTimer = setTimeout(() => list.classList.remove("scrolling"), 150);
+
+    }, { passive: true });
+
+    // Clic hors des messages : barre (téléphone) et menu ⋯ refermés.
+    // Clic hors de la fenêtre du chat : le chat se ferme
+    // (sauf dans une fenêtre ouverte depuis le chat, ex. profil d'un joueur).
+    document.addEventListener("click", event => {
+
+        if (!event.target.closest(".chat-msg")) {
+            closeChatBars();
+        }
+
+        if (
+            isChatOpen() &&
+            event.target.isConnected &&
+            !event.target.closest("#chat-panel, #chat-fab, .modal")
+        ) {
+            toggleChat(false);
+        }
+
+    });
+
+    setupChatLongPress(list);
+
+    // Échap : annule la réponse / modification, sinon ferme le chat.
+    document.addEventListener("keydown", event => {
+
+        if (event.key !== "Escape" || !isChatOpen()) {
+            return;
+        }
+
+        if (chatReplyTo || chatEditId) {
+            cancelChatContext();
+        } else {
+            toggleChat(false);
+        }
+
+    });
+
+    // Les bulles « … » s'effacent 4 s après le dernier signal.
+    setInterval(() => {
+        if (chatTyping.size > 0) {
+            renderChatTyping();
+        }
+    }, 1000);
+
+    await loadChat();
+
+    const filter = "group_id=eq." + currentGroup.id;
+
+    chatChannel = supabaseClient
+        .channel("chat-" + currentGroup.id)
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages", filter }, onChatMessage)
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_messages", filter }, onChatMessage)
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_reactions", filter }, onChatReaction)
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_reactions", filter }, onChatReaction)
+        .on("broadcast", { event: "typing" }, onChatTyping)
+        .subscribe();
+
+}
+
+
+/* =========================================================
    11. NAVIGATION
 ========================================================= */
 
@@ -16657,6 +18578,8 @@ function setupProfilePage() {
     input.value =
         currentProfile?.username || "";
 
+    renderUsernameLock();
+
 
     form.addEventListener("submit", async event => {
 
@@ -16705,8 +18628,10 @@ function setupProfilePage() {
 
         input.value = currentProfile.username;
 
+        renderUsernameLock();
+
         showMissionsMessage(
-            "Pseudo changé ! Connecte-toi désormais avec « " + currentProfile.username + " ».",
+            "Pseudo changé ! Connecte-toi désormais avec « " + currentProfile.username + " ». Prochain changement possible dans 48 h.",
             false,
             "username-message"
         );
@@ -16719,6 +18644,47 @@ function setupProfilePage() {
 
 }
 
+
+
+/*
+    Un seul changement de pseudo toutes les 48 h (pseudo-48h.sql) :
+    le formulaire est bloqué jusque-là, avec la date du prochain changement.
+    L'admin n'est pas limité.
+*/
+
+const USERNAME_CHANGE_DELAY_MS = 48 * 3600 * 1000;
+
+function renderUsernameLock() {
+
+    const input = document.getElementById("username-input");
+
+    const submit = document.getElementById("username-submit");
+
+    const lock = document.getElementById("username-lock");
+
+    const last = currentProfile?.username_changed_at;
+
+    const nextAt = last ? new Date(last).getTime() + USERNAME_CHANGE_DELAY_MS : 0;
+
+    const locked = !currentProfile?.is_admin && nextAt > Date.now();
+
+    input.disabled = locked;
+
+    submit.disabled = locked;
+
+    lock.classList.toggle("hidden", !locked);
+
+    if (locked) {
+
+        const date = new Date(nextAt);
+
+        lock.textContent = "🔒 Tu as changé de pseudo récemment. Prochain changement possible le " +
+            date.toLocaleDateString("fr-FR", { day: "numeric", month: "long" }) + " à " +
+            date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) + ".";
+
+    }
+
+}
 
 
 /*
@@ -17510,6 +19476,8 @@ async function initAppPage() {
 
         setupBetsRealtime();
 
+        setupChat();
+
         await displayAdminMessage();
 
         await displayMyBets();
@@ -17537,10 +19505,14 @@ async function initAppPage() {
 
             await displayAdminPasswordRequests();
 
+            await displayAdminHistory();
+
         }
 
 
         await checkAnnouncementPopup();
+
+        await claimEventSkins();
 
         await checkPlayerNotices();
 
@@ -17691,7 +19663,7 @@ async function initAppPage() {
 
     if (oddsOneInput && oddsTwoInput) {
 
-        // Cotes calculées et message (cote max 20) tout de suite sous les cotes.
+        // Cotes calculées et message (cote max 10) tout de suite sous les cotes.
         oddsOneInput.addEventListener("input", updateCreateOdds);
 
         oddsTwoInput.addEventListener("input", () => {

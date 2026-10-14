@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Les chemins (images) partent de la racine du site -->
+<base href="../">
+<title>BetLab – Objet Halloween du perroquet (maquette)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 80px; }
+button { font: inherit; cursor: pointer; color: inherit; }
+h1 { font-size: 26px; margin-bottom: 6px; }
+.sub { color: #858a98; margin-bottom: 20px; max-width: 900px; font-size: 14px; line-height: 1.5; }
+.col-title { color: #858a98; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; margin: 18px 0 8px; }
+
+.objs { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; max-width: 1100px; margin-bottom: 16px; }
+.objs button { background: #1a1d27; border: 2px solid #2c3040; border-radius: 14px; padding: 12px; text-align: left; display: flex; flex-direction: column; gap: 4px; }
+.objs button strong { font-size: 15px; }
+.objs button span { color: #858a98; font-size: 12px; line-height: 1.4; }
+.objs button.on { border-color: #ff7a1a; background: rgba(255, 122, 26, .1); }
+.objs button.on strong::after { content: "  ✓"; color: #ff9a3c; }
+
+.layout { display: grid; grid-template-columns: 460px minmax(0, 1fr); gap: 24px; align-items: start; max-width: 1100px; }
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+.stage { position: relative; height: 600px; border-radius: 20px; overflow: hidden;
+    background: radial-gradient(circle at 60% 100%, #2a1608 0%, #12141c 62%); border: 1px solid #2c3040; }
+.stage .name { position: absolute; left: 16px; top: 14px; font-weight: 900; font-size: 18px; z-index: 5; }
+.stage .name small { display: block; color: #ff9a3c; font-size: 12px; font-weight: 700; margin-top: 2px; }
+
+/* Une pose = un cadre avec PAD px de marge en haut (place pour le chapeau) */
+.pose-box { position: relative; transform: scaleX(-1); }
+.pose-box > img, .pose-box .head > img { position: absolute; left: 0; width: 100%; }
+.pose-box .head { position: absolute; inset: 0; transform-origin: 60% 30%; }
+.stage .pose-box { position: absolute; left: 50%; bottom: -30px; width: 380px; transform: translateX(-50%) scaleX(-1); }
+.stage .head { animation: bob 2.6s ease-in-out infinite; }
+@keyframes bob { 50% { transform: rotate(-3deg) translateY(-3px); } }
+
+.poses { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.pose { background: #14161e; border: 1px solid #2c3040; border-radius: 14px; padding: 8px; text-align: center; font-size: 12px; color: #858a98; font-weight: 700;
+    height: 230px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; overflow: hidden; }
+.pose .pose-box { margin-bottom: 6px; }
+
+.xp-row { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border: 1px solid #ff7a1a; border-radius: 12px; background: rgba(255, 122, 26, .08); }
+.xp-row .pose-box { width: 46px; flex-shrink: 0; }
+.xp-row div.txt { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.xp-row strong { color: white; font-size: 14px; }
+.xp-row span { color: #ff9a3c; font-size: 12px; }
+
+.pick { margin-top: 18px; width: 100%; background: #22c55e; border: 0; border-radius: 12px; padding: 13px; font-weight: 900; font-size: 15px; color: #06200f; }
+.copied { color: #22c55e; font-size: 13px; margin-top: 6px; min-height: 18px; }
+</style>
+</head>
+<body>
+
+<h1>🎃 Skin Corbeau : quel objet Halloween ?</h1>
+<p class="sub">
+    Couleur Corbeau, sans effet. Clique sur un ou plusieurs objets : ils se <b>cumulent</b>, tu peux donc en garder un seul ou en mélanger.
+    L'objet suit la tête quand le perroquet bouge, et il est présent sur toutes les poses (attente, piles de billets, gagné, perdu).
+</p>
+
+<div class="objs" id="objs"></div>
+
+<div class="layout">
+    <div class="stage" id="stage">
+        <div class="name">Skin Corbeau<small>🎃 Dernière semaine d'octobre</small></div>
+    </div>
+
+    <div>
+        <p class="col-title" style="margin-top: 0">Toutes les poses</p>
+        <div class="poses" id="poses"></div>
+
+        <p class="col-title">Dans la fenêtre XP</p>
+        <div class="xp-row" id="xp-row"></div>
+
+        <button class="pick" id="choose">✅ Je choisis celle-ci</button>
+        <div class="copied" id="copied"></div>
+    </div>
+</div>
+
+<script>
+const BASE = "Exemple-aide CLAUDE/halloween/corbeau/";
+const ACC = "Exemple-aide CLAUDE/halloween/acc-";
+const PAD = 140;
+
+const OBJECTS = [
+    { id: "chapeau", name: "🧙 Chapeau de sorcière", desc: "Violet nuit, ruban orange et boucle dorée, posé de travers sur la tête." },
+    { id: "citrouille", name: "🎃 Barrette citrouille", desc: "Petite citrouille sculptée qui brille, accrochée dans les plumes derrière les lunettes." },
+    { id: "crane", name: "💀 Pendentif crâne", desc: "Crâne en os aux yeux orange, au bout de son collier noir." },
+    { id: "araignee", name: "🕷️ Araignée", desc: "Petite araignée à sablier orange, pendue à son fil au bout du bec." }
+];
+
+// Taille de chaque image (sans la marge) et corps associé.
+const POSES = [
+    { head: "wait-head", body: "wait-body", w: 392, h: 441, label: "Attente" },
+    { head: "l2-head", body: "l2-body", w: 276, h: 471, label: "Petite pile" },
+    { head: "l3-head", body: "l3-body", w: 348, h: 523, label: "Pile moyenne" },
+    { head: "l4-head", body: "l4-body", w: 435, h: 652, label: "Énorme pile" },
+    { head: "win-main", w: 508, h: 562, label: "Gagné" },
+    { head: "lose-main", w: 442, h: 489, label: "Perdu" }
+];
+
+let chosen = new Set(["chapeau"]);
+
+function poseHtml(pose, width) {
+    const total = pose.h + PAD;
+    const top = PAD / total * 100;
+    const hh = pose.h / total * 100;
+    const img = name => `<img src="${BASE}${name}.png" alt="" style="top:${top}%;height:${hh}%">`;
+    const accs = [...chosen].map(id => `<img src="${ACC}${id}/${pose.head}.png" alt="" style="top:0;height:100%">`).join("");
+    return `
+        <div class="pose-box" style="width:${width}px;aspect-ratio:${pose.w}/${total}">
+            ${pose.body ? img(pose.body) : ""}
+            <div class="head">${img(pose.head)}${accs}</div>
+        </div>`;
+}
+
+function render() {
+    document.getElementById("objs").innerHTML = OBJECTS.map(o => `
+        <button type="button" data-o="${o.id}" class="${chosen.has(o.id) ? "on" : ""}">
+            <strong>${o.name}</strong><span>${o.desc}</span>
+        </button>`).join("") +
+        `<button type="button" data-o="none" class="${chosen.size ? "" : "on"}"><strong>Aucun objet</strong><span>Le Corbeau seul, sans accessoire.</span></button>`;
+
+    const stage = document.getElementById("stage");
+    stage.querySelector(".pose-box")?.remove();
+    stage.insertAdjacentHTML("beforeend", poseHtml(POSES[0], 380));
+
+    document.getElementById("poses").innerHTML = POSES.map(p =>
+        `<div class="pose">${poseHtml(p, Math.round(150 * p.w / 508 * (p.head.startsWith("l") ? 1.1 : 1)))}${p.label}</div>`).join("");
+
+    document.getElementById("xp-row").innerHTML =
+        poseHtml(POSES[0], 46) + `<div class="txt"><strong>Skin Corbeau</strong><span>🎃 Dernière semaine d'octobre</span></div>`;
+
+    document.getElementById("copied").textContent = "";
+}
+
+document.addEventListener("click", event => {
+    const b = event.target.closest("[data-o]");
+    if (b) {
+        if (b.dataset.o === "none") chosen.clear();
+        else chosen.has(b.dataset.o) ? chosen.delete(b.dataset.o) : chosen.add(b.dataset.o);
+        render();
+        return;
+    }
+    if (event.target.id === "choose") {
+        const names = OBJECTS.filter(o => chosen.has(o.id)).map(o => o.name).join(" + ") || "aucun objet";
+        const text = `Skin Corbeau : ${names}`;
+        navigator.clipboard?.writeText(text).catch(() => {});
+        document.getElementById("copied").textContent = "Copié : « " + text + " » — colle-le dans le chat.";
+    }
+});
+
+render();
+</script>
+</body>
+</html>

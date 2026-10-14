@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BetLab – Cotes qui bougent</title>
+<style>
+* { box-sizing: border-box; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; margin: 0; }
+h1 { font-size: 26px; margin: 0 0 6px; }
+.sub { color: #858a98; margin: 0 0 16px; max-width: 920px; font-size: 14px; line-height: 1.55; }
+.sub b { color: #e6e8ee; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; align-items: center; }
+.tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; font: inherit; }
+.tab small { display: block; font-size: 11px; opacity: .75; }
+.tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.pick { margin-left: auto; background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; padding: 10px 16px; border-radius: 12px; cursor: pointer; font: inherit; font-weight: 900; }
+.copied { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1c202c; border: 1px solid #63d69f; padding: 12px 18px; border-radius: 14px; font-weight: 700; z-index: 99; max-width: calc(100% - 32px); }
+.hidden { display: none !important; }
+
+.layout { display: grid; grid-template-columns: minmax(0, 440px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+
+.panel { background: #171a23; border: 1px solid #262a38; border-radius: 18px; padding: 16px; }
+.panel h3 { margin: 0 0 10px; font-size: 15px; }
+.muted { color: #858a98; font-size: 12px; }
+
+/* Carte de pari */
+.card { background: linear-gradient(180deg, #1c202c, #14161e); border: 1px solid #2c3040; border-radius: 18px; padding: 16px; }
+.card-top { display: flex; justify-content: space-between; color: #858a98; font-size: 12px; margin-bottom: 8px; }
+.card-q { font-size: 18px; font-weight: 800; margin: 0 0 14px; line-height: 1.35; }
+.choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.choice { position: relative; border: 1px solid #343a4d; background: #12141b; border-radius: 14px; padding: 12px; text-align: center; cursor: pointer; transition: border-color .15s, transform .1s; }
+.choice:hover { border-color: #6c63ff; }
+.choice.sel { border-color: #6c63ff; box-shadow: 0 0 0 2px rgba(108,99,255,.35); }
+.choice span { display: block; color: #aaaeba; font-size: 13px; font-weight: 700; }
+.choice strong { display: block; font-size: 26px; font-weight: 900; margin-top: 4px; }
+.choice .start { font-size: 11px; color: #737887; margin-top: 2px; }
+.choice .arrow { position: absolute; top: 8px; right: 10px; font-size: 13px; font-weight: 900; }
+.up { color: #63d69f; } .down { color: #ff7a8a; }
+.choice.fire { border-color: #ff9f43; box-shadow: 0 0 18px rgba(255,120,40,.35); }
+.choice.fire strong { color: #ffb36b; }
+.flash-up strong { animation: fu .9s; } .flash-down strong { animation: fd .9s; }
+@keyframes fu { 0% { color: #63d69f; transform: scale(1.18); } 100% { transform: none; } }
+@keyframes fd { 0% { color: #ff7a8a; transform: scale(.88); } 100% { transform: none; } }
+.bar { display: flex; height: 8px; border-radius: 99px; overflow: hidden; margin: 12px 0 4px; background: #262a38; }
+.bar i { display: block; height: 100%; transition: width .4s; }
+.bar .a { background: linear-gradient(90deg, #5b4fe0, #8a7dff); } .bar .b { background: linear-gradient(90deg, #2fa36f, #63d69f); }
+.bar-legend { display: flex; justify-content: space-between; font-size: 11px; color: #858a98; }
+
+/* Mise */
+.who { display: flex; gap: 6px; flex-wrap: wrap; margin: 14px 0 8px; }
+.who button, .amounts button { border: 1px solid #2c3040; background: #1c202c; color: #e6e8ee; border-radius: 10px; padding: 7px 11px; font: inherit; font-size: 13px; cursor: pointer; }
+.who button.on, .amounts button.on { background: #6c63ff; border-color: #6c63ff; }
+.amounts { display: flex; gap: 6px; flex-wrap: wrap; }
+.go { width: 100%; margin-top: 10px; padding: 12px; border: none; border-radius: 12px; background: linear-gradient(135deg, #5b4fe0, #c86bff); color: white; font: inherit; font-weight: 900; cursor: pointer; }
+.go:disabled { opacity: .45; cursor: not-allowed; }
+.preview { margin-top: 8px; font-size: 13px; color: #aaaeba; min-height: 18px; }
+.preview b { color: #e6e8ee; }
+
+/* Droite */
+.right { display: grid; gap: 16px; }
+canvas { width: 100%; height: 190px; display: block; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; color: #858a98; font-weight: 700; font-size: 11px; padding: 6px 4px; border-bottom: 1px solid #262a38; }
+td { padding: 7px 4px; border-bottom: 1px solid #1f2330; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.tag { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 11px; font-weight: 800; }
+.tag.a { background: rgba(108,99,255,.2); color: #b3abff; } .tag.b { background: rgba(99,214,159,.15); color: #63d69f; }
+.result-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.result-btns button { border: 1px solid #2c3040; background: #1c202c; color: #e6e8ee; border-radius: 10px; padding: 8px 12px; font: inherit; cursor: pointer; }
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.compare div { border: 1px solid #262a38; border-radius: 12px; padding: 10px; background: #12141b; }
+.compare b { display: block; font-size: 20px; margin-top: 4px; }
+.reset { background: none; border: 1px solid #2c3040; color: #aaaeba; border-radius: 10px; padding: 7px 11px; font: inherit; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<h1>📈 Cotes qui bougent</h1>
+<p class="sub">
+    Le créateur fixe la cote de départ, puis <b>chaque mise fait baisser la cote du choix misé et monter l'autre</b>.
+    Chaque joueur <b>garde la cote du moment où il a misé</b> (comme chez Winamax).
+    Les cotes restent entre 1,11 et 10. Le créateur ne risque rien.<br>
+    Essaie : fais miser Lina, Yann et Balac sur « Oui », puis clique « Résultat : Oui » pour comparer avec les cotes fixes d'aujourd'hui.
+    Les 3 onglets changent seulement la <b>vitesse</b> à laquelle la cote bouge.
+</p>
+
+<div class="tabs">
+    <button class="tab" data-v="lente">A · Lente <small>la cote bouge peu</small></button>
+    <button class="tab active" data-v="moyenne">B · Moyenne <small>conseillée</small></button>
+    <button class="tab" data-v="rapide">C · Rapide <small>la cote s'effondre vite</small></button>
+    <button class="pick" id="pick">Je choisis celle-ci</button>
+</div>
+
+<div class="layout">
+
+    <div class="panel">
+        <div class="card">
+            <div class="card-top"><span>Créé par Flo · Les Fous du BE</span><span id="pool"></span></div>
+            <p class="card-q">Etienne reste jusqu'à 15 h 20 au bureau de Nico</p>
+            <div class="choices" id="choices"></div>
+            <div class="bar"><i class="a" id="bar-a"></i><i class="b" id="bar-b"></i></div>
+            <div class="bar-legend"><span id="leg-a"></span><span id="leg-b"></span></div>
+        </div>
+
+        <div class="who" id="who"></div>
+        <div class="amounts" id="amounts"></div>
+        <div class="preview" id="preview"></div>
+        <button class="go" id="go">Miser</button>
+    </div>
+
+    <div class="right">
+        <div class="panel">
+            <h3>Évolution des cotes</h3>
+            <canvas id="chart"></canvas>
+        </div>
+
+        <div class="panel">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <h3 style="margin:0">Mises (cote figée au moment de la mise)</h3>
+                <button class="reset" id="reset">↺ Recommencer</button>
+            </div>
+            <table>
+                <thead><tr><th>Joueur</th><th>Choix</th><th class="num">Mise</th><th class="num">Cote prise</th><th class="num">Gain si gagné</th></tr></thead>
+                <tbody id="rows"><tr><td colspan="5" class="muted">Aucune mise pour l'instant.</td></tr></tbody>
+            </table>
+        </div>
+
+        <div class="panel">
+            <h3>Résultat : combien d'argent est créé ?</h3>
+            <div class="result-btns">
+                <button data-res="0">Résultat : Oui</button>
+                <button data-res="1">Résultat : Non</button>
+            </div>
+            <div id="result" class="muted">Choisis un résultat pour comparer avec les cotes fixes d'aujourd'hui.</div>
+        </div>
+    </div>
+
+</div>
+
+<div class="copied hidden" id="copied"></div>
+
+<script>
+// Vitesse = « liquidité » virtuelle : plus elle est grande, moins une mise fait bouger la cote.
+const SPEEDS = { lente: 20000, moyenne: 10000, rapide: 4000 };
+const START = [5, 1.25];
+const LABELS = ["Oui", "Non"];
+const PLAYERS = ["Lina", "Yann", "Balac", "Just1", "Julie"];
+const AMOUNTS = [100, 500, 1000, 2000, 5000];
+const ODDS_MIN = 1.11, ODDS_MAX = 10;
+
+let speed = "moyenne", stakes = [], history = [], pick = 0, player = "Lina", amount = 2000, lastOdds = null, resultShown = null;
+
+const fmt = n => n.toLocaleString("fr-FR", { maximumFractionDigits: 0 }) + " €";
+const fmtOdds = n => n.toFixed(2).replace(".", ",");
+
+// Probabilités de départ tirées des cotes du créateur, puis « pots » virtuels.
+function oddsNow(list = stakes) {
+    const L = SPEEDS[speed];
+    const inv = START.map(o => 1 / o);
+    const sum = inv[0] + inv[1];
+    const pots = inv.map(p => L * p / sum);
+    list.forEach(s => pots[s.choice] += s.stake);
+    const total = pots[0] + pots[1];
+    return pots.map(p => {
+        const raw = total / p;
+        return Math.min(ODDS_MAX, Math.max(ODDS_MIN, Math.round(raw * 100) / 100));
+    });
+}
+
+function render(flash) {
+    const odds = oddsNow();
+    const box = document.getElementById("choices");
+    box.innerHTML = odds.map((o, i) => {
+        const prev = lastOdds ? lastOdds[i] : o;
+        const dir = o > prev + 0.001 ? "up" : o < prev - 0.001 ? "down" : "";
+        return `<div class="choice ${pick === i ? "sel" : ""} ${o >= 8 ? "fire" : ""} ${flash && dir ? "flash-" + dir : ""}" data-pick="${i}">
+            ${dir ? `<span class="arrow ${dir}">${dir === "up" ? "▲" : "▼"}</span>` : ""}
+            <span>${LABELS[i]}</span><strong>${fmtOdds(o)}</strong>
+            <div class="start">départ ${fmtOdds(START[i])}</div>
+        </div>`;
+    }).join("");
+    box.querySelectorAll("[data-pick]").forEach(el => el.onclick = () => { pick = Number(el.dataset.pick); render(); });
+
+    const staked = [0, 1].map(i => stakes.filter(s => s.choice === i).reduce((t, s) => t + s.stake, 0));
+    const total = staked[0] + staked[1];
+    document.getElementById("pool").textContent = total ? fmt(total) + " misés" : "Aucune mise";
+    const pa = total ? staked[0] / total * 100 : 50;
+    document.getElementById("bar-a").style.width = pa + "%";
+    document.getElementById("bar-b").style.width = (100 - pa) + "%";
+    document.getElementById("leg-a").textContent = "Oui · " + fmt(staked[0]);
+    document.getElementById("leg-b").textContent = "Non · " + fmt(staked[1]);
+
+    document.getElementById("who").innerHTML = PLAYERS.map(p => `<button class="${p === player ? "on" : ""}" data-p="${p}">${p}</button>`).join("");
+    document.querySelectorAll("[data-p]").forEach(b => b.onclick = () => { player = b.dataset.p; render(); });
+    document.getElementById("amounts").innerHTML = AMOUNTS.map(a => `<button class="${a === amount ? "on" : ""}" data-a="${a}">${fmt(a)}</button>`).join("");
+    document.querySelectorAll("[data-a]").forEach(b => b.onclick = () => { amount = Number(b.dataset.a); render(); });
+
+    const after = oddsNow([...stakes, { choice: pick, stake: amount }]);
+    document.getElementById("preview").innerHTML =
+        `${player} prend <b>${LABELS[pick]} à ${fmtOdds(odds[pick])}</b> → gain <b>${fmt(amount * odds[pick])}</b> si gagné. Après sa mise : ${LABELS[pick]} passe à <b>${fmtOdds(after[pick])}</b>, ${LABELS[1 - pick]} à <b>${fmtOdds(after[1 - pick])}</b>.`;
+    document.getElementById("go").textContent = `Miser ${fmt(amount)} pour ${player} sur ${LABELS[pick]}`;
+
+    const rows = document.getElementById("rows");
+    rows.innerHTML = stakes.length ? stakes.map(s => `<tr>
+        <td>${s.player}</td><td><span class="tag ${s.choice ? "b" : "a"}">${LABELS[s.choice]}</span></td>
+        <td class="num">${fmt(s.stake)}</td><td class="num">${fmtOdds(s.odds)}</td><td class="num">${fmt(s.stake * s.odds)}</td></tr>`).join("")
+        : `<tr><td colspan="5" class="muted">Aucune mise pour l'instant.</td></tr>`;
+
+    drawChart();
+    if (resultShown !== null) showResult(resultShown);
+    lastOdds = odds;
+}
+
+function drawChart() {
+    const c = document.getElementById("chart");
+    const dpr = window.devicePixelRatio || 1;
+    const w = c.clientWidth, h = c.clientHeight;
+    c.width = w * dpr; c.height = h * dpr;
+    const ctx = c.getContext("2d");
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, w, h);
+    const pts = [START.slice(), ...stakes.map((_, i) => oddsNow(stakes.slice(0, i + 1)))];
+    const pad = { l: 34, r: 12, t: 10, b: 22 };
+    const maxY = Math.max(6, ...pts.flat()) * 1.05;
+    const x = i => pad.l + (pts.length === 1 ? 0 : i / (pts.length - 1)) * (w - pad.l - pad.r);
+    const y = v => pad.t + (1 - (v - 1) / (maxY - 1)) * (h - pad.t - pad.b);
+    ctx.font = "11px system-ui"; ctx.fillStyle = "#737887"; ctx.strokeStyle = "#23262f"; ctx.lineWidth = 1;
+    [1, 2, 4, 6, 8, 10].filter(v => v <= maxY).forEach(v => {
+        ctx.beginPath(); ctx.moveTo(pad.l, y(v)); ctx.lineTo(w - pad.r, y(v)); ctx.stroke();
+        ctx.fillText(String(v), 8, y(v) + 4);
+    });
+    ctx.fillText("mises →", w - 60, h - 6);
+    [["#8a7dff", 0], ["#63d69f", 1]].forEach(([col, k]) => {
+        ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.beginPath();
+        pts.forEach((p, i) => i ? ctx.lineTo(x(i), y(p[k])) : ctx.moveTo(x(i), y(p[k])));
+        ctx.stroke();
+        pts.forEach((p, i) => { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x(i), y(p[k]), 3, 0, 7); ctx.fill(); });
+    });
+}
+
+function showResult(win) {
+    resultShown = win;
+    const winners = stakes.filter(s => s.choice === win);
+    const staked = stakes.reduce((t, s) => t + s.stake, 0);
+    const paidMoving = winners.reduce((t, s) => t + s.stake * s.odds, 0);
+    const paidFixed = winners.reduce((t, s) => t + s.stake * START[win], 0);
+    const box = document.getElementById("result");
+    if (!stakes.length) { box.textContent = "Fais d'abord quelques mises."; return; }
+    box.innerHTML = `
+        <p style="margin:0 0 10px;color:#aaaeba">Résultat <b style="color:#e6e8ee">${LABELS[win]}</b> · ${fmt(staked)} misés au total.</p>
+        <div class="compare">
+            <div>Cotes fixes (aujourd'hui)<b>${fmt(paidFixed)}</b><span class="${paidFixed - staked > 0 ? "up" : "down"}">${paidFixed - staked >= 0 ? "+" : ""}${fmt(paidFixed - staked)} créés</span></div>
+            <div>Cotes qui bougent<b>${fmt(paidMoving)}</b><span class="${paidMoving - staked > 0 ? "up" : "down"}">${paidMoving - staked >= 0 ? "+" : ""}${fmt(paidMoving - staked)} créés</span></div>
+        </div>
+        <p class="muted" style="margin:10px 0 0">« Créés » = argent payé aux gagnants moins l'argent misé par tout le monde.</p>`;
+}
+
+document.getElementById("go").onclick = () => {
+    const odds = oddsNow();
+    stakes.push({ player, choice: pick, stake: amount, odds: odds[pick] });
+    render(true);
+};
+document.getElementById("reset").onclick = () => { stakes = []; lastOdds = null; resultShown = null; document.getElementById("result").innerHTML = "Choisis un résultat pour comparer avec les cotes fixes d'aujourd'hui."; render(); };
+document.querySelectorAll("[data-res]").forEach(b => b.onclick = () => showResult(Number(b.dataset.res)));
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === t));
+    speed = t.dataset.v;
+    // Même mises, recalculées avec la nouvelle vitesse.
+    const replay = stakes.map(s => ({ player: s.player, choice: s.choice, stake: s.stake }));
+    stakes = [];
+    replay.forEach(s => stakes.push({ ...s, odds: oddsNow()[s.choice] }));
+    lastOdds = null;
+    render();
+});
+document.getElementById("pick").onclick = () => {
+    const text = "Cotes qui bougent : je choisis la vitesse " + document.querySelector(".tab.active").childNodes[0].textContent.trim();
+    navigator.clipboard?.writeText(text).catch(() => {});
+    const el = document.getElementById("copied");
+    el.textContent = "Copié : « " + text + " » — colle-le à Claude";
+    el.classList.remove("hidden");
+    setTimeout(() => el.classList.add("hidden"), 3500);
+};
+window.addEventListener("resize", drawChart);
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Les chemins (images) partent de la racine du site -->
+<base href="../">
+<title>BetLab – Skin Halloween (maquette)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 80px; }
+button { font: inherit; cursor: pointer; color: inherit; }
+h1 { font-size: 26px; margin-bottom: 6px; }
+.sub { color: #858a98; margin-bottom: 20px; max-width: 900px; font-size: 14px; line-height: 1.5; }
+.col-title { color: #858a98; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; margin: 18px 0 8px; }
+
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.tabs button { background: #1f2330; border: 1px solid #343846; border-radius: 12px; padding: 10px 14px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+.tabs button img { width: 34px; height: 40px; object-fit: contain; }
+.tabs button.on { background: #ff7a1a; border-color: #ff7a1a; color: #140a02; }
+
+.fx { display: flex; flex-wrap: wrap; gap: 6px; }
+.fx button { background: #1f2330; border: 1px solid #343846; border-radius: 9px; padding: 7px 11px; font-size: 13px; font-weight: 700; }
+.fx button.on { background: #6c3cd6; border-color: #6c3cd6; }
+
+.layout { display: grid; grid-template-columns: 460px minmax(0, 1fr); gap: 24px; align-items: start; max-width: 1100px; }
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+/* Scène : le perroquet en attente, comme en bas à droite du site */
+.stage { position: relative; height: 560px; border-radius: 20px; overflow: hidden;
+    background: radial-gradient(circle at 60% 100%, #2a1608 0%, #12141c 62%); border: 1px solid #2c3040; }
+.stage .name { position: absolute; left: 16px; top: 14px; font-weight: 900; font-size: 18px; z-index: 5; }
+.stage .name small { display: block; color: #ff9a3c; font-size: 12px; font-weight: 700; margin-top: 2px; }
+.parrot { position: absolute; left: 50%; bottom: -30px; width: 360px; aspect-ratio: 392 / 441; transform: translateX(-50%) scaleX(-1); z-index: 3; }
+.parrot img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.parrot .head { animation: bob 2.6s ease-in-out infinite; transform-origin: 50% 60%; }
+@keyframes bob { 50% { transform: rotate(-3deg) translateY(-3px); } }
+
+/* Effet 1 : lueur orange qui respire (comme le Phénix, en orange) */
+.glow { position: absolute; left: 50%; bottom: 40px; width: 380px; height: 380px; transform: translateX(-50%);
+    border-radius: 50%; background: radial-gradient(circle, rgba(255, 122, 26, .55), rgba(255, 122, 26, 0) 65%);
+    animation: breathe 2.8s ease-in-out infinite; z-index: 1; display: none; }
+@keyframes breathe { 50% { opacity: .45; transform: translateX(-50%) scale(.92); } }
+
+/* Effet 2 : chauves-souris */
+.bat { position: absolute; width: 46px; z-index: 4; display: none; filter: drop-shadow(0 0 6px rgba(255, 122, 26, .5)); }
+.bat svg { width: 100%; animation: flap .22s ease-in-out infinite alternate; transform-origin: 50% 40%; }
+@keyframes flap { to { transform: scaleY(.45); } }
+.bat.b1 { animation: fly1 7s ease-in-out infinite; }
+.bat.b2 { animation: fly2 9s ease-in-out infinite; width: 34px; }
+.bat.b3 { animation: fly3 8s ease-in-out infinite; width: 28px; }
+@keyframes fly1 { 0% { left: 8%; top: 30%; } 25% { left: 70%; top: 14%; } 50% { left: 82%; top: 40%; } 75% { left: 30%; top: 22%; } 100% { left: 8%; top: 30%; } }
+@keyframes fly2 { 0% { left: 80%; top: 12%; } 30% { left: 20%; top: 20%; } 60% { left: 10%; top: 45%; } 100% { left: 80%; top: 12%; } }
+@keyframes fly3 { 0% { left: 45%; top: 8%; } 40% { left: 85%; top: 25%; } 70% { left: 15%; top: 10%; } 100% { left: 45%; top: 8%; } }
+
+/* Effet 3 : feux follets (petites flammes qui montent) */
+.wisp { position: absolute; bottom: 30px; width: 10px; height: 14px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    background: radial-gradient(circle at 50% 70%, #fff3c4, #ff9a1a 45%, rgba(255, 80, 0, 0) 75%);
+    filter: blur(.5px); z-index: 4; display: none; animation: rise linear infinite; }
+@keyframes rise { 0% { transform: translate(0, 0) scale(1); opacity: 0; } 10% { opacity: 1; }
+    50% { transform: translate(14px, -200px) scale(.8); } 100% { transform: translate(-10px, -420px) scale(.3); opacity: 0; } }
+
+/* Effet 4 : brume violette au sol + citrouilles */
+.mist { position: absolute; left: -10%; right: -10%; bottom: -40px; height: 170px; z-index: 4; display: none; pointer-events: none; }
+.mist i { position: absolute; bottom: 0; width: 60%; height: 120px; border-radius: 50%;
+    background: radial-gradient(ellipse, rgba(140, 90, 220, .55), rgba(140, 90, 220, 0) 70%); filter: blur(10px); animation: drift 9s ease-in-out infinite alternate; }
+.mist i:nth-child(2) { left: 40%; animation-duration: 12s; background: radial-gradient(ellipse, rgba(90, 200, 120, .35), rgba(90, 200, 120, 0) 70%); }
+.mist i:nth-child(3) { left: 15%; bottom: 30px; animation-duration: 7s; }
+@keyframes drift { to { transform: translateX(80px); } }
+.pumpkin { position: absolute; bottom: 14px; font-size: 38px; z-index: 5; display: none; filter: drop-shadow(0 0 12px rgba(255, 140, 0, .9)); animation: flicker 1.6s ease-in-out infinite; }
+@keyframes flicker { 50% { filter: drop-shadow(0 0 4px rgba(255, 140, 0, .5)); } }
+
+.stage[data-fx~="glow"] .glow,
+.stage[data-fx~="bats"] .bat,
+.stage[data-fx~="wisps"] .wisp,
+.stage[data-fx~="mist"] .mist,
+.stage[data-fx~="mist"] .pumpkin { display: block; }
+
+/* Poses gagné / perdu */
+.poses { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pose { background: #14161e; border: 1px solid #2c3040; border-radius: 14px; padding: 8px; text-align: center; font-size: 12px; color: #858a98; font-weight: 700; }
+.pose img { width: 100%; height: 190px; object-fit: contain; transform: scaleX(-1); }
+
+/* Ligne de la fenêtre XP (comme sur le site) */
+.xp-row { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border: 1px solid #ff7a1a; border-radius: 12px; background: rgba(255, 122, 26, .08); }
+.xp-row img { width: 44px; height: 50px; object-fit: contain; }
+.xp-row div { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.xp-row strong { color: white; font-size: 14px; }
+.xp-row span { color: #ff9a3c; font-size: 12px; }
+.xp-row button { background: #2a2f3d; border: 0; border-radius: 9px; padding: 7px 12px; font-size: 13px; font-weight: 700; }
+
+.desc { background: #171a24; border: 1px solid #2c3040; border-radius: 14px; padding: 12px 14px; font-size: 14px; line-height: 1.5; }
+.desc b { color: #ff9a3c; }
+
+.pick { margin-top: 18px; width: 100%; background: #22c55e; border: 0; border-radius: 12px; padding: 13px; font-weight: 900; font-size: 15px; color: #06200f; }
+.copied { color: #22c55e; font-size: 13px; margin-top: 6px; min-height: 18px; }
+</style>
+</head>
+<body>
+
+<h1>🎃 Skin Halloween du perroquet</h1>
+<p class="sub">
+    Noir et orange, pour la dernière semaine d'octobre. Choisis une <b>couleur</b> (onglets), puis un <b>effet</b> autour du perroquet
+    (chaque couleur arrive avec l'effet que je propose, mais tu peux mélanger). Les poses « gagné » et « perdu » sont recoloriées pareil.
+</p>
+
+<div class="tabs" id="tabs"></div>
+
+<div class="layout">
+    <div>
+        <div class="stage" id="stage">
+            <div class="name" id="name"></div>
+            <div class="glow"></div>
+            <div class="parrot">
+                <img class="body" id="p-body" alt="">
+                <img class="head" id="p-head" alt="">
+            </div>
+            <div class="bat b1"><svg viewBox="0 0 64 32"><path fill="#111" d="M32 10c2-4 4-6 5-6-1 3 0 5 2 6 4-4 12-6 25-4-6 2-9 6-10 12-3-3-7-3-10 0-2-2-5-2-7 1-1-2-3-3-5-3s-4 1-5 3c-2-3-5-3-7-1-3-3-7-3-10 0-1-6-4-10-10-12 13-2 21 0 25 4 2-1 3-3 2-6 1 0 3 2 5 6z"/><circle cx="29" cy="12" r="1.3" fill="#ff7a1a"/><circle cx="35" cy="12" r="1.3" fill="#ff7a1a"/></svg></div>
+            <div class="bat b2"><svg viewBox="0 0 64 32"><path fill="#111" d="M32 10c2-4 4-6 5-6-1 3 0 5 2 6 4-4 12-6 25-4-6 2-9 6-10 12-3-3-7-3-10 0-2-2-5-2-7 1-1-2-3-3-5-3s-4 1-5 3c-2-3-5-3-7-1-3-3-7-3-10 0-1-6-4-10-10-12 13-2 21 0 25 4 2-1 3-3 2-6 1 0 3 2 5 6z"/><circle cx="29" cy="12" r="1.3" fill="#ff7a1a"/><circle cx="35" cy="12" r="1.3" fill="#ff7a1a"/></svg></div>
+            <div class="bat b3"><svg viewBox="0 0 64 32"><path fill="#111" d="M32 10c2-4 4-6 5-6-1 3 0 5 2 6 4-4 12-6 25-4-6 2-9 6-10 12-3-3-7-3-10 0-2-2-5-2-7 1-1-2-3-3-5-3s-4 1-5 3c-2-3-5-3-7-1-3-3-7-3-10 0-1-6-4-10-10-12 13-2 21 0 25 4 2-1 3-3 2-6 1 0 3 2 5 6z"/><circle cx="29" cy="12" r="1.3" fill="#ff7a1a"/><circle cx="35" cy="12" r="1.3" fill="#ff7a1a"/></svg></div>
+            <div id="wisps"></div>
+            <div class="mist"><i></i><i></i><i></i></div>
+            <span class="pumpkin" style="left: 22px">🎃</span>
+            <span class="pumpkin" style="right: 26px; font-size: 30px; animation-delay: .7s">🎃</span>
+        </div>
+    </div>
+
+    <div>
+        <p class="col-title" style="margin-top: 0">Effet autour du perroquet</p>
+        <div class="fx" id="fx"></div>
+
+        <p class="col-title">Description</p>
+        <div class="desc" id="desc"></div>
+
+        <p class="col-title">Poses gagné / perdu</p>
+        <div class="poses">
+            <div class="pose"><img id="p-win" alt="">Gagné</div>
+            <div class="pose"><img id="p-lose" alt="">Perdu</div>
+        </div>
+
+        <p class="col-title">Dans la fenêtre XP</p>
+        <div class="xp-row">
+            <img id="p-thumb" alt="">
+            <div><strong id="xp-name"></strong><span>🎃 Dernière semaine d'octobre</span></div>
+            <button type="button">Activer</button>
+        </div>
+
+        <button class="pick" id="choose">✅ Je choisis celle-ci</button>
+        <div class="copied" id="copied"></div>
+    </div>
+</div>
+
+<script>
+const DIR = "Exemple-aide CLAUDE/halloween/";
+
+const VARIANTS = [
+    { id: "citrouille", name: "Citrouille", fx: ["glow"],
+      desc: "Corps <b>noir</b>, ventre <b>orange citrouille</b>. La crête verte rappelle la tige de la citrouille. Le plus lisible, proche du skin Noir et or." },
+    { id: "sorciere", name: "Sorcière", fx: ["bats"],
+      desc: "Ailes <b>noir violacé</b>, ventre <b>orange</b>, crête verte « chaudron ». Trois chauves-souris aux yeux orange volent autour." },
+    { id: "lanterne", name: "Lanterne", fx: ["glow", "wisps"],
+      desc: "L'inverse : ailes <b>orange brûlé</b>, ventre et tête <b>noirs</b>. Une lueur orange respire derrière et des feux follets montent, comme les braises du Phénix." },
+    { id: "corbeau", name: "Corbeau", fx: ["mist"],
+      desc: "<b>Noir profond</b> presque corbeau, ventre <b>orange sombre</b>. Brume violette et verte au sol, deux citrouilles allumées à ses pieds." }
+];
+
+const EFFECTS = [
+    ["glow", "🔥 Lueur orange"],
+    ["bats", "🦇 Chauves-souris"],
+    ["wisps", "✨ Feux follets"],
+    ["mist", "🌫️ Brume + citrouilles"]
+];
+
+let current = VARIANTS[0];
+let fx = new Set(current.fx);
+
+// Feux follets
+const wisps = document.getElementById("wisps");
+for (let i = 0; i < 12; i++) {
+    const w = document.createElement("span");
+    w.className = "wisp";
+    w.style.left = (15 + Math.random() * 70) + "%";
+    w.style.animationDuration = (3 + Math.random() * 3) + "s";
+    w.style.animationDelay = (-Math.random() * 6) + "s";
+    wisps.appendChild(w);
+}
+
+function render() {
+
+    const v = current;
+
+    document.getElementById("tabs").innerHTML = VARIANTS.map(item => `
+        <button type="button" data-v="${item.id}" class="${item.id === v.id ? "on" : ""}">
+            <img src="${DIR}${item.id}/thumb.png" alt="">${item.name}
+        </button>`).join("");
+
+    document.getElementById("fx").innerHTML =
+        `<button type="button" data-fx="none" class="${fx.size ? "" : "on"}">Aucun</button>` +
+        EFFECTS.map(([id, label]) => `<button type="button" data-fx="${id}" class="${fx.has(id) ? "on" : ""}">${label}</button>`).join("");
+
+    document.getElementById("name").innerHTML = `Skin ${v.name}<small>🎃 Halloween</small>`;
+    document.getElementById("desc").innerHTML = v.desc;
+    document.getElementById("p-body").src = DIR + v.id + "/wait-body.png";
+    document.getElementById("p-head").src = DIR + v.id + "/wait-head.png";
+    document.getElementById("p-win").src = DIR + v.id + "/win-main.png";
+    document.getElementById("p-lose").src = DIR + v.id + "/lose-main.png";
+    document.getElementById("p-thumb").src = DIR + v.id + "/thumb.png";
+    document.getElementById("xp-name").textContent = "Skin " + v.name;
+    document.getElementById("stage").dataset.fx = [...fx].join(" ");
+    document.getElementById("copied").textContent = "";
+
+}
+
+document.addEventListener("click", event => {
+
+    const tab = event.target.closest("[data-v]");
+
+    if (tab) {
+        current = VARIANTS.find(item => item.id === tab.dataset.v);
+        fx = new Set(current.fx);
+        render();
+        return;
+    }
+
+    const effect = event.target.closest("[data-fx]");
+
+    if (effect) {
+        if (effect.dataset.fx === "none") fx.clear();
+        else fx.has(effect.dataset.fx) ? fx.delete(effect.dataset.fx) : fx.add(effect.dataset.fx);
+        render();
+        return;
+    }
+
+    if (event.target.id === "choose") {
+        const labels = EFFECTS.filter(([id]) => fx.has(id)).map(([, label]) => label).join(" + ") || "aucun effet";
+        const text = `Skin Halloween : couleur ${current.name}, effet ${labels}`;
+        navigator.clipboard?.writeText(text).catch(() => {});
+        document.getElementById("copied").textContent = "Copié : « " + text + " » — colle-le dans le chat.";
+    }
+
+});
+
+render();
+</script>
+</body>
+</html>

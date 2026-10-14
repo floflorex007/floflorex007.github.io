@@ -535,6 +535,14 @@
                 ></span>
 
 
+                <!-- Téléphone seulement : jauge d'XP et flamme de série, déplacées ici
+                     depuis la barre du haut par placePhoneHeaderWidgets (app.js) -->
+                <div
+                    id="phone-header-widgets"
+                    class="phone-header-widgets"
+                ></div>
+
+
                 <!-- Téléphone seulement : ouvre le classement en fenêtre -->
                 <button
                     type="button"
@@ -943,7 +951,14 @@
                     Ton pseudo apparaît dans le classement et sur les paris.
                     C'est aussi ton identifiant de connexion : après le changement,
                     connecte-toi avec ton nouveau pseudo (le mot de passe ne change pas).
+                    Un seul changement toutes les 48 h.
                 </p>
+
+                <!-- Changement de pseudo bloqué 48 h (renderUsernameLock) -->
+                <p
+                    id="username-lock"
+                    class="username-lock hidden"
+                ></p>
 
                 <form
                     id="username-form"
@@ -1109,7 +1124,7 @@
                                         id="odds-one"
                                         class="duel-value"
                                         min="1.01"
-                                        max="20"
+                                        max="10"
                                         step="any"
                                         placeholder="1.80"
                                         required
@@ -1138,7 +1153,7 @@
                                             id="odds-two"
                                             class="duel-value"
                                             min="1.01"
-                                            max="20"
+                                            max="10"
                                             step="any"
                                             placeholder="auto"
                                             readonly
@@ -1515,6 +1530,45 @@
 
                 <p
                     id="admin-accounts-message"
+                    class="admin-balance-message"
+                ></p>
+
+            </div>
+
+
+            <!-- Admin : supprimer des paris de l'historique (admin-suppression-historique.sql) -->
+            <div class="create-card">
+
+                <h3>
+                    Historique des paris
+                    <small id="admin-history-count"></small>
+                </h3>
+
+                <p class="resolve-info">
+                    Paris terminés (validés ou annulés). Supprimer un pari l'efface de l'historique
+                    de tout le monde, mais ne change ni les soldes ni l'XP : l'argent déjà gagné ou perdu reste.
+                    Les combinés finis qui le contiennent sont effacés avec lui.
+                </p>
+
+                <select
+                    id="admin-history-group"
+                    class="admin-balance-group"
+                ></select>
+
+                <input
+                    type="search"
+                    id="admin-history-search"
+                    class="admin-balance-group"
+                    placeholder="Rechercher un pari..."
+                >
+
+                <div
+                    id="admin-history-list"
+                    class="admin-balance-list"
+                ></div>
+
+                <p
+                    id="admin-history-message"
                     class="admin-balance-message"
                 ></p>
 
@@ -2521,9 +2575,27 @@
             </h2>
 
 
+            <!-- Aperçu du skin offert (message Octobre rose) -->
+            <img
+                id="notice-preview"
+                class="hidden"
+                src=""
+                alt=""
+            >
+
+
             <p id="notice-content">
                 Contenu
             </p>
+
+
+            <button
+                id="notice-action"
+                class="primary-button hidden"
+                type="button"
+            >
+                Équiper le skin
+            </button>
 
 
             <button
@@ -2762,6 +2834,113 @@
             </div>
 
         </div>
+
+    </div>
+
+
+
+    <!-- CHAT DU GROUPE : bulle flottante en bas à gauche (chat.sql) -->
+
+    <button
+        type="button"
+        id="chat-fab"
+        class="chat-fab hidden"
+        aria-label="Chat du groupe"
+    >
+        💬
+        <span
+            id="chat-unread"
+            class="chat-unread hidden"
+        ></span>
+    </button>
+
+
+    <div
+        id="chat-panel"
+        class="chat-panel hidden"
+    >
+
+        <div class="chat-head">
+
+            <b id="chat-title">💬 Chat</b>
+
+            <small>🧹 Effacé lundi à 0 h</small>
+
+            <button
+                type="button"
+                id="chat-close"
+                class="chat-close"
+                aria-label="Fermer le chat"
+            >
+                ✕
+            </button>
+
+        </div>
+
+
+        <!-- Liste des messages + flèche « nouveau message » quand on lit plus haut -->
+        <div class="chat-list-wrap">
+
+            <div
+                id="chat-list"
+                class="chat-list"
+            ></div>
+
+            <button
+                type="button"
+                id="chat-new-arrow"
+                class="chat-new-arrow hidden"
+            >
+                ↓
+                <span id="chat-new-label">Nouveau message</span>
+            </button>
+
+        </div>
+
+
+        <!-- « Réponse à … » ou « Modifier le message » au-dessus de la zone d'écriture -->
+        <div
+            id="chat-context"
+            class="chat-context hidden"
+        >
+
+            <div>
+                <b id="chat-context-title"></b>
+                <span id="chat-context-text"></span>
+            </div>
+
+            <button
+                type="button"
+                id="chat-context-cancel"
+                aria-label="Annuler"
+            >
+                ✕
+            </button>
+
+        </div>
+
+
+        <form
+            id="chat-form"
+            class="chat-form"
+        >
+
+            <input
+                type="text"
+                id="chat-input"
+                maxlength="300"
+                placeholder="Écrire un message…"
+                autocomplete="off"
+            >
+
+            <button
+                type="submit"
+                id="chat-send"
+            >
+                Envoyer
+            </button>
+
+        </form>
 
     </div>
 
