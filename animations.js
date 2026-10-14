@@ -952,6 +952,53 @@ function pulseXpCard() {
 
 }
 
+// « +25 XP » qui jaillit au-dessus de la jauge d'XP puis s'efface.
+function floatXpGain(amount) {
+
+    const card = [document.querySelector(".level-sidebar"), document.getElementById("xp-mini")]
+        .find(element => element && element.getClientRects().length > 0);
+
+    if (!card || !(amount > 0)) {
+
+        return;
+
+    }
+
+    const box = card.getBoundingClientRect();
+
+    // Gains en rafale : les anciens « +XP » s'effacent doucement pour laisser la place.
+    document.querySelectorAll(".xp-float:not(.leaving)").forEach(old => {
+
+        old.classList.add("leaving");
+
+        old.animate(
+            [{ opacity: getComputedStyle(old).opacity }, { opacity: 0 }],
+            { duration: 900, easing: "ease-out", fill: "forwards" }
+        ).finished.then(() => old.remove()).catch(() => old.remove());
+
+    });
+
+    const label = document.createElement("span");
+
+    label.className = "xp-float";
+
+    label.textContent = "+" + Math.round(amount).toLocaleString("fr-FR") + " XP";
+
+    // Décalage au hasard : plusieurs gains d'affilée ne se cachent pas l'un l'autre.
+    const shiftX = (Math.random() - 0.5) * Math.min(box.width * 0.7, 140);
+
+    const shiftY = (Math.random() - 0.5) * 24;
+
+    label.style.left = box.left + box.width / 2 + shiftX + "px";
+
+    label.style.top = box.top + Math.min(box.height / 2, 40) + shiftY + "px";
+
+    document.body.appendChild(label);
+
+    label.addEventListener("animationend", () => label.remove(), { once: true });
+
+}
+
 async function refreshProgression() {
 
     const {
@@ -973,6 +1020,8 @@ async function refreshProgression() {
     const xpNow = Number(data) || 0;
 
     const gained = lastXpTotal !== null && xpNow > lastXpTotal;
+
+    const gainedAmount = gained ? xpNow - lastXpTotal : 0;
 
     lastXpTotal = xpNow;
 
@@ -1002,6 +1051,8 @@ async function refreshProgression() {
         if (gained) {
 
             pulseXpCard();
+
+            floatXpGain(gainedAmount);
 
         }
 

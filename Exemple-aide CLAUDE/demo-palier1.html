@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Effets du palier 1</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body { padding: 24px 16px 100px; }
+.demo-wrap { max-width: 1000px; margin: 0 auto; }
+.demo-wrap h1 { font-size: 24px; margin: 0 0 6px; }
+.demo-sub { color: #858a98; font-size: 14px; line-height: 1.55; margin: 0 0 18px; }
+.demo-sub b { color: #e6e8ee; }
+.demo-h2 { font-size: 18px; margin: 34px 0 10px; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+.tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; font: inherit; text-align: left; }
+.tab small { display: block; font-size: 11px; opacity: .75; }
+.tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.pick { margin-left: auto; background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; padding: 10px 16px; border-radius: 12px; cursor: pointer; font: inherit; font-weight: 900; }
+.copied { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1c202c; border: 1px solid #63d69f; padding: 12px 18px; border-radius: 14px; font-weight: 700; z-index: 99; max-width: calc(100% - 32px); }
+.demo-hidden { display: none !important; }
+.stage { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 760px) { .stage { grid-template-columns: 1fr; } }
+.explain { background: #171a23; border: 1px solid #262a38; border-radius: 16px; padding: 14px 16px; font-size: 13px; line-height: 1.55; color: #c9ccd6; }
+.explain b { color: #e6e8ee; }
+.explain ul { margin: 6px 0 0; padding-left: 18px; }
+
+/* Ticket simplifié (reprend les couleurs du vrai) */
+.dticket { background: #171a23; border: 1px solid #2c3040; border-radius: 18px; padding: 14px; }
+.dticket .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.dticket .kind { font-size: 12px; font-weight: 800; padding: 3px 10px; border-radius: 99px; background: rgba(108,99,255,.2); color: #b3abff; }
+.dticket .leg { display: flex; gap: 10px; align-items: center; background: #12141b; border: 1px solid #262a38; border-radius: 12px; padding: 9px 10px; font-size: 13px; }
+.dticket .leg b { display: block; }
+.dticket .leg span { color: #858a98; font-size: 12px; }
+.dticket .leg .o { margin-left: auto; font-weight: 900; color: #e6e8ee; font-size: 15px; }
+.dticket .row { display: flex; justify-content: space-between; align-items: center; margin: 12px 2px 0; font-size: 13px; color: #aaaeba; }
+.dticket .row b { color: #e6e8ee; font-size: 15px; }
+.dticket input { width: 100%; margin-top: 12px; background: #12141b; border: 1px solid #2c3040; border-radius: 12px; color: #e6e8ee; padding: 11px 12px; font: inherit; }
+.dticket .chips { display: flex; gap: 6px; margin-top: 8px; }
+.dticket .chips button { flex: 1; border: 1px solid #2c3040; background: #1c202c; color: #e6e8ee; border-radius: 10px; padding: 7px 0; font: inherit; font-size: 12px; cursor: pointer; }
+.dticket .win { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: rgba(99,214,159,.08); font-size: 13px; color: #9fe6c4; }
+.dticket .win strong { font-size: 18px; color: #63d69f; transition: color .2s; }
+.dticket .win strong.boosted { color: #ffd36b; }
+.dticket .go { width: 100%; margin-top: 12px; border: none; border-radius: 12px; padding: 12px; font: inherit; font-weight: 900; color: white; background: linear-gradient(135deg, #5b4fe0, #8b6bff); cursor: pointer; }
+.dticket .old-boost { margin: 8px 2px 0; font-size: 12px; color: #b3abff; }
+
+/* A : interrupteur sous la mise */
+.boost-switch { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 10px 12px; border-radius: 12px; border: 1px dashed #ff6bd5; background: rgba(255,107,213,.06); cursor: pointer; user-select: none; }
+.boost-switch .sw { flex: none; width: 38px; height: 22px; border-radius: 99px; background: #343a4d; position: relative; transition: background .2s; }
+.boost-switch .sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: white; transition: transform .2s; }
+.boost-switch.on { border-style: solid; background: rgba(255,107,213,.14); }
+.boost-switch.on .sw { background: #ff6bd5; }
+.boost-switch.on .sw::after { transform: translateX(16px); }
+.boost-switch .txt { font-size: 13px; line-height: 1.35; }
+.boost-switch .txt b { color: #ffb3ea; }
+.boost-switch .txt small { display: block; color: #858a98; font-size: 11px; }
+
+/* B : bouton dans le gain */
+.win .boost-btn { margin-left: 8px; border: 1px solid #ff6bd5; background: transparent; color: #ffb3ea; border-radius: 99px; padding: 4px 10px; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.win .boost-btn.on { background: #ff6bd5; color: #1b0716; }
+.win .left { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+
+/* Try hard : classement mis en avant */
+.page-mock { background: #0f1117; border: 1px solid #262a38; border-radius: 18px; padding: 16px; }
+.page-mock h3 { margin: 0 0 4px; font-size: 20px; }
+.page-mock .muted { color: #858a98; font-size: 13px; margin: 0 0 14px; }
+.fake-card { height: 70px; border-radius: 14px; background: #171a23; border: 1px solid #262a38; margin-top: 10px; display: grid; place-items: center; color: #4b5060; font-size: 13px; }
+
+.th-banner { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 16px; background: linear-gradient(90deg, rgba(79,195,255,.14), rgba(79,195,255,.03)); border: 1px solid rgba(79,195,255,.45); flex-wrap: wrap; }
+.th-banner .tag { font-size: 12px; font-weight: 900; color: #8fd8ff; white-space: nowrap; }
+.th-banner .pod { display: flex; gap: 8px; flex-wrap: wrap; }
+.th-banner .pod span { background: #12141b; border: 1px solid #262a38; border-radius: 99px; padding: 5px 11px; font-size: 13px; }
+.th-banner .pod b { color: #e6e8ee; }
+.th-banner .me { margin-left: auto; font-size: 12px; color: #aaaeba; }
+
+.th-podium { padding: 14px; border-radius: 18px; background: #171a23; border: 1px solid rgba(79,195,255,.45); box-shadow: 0 0 22px rgba(79,195,255,.12); }
+.th-podium .tag { font-size: 12px; font-weight: 900; color: #8fd8ff; margin-bottom: 10px; }
+.th-podium .steps { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; align-items: end; }
+.th-podium .step { text-align: center; border-radius: 14px 14px 6px 6px; background: #12141b; border: 1px solid #262a38; padding: 10px 6px; }
+.th-podium .step .m { font-size: 24px; }
+.th-podium .step b { display: block; font-size: 14px; margin-top: 2px; }
+.th-podium .step small { color: #858a98; font-size: 12px; }
+.th-podium .s1 { padding-top: 22px; border-color: #ffd36b; }
+.th-podium .s2 { padding-top: 14px; }
+.th-podium .rest { margin-top: 10px; font-size: 12px; color: #aaaeba; text-align: center; }
+
+.xp-note { margin-top: 12px; font-size: 13px; padding: 10px 12px; border-radius: 12px; background: rgba(79,195,255,.08); color: #bfe8ff; }
+.xp-note b { color: white; }
+</style>
+</head>
+<body>
+<div class="demo-wrap">
+
+<h1>🌳 Effets du palier 1</h1>
+<p class="demo-sub">
+    Ce que les joueurs voient quand leur groupe a choisi <b>🤪 WTF</b> (boost gratuit chaque semaine)
+    ou <b>🎯 Try hard</b> (+10 % d'XP sur les paris gagnés et classement mis en avant).
+    Attention : le ticket a déjà un <b>⚡ Boost</b> (le +5 % des combinés). Le boost WTF s'affiche donc en <b>rose 🚀</b> pour ne pas les confondre.
+</p>
+
+<h2 class="demo-h2">🤪 WTF · le boost gratuit dans le ticket</h2>
+<div class="tabs" data-group="boost">
+    <button class="tab active" data-v="A">A · Interrupteur <small>sous la mise</small></button>
+    <button class="tab" data-v="B">B · Bouton <small>dans « Gain possible »</small></button>
+    <button class="pick" data-pick="boost">Je choisis celle-ci</button>
+</div>
+
+<div class="stage">
+    <div class="dticket" id="ticket"></div>
+    <div class="explain">
+        <b>Comment ça marche</b>
+        <ul>
+            <li>Chaque lundi, chaque membre reçoit <b>1 boost gratuit</b>.</li>
+            <li>Il l'active au moment de miser : si la mise gagne, le gain est augmenté de <b>20 %</b>.</li>
+            <li>Une fois utilisé, il revient le lundi suivant. Pas utilisé ? Il est perdu lundi (on ne peut pas en stocker).</li>
+            <li>Marche sur une mise simple comme sur un combiné.</li>
+        </ul>
+        <p style="margin:10px 0 0">Essaie : tape une mise et active le boost. Le bouton « Boost déjà utilisé » montre ce qu'on voit après.</p>
+        <button class="tab" id="used" style="margin-top:8px">Simuler : boost déjà utilisé cette semaine</button>
+    </div>
+</div>
+
+<h2 class="demo-h2">🎯 Try hard · le classement mis en avant en haut de la page Paris</h2>
+<div class="tabs" data-group="th">
+    <button class="tab active" data-v="A">A · Bandeau <small>une ligne, prend peu de place</small></button>
+    <button class="tab" data-v="B">B · Podium <small>plus visible</small></button>
+    <button class="pick" data-pick="th">Je choisis celle-ci</button>
+</div>
+
+<div class="page-mock">
+    <h3>Paris</h3>
+    <p class="muted">Les paris du groupe</p>
+    <div id="th"></div>
+    <div class="fake-card">carte d'un pari</div>
+    <div class="fake-card">carte d'un pari</div>
+    <div class="xp-note">🎯 <b>+10 % d'XP</b> : rien à afficher en plus. Un pari gagné qui rapportait 50 XP en rapporte 55, et le joueur le voit dans sa jauge d'XP comme d'habitude.</div>
+</div>
+
+</div>
+
+<div class="copied demo-hidden" id="copied"></div>
+
+<script>
+const fmt = n => n.toLocaleString("fr-FR") + " €";
+let boostV = "A", thV = "A", stake = 100, boostOn = false, used = false;
+const ODDS = 3;
+
+function renderTicket() {
+    const gain = stake * ODDS * (boostOn ? 1.2 : 1);
+    const switchA = used
+        ? `<div class="boost-switch" style="cursor:default;opacity:.6"><div class="txt">🚀 <b>Boost gratuit déjà utilisé</b><small>Le prochain arrive lundi.</small></div></div>`
+        : `<div class="boost-switch ${boostOn ? "on" : ""}" id="sw"><span class="sw"></span>
+             <div class="txt">🚀 <b>Utiliser mon boost gratuit</b> (+20 % de gain)<small>1 par semaine · revient lundi</small></div></div>`;
+    const btnB = used
+        ? `<span style="font-size:11px;color:#858a98;margin-left:6px">🚀 boost utilisé, revient lundi</span>`
+        : `<button class="boost-btn ${boostOn ? "on" : ""}" id="sw">🚀 ${boostOn ? "Boost activé +20 %" : "Booster +20 %"}</button>`;
+    document.getElementById("ticket").innerHTML = `
+        <div class="head"><span class="kind">Mise simple</span><span style="color:#858a98;font-size:12px">Vider</span></div>
+        <div class="leg"><div><b>Lucas</b><span>Qui arrive en retard demain ?</span></div><span class="o">3,00</span></div>
+        <div class="row"><span>Cote</span><b>× 3,00</b></div>
+        <input type="number" id="stake" value="${stake}" min="10" step="1">
+        <div class="chips"><button data-a="50">50 €</button><button data-a="100">100 €</button><button data-a="200">200 €</button><button>🔥 Max</button></div>
+        ${boostV === "A" ? switchA : ""}
+        <div class="win"><span class="left">Gain possible ${boostV === "B" ? btnB : ""}</span><strong class="${boostOn ? "boosted" : ""}">${fmt(Math.round(gain))}${boostOn ? " 🚀" : ""}</strong></div>
+        <button class="go">Miser ${fmt(stake)}</button>`;
+    document.getElementById("stake").oninput = e => { stake = Math.max(0, +e.target.value || 0); renderWin(); };
+    document.querySelectorAll("[data-a]").forEach(b => b.onclick = () => { stake = +b.dataset.a; renderTicket(); });
+    const sw = document.getElementById("sw");
+    if (sw) sw.onclick = () => { boostOn = !boostOn; renderTicket(); };
+}
+function renderWin() {
+    const s = document.querySelector(".win strong");
+    s.textContent = fmt(Math.round(stake * ODDS * (boostOn ? 1.2 : 1))) + (boostOn ? " 🚀" : "");
+    document.querySelector(".go").textContent = "Miser " + fmt(stake);
+}
+
+function renderTh() {
+    document.getElementById("th").innerHTML = thV === "A"
+        ? `<div class="th-banner"><span class="tag">🎯 Les Try hard · classement</span>
+             <div class="pod"><span>🥇 <b>Lina_</b> 48 200 €</span><span>🥈 <b>Yann</b> 31 900 €</span><span>🥉 <b>Balac</b> 22 400 €</span></div>
+             <span class="me">Toi : 5e</span></div>`
+        : `<div class="th-podium"><div class="tag">🎯 Les Try hard · qui mène le groupe ?</div>
+             <div class="steps">
+               <div class="step s2"><div class="m">🥈</div><b>Yann</b><small>31 900 €</small></div>
+               <div class="step s1"><div class="m">🥇</div><b>Lina_</b><small>48 200 €</small></div>
+               <div class="step"><div class="m">🥉</div><b>Balac</b><small>22 400 €</small></div>
+             </div>
+             <div class="rest">Toi : 5e · 14 300 €</div></div>`;
+}
+
+document.querySelectorAll(".tabs").forEach(group => {
+    group.querySelectorAll(".tab[data-v]").forEach(t => t.onclick = () => {
+        group.querySelectorAll(".tab[data-v]").forEach(x => x.classList.toggle("active", x === t));
+        if (group.dataset.group === "boost") { boostV = t.dataset.v; renderTicket(); } else { thV = t.dataset.v; renderTh(); }
+    });
+});
+document.getElementById("used").onclick = e => { used = !used; boostOn = false; e.target.textContent = used ? "Simuler : boost disponible" : "Simuler : boost déjà utilisé cette semaine"; renderTicket(); };
+
+function toast(txt) {
+    const c = document.getElementById("copied");
+    c.textContent = txt; c.classList.remove("demo-hidden");
+    clearTimeout(toast.t); toast.t = setTimeout(() => c.classList.add("demo-hidden"), 2600);
+}
+document.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => {
+    const group = b.closest(".tabs");
+    const label = group.querySelector(".tab.active").childNodes[0].textContent.trim();
+    const text = (b.dataset.pick === "boost" ? "Boost WTF : je choisis " : "Classement Try hard : je choisis ") + label;
+    navigator.clipboard?.writeText(text).catch(() => {});
+    toast("Copié : « " + text + " »");
+});
+
+renderTicket(); renderTh();
+</script>
+</body>
+</html>

@@ -72,6 +72,10 @@
                     id="group-requests-dot"
                     class="group-requests-dot hidden"
                 ></span>
+                <span
+                    id="group-tree-dot"
+                    class="group-tree-dot hidden"
+                ></span>
             </button>
 
             <div
@@ -1367,6 +1371,38 @@
             </div>
 
         </div>
+
+
+
+        <!-- =====================================
+             PAGE : ARBRE DU GROUPE (arbre.js)
+        ====================================== -->
+
+        <section
+            id="tree-page"
+            class="app-page hidden"
+        >
+
+            <div class="page-header">
+
+                <div>
+
+                    <h1>
+                        🌳 Arbre du groupe
+                    </h1>
+
+                    <p>
+                        En jouant, le groupe gagne de l'XP et débloque des bonus en votant.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div id="tree-root"></div>
+
+        </section>
 
 
 
@@ -3057,6 +3093,9 @@
 
     <!-- Version bêta (ne fait rien dans la version classique, voir beta.js) -->
     <script src="beta.js"></script>
+
+    <!-- Arbre du groupe (voir arbre-groupe.sql) -->
+    <script src="arbre.js"></script>
 
 </body>
 

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Animation +XP</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body { padding: 40px 16px; }
+.wrap { max-width: 420px; margin: 0 auto; display: grid; gap: 18px; }
+.card { background: #171a23; border: 1px solid #2c3040; border-radius: 18px; padding: 18px; }
+.card h3 { margin: 0 0 8px; font-size: 15px; }
+.bar { height: 10px; border-radius: 99px; background: #262a38; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 40%; background: linear-gradient(90deg, #5b4fe0, #c86bff); transition: width .5s; }
+.sub { color: #858a98; font-size: 13px; margin: 6px 0 0; }
+.btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.btns button { border: none; border-radius: 12px; padding: 12px 16px; font: inherit; font-weight: 800; color: white; background: linear-gradient(135deg, #5b4fe0, #8b6bff); cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <h1 style="margin:0;font-size:22px">Animation « +XP »</h1>
+    <p class="sub" style="margin:0">Dans le site, elle part de la carte « Ton niveau » (ou de la jauge en haut sur téléphone) dès que l'XP monte : une mise, un pari gagné, un bonus…</p>
+    <div class="card level-sidebar" id="card">
+        <h3>Ton niveau · 12</h3>
+        <div class="bar"><i id="bar"></i></div>
+        <p class="sub" id="xp">400 / 650 XP</p>
+    </div>
+    <div class="btns">
+        <button data-xp="10">🎟️ Miser 100 € (+10 XP)</button>
+        <button data-xp="25">🏆 Pari gagné (+25 XP)</button>
+        <button data-xp="200">🎁 Bonus (+200 XP)</button>
+    </div>
+</div>
+<script>
+// Copie de floatXpGain (animations.js).
+function floatXpGain(amount) {
+    const card = document.getElementById("card");
+    const box = card.getBoundingClientRect();
+    document.querySelectorAll(".xp-float:not(.leaving)").forEach(old => {
+        old.classList.add("leaving");
+        old.animate([{ opacity: getComputedStyle(old).opacity }, { opacity: 0 }], { duration: 900, easing: "ease-out", fill: "forwards" })
+            .finished.then(() => old.remove()).catch(() => old.remove());
+    });
+    const label = document.createElement("span");
+    label.className = "xp-float";
+    label.textContent = "+" + Math.round(amount).toLocaleString("fr-FR") + " XP";
+    const shiftX = (Math.random() - 0.5) * Math.min(box.width * 0.7, 140);
+    const shiftY = (Math.random() - 0.5) * 24;
+    label.style.left = box.left + box.width / 2 + shiftX + "px";
+    label.style.top = box.top + Math.min(box.height / 2, 40) + shiftY + "px";
+    document.body.appendChild(label);
+    label.addEventListener("animationend", () => label.remove(), { once: true });
+}
+let xp = 400;
+document.querySelectorAll("[data-xp]").forEach(b => b.onclick = () => {
+    const gain = +b.dataset.xp;
+    xp = Math.min(650, xp + gain);
+    document.getElementById("bar").style.width = xp / 650 * 100 + "%";
+    document.getElementById("xp").textContent = xp + " / 650 XP";
+    const card = document.getElementById("card");
+    card.classList.remove("xp-halo"); void card.offsetWidth; card.classList.add("xp-halo");
+    floatXpGain(gain);
+});
+</script>
+</body>
+</html>

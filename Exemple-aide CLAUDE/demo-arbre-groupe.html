@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BetLab – Arbre du groupe</title>
+<style>
+* { box-sizing: border-box; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; margin: 0; }
+h1 { font-size: 26px; margin: 0 0 6px; }
+.sub { color: #858a98; margin: 0 0 16px; max-width: 920px; font-size: 14px; line-height: 1.55; }
+.sub b { color: #e6e8ee; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; align-items: center; }
+.tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; font: inherit; }
+.tab small { display: block; font-size: 11px; opacity: .75; }
+.tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.pick { margin-left: auto; background: linear-gradient(135deg, #2fa36f, #63d69f); border: none; color: #0b1f15; padding: 10px 16px; border-radius: 12px; cursor: pointer; font: inherit; font-weight: 900; }
+.copied { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1c202c; border: 1px solid #63d69f; padding: 12px 18px; border-radius: 14px; font-weight: 700; z-index: 99; max-width: calc(100% - 32px); }
+.hidden { display: none !important; }
+
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 360px); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+.col { display: grid; gap: 16px; }
+.panel { background: #171a23; border: 1px solid #262a38; border-radius: 18px; padding: 16px; }
+.panel h3 { margin: 0 0 10px; font-size: 15px; }
+.muted { color: #858a98; font-size: 12px; }
+
+/* En-tête du groupe */
+.ghead { display: flex; gap: 14px; align-items: center; }
+.blason { width: 58px; height: 58px; flex: none; border-radius: 16px; display: grid; place-items: center; font-size: 30px; background: #12141b; border: 2px solid #343a4d; }
+.blason.wtf { border-color: #ff6bd5; box-shadow: 0 0 18px rgba(255,107,213,.3); }
+.blason.th { border-color: #4fc3ff; box-shadow: 0 0 18px rgba(79,195,255,.3); }
+.gname { font-size: 19px; font-weight: 900; }
+.gtitle { font-size: 13px; font-weight: 800; color: #b3abff; }
+.xpbar { height: 12px; border-radius: 99px; background: #262a38; overflow: hidden; margin: 14px 0 6px; }
+.xpbar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #5b4fe0, #c86bff); transition: width .5s; }
+.xpbar.full i { background: linear-gradient(90deg, #ff9f43, #ffd36b); }
+.xplegend { display: flex; justify-content: space-between; font-size: 12px; color: #aaaeba; }
+.xpbtns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.xpbtns button, .small { border: 1px solid #2c3040; background: #1c202c; color: #e6e8ee; border-radius: 10px; padding: 7px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+.xpbtns button:disabled { opacity: .4; cursor: not-allowed; }
+.xpbtns b { color: #63d69f; }
+
+/* Arbre */
+.tree { position: relative; }
+.tree svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.row { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; margin-bottom: 34px; position: relative; }
+.row:last-child { margin-bottom: 0; }
+.lvl-label { font-size: 11px; color: #737887; margin: 0 0 6px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.node { position: relative; z-index: 1; justify-self: center; width: 100%; max-width: 150px; border: 2px solid #343a4d; background: #12141b; border-radius: 14px; padding: 8px 6px; text-align: center; cursor: pointer; transition: transform .15s, border-color .15s, opacity .2s; }
+.node:hover { transform: translateY(-2px); }
+.node .e { font-size: 24px; display: block; }
+.node .n { font-size: 12px; font-weight: 800; display: block; margin-top: 2px; line-height: 1.2; }
+.node .t { font-size: 10px; color: #858a98; display: block; margin-top: 2px; }
+.node.root { max-width: 120px; border-color: #6c63ff; }
+.node.chosen { border-color: #63d69f; background: linear-gradient(180deg, #173226, #12141b); box-shadow: 0 0 16px rgba(99,214,159,.25); }
+.node.open { border-color: #ff9f43; animation: pulse 1.4s infinite; }
+.node.locked { opacity: .22; filter: grayscale(1); }
+.node.future { opacity: .55; }
+.node.sel { outline: 2px solid #c86bff; outline-offset: 2px; }
+.node .big { position: absolute; top: -8px; right: -6px; font-size: 10px; background: #ff9f43; color: #1b1205; border-radius: 99px; padding: 1px 6px; font-weight: 900; }
+@keyframes pulse { 50% { box-shadow: 0 0 20px rgba(255,159,67,.55); } }
+.r1 .node { grid-column: span 4; } .r2 .node { grid-column: span 2; } .r0 .node { grid-column: 1 / -1; }
+@media (max-width: 640px) {
+    .r3 .node .n, .r3 .node .t { display: none; }
+    .r3 .node .e { font-size: 20px; }
+    .r3 .node { padding: 8px 2px; }
+    .r2 .node .t { display: none; }
+}
+
+/* Détail */
+.detail .e { font-size: 34px; }
+.detail h4 { margin: 4px 0 2px; font-size: 17px; }
+.pill { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: 11px; font-weight: 800; background: rgba(108,99,255,.2); color: #b3abff; margin: 2px 4px 2px 0; }
+.plus { font-size: 13px; line-height: 1.45; margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: rgba(99,214,159,.1); color: #9fe6c4; }
+.how-t { margin: 12px 0 4px; font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: #737887; }
+ul.how { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.5; color: #c9ccd6; }
+ul.how li { margin: 3px 0; }
+.opt ul.how { font-size: 12px; margin-top: 8px; }
+.ex { margin: 10px 0 0; font-size: 13px; padding: 8px 10px; border-radius: 10px; background: rgba(255,211,107,.08); color: #ffe3a0; }
+.guide { margin-bottom: 14px; }
+.guide h3 { margin-top: 0; }
+.guide ul { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.55; color: #c9ccd6; }
+.guide li { margin: 4px 0; }
+.guide b { color: #e6e8ee; }
+
+/* Vote */
+.vote { border-color: #ff9f43; }
+.vote h3 { color: #ffb36b; }
+.opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 480px) { .opts { grid-template-columns: 1fr; } }
+.opt { border: 2px solid #343a4d; background: #12141b; border-radius: 14px; padding: 12px; cursor: pointer; }
+.opt.mine { border-color: #c86bff; box-shadow: 0 0 0 2px rgba(200,107,255,.3); }
+.opt .e { font-size: 28px; }
+.opt h4 { margin: 4px 0; font-size: 15px; }
+.opt .plus { font-size: 12px; }
+.opt .count { margin-top: 8px; font-size: 12px; color: #aaaeba; }
+.opt .count b { color: #e6e8ee; }
+.members { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 8px; }
+.mb { font-size: 12px; padding: 4px 9px; border-radius: 99px; background: #1c202c; border: 1px solid #2c3040; }
+.mb.done { border-color: #63d69f; color: #9fe6c4; }
+.mb.off { opacity: .45; text-decoration: line-through; }
+.votemsg { font-size: 13px; color: #aaaeba; min-height: 18px; }
+.votemsg b { color: #ffd36b; }
+
+/* Public */
+.public { display: flex; gap: 12px; align-items: center; background: #12141b; border: 1px solid #262a38; border-radius: 14px; padding: 10px; }
+.public .blason { width: 44px; height: 44px; font-size: 22px; border-radius: 12px; }
+.public .path { font-size: 16px; letter-spacing: 2px; margin-top: 2px; }
+ul.actifs { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+ul.actifs li { font-size: 13px; background: #12141b; border: 1px solid #262a38; border-radius: 10px; padding: 8px 10px; }
+
+/* Variante B : chemin */
+.chemin { display: grid; gap: 0; }
+.step { display: flex; gap: 12px; align-items: flex-start; }
+.step .dot { flex: none; width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; font-size: 22px; background: #12141b; border: 2px solid #63d69f; }
+.step .dot.root { border-color: #6c63ff; }
+.step .dot.next { border-color: #ff9f43; border-style: dashed; }
+.step .txt { padding-top: 4px; font-size: 13px; }
+.step .txt b { font-size: 15px; display: block; }
+.link { width: 2px; height: 22px; background: #343a4d; margin-left: 22px; }
+.fork { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0 0 58px; }
+.fork div { border: 1px dashed #343a4d; border-radius: 12px; padding: 8px; font-size: 12px; text-align: center; color: #aaaeba; }
+.fork .e { font-size: 20px; display: block; }
+.locknote { margin-top: 12px; font-size: 12px; color: #737887; }
+.toggle { margin-top: 14px; }
+</style>
+</head>
+<body>
+
+<h1>🌳 Arbre du groupe</h1>
+<p class="sub">
+    Chaque groupe devient unique : en jouant, il gagne de l'<b>XP</b> et débloque des fonctionnalités en votant.
+    Le 1er vote décide de son caractère : <b>WTF</b> ou <b>Try hard</b>.
+</p>
+
+<div class="tabs">
+    <button class="tab active" data-mode="joueur">👤 Vue joueur <small>version courte</small></button>
+    <button class="tab" data-mode="admin">🛠️ Vue admin <small>tout le détail</small></button>
+</div>
+
+<div class="panel guide" id="guideJoueur">
+    <h3>📖 Comment ça marche</h3>
+    <ul>
+        <li>En jouant, le groupe gagne de l'<b>XP</b>.</li>
+        <li>À chaque palier, on <b>vote</b> entre 2 bonus. Le choix est <b>définitif</b>.</li>
+        <li>Clique sur une case pour voir ce qu'elle débloque.</li>
+    </ul>
+</div>
+
+<div class="panel guide hidden" id="guideAdmin">
+    <h3>📖 Comment ça marche</h3>
+    <ul>
+        <li><b>L'XP du groupe</b> monte quand ses membres jouent : l'XP gagnée par chaque membre compte aussi pour le groupe, chaque pari résolu avec au moins 2 parieurs rapporte <b>+60</b>, et un pari où tout le groupe a misé rapporte <b>+100</b>. Le chat ne rapporte rien.</li>
+        <li><b>3 paliers</b> : 2 000 XP (≈ une journée), 16 000 XP (≈ une semaine), 65 000 XP (≈ un mois), au rythme d'un groupe très actif comme Les Fous du BE. Ils sont de plus en plus longs à atteindre.</li>
+        <li><b>À chaque palier, un vote</b> entre 2 cases. Il faut la majorité des membres actifs (absents depuis plus de 7 jours non comptés). Pas de limite de temps, et on peut changer son vote tant que rien n'est adopté.</li>
+        <li><b>Le choix est définitif</b> : l'autre case et tout ce qui vient après sont verrouillés pour toujours dans ce groupe. Pour les vivre, il faut rejoindre un autre groupe.</li>
+        <li><b>Que des bonus</b> : chaque case ajoute quelque chose au groupe, aucune ne retire quoi que ce soit.</li>
+        <li><b>Visible par tous</b> : le blason, le titre et le chemin du groupe se voient depuis les autres groupes.</li>
+        <li>À la fin, il existe <b>8 identités</b> possibles. Clique sur une case de l'arbre pour lire tout le détail.</li>
+    </ul>
+</div>
+
+<div class="layout">
+    <div class="col">
+        <div class="panel">
+            <div class="ghead">
+                <div class="blason" id="blason">🏳️</div>
+                <div>
+                    <div class="gname">Les Potes du Lundi</div>
+                    <div class="gtitle" id="gtitle">Groupe sans voie</div>
+                </div>
+            </div>
+            <div class="xpbar" id="xpbar"><i></i></div>
+            <div class="xplegend"><span id="xptxt"></span><span id="xpnext"></span></div>
+            <div class="xpbtns">
+                <button data-xp="40">XP d'un membre <b>+40</b></button>
+                <button data-xp="60">Pari résolu (2+ parieurs) <b>+60</b></button>
+                <button data-xp="100">Tout le monde a misé <b>+100</b></button>
+                <button data-xp="1750">Une journée de jeu <b>+1 750</b></button>
+                <button class="small" id="reset">↺ Recommencer</button>
+            </div>
+        </div>
+
+        <div class="panel vote hidden" id="vote">
+            <h3 id="votetitle"></h3>
+            <div class="opts" id="opts"></div>
+            <div class="members" id="members"></div>
+            <div class="votemsg" id="votemsg"></div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px">
+                <button class="small" id="othersvote">🗳️ Faire voter les autres</button>
+            </div>
+            <p class="muted" id="votenote" style="margin:10px 0 0">Il faut la majorité des membres actifs. Les membres absents depuis plus de 7 jours ne sont pas comptés. Pas de limite de temps : chacun peut changer son vote tant que rien n'est adopté.</p>
+        </div>
+
+        <div class="panel" id="viewA">
+            <div class="tree" id="tree"></div>
+        </div>
+
+    </div>
+
+    <div class="col">
+        <div class="panel detail" id="detail">
+            <p class="muted" style="margin:0">Clique sur une case de l'arbre pour voir son effet.</p>
+        </div>
+        <div class="panel">
+            <h3>👀 Ce que voient les autres groupes</h3>
+            <div class="public">
+                <div class="blason" id="pubBlason">🏳️</div>
+                <div>
+                    <b>Les Potes du Lundi</b>
+                    <div class="gtitle" id="pubTitle">Groupe sans voie</div>
+                    <div class="path" id="pubPath"></div>
+                </div>
+            </div>
+        </div>
+        <div class="panel">
+            <h3>⚙️ Effets actifs dans le groupe</h3>
+            <ul class="actifs" id="actifs"></ul>
+        </div>
+    </div>
+</div>
+
+<div class="copied hidden" id="copied"></div>
+
+<script>
+/* ===== Contenu provisoire de l'arbre ===== */
+const N = {
+    root: { e: "🏳️", n: "Départ", t: "Tous pareils",
+        plus: "Le groupe vient d'être créé : il fonctionne exactement comme tous les autres groupes.",
+        how: ["Dès que les membres jouent, le groupe gagne de l'XP (voir « Comment ça marche »).",
+              "À 2 000 XP, environ une journée de paris, le premier vote s'ouvre : WTF ou Try hard.",
+              "Ce premier choix donne le caractère du groupe pour toujours."] },
+
+    w:  { e: "🤪", n: "WTF", t: "Bonus", titre: "Tribu WTF",
+        plus: "1 boost gratuit par semaine pour chaque membre.",
+        how: ["Chaque lundi, chaque membre reçoit 1 boost gratuit.",
+              "Un boost s'utilise sur une mise (pari simple ou combiné), au moment de miser : si la mise gagne, le gain est augmenté de 20 %.",
+              "Un boost pas utilisé dans la semaine disparaît le lundi suivant (on ne peut pas en stocker)."],
+        ex: "Inès mise 100 € à cote 3 avec son boost : elle gagne 360 € au lieu de 300 €." },
+    t:  { e: "🎯", n: "Try hard", t: "Bonus", titre: "Les Try hard",
+        plus: "+50 % d'XP le lundi pour tous les membres.",
+        how: ["Chaque lundi (heure de Paris), l'XP des mises placées ce jour-là compte 50 % de plus.",
+              "Le bonus « pari gagné » compte aussi 50 % de plus quand le pari est validé un lundi.",
+              "Le reste de la semaine, l'XP est normale."],
+        ex: "Le lundi, une mise qui rapporte 20 XP en rapporte 30." },
+
+    w1: { e: "🎰", n: "Roulette", t: "Pari spécial", titre: "Les Flambeurs",
+        plus: "Une fois par jour, miser en mode roulette : la cote est tirée au hasard entre x1,2 et x8.",
+        how: ["Au moment de miser, un bouton « 🎰 Roulette » apparaît à côté de la cote normale.",
+              "Si tu l'utilises, la roulette tourne et tire ta cote entre x1,2 et x8. Tu la vois avant de valider, et tu peux encore annuler.",
+              "C'est un choix, pas une obligation : sans roulette, tu mises avec la cote normale.",
+              "1 roulette par membre et par jour."],
+        ex: "Le choix est à cote 2. Lucas tente la roulette, tombe sur x6,5 et valide." },
+    w2: { e: "🎭", n: "Pari mystère", t: "Pari spécial", titre: "Les Mystérieux",
+        plus: "Chaque semaine, un pari du groupe devient « mystère » en secret : ses gagnants touchent leur gain x1,5.",
+        how: ["Chaque lundi, un pari ouvert du groupe est tiré au sort, sans que personne ne sache lequel.",
+              "Quand il est résolu, il se révèle avec un badge 🎭 et tous ses gagnants touchent 50 % de gain en plus.",
+              "Personne ne peut savoir à l'avance lequel c'est : ça pousse à miser sur plein de paris."],
+        ex: "Bertin avait gagné 200 € : le pari était mystère, il touche 300 €." },
+    t1: { e: "⚔️", n: "Duel", t: "Pari spécial", titre: "Les Duellistes",
+        plus: "Défier un membre en 1 contre 1 sur un pari : le gagnant prend les deux mises.",
+        how: ["Sur un pari ouvert du groupe, tu choisis un membre et une somme.",
+              "Il a 24 h pour accepter. S'il accepte, il mise la même somme sur un autre choix que toi.",
+              "À la résolution, celui qui a le bon choix prend les deux mises. S'il refuse ou ne répond pas, rien n'est perdu.",
+              "La mise d'un duel va jusqu'à 5 000 €, comme un pari normal."],
+        ex: "Toi contre Lucas, 300 € chacun : tu gagnes, tu récupères 600 €." },
+    t2: { e: "🏆", n: "Rivalité", t: "Rivalité", titre: "Les Rivaux",
+        plus: "Défier un autre groupe sur un pari commun et entrer au classement des groupes.",
+        how: ["Le groupe propose un pari à un autre groupe : il apparaît chez les deux.",
+              "Chaque membre mise comme d'habitude. Le groupe qui gagne le plus d'argent au total sur ce pari remporte la rivalité.",
+              "Le groupe gagnant reçoit +2 000 XP de groupe.",
+              "Le groupe apparaît dans un classement des groupes (nombre de rivalités gagnées), visible par tous."],
+        ex: "Les Potes du Lundi contre Les Fous du BE sur « Qui arrive en retard demain ? »." },
+
+    w1a: { e: "💥", n: "Double ou rien", t: "Bonus", titre: "Les Flambeurs fous",
+        plus: "Après un pari gagné, rejouer tout le gain à pile ou face.",
+        how: ["Quand un pari gagné est payé, un bouton « 💥 Double ou rien » s'affiche pendant 24 h.",
+              "Pile : le gain est doublé. Face : le gain est perdu.",
+              "C'est un choix : si tu n'appuies pas, tu gardes ton gain normalement.",
+              "Une seule fois par pari gagné."],
+        ex: "Max gagne 400 €, tente le double ou rien, tombe sur pile : 800 €." },
+    w1b: { e: "🌪️", n: "Lundi fou", t: "Événement", titre: "Les Enfants du chaos",
+        plus: "Chaque lundi, toutes les cotes du groupe sont augmentées de 20 %.",
+        how: ["De lundi 0 h à lundi 23 h 59, toutes les mises sur les paris du groupe sont prises avec une cote +20 %.",
+              "Le bonus s'ajoute après la limite de 10 : une cote de 10 devient 12 le lundi.",
+              "Une bannière 🌪️ « Lundi fou » s'affiche sur la page Paris toute la journée."],
+        ex: "Le lundi, un choix à cote 2,50 est pris à 3,00." },
+    w2a: { e: "🃏", n: "À l'aveugle", t: "Pari spécial", titre: "Les Fantômes",
+        plus: "Pouvoir créer des paris à l'aveugle : personne ne voit les mises des autres avant la clôture.",
+        how: ["En créant un pari, une case « 🃏 À l'aveugle » est proposée (c'est un choix du créateur).",
+              "Pendant que le pari est ouvert, on ne voit ni qui a misé, ni combien, ni sur quel choix.",
+              "Tout se dévoile d'un coup à la clôture : personne ne peut copier les autres."],
+        ex: "« Qui va gagner le baby-foot ? » à l'aveugle : surprise générale à la clôture." },
+    w2b: { e: "🎡", n: "Roue surprise", t: "Événement", titre: "Les Chanceux",
+        plus: "De temps en temps, une roue apparaît pour tout le groupe : chaque membre la tourne et gagne quelque chose.",
+        how: ["Environ 2 fois par semaine, à un moment tiré au hasard, la roue apparaît pour tout le groupe.",
+              "Elle reste 1 h : chaque membre peut la tourner une fois pendant ce temps.",
+              "Toutes les cases font gagner : un boost, une mise gratuite de 100 € ou de l'XP (+30 à +100).",
+              "Ceux qui ne sont pas connectés pendant l'heure la ratent : il faut être là au bon moment."],
+        ex: "Mardi 18 h 12, la roue apparaît : Inès tombe sur une mise gratuite de 100 €." },
+    t1a: { e: "🩸", n: "Duel à mort", t: "Bonus", titre: "Les Gladiateurs",
+        plus: "Mise max des duels multipliée par 3 : jusqu'à 15 000 €.",
+        how: ["Les duels marchent comme avant, mais on peut miser jusqu'à 15 000 € au lieu de 5 000 €.",
+              "Le gagnant d'un duel gagne aussi +20 XP."],
+        ex: "Toi contre Bertin, 8 000 € chacun : le gagnant repart avec 16 000 €." },
+    t1b: { e: "🛡️", n: "Assurance", t: "Bonus", titre: "Les Assureurs",
+        plus: "Sur un pari perdu, 25 % de la mise est remboursé.",
+        how: ["À chaque pari perdu (simple ou combiné), 25 % de la mise revient automatiquement sur le solde.",
+              "Le remboursement arrive au moment où le pari est résolu, avec un petit message 🛡️."],
+        ex: "Lucas perd un pari à 400 € : il récupère 100 €." },
+    t2a: { e: "🏰", n: "Conquête", t: "Rivalité", titre: "Les Conquérants",
+        plus: "Après une rivalité gagnée, notre blason s'affiche chez le groupe battu pendant une semaine, et +3 000 XP de groupe.",
+        how: ["Chaque rivalité gagnée rapporte +3 000 XP de groupe (en plus des +2 000 de la Rivalité).",
+              "Le blason du groupe s'affiche dans un coin de la page Paris du groupe battu pendant 7 jours, avec « Conquis par … ».",
+              "Si on perd, il ne se passe rien chez nous."],
+        ex: "On bat Les Fous du BE : notre 🏰 s'affiche chez eux jusqu'au lundi suivant." },
+    t2b: { e: "📊", n: "Analystes", t: "Stats", titre: "Les Analystes",
+        plus: "Statistiques avancées pour tout le groupe.",
+        how: ["Une page « 📊 Stats » s'ajoute au groupe.",
+              "Taux de réussite de chaque membre, ses cotes préférées, ses plus gros gains.",
+              "Historique de l'évolution des cotes de chaque pari, et le meilleur parieur du mois."],
+        ex: "On voit que Max gagne 70 % de ses paris à cote supérieure à 5…" }
+};
+const LEVELS = [["w", "t"], ["w1", "w2", "t1", "t2"], ["w1a", "w1b", "w2a", "w2b", "t1a", "t1b", "t2a", "t2b"]];
+const SEUILS = [2000, 16000, 65000];          // XP cumulée pour chaque palier (de plus en plus long)
+const LVL_NAMES = ["Palier 1 · le caractère", "Palier 2 · le bonus", "Palier 3 · la spécialité"];
+const LVL_DELAIS = ["≈ une journée", "≈ une semaine", "≈ un mois"];
+const MEMBRES = [
+    { n: "Toi" }, { n: "Lucas" }, { n: "Inès" }, { n: "Bertin" },
+    { n: "Max", off: true }
+];
+
+/* ===== État ===== */
+let path, xp, votes, selected, mode = "joueur";
+function reset() { path = []; xp = 0; votes = {}; selected = "root"; render(); }
+
+function kids(id) {
+    if (id === "root") return ["w", "t"];
+    if (id.length === 1) return [id + "1", id + "2"];
+    if (id.length === 2) return [id + "a", id + "b"];
+    return [];
+}
+const current = () => path.length ? path[path.length - 1] : "root";
+const fmt = n => n.toLocaleString("fr-FR");
+const voteOpen = () => path.length < 3 && xp >= SEUILS[path.length];
+const lineage = id => id === "root" ? ["root"] : ["root", ...[1, 2, 3].filter(k => k <= id.length).map(k => id.slice(0, k))];
+
+function nodeState(id) {
+    if (id === "root") return "chosen";
+    if (path.includes(id)) return "chosen";
+    const parent = id.length === 1 ? "root" : id.slice(0, id.length - 1);
+    const parentChosen = parent === "root" || path.includes(parent);
+    if (!parentChosen) {
+        // un ancêtre a été écarté ?
+        return lineage(id).slice(1, -1).some(a => !path.includes(a) && path.length >= a.length) ? "locked" : "future";
+    }
+    if (path.length >= id.length) return "locked";       // le frère a été choisi
+    if (path.length === id.length - 1 && voteOpen()) return "open";
+    return "future";
+}
+
+/* ===== Rendu ===== */
+function nodeHtml(id) {
+    const d = N[id], st = nodeState(id);
+    return `<div class="node ${id === "root" ? "root" : ""} ${st} ${selected === id ? "sel" : ""}" data-id="${id}">
+        <span class="e">${d.e}</span><span class="n">${d.n}</span><span class="t">${d.t}</span></div>`;
+}
+function renderTree(el) {
+    let h = `<svg></svg><p class="lvl-label">Création</p><div class="row r0">${nodeHtml("root")}</div>`;
+    LEVELS.forEach((lv, i) => {
+        h += `<p class="lvl-label">${LVL_NAMES[i]} · ${fmt(SEUILS[i])} XP <span style="text-transform:none;font-weight:600">(${LVL_DELAIS[i]})</span></p><div class="row r${i + 1}">${lv.map(nodeHtml).join("")}</div>`;
+    });
+    el.innerHTML = h;
+    el.querySelectorAll(".node").forEach(n => n.onclick = () => { selected = n.dataset.id; render(); });
+    requestAnimationFrame(() => drawLinks(el));
+}
+function drawLinks(el) {
+    const svg = el.querySelector("svg"), box = el.getBoundingClientRect();
+    if (!box.width) return;
+    let s = "";
+    el.querySelectorAll(".node").forEach(n => {
+        kids(n.dataset.id).forEach(k => {
+            const c = el.querySelector(`.node[data-id="${k}"]`); if (!c) return;
+            const a = n.getBoundingClientRect(), b = c.getBoundingClientRect();
+            const x1 = a.left + a.width / 2 - box.left, y1 = a.bottom - box.top;
+            const x2 = b.left + b.width / 2 - box.left, y2 = b.top - box.top;
+            const st = nodeState(k);
+            const col = st === "chosen" ? "#63d69f" : st === "open" ? "#ff9f43" : "#343a4d";
+            const op = st === "locked" ? .25 : 1;
+            const my = (y1 + y2) / 2;
+            s += `<path d="M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}" stroke="${col}" stroke-width="${st === "chosen" ? 3 : 2}" fill="none" opacity="${op}" ${st === "future" ? 'stroke-dasharray="4 4"' : ""}/>`;
+        });
+    });
+    svg.setAttribute("viewBox", `0 0 ${box.width} ${box.height}`);
+    svg.innerHTML = s;
+}
+
+function howHtml(d) {
+    return `<p class="how-t">Comment ça marche</p><ul class="how">${d.how.map(x => `<li>${x}</li>`).join("")}</ul>
+        ${d.ex ? `<p class="ex">💡 <b>Exemple :</b> ${d.ex}</p>` : ""}`;
+}
+function renderDetail() {
+    const el = document.getElementById("detail");
+    if (!selected) return;
+    const d = N[selected], st = nodeState(selected);
+    const lbl = { chosen: "✅ Débloqué", open: "🗳️ Au vote maintenant", locked: "🔒 Verrouillé (l'autre branche a gagné)", future: "⏳ Plus tard" }[st];
+    el.innerHTML = `<span class="e">${d.e}</span><h4>${d.n}</h4>
+        <span class="pill">${d.t}</span>${selected !== "root" ? `<span class="pill">${lbl}</span>` : ""}
+        ${d.titre && mode === "admin" ? `<p class="muted" style="margin:6px 0 0">Titre du groupe : <b style="color:#e6e8ee">${d.titre}</b></p>` : ""}
+        <div class="plus">➕ ${d.plus}</div>
+        ${mode === "admin" ? howHtml(d) : d.ex ? `<p class="ex">💡 ${d.ex}</p>` : ""}`;
+}
+
+function renderVote() {
+    const box = document.getElementById("vote");
+    box.classList.toggle("hidden", !voteOpen());
+    if (!voteOpen()) return;
+    const opts = kids(current());
+    document.getElementById("votetitle").textContent = `🗳️ ${LVL_NAMES[path.length]} : à vous de choisir !`;
+    const count = o => Object.values(votes).filter(v => v === o).length;
+    document.getElementById("opts").innerHTML = opts.map(o => `
+        <div class="opt ${votes.Toi === o ? "mine" : ""}" data-o="${o}">
+            <span class="e">${N[o].e}</span><h4>${N[o].n}</h4>
+            <div class="plus">➕ ${N[o].plus}</div>
+            ${mode === "admin" ? `<ul class="how">${N[o].how.map(x => `<li>${x}</li>`).join("")}</ul>` : ""}
+            <div class="count"><b>${count(o)}</b> vote(s)</div>
+        </div>`).join("");
+    document.querySelectorAll(".opt").forEach(o => o.onclick = () => { votes.Toi = o.dataset.o; checkVote(); });
+    document.getElementById("members").innerHTML = MEMBRES.map(m =>
+        `<span class="mb ${m.off ? "off" : votes[m.n] ? "done" : ""}">${m.n}${m.off ? " · absent 9 j" : votes[m.n] ? " ✓" : ""}</span>`).join("");
+}
+
+function checkVote(msg) {
+    const actifs = MEMBRES.filter(m => !m.off).length, need = Math.floor(actifs / 2) + 1;
+    const opts = kids(current());
+    const win = opts.find(o => Object.values(votes).filter(v => v === o).length >= need);
+    const m = document.getElementById("votemsg");
+    if (win) {
+        path.push(win); votes = {}; selected = win;
+        render();
+        toast(`🎉 « ${N[win].n} » adopté ! L'autre branche est verrouillée pour toujours.`);
+        return;
+    }
+    render();
+    const nb = Object.keys(votes).length;
+    m.innerHTML = nb === actifs ? `<b>Égalité !</b> Le vote reste ouvert jusqu'à ce que quelqu'un change d'avis.` : `${nb} / ${actifs} membres actifs ont voté · il faut ${need} voix pour adopter.`;
+}
+
+function render() {
+    const lvl = path.length, prev = lvl ? SEUILS[lvl - 1] : 0, next = SEUILS[lvl];
+    const bar = document.getElementById("xpbar");
+    const pct = lvl >= 3 ? 100 : Math.min(100, (xp - prev) / (next - prev) * 100);
+    bar.querySelector("i").style.width = pct + "%";
+    bar.classList.toggle("full", voteOpen() || lvl >= 3);
+    document.getElementById("xptxt").textContent = `${fmt(xp)} XP · niveau ${lvl}`;
+    document.getElementById("xpnext").textContent = lvl >= 3 ? "Arbre terminé 🏁" : voteOpen() ? "Palier atteint, au vote !" : `prochain palier : ${fmt(next)} XP`;
+    document.querySelectorAll(".xpbtns button[data-xp]").forEach(b => b.disabled = lvl >= 3 || voteOpen());
+
+    const cur = current(), d = N[cur], titre = cur === "root" ? "Groupe sans voie" : d.titre;
+    const cls = cur === "root" ? "" : cur[0] === "w" ? "wtf" : "th";
+    ["blason", "pubBlason"].forEach(i => { const b = document.getElementById(i); b.textContent = d.e; b.className = "blason " + cls; });
+    document.getElementById("gtitle").textContent = titre;
+    document.getElementById("pubTitle").textContent = `${titre} · niveau ${lvl}`;
+    document.getElementById("pubPath").textContent = path.map(p => N[p].e).join(" → ");
+
+    document.getElementById("actifs").innerHTML = path.length ? path.map(p =>
+        `<li>${N[p].e} <b>${N[p].n}</b> : ${N[p].plus}</li>`).join("")
+        : '<li class="muted">Aucun pour l\'instant : le groupe est comme tous les autres.</li>';
+
+    renderVote();
+    document.getElementById("votenote").textContent = mode === "admin"
+        ? "Il faut la majorité des membres actifs. Les membres absents depuis plus de 7 jours ne sont pas comptés. Pas de limite de temps : chacun peut changer son vote tant que rien n'est adopté."
+        : "La majorité l'emporte. Tu peux changer ton vote tant que rien n'est adopté.";
+    renderTree(document.getElementById("tree"));
+    renderDetail();
+}
+
+/* ===== Actions ===== */
+document.querySelectorAll(".xpbtns button[data-xp]").forEach(b => b.onclick = () => {
+    let gain = +b.dataset.xp;
+    xp += gain;
+    if (path.length < 3) xp = Math.min(xp, SEUILS[path.length]);   // on s'arrête au palier tant qu'on n'a pas voté
+    if (voteOpen()) { selected = null; document.getElementById("detail").innerHTML = '<p class="muted" style="margin:0">Palier atteint ! Votez pour la suite.</p>'; }
+    render();
+});
+document.getElementById("othersvote").onclick = () => {
+    const opts = kids(current());
+    MEMBRES.filter(m => !m.off && m.n !== "Toi").forEach(m => votes[m.n] = opts[Math.random() < .5 ? 0 : 1]);
+    checkVote();
+};
+document.getElementById("reset").onclick = reset;
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === t));
+    mode = t.dataset.mode;
+    document.getElementById("guideJoueur").classList.toggle("hidden", mode !== "joueur");
+    document.getElementById("guideAdmin").classList.toggle("hidden", mode !== "admin");
+    render();
+});
+window.addEventListener("resize", () => document.querySelectorAll(".tree").forEach(t => !t.classList.contains("hidden") && drawLinks(t)));
+
+function toast(txt) {
+    const c = document.getElementById("copied");
+    c.textContent = txt; c.classList.remove("hidden");
+    clearTimeout(toast.t); toast.t = setTimeout(() => c.classList.add("hidden"), 2600);
+}
+reset();
+</script>
+</body>
+</html>

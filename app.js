@@ -454,7 +454,7 @@ async function loadMyGroups() {
 
     const { data, error } = await supabaseClient
         .from("group_members")
-        .select("balance, points, cosmetics, gold_frame_until, name_color_until, is_manager, joined_at, groups ( id, name, code, created_by )")
+        .select("balance, points, cosmetics, gold_frame_until, name_color_until, is_manager, joined_at, groups ( id, name, code, created_by, tree_enabled )")
         .eq("user_id", currentUser.id)
         .order("joined_at", { ascending: true });
 
@@ -596,6 +596,13 @@ function renderGroupSwitcher() {
 
         <div class="group-menu-separator"></div>
 
+        ${typeof hasTreeAccess === "function" && hasTreeAccess() ? `
+            <button type="button" class="group-menu-item" data-group-action="tree">
+                🌳 Arbre du groupe
+                ${typeof refreshTreeDot === "function" && refreshTreeDot() ? '<small class="tree-menu-vote">🗳️ Vote en cours</small>' : ""}
+            </button>
+        ` : ""}
+
         <button type="button" class="group-menu-item" data-group-action="manage">
             ${currentGroup && currentGroup.isManager ? "⚙️ Gérer le groupe" : "ℹ️ Infos du groupe"}
         </button>
@@ -618,6 +625,11 @@ function renderGroupSwitcher() {
 
         });
 
+    });
+
+    menu.querySelector('[data-group-action="tree"]')?.addEventListener("click", () => {
+        menu.classList.add("hidden");
+        openTreePage();
     });
 
     menu.querySelector('[data-group-action="manage"]').addEventListener("click", () => {
@@ -7678,6 +7690,9 @@ let ticketLegs = [];
 
 let ticketStake = 0;
 
+// 🤪 Boost WTF activé dans le ticket (arbre.js, arbre-palier1.sql).
+let ticketBoost = false;
+
 let ticketTimer = null;
 
 // Téléphone : ticket déplié (sinon une simple barre en bas).
@@ -8058,6 +8073,8 @@ function renderTicket({ bump = false } = {}) {
                     <button type="button" class="ticket-chip-max" data-ticket-amount="max">🔥 Max <b data-ticket-max></b></button>
                 </div>
 
+                ${typeof ticketBoostHtml === "function" ? ticketBoostHtml() : ""}
+
                 <div class="ticket-win">
                     <span>Gain possible</span>
                     <strong data-ticket-win>0 €</strong>
@@ -8152,6 +8169,16 @@ function renderTicket({ bump = false } = {}) {
     });
 
     ticket.querySelector("[data-ticket-go]")?.addEventListener("click", placeTicket);
+
+    ticket.querySelector("[data-ticket-boost]")?.addEventListener("click", event => {
+
+        ticketBoost = !ticketBoost;
+
+        event.currentTarget.classList.toggle("on", ticketBoost);
+
+        updateTicketLive();
+
+    });
 
 
     if (count > 0) {
@@ -8366,7 +8393,11 @@ function updateTicketLive() {
 
     if (win) {
 
-        win.textContent = formatMoney(ticketStake * odds);
+        const boosted = ticketBoost && typeof treeBoost !== "undefined" && treeBoost.available;
+
+        win.textContent = formatMoney(ticketStake * odds * (boosted ? 1.2 : 1)) + (boosted ? " 🚀" : "");
+
+        win.classList.toggle("boosted", boosted);
 
     }
 
@@ -8500,16 +8531,21 @@ async function placeTicket() {
         // Solde et mise (ou combiné) calculés côté PostgreSQL.
         // p_odds : la cote affichée. Cotes qui bougent (cotes-mouvantes.sql) :
         // si elle a changé entre-temps, la base refuse la mise.
+        // p_boost : boost WTF de la semaine (arbre-palier1.sql).
+        const boost = ticketBoost && typeof treeBoost !== "undefined" && treeBoost.available;
+
         const { error } = combo
             ? await supabaseClient.rpc("place_combo", {
                 p_choice_ids: entries.map(entry => entry.choice.id),
                 p_stake: stake,
-                p_odds: ticketOdds(entries)
+                p_odds: ticketOdds(entries),
+                p_boost: boost
             })
             : await supabaseClient.rpc("place_bet", {
                 p_choice_id: entries[0].choice.id,
                 p_stake: stake,
-                p_odds: Number(entries[0].choice.odds)
+                p_odds: Number(entries[0].choice.odds),
+                p_boost: boost
             });
 
         if (error) {
@@ -8530,6 +8566,12 @@ async function placeTicket() {
         ticketOpen = false;
 
         ticketBusy = false;
+
+        ticketBoost = false;
+
+        if (typeof loadTreeBoost === "function") {
+            await loadTreeBoost();
+        }
 
         renderTicket();
 
@@ -9116,6 +9158,7 @@ async function displayMyBets({ cascade = false } = {}) {
                 choice_id,
                 stake,
                 potential_win,
+                boosted,
                 created_at,
                 bets!inner (
                     id,
@@ -9398,8 +9441,8 @@ async function displayMyBets({ cascade = false } = {}) {
 
                         <p>
                             ${escapeHtml(choice.label)}
-                            · ${(Number(stake.potential_win) / Number(stake.stake) || Number(choice.odds)).toFixed(2)}
-                            · mise ${formatMoney(stake.stake)}
+                            · ${(Number(stake.potential_win) / Number(stake.stake) / (stake.boosted ? 1.2 : 1) || Number(choice.odds)).toFixed(2)}
+                            · mise ${formatMoney(stake.stake)}${stake.boosted ? " · 🚀 boost +20 %" : ""}
                         </p>
 
                         ${contestHtml}
@@ -19839,6 +19882,11 @@ async function initAppPage() {
         setupBetsRealtime();
 
         setupChat();
+
+        // Arbre du groupe : pastille si un vote attend le joueur (arbre.js).
+        if (typeof setupTree === "function") {
+            setupTree().then(renderGroupSwitcher);
+        }
 
         await displayAdminMessage();
 
