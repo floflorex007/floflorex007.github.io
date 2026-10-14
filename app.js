@@ -3253,36 +3253,289 @@ async function displayAdminMessage() {
         document.getElementById("permanent-message-input");
 
 
-    // Aucun message, ou message vidé par l'admin : la fenêtre disparaît.
-    if (!data || !data.content?.trim()) {
+    const hasMessage = Boolean(data?.content?.trim());
 
-        sidebar.classList.add("hidden");
+    content.textContent = hasMessage ? data.content : "";
 
-        content.textContent = "";
-
-        if (permanentInput) {
-
-            permanentInput.value = "";
-
-        }
-
-        return;
-
-    }
-
-
-    content.textContent =
-        data.content;
-
-    sidebar.classList.remove("hidden");
-
+    content.classList.toggle("hidden", !hasMessage);
 
     if (permanentInput) {
 
-        permanentInput.value =
-            data.content;
+        permanentInput.value = hasMessage ? data.content : "";
 
     }
+
+    // Sondage de l'admin sous le message : la fenêtre reste affichée s'il y en a un.
+    const hasPoll = await renderPoll();
+
+    // Ni message ni sondage : la fenêtre disparaît.
+    sidebar.classList.toggle("hidden", !hasMessage && !hasPoll);
+
+}
+
+
+/*
+    Sondage Oui / Non de l'admin (sondage-admin.sql) : sous le message permanent,
+    barre des résultats et boutons de vote, comme pour une contestation.
+*/
+
+let currentPoll = null;
+
+let pollRefreshTimer = null;
+
+async function renderPoll() {
+
+    const box = document.getElementById("admin-poll");
+
+    if (!box) {
+        return false;
+    }
+
+    // Sondage de ce groupe, ou sondage « tous les groupes ».
+    const { data, error } = await supabaseClient.rpc("current_poll", { p_group: currentGroup?.id || null });
+
+    if (error) {
+        console.error(error);
+        box.classList.add("hidden");
+        return false;
+    }
+
+    currentPoll = Array.isArray(data) ? data[0] || null : data;
+
+    renderPollAdmin();
+
+    if (!currentPoll) {
+
+        box.classList.add("hidden");
+
+        box.innerHTML = "";
+
+        return false;
+
+    }
+
+    const poll = currentPoll;
+
+    const open = !poll.closed_at;
+
+    const total = poll.votes_yes + poll.votes_no;
+
+    const yesPct = total ? poll.votes_yes / total * 100 : 0;
+
+    const noPct = total ? poll.votes_no / total * 100 : 0;
+
+    const canVote = open && poll.my_vote === null;
+
+    const result = !open
+        ? (poll.votes_yes > poll.votes_no ? "✅ Le Oui l'emporte"
+            : poll.votes_no > poll.votes_yes ? "❌ Le Non l'emporte"
+            : total ? "⚖️ Égalité" : "Aucun vote")
+        : "";
+
+    box.classList.remove("hidden");
+
+    box.innerHTML = `
+
+        <h4>📊 Sondage${open ? "" : " terminé"}</h4>
+
+        <p class="admin-poll-question">${escapeHtml(poll.question)}</p>
+
+        ${result ? `<p class="admin-poll-result">${result}</p>` : ""}
+
+        <div class="contest-votes">
+
+            <div class="contest-votes-bar">
+                <span class="contest-votes-keep" style="width:${yesPct}%"></span>
+                <span class="contest-votes-annul" style="width:${noPct}%"></span>
+            </div>
+
+            <div class="contest-votes-legend">
+                <span>✅ Oui : <b>${poll.votes_yes}</b></span>
+                <span>${total} vote${total > 1 ? "s" : ""}</span>
+                <span>❌ Non : <b>${poll.votes_no}</b></span>
+            </div>
+
+        </div>
+
+        ${poll.my_vote !== null
+            ? `<p class="admin-poll-hint">Tu as voté : <b>${poll.my_vote ? "Oui" : "Non"}</b>.</p>`
+            : ""}
+
+        ${canVote
+            ? `
+                <div class="contest-vote-buttons">
+                    <button type="button" class="contest-vote contest-vote--keep" data-poll-yes="true">✅ Oui</button>
+                    <button type="button" class="contest-vote contest-vote--annul" data-poll-yes="false">❌ Non</button>
+                </div>
+            `
+            : ""}
+
+        <p class="admin-poll-hint">🔒 Vote anonyme${poll.voters?.length
+            // Seul l'admin reçoit les pseudos des votants (jamais leur choix).
+            ? ` · ont voté : ${poll.voters.map(name => escapeHtml(name)).join(", ")}`
+            : ""}</p>
+
+        <p class="error-message admin-poll-error"></p>
+
+    `;
+
+    box.querySelectorAll("[data-poll-yes]").forEach(button => {
+
+        button.addEventListener("click", async () => {
+
+            box.querySelectorAll("[data-poll-yes]").forEach(other => other.disabled = true);
+
+            const { error: voteError } = await supabaseClient.rpc("vote_poll", {
+                p_poll: poll.id,
+                p_yes: button.dataset.pollYes === "true"
+            });
+
+            if (voteError) {
+
+                box.querySelector(".admin-poll-error").textContent = voteError.message;
+
+                box.querySelectorAll("[data-poll-yes]").forEach(other => other.disabled = false);
+
+                return;
+
+            }
+
+            await renderPoll();
+
+        });
+
+    });
+
+    // Les votes des autres arrivent toutes les 30 s tant que le sondage est ouvert.
+    clearTimeout(pollRefreshTimer);
+
+    if (open) {
+        pollRefreshTimer = setTimeout(renderPoll, 30000);
+    }
+
+    return true;
+
+}
+
+
+// Page admin : liste des groupes du sondage (même liste que les stats des joueurs).
+function fillPollGroups(groups) {
+
+    const select = document.getElementById("poll-group");
+
+    if (!select) {
+        return;
+    }
+
+    const previous = select.value;
+
+    select.innerHTML = `<option value="">Tous les groupes</option>` + groups.map(([id, name]) =>
+        `<option value="${id}">${escapeHtml(name)}</option>`
+    ).join("");
+
+    select.value = groups.some(([id]) => id === previous) ? previous : "";
+
+    renderPollAdmin();
+
+}
+
+
+// Page admin : sondage du groupe choisi, boutons Terminer / Effacer, lancement.
+async function renderPollAdmin() {
+
+    const status = document.getElementById("poll-admin-status");
+
+    const start = document.getElementById("poll-start");
+
+    const select = document.getElementById("poll-group");
+
+    if (!status || !start || !select || !currentProfile?.is_admin) {
+        return;
+    }
+
+    const groupName = select.options[select.selectedIndex]?.textContent || "Tous les groupes";
+
+    const { data } = await supabaseClient.rpc("current_poll", { p_group: select.value || null });
+
+    let poll = Array.isArray(data) ? data[0] || null : data;
+
+    // « Tous les groupes » choisi : seulement les sondages pour tous ; un groupe : seulement les siens.
+    if (poll && (poll.group_id || null) !== (select.value || null)) {
+        poll = null;
+    }
+
+    status.innerHTML = poll
+        ? `
+            <p class="resolve-info">
+                ${poll.closed_at ? "Dernier sondage (terminé)" : "Sondage en cours"} · ${escapeHtml(groupName)} : <b>${escapeHtml(poll.question)}</b>
+                · ✅ ${poll.votes_yes} / ❌ ${poll.votes_no}
+            </p>
+            <div class="admin-account-actions">
+                ${poll.closed_at ? "" : `<button type="button" class="secondary-button" data-poll-admin="close">Terminer le sondage</button>`}
+                <button type="button" class="admin-account-delete" data-poll-admin="delete">Effacer</button>
+            </div>
+        `
+        : `<p class="resolve-info">Aucun sondage pour « ${escapeHtml(groupName)} ».</p>`;
+
+    status.querySelectorAll("[data-poll-admin]").forEach(button => {
+
+        button.addEventListener("click", async () => {
+
+            const { error } = await supabaseClient.rpc(
+                button.dataset.pollAdmin === "close" ? "admin_close_poll" : "admin_delete_poll",
+                { p_poll: poll.id }
+            );
+
+            const message = document.getElementById("poll-admin-message");
+
+            message.className = "admin-balance-message" + (error ? " error" : " success");
+
+            message.textContent = error
+                ? error.message
+                : button.dataset.pollAdmin === "close" ? "Sondage terminé." : "Sondage effacé.";
+
+            await displayAdminMessage();
+
+        });
+
+    });
+
+    if (start.dataset.ready) {
+        return;
+    }
+
+    start.dataset.ready = "1";
+
+    select.addEventListener("change", renderPollAdmin);
+
+    start.addEventListener("click", async () => {
+
+        const input = document.getElementById("poll-question");
+
+        const message = document.getElementById("poll-admin-message");
+
+        const name = select.options[select.selectedIndex]?.textContent || "";
+
+        start.disabled = true;
+
+        const { error } = await supabaseClient.rpc("admin_start_poll", {
+            p_question: input.value,
+            p_group: select.value || null
+        });
+
+        start.disabled = false;
+
+        message.className = "admin-balance-message" + (error ? " error" : " success");
+
+        message.textContent = error ? error.message : `Sondage lancé pour « ${name} » : il s'affiche sous le message.`;
+
+        if (!error) {
+            input.value = "";
+        }
+
+        await displayAdminMessage();
+
+    });
 
 }
 
@@ -4066,6 +4319,111 @@ async function adminDeleteBet(betId, button) {
 
 let adminBalances = [];
 
+
+/*
+    Admin : retirer le même montant à tous les joueurs d'un groupe
+    (admin-soustraction-groupe.sql). 1er clic « Confirmer ? », 2e clic retire.
+*/
+
+function setupAdminSubtract(groups) {
+
+    const select = document.getElementById("admin-subtract-group");
+
+    const button = document.getElementById("admin-subtract-button");
+
+    if (!select || !button) {
+        return;
+    }
+
+    const previous = select.value;
+
+    select.innerHTML = groups.map(([id, name]) =>
+        `<option value="${id}">${escapeHtml(name)}</option>`
+    ).join("");
+
+    select.value = groups.some(([id]) => id === previous)
+        ? previous
+        : currentGroup && groups.some(([id]) => id === currentGroup.id) ? currentGroup.id : groups[0]?.[0] || "";
+
+    if (button.dataset.ready) {
+        return;
+    }
+
+    button.dataset.ready = "1";
+
+    const resetButton = () => {
+        button.classList.remove("confirm");
+        button.textContent = "Retirer à tous";
+    };
+
+    // Changer de groupe ou de montant annule la confirmation en cours.
+    select.addEventListener("change", resetButton);
+
+    document.getElementById("admin-subtract-amount").addEventListener("input", resetButton);
+
+    button.addEventListener("click", async () => {
+
+        const message = document.getElementById("admin-subtract-message");
+
+        const amount = Number(document.getElementById("admin-subtract-amount").value);
+
+        const groupName = select.options[select.selectedIndex]?.textContent || "";
+
+        message.textContent = "";
+
+        if (!Number.isInteger(amount) || amount <= 0) {
+            message.className = "admin-balance-message error";
+            message.textContent = "Entre un montant entier positif.";
+            return;
+        }
+
+        if (!button.classList.contains("confirm")) {
+
+            button.classList.add("confirm");
+
+            button.textContent = `Confirmer −${formatMoney(amount)} pour « ${groupName} » ?`;
+
+            setTimeout(() => {
+                if (button.classList.contains("confirm") && !button.disabled) {
+                    resetButton();
+                }
+            }, 5000);
+
+            return;
+
+        }
+
+        button.disabled = true;
+
+        const { data, error } = await supabaseClient.rpc("admin_subtract_group", {
+            p_group: select.value,
+            p_amount: amount
+        });
+
+        button.disabled = false;
+
+        resetButton();
+
+        if (error) {
+            message.className = "admin-balance-message error";
+            message.textContent = error.message || "Retrait impossible.";
+            return;
+        }
+
+        const result = Array.isArray(data) ? data[0] : data;
+
+        message.className = "admin-balance-message success";
+
+        message.textContent = `${result?.players || 0} joueur(s) touché(s) dans « ${groupName} », ${formatMoney(Number(result?.total || 0))} retirés au total.`;
+
+        await displayAdminBalances();
+
+        displayLeaderboard();
+
+    });
+
+}
+
 async function displayAdminBalances() {
 
     const select = document.getElementById("admin-balance-group");
@@ -4091,6 +4449,10 @@ async function displayAdminBalances() {
     adminBalances = data || [];
 
     const groups = [...new Map(adminBalances.map(row => [row.group_id, row.group_name])).entries()];
+
+    setupAdminSubtract(groups);
+
+    fillPollGroups(groups);
 
     const previous = select.value;
 

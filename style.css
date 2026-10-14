@@ -13942,3 +13942,89 @@ html.force-phone .main-container {
     }
 
 }
+
+
+/* ----- Admin : retrait pour tout un groupe (admin-soustraction-groupe.sql) ----- */
+
+.admin-subtract-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.admin-subtract-form .admin-balance-group {
+    flex: 1 1 180px;
+    margin: 0;
+}
+
+.admin-subtract-form .admin-account-delete.confirm {
+    background: linear-gradient(135deg, #d93a3a, #ff6b6b);
+    border-color: transparent;
+    color: white;
+    animation: delete-fab-pulse 0.9s ease-in-out infinite;
+}
+
+
+/* ----- Sondage Oui / Non de l'admin sous le message permanent (sondage-admin.sql) ----- */
+
+.admin-poll {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #2c3040;
+}
+
+#admin-message-content.hidden + .admin-poll {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+}
+
+.admin-poll h4 {
+    margin: 0 0 6px;
+    color: #c4c8d4;
+    font-size: 13px;
+}
+
+.admin-poll-question {
+    margin: 0;
+    color: white;
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 1.4;
+}
+
+.admin-poll-result {
+    margin: 8px 0 0;
+    font-size: 13px;
+    font-weight: 800;
+    color: #f5c451;
+}
+
+.admin-poll .contest-votes {
+    margin-top: 10px;
+}
+
+.admin-poll .contest-vote-buttons {
+    margin-top: 10px;
+}
+
+.admin-poll .contest-vote {
+    padding: 9px 8px;
+}
+
+.admin-poll-hint {
+    margin: 8px 0 0;
+    color: #858a98;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.admin-poll-hint b {
+    color: white;
+}
+
+.poll-admin-status .admin-account-actions {
+    justify-content: flex-start;
+    margin-bottom: 10px;
+}

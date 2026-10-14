@@ -704,6 +704,12 @@
 
                         <div id="admin-message-content"></div>
 
+                        <!-- Sondage Oui / Non de l'admin (sondage-admin.sql, renderPoll dans app.js) -->
+                        <div
+                            id="admin-poll"
+                            class="admin-poll hidden"
+                        ></div>
+
                     </aside>
 
 
@@ -1467,6 +1473,53 @@
                     class="error-message"
                 ></p>
 
+
+                <!-- Sondage Oui / Non affiché sous le message permanent (sondage-admin.sql) -->
+                <h3>Sondage Oui / Non</h3>
+
+                <p class="resolve-info">
+                    Une question à laquelle les joueurs répondent Oui ou Non, affichée sous le message,
+                    dans le groupe choisi (ou dans tous). Lancer un nouveau sondage au même endroit termine le précédent.
+                </p>
+
+                <div
+                    id="poll-admin-status"
+                    class="poll-admin-status"
+                ></div>
+
+                <div class="admin-subtract-form">
+
+                    <!-- Groupe où le sondage s'affiche (rempli par fillPollGroups) -->
+                    <select
+                        id="poll-group"
+                        class="admin-balance-group"
+                    >
+                        <option value="">Tous les groupes</option>
+                    </select>
+
+                    <input
+                        type="text"
+                        id="poll-question"
+                        class="admin-balance-group"
+                        maxlength="200"
+                        placeholder="Ex : On garde le plafond des combinés à 30 ?"
+                    >
+
+                    <button
+                        type="button"
+                        id="poll-start"
+                        class="primary-button"
+                    >
+                        Lancer le sondage
+                    </button>
+
+                </div>
+
+                <p
+                    id="poll-admin-message"
+                    class="admin-balance-message"
+                ></p>
+
             </div>
 
 
@@ -1492,6 +1545,52 @@
 
                 <p
                     id="admin-balance-message"
+                    class="admin-balance-message"
+                ></p>
+
+            </div>
+
+
+            <!-- Admin : retirer un montant à tous les joueurs d'un groupe (admin-soustraction-groupe.sql) -->
+            <div class="create-card">
+
+                <h3>Retrait pour tout un groupe</h3>
+
+                <p class="resolve-info">
+                    Retire le même montant du solde de chaque joueur du groupe choisi (toi non compris).
+                    Un solde ne descend jamais sous 0 €. Chaque joueur touché reçoit un message.
+                </p>
+
+                <div class="admin-subtract-form">
+
+                    <select
+                        id="admin-subtract-group"
+                        class="admin-balance-group"
+                    ></select>
+
+                    <input
+                        type="number"
+                        id="admin-subtract-amount"
+                        class="admin-balance-input"
+                        min="1"
+                        step="1"
+                        placeholder="Montant"
+                    >
+
+                    <span class="admin-balance-unit">€</span>
+
+                    <button
+                        type="button"
+                        id="admin-subtract-button"
+                        class="admin-account-delete"
+                    >
+                        Retirer à tous
+                    </button>
+
+                </div>
+
+                <p
+                    id="admin-subtract-message"
                     class="admin-balance-message"
                 ></p>
 
