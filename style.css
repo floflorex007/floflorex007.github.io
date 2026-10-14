@@ -14194,3 +14194,13 @@ html.force-phone .main-container {
     75% { opacity: 1; }
     100% { opacity: 0; transform: translate(-50%, -190%) scale(1); }
 }
+
+/* Onglet admin : allumer l'arbre groupe par groupe (renderTreeAdminCard dans arbre.js). */
+.tree-admin-card { margin-bottom: 20px; }
+.tree-admin-card:empty { display: none; }
+.tree-admin-list { display: grid; gap: 8px; margin-top: 14px; }
+.tree-admin-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; background: #12141b; border: 1px solid #262a38; }
+.tree-admin-toggle { border: 1px solid #2c3040; background: #1c202c; color: #e6e8ee; border-radius: 10px; padding: 7px 12px; font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.tree-admin-toggle:hover { border-color: #6c63ff; }
+.tree-admin-toggle.on { border-color: #63d69f; color: #9fe6c4; }
+.tree-admin-toggle:disabled { opacity: .5; cursor: wait; }

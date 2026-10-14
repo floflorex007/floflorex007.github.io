@@ -784,9 +784,103 @@ async function toggleTree() {
 
     currentGroup.tree_enabled = !treeState.enabled;
 
+    const mine = myGroups.find(group => group.id === currentGroup.id);
+
+    if (mine) {
+        mine.tree_enabled = currentGroup.tree_enabled;
+    }
+
     await loadTree();
 
     renderTreePage();
+
+    renderTreeAdminCard();
+
+    renderGroupSwitcher();
+
+}
+
+
+/*
+    Onglet admin « Message » : carte pour allumer l'arbre groupe par groupe
+    (l'admin est membre de tous les groupes, voir admin_join_all_groups).
+*/
+
+function renderTreeAdminCard() {
+
+    const card = document.getElementById("tree-admin-card");
+
+    if (!card || !currentProfile?.is_admin) {
+        return;
+    }
+
+    card.innerHTML = `
+        <h3>🌳 Arbre des groupes</h3>
+
+        <p class="resolve-info">
+            Allume l'arbre dans un groupe pour que ses membres le voient (menu du groupe → 🌳 Arbre du groupe).
+            L'XP du groupe compte à partir du premier allumage. L'éteindre garde l'XP et les cases choisies.
+        </p>
+
+        <div class="tree-admin-list">
+            ${myGroups.map(group => `
+                <div class="tree-admin-row">
+                    <span>${escapeHtml(group.name)}</span>
+                    <button
+                        type="button"
+                        class="tree-admin-toggle${group.tree_enabled ? " on" : ""}"
+                        data-tree-group="${group.id}"
+                    >
+                        ${group.tree_enabled ? "✅ Allumé · éteindre" : "Allumer l'arbre"}
+                    </button>
+                </div>
+            `).join("")}
+        </div>
+    `;
+
+    card.querySelectorAll("[data-tree-group]").forEach(button => {
+
+        button.addEventListener("click", async () => {
+
+            const group = myGroups.find(item => item.id === button.dataset.treeGroup);
+
+            button.disabled = true;
+
+            const { error } = await supabaseClient.rpc("admin_set_tree_enabled", {
+                p_group: group.id,
+                p_on: !group.tree_enabled
+            });
+
+            if (error) {
+
+                alertToast(escapeHtml(error.message), { type: "error" });
+
+                button.disabled = false;
+
+                return;
+
+            }
+
+            group.tree_enabled = !group.tree_enabled;
+
+            // Groupe en cours : la page de l'arbre et le menu suivent.
+            if (currentGroup && group.id === currentGroup.id) {
+
+                currentGroup.tree_enabled = group.tree_enabled;
+
+                await loadTree();
+
+                renderTreePage();
+
+                renderGroupSwitcher();
+
+            }
+
+            renderTreeAdminCard();
+
+        });
+
+    });
 
 }
 
@@ -802,6 +896,8 @@ async function setupTree() {
     }
 
     treeMode = currentProfile?.is_admin ? "admin" : "joueur";
+
+    renderTreeAdminCard();
 
     window.addEventListener("resize", () => {
 
