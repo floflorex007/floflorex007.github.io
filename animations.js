@@ -1646,30 +1646,19 @@ function restoreCardHtml(points) {
 
     const enough = points >= RESTORE_PRICE;
 
-    return `
-        <div class="mission-card shop-card" data-shop-item="rattrapage">
-
-            <div class="mission-head">
-                <h3>Rattrapage 24 h</h3>
-                <span class="mission-points">${RESTORE_PRICE} 🪙</span>
-            </div>
-
-            <p class="mission-description">${can
-                ? "Ta série de " + streakState.lost + " jours s'est arrêtée hier. Récupère-la avant minuit !"
-                : "Si tu rates un seul jour sans bouclier, récupère ta série le jour de ton retour, jusqu'à minuit."}</p>
-
-            <div class="mission-footer">
-                <span class="mission-state${can ? " done" : ""}">${can ? "🔥 À rattraper" : "Rien à rattraper"}</span>
-                <button
-                    class="primary-button restore-buy"
-                    ${can && enough ? "" : "disabled"}
-                >
-                    ${can && !enough ? "Il te manque " + (RESTORE_PRICE - points) + " 🪙" : "Rattraper"}
-                </button>
-            </div>
-
-        </div>
-    `;
+    return shopRowHtml({
+        id: "rattrapage",
+        title: "Rattrapage 24 h",
+        price: RESTORE_PRICE,
+        stage: `
+            <span class="shop-row-util">
+                <span class="shop-row-icon">🔥</span>
+                <b>${can ? streakState.lost + " j" : "—"}</b>
+            </span>
+        `,
+        middle: can ? `<span class="shop-row-note">À rattraper avant minuit</span>` : "",
+        actions: shopPriceButtonHtml("restore-buy", "", RESTORE_PRICE, can && enough)
+    });
 
 }
 
@@ -1681,28 +1670,20 @@ function shieldCardHtml(points) {
 
     const canBuy = !full && points >= SHIELD_PRICE;
 
-    return `
-        <div class="mission-card shop-card" data-shop-item="bouclier">
-
-            <div class="mission-head">
-                <h3>Bouclier de série</h3>
-                <span class="mission-points">${SHIELD_PRICE} 🪙</span>
-            </div>
-
-            <p class="mission-description">Protège ta série 🔥 : si tu rates un jour, un bouclier est utilisé tout seul et ta série continue. 3 maximum.</p>
-
-            <div class="mission-footer">
-                <span class="mission-state${full ? " done" : ""}">🛡️ ${streakState.shields} / ${SHIELD_MAX}</span>
-                <button
-                    class="primary-button shield-buy"
-                    ${canBuy ? "" : "disabled"}
-                >
-                    ${full ? "Maximum" : "Acheter"}
-                </button>
-            </div>
-
-        </div>
-    `;
+    return shopRowHtml({
+        id: "bouclier",
+        title: "Bouclier de série",
+        price: SHIELD_PRICE,
+        stage: `
+            <span class="shop-row-util">
+                <span class="shop-row-icon">🛡️</span>
+                <b>${streakState.shields} / ${SHIELD_MAX}</b>
+            </span>
+        `,
+        actions: full
+            ? `<button class="primary-button shield-buy" disabled>Maximum</button>`
+            : shopPriceButtonHtml("shield-buy", "", SHIELD_PRICE, canBuy)
+    });
 
 }
 

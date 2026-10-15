@@ -7198,9 +7198,14 @@ function openBetModal(
     currentChoice = choice;
 
 
-    document.getElementById(
-        "modal-question"
-    ).textContent =
+    const modalQuestion =
+        document.getElementById("modal-question");
+
+    modalQuestion.textContent =
+        bet.question;
+
+    // Question coupée par « … » : le texte complet s'affiche au survol.
+    modalQuestion.title =
         bet.question;
 
 
@@ -8030,7 +8035,7 @@ function renderTicket({ bump = false } = {}) {
                         <div class="ticket-leg">
                             <span class="ticket-leg-text">
                                 <b>${escapeHtml(entry.choice.label)}</b>
-                                ${escapeHtml(entry.bet.question)}
+                                <span class="ticket-leg-question" title="${escapeHtml(entry.bet.question)}">${escapeHtml(entry.bet.question)}</span>
                             </span>
                             <span class="ticket-leg-odds">${formatOdds(entry.choice.odds)}</span>
                             <button type="button" class="ticket-leg-remove" data-ticket-remove="${entry.bet.id}" aria-label="Retirer">✕</button>
@@ -8039,7 +8044,6 @@ function renderTicket({ bump = false } = {}) {
                 </div>
 
                 <div class="ticket-sum">
-                    <span>${combo ? "Cote combinée" : "Cote"}</span>
                     <b class="ticket-odds${bump ? " bump" : ""}">× ${formatOdds(odds)}</b>
                 </div>
 
@@ -8053,8 +8057,6 @@ function renderTicket({ bump = false } = {}) {
 
                 ${ticketDuplicate(entries)
                     ? `<p class="ticket-note ticket-note-duplicate">Tu as déjà fait ce combiné (mêmes paris, mêmes choix). Change un choix ou un pari.</p>`
-                    : ticketSingleBlocked(entries)
-                    ? `<p class="ticket-note">Tu as déjà misé sur ce pari (1 seule mise par pari). Ajoute un 2e pari pour faire un combiné.</p>`
                     : ""}
 
                 <input
@@ -8074,11 +8076,6 @@ function renderTicket({ bump = false } = {}) {
                 </div>
 
                 ${typeof ticketBoostHtml === "function" ? ticketBoostHtml() : ""}
-
-                <div class="ticket-win">
-                    <span>Gain possible</span>
-                    <strong data-ticket-win>0 €</strong>
-                </div>
 
                 <button type="button" class="primary-button ticket-go" data-ticket-go disabled></button>
 
@@ -8270,7 +8267,7 @@ const TICKET_MOVE = { duration: 350, easing: "cubic-bezier(.4,0,.2,1)" };
 
 const TICKET_BLOCKS =
     ".ticket-header, .ticket-leg, .ticket-sum, .ticket-note, .ticket-boost, " +
-    ".ticket-stake, .ticket-chips, .ticket-win, .ticket-go, .ticket-rules";
+    ".ticket-stake, .ticket-chips, .ticket-go, .ticket-rules";
 
 // Repère d'un élément du ticket d'un dessin à l'autre (une cote : son pari).
 function ticketBlockKey(element) {
@@ -8389,17 +8386,11 @@ function updateTicketLive() {
 
     });
 
-    const win = ticket.querySelector("[data-ticket-win]");
+    // Gain possible : affiché directement sur le bouton (« Gain potentiel : … »).
+    const boosted = ticketBoost && typeof treeBoost !== "undefined" && treeBoost.available;
 
-    if (win) {
-
-        const boosted = ticketBoost && typeof treeBoost !== "undefined" && treeBoost.available;
-
-        win.textContent = formatMoney(ticketStake * odds * (boosted ? 1.2 : 1)) + (boosted ? " 🚀" : "");
-
-        win.classList.toggle("boosted", boosted);
-
-    }
+    const possibleWin =
+        formatMoney(ticketStake * odds * (boosted ? 1.2 : 1)) + (boosted ? " 🚀" : "");
 
     const go = ticket.querySelector("[data-ticket-go]");
 
@@ -8413,6 +8404,9 @@ function updateTicketLive() {
 
         go.disabled = !ticketStake || blocked || ticketBusy;
 
+        // Pas encore de mise : bouton éteint et champ de la mise mis en avant.
+        ticket.classList.toggle("ticket-awaiting-stake", !ticketStake && !blocked);
+
         // Mise impossible (pari simple déjà misé, combiné déjà joué) :
         // le bouton change de couleur pour le faire comprendre.
         go.classList.toggle("ticket-go--blocked", blocked);
@@ -8423,9 +8417,7 @@ function updateTicketLive() {
             ? "⛔ Déjà misé sur ce pari"
             : !ticketStake
                 ? "Choisis ta mise"
-                : (entries.length > 1
-                    ? "🔗 Miser le combiné · " + formatMoney(ticketStake)
-                    : "🎟️ Miser " + formatMoney(ticketStake)) + (publishing ? " et publier" : "");
+                : "Gain potentiel : " + possibleWin + (publishing ? " et publier" : "");
 
     }
 
@@ -12165,7 +12157,7 @@ const COSMETICS = [
         title: "Emoji à côté du pseudo",
         description: "Un emoji à côté de ton pseudo, partout sur le site.",
         price: 15,
-        options: ["🔥", "⚡", "🍀", "🦊", "💎", "🎯"]
+        options: ["🔥", "⚡", "🍀", "💎"]
     },
     {
         id: "neon",
@@ -12271,7 +12263,6 @@ const SHOP_CATEGORIES = [
     {
         icon: "➕",
         title: "Bonus du pseudo",
-        hint: "Se cumulent avec tout : tu peux les équiper en même temps que n'importe quel autre objet.",
         mode: "combine",
         kind: "cosmetic",
         items: ["emoji", "etincelles"]
@@ -12279,7 +12270,6 @@ const SHOP_CATEGORIES = [
     {
         icon: "🎨",
         title: "Style du pseudo",
-        hint: "Un seul à la fois : en équiper un remplace celui que tu portes (avec le Pseudo cristal en diamants et le pseudo enflammé).",
         mode: "replace",
         kind: "cosmetic",
         items: ["neon", "scanner", "metal_rose", "metal_bronze", "metal_argent", "neon_anime", "metal_or", "fiole", "ruban_chantier", "couleur"]
@@ -12287,7 +12277,6 @@ const SHOP_CATEGORIES = [
     {
         icon: "🖼️",
         title: "Cadre du classement",
-        hint: "Un seul à la fois : en équiper un remplace l'autre (avec le Cadre diamant).",
         mode: "replace",
         kind: "cosmetic",
         items: ["cadre", "aura"]
@@ -12295,7 +12284,6 @@ const SHOP_CATEGORIES = [
     {
         icon: "🃏",
         title: "Thème de carte",
-        hint: "Un seul à la fois (avec le thème Diamant).",
         mode: "replace",
         kind: "cosmetic",
         items: ["theme"]
@@ -12325,6 +12313,134 @@ let shopFilter = "all";
 function cosmeticOptionLabel(option) {
 
     return option.charAt(0).toUpperCase() + option.slice(1);
+
+}
+
+
+// Uniquement l'effet d'un article de la boutique (aperçu sur mon pseudo).
+function shopItemEffects(itemId, selected) {
+
+    return {
+        gold: itemId === "cadre",
+        rainbow: itemId === "couleur",
+        metal: itemId.startsWith("metal_") ? itemId.slice(6) : null,
+        anim: NAME_ANIMATIONS.includes(itemId) ? itemId : null,
+        neon: itemId === "neon" ? selected : null,
+        emoji: itemId === "emoji" ? selected : null,
+        sparkle: itemId === "etincelles",
+        aura: itemId === "aura",
+        theme: itemId === "theme" ? selected : null
+    };
+
+}
+
+
+/*
+    Aperçu affiché directement sur la carte de la boutique
+    (version 4 « En ligne » de demo-cartes-boutique-v2.html).
+*/
+
+function shopStageHtml(itemId, selected) {
+
+    const me = {
+        username: currentProfile.username
+    };
+
+    if (itemId === "clic_perroquet" || itemId === "clic_perroquet_x3") {
+
+        return `
+            <span class="shop-row-util">
+                <img src="assets/perroquet/skins/classique/thumb.png" alt="">
+                <b>+${itemId === "clic_perroquet" ? 2 : 3} €</b>
+                <small>par clic</small>
+            </span>
+        `;
+
+    }
+
+    const effects =
+        shopItemEffects(itemId, selected);
+
+    if (effects.theme) {
+
+        return `
+            <div class="bet-card bet-card-theme bet-theme-${escapeHtml(effects.theme)} shop-preview-bet">
+                <div class="bet-card-header">
+                    <span>🏆</span>
+                    <span class="bet-author">Créé par ${escapeHtml(me.username)}</span>
+                </div>
+                <div class="bet-question-row">
+                    <span class="bet-question-icon">🎲</span>
+                    <h3>Qui gagne ce soir ?</h3>
+                </div>
+            </div>
+        `;
+
+    }
+
+    if (effects.gold || effects.aura) {
+
+        return leaderboardRowHtml(me, { rank: 3, medal: "🥉", balance: formatBalance(1520), effects });
+
+    }
+
+    return `<span class="user-name shop-row-name">${nameHtml(me, effects)}</span>`;
+
+}
+
+
+// Rareté d'un article, selon son prix (badge et bordure de la carte).
+function shopRarity(price) {
+
+    return price >= 400 ? ["legendaire", "Légendaire"]
+        : price >= 250 ? ["epique", "Épique"]
+        : price >= 100 ? ["rare", "Rare"]
+        : ["commun", "Commun"];
+
+}
+
+
+// Carte « en ligne » : aperçu à gauche, titre et options au milieu, boutons à droite.
+function shopRowHtml({ id, title, price, stage, middle = "", actions }) {
+
+    const [rarity, rarityLabel] =
+        shopRarity(price);
+
+    return `
+        <div class="mission-card shop-card shop-row shop-rarity--${rarity}" data-shop-item="${id}">
+
+            <div class="shop-row-stage">${stage}</div>
+
+            <div class="shop-row-mid">
+                <span class="shop-rarity">${rarityLabel}</span>
+                <h3>${escapeHtml(title)}</h3>
+                ${middle}
+            </div>
+
+            <div class="shop-row-actions">${actions}</div>
+
+        </div>
+    `;
+
+}
+
+
+// Bouton d'achat : le prix sert de bouton (grisé s'il manque des pièces).
+function shopPriceButtonHtml(className, dataAttribute, price, enabled) {
+
+    const missing =
+        price - (currentProfile.points || 0);
+
+    return `
+        <button
+            class="primary-button ${className}"
+            ${dataAttribute}
+            ${enabled ? "" : "disabled"}
+            ${missing > 0 ? `title="Il te manque ${missing} 🪙"` : ""}
+        >
+            ${price} 🪙
+        </button>
+    `;
 
 }
 
@@ -13253,11 +13369,6 @@ function displayShop() {
         const canBuy = points >= reward.price;
 
 
-        const status = active
-            ? `<span class="mission-state done">✓ Possédé</span>`
-            : `<span class="mission-state">${canBuy ? "Disponible" : "Il te manque " + (reward.price - points) + " 🪙"}</span>`;
-
-
         /*
             Admin : interrupteur d'aperçu pour tester l'effet
             sans l'acheter (visible uniquement par l'admin).
@@ -13279,33 +13390,17 @@ function displayShop() {
             : "";
 
 
-        rewardCards[reward.id] = `
-            <div class="mission-card shop-card" data-shop-item="${reward.id}">
-
-                <div class="mission-head">
-                    <h3>${escapeHtml(reward.title)}</h3>
-                    <span class="mission-points">${reward.price} 🪙</span>
-                </div>
-
-                <p class="mission-description">${escapeHtml(reward.description)}</p>
-
-                <div class="mission-footer">
-                    ${status}
-                    <button
-                        class="primary-button reward-buy"
-                        data-reward="${reward.id}"
-                        ${canBuy && !active ? "" : "disabled"}
-                    >
-                        ${active ? "Possédé" : "Acheter"}
-                    </button>
-                </div>
-
+        rewardCards[reward.id] = shopRowHtml({
+            id: reward.id,
+            title: reward.title,
+            price: reward.price,
+            stage: shopStageHtml(reward.id),
+            actions: `
+                ${active ? "" : shopPriceButtonHtml("reward-buy", `data-reward="${reward.id}"`, reward.price, canBuy)}
                 ${adminToggle}
-
                 ${equipToggleHtml(reward.id, active)}
-
-            </div>
-        `;
+            `
+        });
 
     });
 
@@ -13370,9 +13465,7 @@ function displayShop() {
                     : ""}
             </h2>
 
-            ${category.hint ? `<p class="shop-category-hint">${escapeHtml(category.hint)}</p>` : ""}
-
-            <div class="missions-grid">
+            <div class="missions-grid shop-rows">
                 ${category.items.map(cardOf).join("")}
             </div>
 
@@ -13618,17 +13711,8 @@ function openShopPreview(itemId, option) {
 
 
     // Uniquement l'effet de l'article prévisualisé.
-    const effects = {
-        gold: itemId === "cadre",
-        rainbow: itemId === "couleur",
-        metal: itemId.startsWith("metal_") ? itemId.slice(6) : null,
-        anim: NAME_ANIMATIONS.includes(itemId) ? itemId : null,
-        neon: itemId === "neon" ? selected : null,
-        emoji: itemId === "emoji" ? selected : null,
-        sparkle: itemId === "etincelles",
-        aura: itemId === "aura",
-        theme: itemId === "theme" ? selected : null
-    };
+    const effects =
+        shopItemEffects(itemId, selected);
 
     const me = {
         username: currentProfile.username
@@ -13991,23 +14075,8 @@ function setupShopPreview() {
         }
     });
 
-
-    // Clic sur une carte (hors boutons) : ouvre l'aperçu.
-    container.addEventListener("click", event => {
-
-        if (event.target.closest("button")) {
-            return;
-        }
-
-        const card =
-            event.target.closest("[data-shop-item]");
-
-        // Pas d'aperçu pour les articles sans effet sur le pseudo.
-        if (card && !["clic_perroquet", "clic_perroquet_x3", "bouclier", "rattrapage"].includes(card.dataset.shopItem)) {
-            openShopPreview(card.dataset.shopItem);
-        }
-
-    });
+    // Les cartes de la boutique montrent leur aperçu directement (shopStageHtml) :
+    // plus de fenêtre au clic sur une carte.
 
 }
 
@@ -14240,30 +14309,22 @@ function cosmeticCardHtml(item) {
         item.options?.[0];
 
 
-    const status = active
-        ? `<span class="mission-state done">✓ Possédé</span>`
-        : `<span class="mission-state">${canBuy ? "Disponible" : "Il te manque " + (item.price - points) + " 🪙"}</span>`;
-
-
     /*
-        Bouton : acheter, ou pour un article possédé à options,
-        équiper gratuitement l'option sélectionnée.
+        Boutons : le prix pour acheter, ou pour un article possédé à options,
+        « Équiper » pour passer gratuitement à l'option sélectionnée.
     */
 
     const ownedOption =
         currentProfile.cosmetics?.[item.id]?.option;
 
-    const buttonLabel = !active
-        ? "Acheter"
+    const mainButton = !active
+        ? shopPriceButtonHtml("cosmetic-buy", `data-cosmetic="${item.id}"`, item.price, canBuy)
         : item.options && selected !== ownedOption
-            ? "Équiper"
-            : item.options ? "Équipé" : "Possédé";
-
-    const buttonEnabled = active
-        ? buttonLabel === "Équiper"
-        : canBuy;
+            ? `<button class="primary-button cosmetic-buy" data-cosmetic="${item.id}">Équiper</button>`
+            : "";
 
 
+    // Néon et thème : pastilles de couleur (title = nom de l'option).
     const options = item.options
         ? `
             <div class="cosmetic-options">
@@ -14272,6 +14333,7 @@ function cosmeticCardHtml(item) {
                         class="cosmetic-option cosmetic-option--${item.id}${option === selected ? " active" : ""}"
                         data-cosmetic="${item.id}"
                         data-option="${escapeHtml(option)}"
+                        title="${escapeHtml(item.id === "emoji" ? option : cosmeticOptionLabel(option))}"
                     >${escapeHtml(item.id === "emoji" ? option : cosmeticOptionLabel(option))}</button>
                 `).join("")}
             </div>
@@ -14295,35 +14357,18 @@ function cosmeticCardHtml(item) {
         : "";
 
 
-    return `
-        <div class="mission-card shop-card" data-shop-item="${item.id}">
-
-            <div class="mission-head">
-                <h3>${escapeHtml(item.title)}</h3>
-                <span class="mission-points">${item.price} 🪙</span>
-            </div>
-
-            <p class="mission-description">${escapeHtml(item.description)}</p>
-
-            ${options}
-
-            <div class="mission-footer">
-                ${status}
-                <button
-                    class="primary-button cosmetic-buy"
-                    data-cosmetic="${item.id}"
-                    ${buttonEnabled ? "" : "disabled"}
-                >
-                    ${buttonLabel}
-                </button>
-            </div>
-
+    return shopRowHtml({
+        id: item.id,
+        title: item.title,
+        price: item.price,
+        stage: shopStageHtml(item.id, selected),
+        middle: options,
+        actions: `
+            ${mainButton}
             ${adminToggle}
-
             ${equipToggleHtml(item.id, active)}
-
-        </div>
-    `;
+        `
+    });
 
 }
 

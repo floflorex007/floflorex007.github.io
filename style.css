@@ -3536,6 +3536,10 @@ html {
 .bet-modal-content #modal-question {
     font-size: 19px;
     padding-right: 24px;
+    /* Une seule ligne : « … » si la question est trop longue (texte complet au survol). */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .bet-modal-content #modal-author {
@@ -8543,19 +8547,21 @@ body.parrot-phenix #parrot {
     width: 100%;
 }
 
-/* Ordinateur : le ticket reste entier (son bas était coupé) ;
-   c'est le classement qui rétrécit et défile si la place manque. */
+/* Ordinateur : le classement garde toujours sa taille (pas de barre de
+   défilement quand le ticket grandit) ; le ticket reste collé en bas de
+   l'écran, posé par-dessus le bas du classement si la place manque. */
 @media (min-width: 801px) {
 
     .left-column .leaderboard-sidebar {
-        flex: 0 1 auto;
-        min-height: 120px;
-        overflow-y: auto;
-        scrollbar-width: thin;
+        flex: none;
     }
 
     .left-column .bet-ticket {
         flex-shrink: 0;
+        position: sticky;
+        bottom: 0;
+        z-index: 2;
+        box-shadow: 0 -12px 28px rgba(0, 0, 0, 0.45);
     }
 
 }
@@ -8675,6 +8681,15 @@ body.ticket-has-legs .bet-ticket.shake {
     color: white;
 }
 
+/* Question du pari sur une seule ligne, « … » si elle est trop longue
+   (texte complet au survol). */
+.ticket-leg-question {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .ticket-leg-odds {
     color: #c86bff;
     font-weight: 900;
@@ -8695,7 +8710,7 @@ body.ticket-has-legs .bet-ticket.shake {
 
 .ticket-sum {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: baseline;
     margin-top: 8px;
     padding-top: 10px;
@@ -8807,6 +8822,26 @@ body.ticket-has-legs .bet-ticket.shake {
 body.ticket-combo .ticket-go:not(:disabled) {
     background: linear-gradient(135deg, #8b5cf6, #c86bff);
     box-shadow: 0 8px 22px rgba(200, 107, 255, 0.35);
+}
+
+/* Bouton éteint tant qu'on ne peut pas miser (pas de mise, envoi en cours). */
+.ticket-go:disabled:not(.ticket-go--blocked) {
+    background: #2a2e3b;
+    color: #737887;
+    box-shadow: none;
+    cursor: default;
+    opacity: 1;
+}
+
+/* Pas encore de mise : le champ de la mise est mis en avant. */
+.ticket-awaiting-stake .ticket-stake {
+    border-color: #c86bff;
+    animation: ticket-stake-glow 1.6s ease-in-out infinite;
+}
+
+@keyframes ticket-stake-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(200, 107, 255, 0); }
+    50% { box-shadow: 0 0 0 4px rgba(200, 107, 255, 0.28); }
 }
 
 .ticket-rules {
@@ -14204,3 +14239,57 @@ html.force-phone .main-container {
 .tree-admin-toggle:hover { border-color: #6c63ff; }
 .tree-admin-toggle.on { border-color: #63d69f; color: #9fe6c4; }
 .tree-admin-toggle:disabled { opacity: .5; cursor: wait; }
+
+/* Boutique : cartes « en ligne » avec l'aperçu dessus (shopRowHtml dans app.js,
+   version 4 de demo-cartes-boutique-v2.html) et rareté selon le prix. */
+.missions-grid.shop-rows { grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr)); gap: 12px; }
+.shop-row { display: grid; grid-template-columns: 190px minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 0 14px 0 0; min-height: 88px; overflow: hidden; cursor: default; border-left: 3px solid var(--rarity); }
+.shop-row-stage { align-self: stretch; display: flex; align-items: center; justify-content: center; min-width: 0; padding: 10px; text-align: center; background: radial-gradient(circle at 50% 40%, #1f1d3d 0%, #0f1117 75%); }
+.shop-row-name { font-size: 20px; font-weight: 900; white-space: nowrap; }
+.shop-row-stage .leaderboard-row { width: 100%; margin: 0; font-size: 13px; }
+.shop-row-stage .leaderboard-rank,
+.shop-row-stage .leaderboard-medal { display: none; }
+.shop-row-stage .leaderboard-pseudo.has-effect { overflow: visible; }
+/* Seule ligne de l'aperçu : la règle « dernière ligne sans trait » effaçait le bas du cadre doré. */
+.shop-row-stage .leaderboard-row--gold { border-bottom: 1px solid #f5c451; }
+.shop-row-stage .shop-preview-bet { width: 100%; margin: 0; padding: 8px 10px; text-align: left; }
+.shop-row-stage .shop-preview-bet h3 { font-size: 12px; }
+.shop-row-util { display: flex; align-items: center; gap: 8px; }
+.shop-row-util img { width: 42px; height: 42px; object-fit: contain; }
+.shop-row-util b { font-size: 18px; font-weight: 900; color: #63d69f; }
+.shop-row-util small { color: #858a98; font-size: 12px; }
+.shop-row-icon { font-size: 30px; line-height: 1; }
+.shop-row-mid { padding: 12px 0; }
+.shop-row-mid h3 { margin: 2px 0 6px; font-size: 15px; }
+.shop-row-note { color: #ff9f43; font-size: 12px; font-weight: 800; }
+.shop-row-actions { display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: 12px 0; }
+.shop-row-actions:empty { display: none; }
+.shop-row-actions .primary-button { white-space: nowrap; }
+.shop-row-actions .primary-button:disabled { background: #343846; color: #858a98; cursor: not-allowed; transform: none; }
+.shop-row-actions .reward-preview-toggle { align-self: stretch; white-space: nowrap; }
+
+/* Rareté */
+.shop-rarity { font-size: 10px; font-weight: 900; letter-spacing: 1.2px; text-transform: uppercase; color: var(--rarity); }
+.shop-rarity--commun { --rarity: #8a90a0; }
+.shop-rarity--rare { --rarity: #4da3ff; }
+.shop-rarity--epique { --rarity: #b06cff; box-shadow: 0 0 14px rgba(176, 108, 255, 0.18); }
+.shop-rarity--legendaire { --rarity: #f5c451; box-shadow: 0 0 16px rgba(245, 196, 81, 0.22); }
+
+/* Options néon et thème : pastilles de couleur */
+.shop-row .cosmetic-option--neon,
+.shop-row .cosmetic-option--theme { width: 20px; height: 20px; padding: 0; font-size: 0; border-radius: 50%; border: 2px solid transparent; }
+.shop-row .cosmetic-option--neon,
+.shop-row .cosmetic-option--neon.active { background: currentColor; }
+.shop-row .cosmetic-option--theme[data-option="galaxie"] { background: linear-gradient(135deg, #4b3fa0, #0d0b1d); }
+.shop-row .cosmetic-option--theme[data-option="carbone"] { background: repeating-linear-gradient(45deg, #3a3d48 0 3px, #14161b 3px 6px); }
+.shop-row .cosmetic-option--theme[data-option="sunset"] { background: linear-gradient(135deg, #6b2f2f, #c47a2a); }
+.shop-row .cosmetic-option--neon.active,
+.shop-row .cosmetic-option--theme.active { border-color: #fff; box-shadow: inset 0 0 0 2px #0f1117; }
+.shop-row .cosmetic-option--emoji { padding: 2px 7px; font-size: 14px; }
+
+@media (max-width: 500px) {
+    .shop-row { grid-template-columns: 120px minmax(0, 1fr); gap: 10px; padding-right: 10px; }
+    .shop-row-stage { grid-row: span 2; }
+    .shop-row-actions { padding: 0 0 10px; }
+    .shop-row-name { font-size: 16px; }
+}

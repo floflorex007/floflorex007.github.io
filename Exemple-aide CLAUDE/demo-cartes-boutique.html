@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Cartes de la boutique</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body.demo { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 110px; margin: 0; display: block; min-height: 0; }
+.demo h1 { font-size: 26px; margin: 0 0 6px; }
+.demo .sub { color: #858a98; margin: 0 0 18px; max-width: 900px; font-size: 14px; line-height: 1.5; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.tab { border: 1px solid #2c3040; background: #151821; color: #aaaeba; border-radius: 12px; padding: 10px 16px; font: inherit; font-weight: 800; cursor: pointer; }
+.tab.on { border-color: #6c63ff; color: #fff; background: #1f1d3d; }
+.why { color: #aaaeba; font-size: 14px; margin: 6px 0 20px; max-width: 900px; }
+.wrap { max-width: 1200px; }
+.bar { position: fixed; left: 16px; right: 16px; bottom: 16px; max-width: 1200px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-radius: 14px; border: 1px solid #2c3040; background: rgba(21,24,33,.95); backdrop-filter: blur(6px); z-index: 10; }
+.bar .chosen { flex: 1; font-size: 14px; color: #aaaeba; }
+.pick { border: none; border-radius: 12px; padding: 12px 18px; font: inherit; font-weight: 900; color: white; background: linear-gradient(135deg, #2fb37a, #4fd39a); cursor: pointer; }
+.copied { color: #63d69f; font-size: 13px; font-weight: 800; }
+
+/* Plus de « Clique pour voir l'aperçu » : l'aperçu est sur la carte. */
+.shop-card { cursor: default; }
+.shop-card .mission-description::after { content: none !important; }
+.shop-card .mission-description { margin: 0; }
+
+/* Zone d'aperçu commune */
+.sv { background: #0f1117; border: 1px solid #22252f; border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 4px; overflow: visible; }
+.sv .leaderboard-row { margin: 0; }
+.sv .leaderboard-pseudo.has-effect { overflow: visible; }
+.sv .shop-preview-bet { margin: 0; padding: 12px 14px; }
+.sv .shop-preview-bet h3 { font-size: 14px; }
+.sv-util { align-items: center; justify-content: center; text-align: center; min-height: 64px; gap: 2px; }
+.sv-util .big { font-size: 30px; line-height: 1; }
+.sv-util .txt { font-size: 13px; font-weight: 800; color: #e6e8ee; }
+.sv-util .txt b { color: #63d69f; }
+
+/* ---------- A : vitrine en haut (une ligne du classement) ---------- */
+.va .sv { margin: -4px -4px 2px; }
+
+/* ---------- B : pseudo en grand ---------- */
+.vb .sv-name { min-height: 92px; align-items: center; justify-content: center; text-align: center; background: radial-gradient(circle at 50% 40%, #1f1d3d 0%, #0f1117 70%); }
+.vb .sv-name .bigname { font-size: 26px; font-weight: 900; position: relative; }
+.vb .sv-name .bigname .user-name { font-weight: 900; }
+.vb .sv-name.frame { padding: 18px 12px; }
+.vb .sv-name .leaderboard-row { width: 100%; font-size: 15px; }
+.vb .mission-head h3 { font-size: 15px; }
+.vb .mission-description { font-size: 12px; color: #858a98; }
+
+/* ---------- C : mini classement (comme la fenêtre actuelle) ---------- */
+.vc .sv .shop-preview-dim { opacity: .45; }
+.vc .sv-line { color: #858a98; font-size: 12px; border-top: 1px solid #22252f; padding-top: 8px; margin-top: 4px; }
+
+/* ---------- D : carte retournée au survol ---------- */
+.vd .shop-card { position: relative; }
+.vd .sv { position: absolute; inset: 8px 8px auto 8px; height: calc(100% - 70px); opacity: 0; transform: translateY(6px); transition: opacity .2s, transform .2s; pointer-events: none; z-index: 2; justify-content: center; box-shadow: 0 8px 24px rgba(0,0,0,.5); }
+.vd .shop-card:hover .sv, .vd .shop-card.peek .sv { opacity: 1; transform: none; }
+.vd .hint { font-size: 11px; color: #6c63ff; font-weight: 700; }
+</style>
+</head>
+<body class="demo">
+
+<h1>Cartes de la boutique avec l'aperçu dessus</h1>
+<p class="sub">Plus besoin de cliquer pour ouvrir l'aperçu : chaque carte montre directement le rendu de l'objet sur ton pseudo. Les boutons d'option (couleur du néon, emoji, thème) changent l'aperçu en direct. Les objets utiles (perroquet, série) ont une petite illustration à la place. Les vrais styles du site sont utilisés.</p>
+
+<div class="tabs" id="tabs"></div>
+<p class="why" id="why"></p>
+
+<div class="wrap" id="shop"></div>
+
+<div class="bar">
+    <span class="chosen" id="chosen"></span>
+    <span class="copied" id="copied"></span>
+    <button class="pick" id="choose">✅ Je choisis celle-ci</button>
+</div>
+
+<script>
+const ME = "Florian";
+const POINTS = 260;
+
+const VARIANTS = [
+    { id: "a", name: "A · Vitrine en haut", why: "Ta ligne du classement avec l'objet, en haut de la carte. Compact, la carte grandit à peine." },
+    { id: "b", name: "B · Pseudo en grand", why: "Le pseudo en gros au centre de la carte, façon vitrine. L'effet se voit tout de suite, la description passe en petit." },
+    { id: "c", name: "C · Mini classement", why: "Comme la fenêtre d'aperçu actuelle (3 lignes + carte de pari), mais directement dans la carte. Le plus complet, cartes plus hautes." },
+    { id: "d", name: "D · Aperçu au survol", why: "La carte reste comme aujourd'hui ; l'aperçu apparaît par-dessus quand la souris passe dessus (sur téléphone : au toucher)." }
+];
+
+const ITEMS = [
+    { cat: "➕ Bonus du pseudo", id: "emoji", title: "Emoji à côté du pseudo", desc: "Un emoji à côté de ton pseudo, partout sur le site.", price: 15, options: ["🔥", "⚡", "🍀", "🦊", "💎", "🎯"] },
+    { cat: "➕ Bonus du pseudo", id: "etincelles", title: "Pseudo étincelant", desc: "De petites étoiles scintillent autour de ton pseudo.", price: 100, owned: true },
+    { cat: "🎨 Style du pseudo", id: "neon", title: "Pseudo néon", desc: "Ton pseudo brille d'une couleur néon.", price: 80, options: ["rose", "bleu", "vert", "jaune"] },
+    { cat: "🎨 Style du pseudo", id: "scanner", title: "Pseudo scanner", desc: "Un trait de lumière balaie ton pseudo en boucle.", price: 80 },
+    { cat: "🎨 Style du pseudo", id: "metal_rose", title: "Pseudo rose gold", desc: "Un reflet rose gold qui brille sur ton pseudo.", price: 100 },
+    { cat: "🎨 Style du pseudo", id: "metal_or", title: "Pseudo or", desc: "Un reflet doré qui brille sur ton pseudo.", price: 250 },
+    { cat: "🎨 Style du pseudo", id: "neon_anime", title: "Pseudo néon animé", desc: "Un dégradé néon bleu-violet qui défile en continu sur ton pseudo.", price: 250 },
+    { cat: "🎨 Style du pseudo", id: "fiole", title: "Pseudo fiole qui bouillonne", desc: "Ton pseudo brille en vert labo et de petites bulles s'en échappent.", price: 280 },
+    { cat: "🎨 Style du pseudo", id: "ruban_chantier", title: "Pseudo ruban chantier", desc: "Des rayures jaunes défilent sur ton pseudo.", price: 300 },
+    { cat: "🎨 Style du pseudo", id: "couleur", title: "Pseudo en couleur", desc: "Ton pseudo s'affiche en arc-en-ciel animé, pour toujours.", price: 300 },
+    { cat: "🖼️ Cadre du classement", id: "cadre", title: "Cadre doré", desc: "Ta ligne du classement passe en doré, pour toujours.", price: 250 },
+    { cat: "🖼️ Cadre du classement", id: "aura", title: "Aura animée", desc: "Un contour lumineux tourne autour de ta ligne du classement.", price: 300 },
+    { cat: "🃏 Thème de carte", id: "theme", title: "Thème de carte", desc: "Les paris que tu crées ont un fond spécial, visible par tous.", price: 450, options: ["galaxie", "carbone", "sunset"] },
+    { cat: "🦜 Perroquet", id: "clic_perroquet", title: "Clic du perroquet ×2", desc: "Chaque clic sur le perroquet te donne 2 € au lieu de 1 €.", price: 30, util: ["🦜", "1 clic = <b>+2 €</b>"] },
+    { cat: "🔥 Série", id: "bouclier", title: "Bouclier de série", desc: "Protège ta série si tu oublies de venir un jour (3 maximum).", price: 40, util: ["🛡️", "Série protégée <b>1 jour</b>"] }
+];
+
+const sel = {};
+let variant = "a";
+
+const esc = t => String(t).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const NAME_ANIMATIONS = ["ruban_chantier", "fiole", "neon_anime", "scanner"];
+
+function effectsOf(item) {
+    const o = sel[item.id] || item.options?.[0];
+    return {
+        gold: item.id === "cadre",
+        rainbow: item.id === "couleur",
+        metal: item.id.startsWith("metal_") ? item.id.slice(6) : null,
+        anim: NAME_ANIMATIONS.includes(item.id) ? item.id : null,
+        neon: item.id === "neon" ? o : null,
+        emoji: item.id === "emoji" ? o : null,
+        sparkle: item.id === "etincelles",
+        aura: item.id === "aura",
+        theme: item.id === "theme" ? o : null
+    };
+}
+
+// Même rendu que nameHtml() dans app.js.
+function nameHtml(name, e) {
+    let n;
+    if (e.metal) n = `<span class="name-metal metal-${e.metal}">${esc(name)}</span>`;
+    else if (e.rainbow) n = `<span class="pseudo-color">${Array.from(name).map((l, i) => `<span class="rainbow-letter" style="animation-delay:${-i * 0.12}s">${esc(l)}</span>`).join("")}</span>`;
+    else if (e.anim) n = `<span class="name-anim anim-${e.anim}">${esc(name)}${e.anim === "fiole" ? "<i></i><i></i><i></i>" : ""}</span>`;
+    else if (e.neon) n = `<span class="name-neon neon-${e.neon}">${esc(name)}</span>`;
+    else n = esc(name);
+    if (e.sparkle) n = `<span class="name-sparkle">${n}<i>✦</i><i>✦</i><i>✦</i><i>✦</i></span>`;
+    if (e.emoji) n += ` <span class="name-emoji">${esc(e.emoji)}</span>`;
+    return n;
+}
+
+function row(name, rank, medal, balance, e, extra = "") {
+    const has = e.metal || e.rainbow || e.anim || e.neon || e.sparkle || e.emoji;
+    return `<div class="leaderboard-row${extra}${e.gold ? " leaderboard-row--gold" : ""}${e.aura ? " leaderboard-row--aura" : ""}">
+        <span class="leaderboard-rank">${rank}</span><span class="leaderboard-medal">${medal}</span>
+        <span class="leaderboard-pseudo${has ? " has-effect" : ""}">${nameHtml(name, e)}</span>
+        <span class="leaderboard-balance">${balance}</span></div>`;
+}
+
+function betCard(theme) {
+    return `<div class="bet-card bet-card-theme bet-theme-${theme} shop-preview-bet">
+        <div class="bet-card-header"><span>🏆</span><span class="bet-author">Créé par ${esc(ME)}</span></div>
+        <div class="bet-question-row"><span class="bet-question-icon">🎲</span><h3>Qui gagne le match ce soir ?</h3></div></div>`;
+}
+
+function previewHtml(item) {
+    if (item.util) {
+        return `<div class="sv sv-util"><span class="big">${item.util[0]}</span><span class="txt">${item.util[1]}</span></div>`;
+    }
+    const e = effectsOf(item);
+    if (e.theme) {
+        return `<div class="sv">${betCard(e.theme)}</div>`;
+    }
+    const me = row(ME, 3, "🥉", "1 520 €", e, " leaderboard-row--me");
+    if (variant === "b") {
+        if (e.gold || e.aura) return `<div class="sv sv-name frame">${me}</div>`;
+        return `<div class="sv sv-name"><span class="bigname"><span class="user-name">${nameHtml(ME, e)}</span></span></div>`;
+    }
+    if (variant === "c") {
+        return `<div class="sv">
+            ${row("Emma", 2, "🥈", "1 840 €", {}, " shop-preview-dim")}
+            ${me}
+            ${row("Lucas", 4, "", "1 310 €", {}, " shop-preview-dim")}
+            <div class="sv-line">Sur un pari : 🏆 Créé par <span class="user-name${e.gold ? " name-gold" : ""}">${nameHtml(ME, e)}</span></div>
+        </div>`;
+    }
+    return `<div class="sv">${me}</div>`;
+}
+
+function cardHtml(item) {
+    const o = sel[item.id] || item.options?.[0];
+    const canBuy = POINTS >= item.price;
+    // Plus de « Disponible » / « Il te manque » : le bouton grisé suffit.
+    const status = "<span></span>";
+    const options = item.options ? `<div class="cosmetic-options">${item.options.map(opt => `
+        <button class="cosmetic-option cosmetic-option--${item.id}${opt === o ? " active" : ""}" data-item="${item.id}" data-option="${esc(opt)}">${esc(item.id === "emoji" ? opt : opt[0].toUpperCase() + opt.slice(1))}</button>`).join("")}</div>` : "";
+    const head = `<div class="mission-head"><h3>${esc(item.title)}</h3><span class="mission-points">${item.price} 🪙</span></div>`;
+    // Plus de description : l'aperçu suffit.
+    const desc = "";
+    const foot = `<div class="mission-footer">${status}<button class="primary-button" ${canBuy && !item.owned ? "" : "disabled"}>${item.owned ? "Possédé" : "Acheter"}</button></div>`;
+    const prev = previewHtml(item);
+
+    let inner;
+    if (variant === "b") inner = prev + head + desc + options + foot;
+    else if (variant === "d") inner = prev + head + desc + (item.util ? "" : `<span class="hint">👁 Survole pour voir l'aperçu</span>`) + options + foot;
+    else if (variant === "c") inner = head + prev + desc + options + foot;
+    else inner = prev + head + desc + options + foot;
+
+    return `<div class="mission-card shop-card" data-shop-item="${item.id}">${inner}</div>`;
+}
+
+function render() {
+    const v = VARIANTS.find(x => x.id === variant);
+    document.getElementById("tabs").innerHTML = VARIANTS.map(x =>
+        `<button class="tab${x.id === variant ? " on" : ""}" data-v="${x.id}">${x.name}</button>`).join("");
+    document.getElementById("why").textContent = v.why;
+    document.getElementById("chosen").innerHTML = `Version affichée : <b style="color:#fff">${v.name}</b>`;
+
+    const cats = [...new Set(ITEMS.map(i => i.cat))];
+    document.getElementById("shop").className = "wrap v" + variant;
+    document.getElementById("shop").innerHTML = cats.map(cat => `
+        <section class="shop-category">
+            <h2 class="missions-title">${cat}</h2>
+            <div class="missions-grid">${ITEMS.filter(i => i.cat === cat).map(cardHtml).join("")}</div>
+        </section>`).join("");
+}
+
+document.addEventListener("click", ev => {
+    const tab = ev.target.closest(".tab");
+    if (tab) { variant = tab.dataset.v; document.getElementById("copied").textContent = ""; render(); return; }
+    const opt = ev.target.closest(".cosmetic-option");
+    if (opt) { sel[opt.dataset.item] = opt.dataset.option; render(); return; }
+    // Téléphone (variante D) : un toucher montre l'aperçu.
+    const card = ev.target.closest(".vd .shop-card");
+    if (card) card.classList.toggle("peek");
+});
+
+document.getElementById("choose").addEventListener("click", () => {
+    const text = "Cartes de la boutique : je choisis " + VARIANTS.find(x => x.id === variant).name;
+    navigator.clipboard?.writeText(text).catch(() => {});
+    document.getElementById("copied").textContent = "Copié ! Colle-le dans la conversation.";
+});
+
+render();
+</script>
+</body>
+</html>

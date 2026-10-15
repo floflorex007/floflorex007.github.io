@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="../">
+<title>BetLab – Cartes de la boutique (2)</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body.demo { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 110px; margin: 0; display: block; min-height: 0; }
+.demo h1 { font-size: 26px; margin: 0 0 6px; }
+.demo .sub { color: #858a98; margin: 0 0 18px; max-width: 900px; font-size: 14px; line-height: 1.5; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.tab { border: 1px solid #2c3040; background: #151821; color: #aaaeba; border-radius: 12px; padding: 10px 16px; font: inherit; font-weight: 800; cursor: pointer; }
+.tab.on { border-color: #6c63ff; color: #fff; background: #1f1d3d; }
+.why { color: #aaaeba; font-size: 14px; margin: 6px 0 20px; max-width: 900px; }
+.wrap { max-width: 1200px; }
+.bar { position: fixed; left: 16px; right: 16px; bottom: 16px; max-width: 1200px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-radius: 14px; border: 1px solid #2c3040; background: rgba(21,24,33,.95); backdrop-filter: blur(6px); z-index: 10; }
+.bar .chosen { flex: 1; font-size: 14px; color: #aaaeba; }
+.pick { border: none; border-radius: 12px; padding: 12px 18px; font: inherit; font-weight: 900; color: white; background: linear-gradient(135deg, #2fb37a, #4fd39a); cursor: pointer; }
+.copied { color: #63d69f; font-size: 13px; font-weight: 800; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+.shop-category { margin-bottom: 26px; }
+
+/* ===== Pièces communes ===== */
+.stage { position: relative; display: flex; align-items: center; justify-content: center; text-align: center; min-height: 110px; padding: 16px 12px; background: radial-gradient(circle at 50% 40%, #1f1d3d 0%, #0f1117 75%); overflow: visible; }
+.stage .bigname { font-size: 26px; font-weight: 900; position: relative; }
+.stage .leaderboard-row { width: 100%; margin: 0; font-size: 15px; }
+.stage .leaderboard-pseudo.has-effect { overflow: visible; }
+.stage .shop-preview-bet { margin: 0; padding: 12px 14px; width: 100%; text-align: left; }
+.stage .shop-preview-bet h3 { font-size: 14px; }
+.stage .util { font-size: 40px; line-height: 1; }
+.stage .util-txt { display: block; font-size: 13px; font-weight: 800; margin-top: 6px; }
+.stage .util-txt b { color: #63d69f; }
+
+.chips { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.chip { border: 1px solid #2c3040; background: #151821; color: #aaaeba; border-radius: 999px; padding: 4px 10px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.chip.on { border-color: #6c63ff; color: #fff; background: #1f1d3d; }
+.chip.dot { width: 18px; height: 18px; padding: 0; border-radius: 50%; border: 2px solid transparent; }
+.chip.dot.on { border-color: #fff; box-shadow: 0 0 0 2px #0f1117 inset; }
+.chip-emoji { padding: 3px 7px; font-size: 14px; }
+
+.buy { border: none; border-radius: 10px; padding: 10px 14px; font: inherit; font-weight: 900; color: #fff; background: linear-gradient(135deg, #6c63ff, #8f89e8); cursor: pointer; }
+.buy:disabled { background: #2a2e3b; color: #737887; cursor: default; }
+.buy.owned { background: rgba(47,179,122,.15); color: #63d69f; }
+.coin { font-size: .9em; }
+
+/* Rareté selon le prix */
+.r-commun { --r: #8a90a0; --rg: rgba(138,144,160,.25); }
+.r-rare { --r: #4da3ff; --rg: rgba(77,163,255,.3); }
+.r-epique { --r: #b06cff; --rg: rgba(176,108,255,.35); }
+.r-legendaire { --r: #f5c451; --rg: rgba(245,196,81,.4); }
+
+/* ===== 1 · Tuile : titre et prix en bas, le prix est le bouton ===== */
+.v1 .card { border-radius: 16px; overflow: hidden; background: #151821; border: 1px solid #2c3040; display: flex; flex-direction: column; transition: transform .15s, border-color .15s; }
+.v1 .card:hover { transform: translateY(-3px); border-color: #6c63ff; }
+.v1 .stage { min-height: 130px; }
+.v1 .chips { padding: 10px 12px 0; }
+.v1 .foot { display: flex; align-items: center; gap: 10px; padding: 12px; margin-top: auto; }
+.v1 .foot h3 { flex: 1; margin: 0; font-size: 14px; line-height: 1.25; }
+
+/* ===== 2 · Carte à collectionner : bordure de rareté ===== */
+.v2 .card { position: relative; border-radius: 18px; padding: 3px; background: linear-gradient(160deg, var(--r), #1c202c 45%, #1c202c 60%, var(--r)); box-shadow: 0 0 18px var(--rg); }
+.v2 .in { border-radius: 15px; background: #14161e; display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+.v2 .rar { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 2; font-size: 10px; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase; color: #0f1117; background: var(--r); padding: 3px 10px; border-radius: 999px; }
+.v2 .stage { min-height: 140px; padding-top: 34px; }
+.v2 .card h3 { margin: 12px 12px 4px; text-align: center; font-size: 15px; }
+.v2 .chips { padding: 6px 12px 0; }
+.v2 .buy { margin: 12px; margin-top: auto; }
+.v2 .in > .buy { margin-top: 12px; }
+
+/* ===== 3 · Étiquette : prix en ruban, titre sur l'aperçu ===== */
+.v3 .card { position: relative; border-radius: 16px; overflow: hidden; background: #151821; border: 1px solid #2c3040; display: flex; flex-direction: column; }
+.v3 .stage { min-height: 150px; padding-bottom: 42px; }
+.v3 .title { position: absolute; left: 0; right: 0; bottom: 0; padding: 22px 12px 10px; background: linear-gradient(transparent, rgba(10,11,16,.95)); text-align: left; }
+.v3 .title h3 { margin: 0; font-size: 14px; }
+.v3 .title small { color: #858a98; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+.v3 .tag { position: absolute; top: 12px; right: -4px; z-index: 2; background: #f5c451; color: #1a1300; font-weight: 900; font-size: 13px; padding: 4px 12px 4px 10px; border-radius: 6px 0 0 6px; box-shadow: 0 3px 8px rgba(0,0,0,.4); }
+.v3 .tag::after { content: ""; position: absolute; right: 0; bottom: -4px; border-left: 4px solid #a8801f; border-bottom: 4px solid transparent; }
+.v3 .chips { padding: 10px 12px 0; }
+.v3 .buy { margin: 12px; }
+
+/* ===== 4 · Horizontal : aperçu à gauche, une ligne par objet ===== */
+.v4 .grid { grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); }
+.v4 .card { display: grid; grid-template-columns: 170px 1fr auto; align-items: center; gap: 14px; border-radius: 14px; overflow: hidden; background: #151821; border: 1px solid #2c3040; padding-right: 14px; }
+.v4 .stage { min-height: 84px; height: 100%; padding: 10px; }
+.v4 .stage .bigname { font-size: 20px; }
+.v4 .card { grid-template-columns: 190px 1fr auto; }
+.v4 .stage .leaderboard-row { font-size: 13px; }
+.v4 .stage .leaderboard-rank, .v4 .stage .leaderboard-medal { display: none; }
+.v4 .stage .shop-preview-bet { padding: 8px 10px; }
+.v4 .stage .shop-preview-bet h3 { font-size: 12px; }
+.v4 .mid h3 { margin: 0 0 6px; font-size: 15px; }
+.v4 .mid .chips { justify-content: flex-start; }
+
+/* ===== 5 · Vitrine sombre : nom du produit en petit au-dessus, prix géant ===== */
+.v5 .card { border-radius: 20px; background: linear-gradient(180deg, #1c202c, #12141b); border: 1px solid #2c3040; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.v5 .top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.v5 .top h3 { margin: 0; font-size: 11px; font-weight: 900; letter-spacing: 1.4px; text-transform: uppercase; color: #8f89e8; }
+.v5 .top .price { font-size: 20px; font-weight: 900; color: #f5c451; white-space: nowrap; }
+.v5 .stage { border-radius: 14px; border: 1px solid #22252f; height: 120px; min-height: 0; flex: 1; min-width: 0; box-sizing: border-box; }
+.v5 .buy { width: 100%; margin-top: auto; }
+/* Options sur le côté : toutes les cartes gardent la même hauteur. */
+.v5 .show { display: flex; gap: 8px; height: 120px; }
+.v5 .show .chips { flex-direction: column; flex-wrap: nowrap; justify-content: center; gap: 6px; padding: 6px; border-radius: 14px; border: 1px solid #22252f; background: #0f1117; }
+.v5 .show .chips.two { display: grid; grid-template-columns: repeat(2, auto); align-content: center; }
+.v5 .show .chip-emoji { padding: 2px 5px; font-size: 13px; }
+.v5 .stage .bigname { font-size: 22px; white-space: nowrap; }
+/* Titre sur 2 lignes réservées : même hauteur de carte quel que soit le nom. */
+.v5 .top { height: 30px; align-items: center; }
+.v5 .top h3 { line-height: 1.35; }
+</style>
+</head>
+<body class="demo">
+
+<h1>Cartes de la boutique — 2ᵉ tour</h1>
+<p class="sub">Toutes reprennent l'idée de la B (le pseudo en grand), avec d'autres formes de carte et d'autres places pour le titre et le prix. Sans description ni « il te manque ». Les options (néon, emoji, thème) changent l'aperçu en direct.</p>
+
+<div class="tabs" id="tabs"></div>
+<p class="why" id="why"></p>
+
+<div class="wrap" id="shop"></div>
+
+<div class="bar">
+    <span class="chosen" id="chosen"></span>
+    <span class="copied" id="copied"></span>
+    <button class="pick" id="choose">✅ Je choisis celle-ci</button>
+</div>
+
+<script>
+const ME = "Florian";
+const POINTS = 260;
+
+const VARIANTS = [
+    { id: "1", name: "1 · Tuile", why: "Grand aperçu en haut, puis une seule ligne : le titre à gauche, et le prix qui sert directement de bouton d'achat à droite." },
+    { id: "2", name: "2 · Carte à collectionner", why: "Bordure qui brille selon la rareté (prix) : commun, rare, épique, légendaire. Titre centré sous l'aperçu, bouton « Acheter · prix »." },
+    { id: "3", name: "3 · Étiquette prix", why: "Le prix est une étiquette dorée accrochée dans le coin, le titre est posé en bas de l'aperçu sur un dégradé, comme une vitrine." },
+    { id: "4", name: "4 · En ligne", why: "Une carte large par objet : aperçu à gauche, titre et options au milieu, bouton prix à droite. Plus facile à parcourir comme une liste." },
+    { id: "5", name: "5 · Vitrine sombre", why: "Nom de l'objet en petites majuscules violettes, prix en gros en doré en haut, l'aperçu encadré au milieu, bouton pleine largeur." }
+];
+
+const ITEMS = [
+    { cat: "➕ Bonus du pseudo", id: "emoji", title: "Emoji à côté du pseudo", price: 15, options: ["🔥", "⚡", "🍀", "🦊", "💎", "🎯"] },
+    { cat: "➕ Bonus du pseudo", id: "etincelles", title: "Pseudo étincelant", price: 100, owned: true },
+    { cat: "🎨 Style du pseudo", id: "neon", title: "Pseudo néon", price: 80, options: ["rose", "bleu", "vert", "jaune"] },
+    { cat: "🎨 Style du pseudo", id: "scanner", title: "Pseudo scanner", price: 80 },
+    { cat: "🎨 Style du pseudo", id: "metal_rose", title: "Pseudo rose gold", price: 100 },
+    { cat: "🎨 Style du pseudo", id: "metal_or", title: "Pseudo or", price: 250 },
+    { cat: "🎨 Style du pseudo", id: "neon_anime", title: "Pseudo néon animé", price: 250 },
+    { cat: "🎨 Style du pseudo", id: "fiole", title: "Pseudo fiole", price: 280 },
+    { cat: "🎨 Style du pseudo", id: "ruban_chantier", title: "Pseudo ruban chantier", price: 300 },
+    { cat: "🎨 Style du pseudo", id: "couleur", title: "Pseudo en couleur", price: 300 },
+    { cat: "🖼️ Cadre du classement", id: "cadre", title: "Cadre doré", price: 250 },
+    { cat: "🖼️ Cadre du classement", id: "aura", title: "Aura animée", price: 300 },
+    { cat: "🃏 Thème de carte", id: "theme", title: "Thème de carte", price: 450, options: ["galaxie", "carbone", "sunset"] },
+    { cat: "🦜 Perroquet", id: "clic_perroquet", title: "Clic du perroquet ×2", price: 30, util: ["🦜", "1 clic = <b>+2 €</b>"] },
+    { cat: "🔥 Série", id: "bouclier", title: "Bouclier de série", price: 40, util: ["🛡️", "Série protégée <b>1 jour</b>"] }
+];
+
+const NEON = { rose: "#ff4fd8", bleu: "#4dd2ff", vert: "#63ff9a", jaune: "#ffd24d" };
+const THEME = { galaxie: "linear-gradient(135deg,#2b1a5e,#0b1d4a)", carbone: "repeating-linear-gradient(45deg,#2a2d36 0 4px,#1a1c22 4px 8px)", sunset: "linear-gradient(135deg,#ff7a59,#a23cff)" };
+
+const sel = {};
+let variant = location.hash.slice(1) || "1";
+
+const esc = t => String(t).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const NAME_ANIMATIONS = ["ruban_chantier", "fiole", "neon_anime", "scanner"];
+
+const rarity = p => p >= 400 ? ["r-legendaire", "Légendaire"] : p >= 250 ? ["r-epique", "Épique"] : p >= 100 ? ["r-rare", "Rare"] : ["r-commun", "Commun"];
+
+function effectsOf(item) {
+    const o = sel[item.id] || item.options?.[0];
+    return {
+        gold: item.id === "cadre",
+        rainbow: item.id === "couleur",
+        metal: item.id.startsWith("metal_") ? item.id.slice(6) : null,
+        anim: NAME_ANIMATIONS.includes(item.id) ? item.id : null,
+        neon: item.id === "neon" ? o : null,
+        emoji: item.id === "emoji" ? o : null,
+        sparkle: item.id === "etincelles",
+        aura: item.id === "aura",
+        theme: item.id === "theme" ? o : null
+    };
+}
+
+// Même rendu que nameHtml() dans app.js.
+function nameHtml(name, e) {
+    let n;
+    if (e.metal) n = `<span class="name-metal metal-${e.metal}">${esc(name)}</span>`;
+    else if (e.rainbow) n = `<span class="pseudo-color">${Array.from(name).map((l, i) => `<span class="rainbow-letter" style="animation-delay:${-i * 0.12}s">${esc(l)}</span>`).join("")}</span>`;
+    else if (e.anim) n = `<span class="name-anim anim-${e.anim}">${esc(name)}${e.anim === "fiole" ? "<i></i><i></i><i></i>" : ""}</span>`;
+    else if (e.neon) n = `<span class="name-neon neon-${e.neon}">${esc(name)}</span>`;
+    else n = esc(name);
+    if (e.sparkle) n = `<span class="name-sparkle">${n}<i>✦</i><i>✦</i><i>✦</i><i>✦</i></span>`;
+    if (e.emoji) n += ` <span class="name-emoji">${esc(e.emoji)}</span>`;
+    return n;
+}
+
+function row(e) {
+    return `<div class="leaderboard-row leaderboard-row--me${e.gold ? " leaderboard-row--gold" : ""}${e.aura ? " leaderboard-row--aura" : ""}">
+        <span class="leaderboard-rank">3</span><span class="leaderboard-medal">🥉</span>
+        <span class="leaderboard-pseudo">${esc(ME)}</span><span class="leaderboard-balance">1 520 €</span></div>`;
+}
+
+function stageHtml(item) {
+    if (item.util) {
+        return `<div class="stage"><div><span class="util">${item.util[0]}</span><span class="util-txt">${item.util[1]}</span></div></div>`;
+    }
+    const e = effectsOf(item);
+    if (e.theme) {
+        return `<div class="stage"><div class="bet-card bet-card-theme bet-theme-${e.theme} shop-preview-bet">
+            <div class="bet-card-header"><span>🏆</span><span class="bet-author">Créé par ${esc(ME)}</span></div>
+            <div class="bet-question-row"><span class="bet-question-icon">🎲</span><h3>Qui gagne ce soir ?</h3></div></div></div>`;
+    }
+    if (e.gold || e.aura) return `<div class="stage">${row(e)}</div>`;
+    return `<div class="stage"><span class="bigname"><span class="user-name">${nameHtml(ME, e)}</span></span></div>`;
+}
+
+// Options en petites pastilles : couleurs pour néon et thème, emoji tels quels.
+function chipsHtml(item) {
+    if (!item.options) return "";
+    const o = sel[item.id] || item.options[0];
+    return `<div class="chips">${item.options.map(opt => {
+        const on = opt === o ? " on" : "";
+        if (item.id === "neon") return `<button class="chip dot${on}" title="${opt}" data-item="neon" data-option="${opt}" style="background:${NEON[opt]}"></button>`;
+        if (item.id === "theme") return `<button class="chip dot${on}" title="${opt}" data-item="theme" data-option="${opt}" style="background:${THEME[opt]}"></button>`;
+        return `<button class="chip chip-emoji${on}" data-item="${item.id}" data-option="${esc(opt)}">${esc(opt)}</button>`;
+    }).join("")}</div>`;
+}
+
+function buyHtml(item, label) {
+    if (item.owned) return `<button class="buy owned" disabled>✓ Possédé</button>`;
+    return `<button class="buy" ${POINTS >= item.price ? "" : "disabled"}>${label}</button>`;
+}
+
+function cardHtml(item) {
+    const st = stageHtml(item), ch = chipsHtml(item), t = esc(item.title), p = item.price;
+    const [rc, rl] = rarity(p);
+    switch (variant) {
+        case "1": return `<div class="card">${st}${ch}<div class="foot"><h3>${t}</h3>${buyHtml(item, `${p} <span class="coin">🪙</span>`)}</div></div>`;
+        case "2": return `<div class="card ${rc}"><span class="rar">${rl}</span><div class="in">${st}<h3>${t}</h3>${ch}${buyHtml(item, `Acheter · ${p} 🪙`)}</div></div>`;
+        case "3": return `<div class="card"><span class="tag">${p} 🪙</span><div style="position:relative">${st}<div class="title"><small>${rl}</small><h3>${t}</h3></div></div>${ch}${buyHtml(item, "Acheter")}</div>`;
+        case "4": return `<div class="card">${st}<div class="mid"><h3>${t}</h3>${ch}</div>${buyHtml(item, `${p} 🪙`)}</div>`;
+        case "5": return `<div class="card"><div class="top"><h3>${t}</h3><span class="price">${p} 🪙</span></div><div class="show">${st}${item.options?.length > 4 ? ch.replace('class="chips"', 'class="chips two"') : ch}</div>${buyHtml(item, "Acheter")}</div>`;
+    }
+}
+
+function render() {
+    const v = VARIANTS.find(x => x.id === variant);
+    document.getElementById("tabs").innerHTML = VARIANTS.map(x =>
+        `<button class="tab${x.id === variant ? " on" : ""}" data-v="${x.id}">${x.name}</button>`).join("");
+    document.getElementById("why").textContent = v.why;
+    document.getElementById("chosen").innerHTML = `Version affichée : <b style="color:#fff">${v.name}</b>`;
+    const cats = [...new Set(ITEMS.map(i => i.cat))];
+    const shop = document.getElementById("shop");
+    shop.className = "wrap v" + variant;
+    shop.innerHTML = cats.map(cat => `
+        <section class="shop-category">
+            <h2 class="missions-title">${cat}</h2>
+            <div class="grid">${ITEMS.filter(i => i.cat === cat).map(cardHtml).join("")}</div>
+        </section>`).join("");
+}
+
+document.addEventListener("click", ev => {
+    const tab = ev.target.closest(".tab");
+    if (tab) { variant = tab.dataset.v; document.getElementById("copied").textContent = ""; render(); return; }
+    const chip = ev.target.closest(".chip");
+    if (chip) { sel[chip.dataset.item] = chip.dataset.option; render(); }
+});
+
+document.getElementById("choose").addEventListener("click", () => {
+    const text = "Cartes de la boutique (2e tour) : je choisis " + VARIANTS.find(x => x.id === variant).name;
+    navigator.clipboard?.writeText(text).catch(() => {});
+    document.getElementById("copied").textContent = "Copié ! Colle-le dans la conversation.";
+});
+
+render();
+</script>
+</body>
+</html>
