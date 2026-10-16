@@ -8623,6 +8623,45 @@ body.ticket-has-legs .bet-ticket.shake {
     color: white;
 }
 
+/* Passage mise simple → combiné (et retour) : l'étiquette rebondit en changeant de couleur. */
+.t-kind.t-kind-switch {
+    animation: t-kind-to-simple 0.5s cubic-bezier(0.34, 1.5, 0.64, 1);
+}
+
+.t-kind.combo.t-kind-switch {
+    animation: t-kind-to-combo 0.55s cubic-bezier(0.34, 1.5, 0.64, 1);
+}
+
+@keyframes t-kind-to-combo {
+    0% {
+        background: #23262f;
+        color: #aaaeba;
+        transform: scale(0.75);
+        box-shadow: 0 0 0 0 rgba(200, 107, 255, 0.7);
+    }
+    55% {
+        transform: scale(1.15);
+        box-shadow: 0 0 0 6px rgba(200, 107, 255, 0);
+    }
+    100% {
+        transform: none;
+    }
+}
+
+@keyframes t-kind-to-simple {
+    0% {
+        background: #c86bff;
+        color: white;
+        transform: scale(0.8);
+    }
+    55% {
+        transform: scale(1.08);
+    }
+    100% {
+        transform: none;
+    }
+}
+
 .ticket-clear,
 .ticket-close {
     margin-left: auto;
@@ -8658,6 +8697,11 @@ body.ticket-has-legs .bet-ticket.shake {
     padding: 8px 0;
     border-top: 1px solid #23262f;
     font-size: 12px;
+}
+
+/* Seule la cote qu'on vient d'ajouter glisse en place : les anciennes
+   restent affichées quand le ticket est redessiné (voir renderTicket). */
+.ticket-leg-new {
     animation: ticket-leg-in 0.25s ease-out;
 }
 
@@ -8743,6 +8787,43 @@ body.ticket-has-legs .bet-ticket.shake {
     color: #f5c451;
     font-weight: 800;
     text-align: right;
+}
+
+/* Boost qui monte (+5 % → +10 %) : rebond doré ; qui baisse : petit recul. */
+.ticket-boost-pct {
+    display: inline-block;
+    transform-origin: right center;
+}
+
+.ticket-boost-pct.up {
+    animation: ticket-boost-up 0.6s cubic-bezier(0.34, 1.6, 0.64, 1);
+}
+
+.ticket-boost-pct.down {
+    animation: ticket-boost-down 0.4s ease-out;
+}
+
+@keyframes ticket-boost-up {
+    0% {
+        transform: scale(0.8);
+        text-shadow: 0 0 0 rgba(245, 196, 81, 0);
+    }
+    45% {
+        transform: scale(1.35);
+        color: #fff3b0;
+        text-shadow: 0 0 12px rgba(245, 196, 81, 0.9);
+    }
+    100% {
+        transform: none;
+        text-shadow: 0 0 0 rgba(245, 196, 81, 0);
+    }
+}
+
+@keyframes ticket-boost-down {
+    0% {
+        transform: scale(1.1);
+        opacity: 0.5;
+    }
 }
 
 .ticket-note {
@@ -9691,6 +9772,10 @@ body.ticket-combo .ticket-go.ticket-go--blocked {
     opacity: 0.65;
 }
 
+.beta-item--later {
+    border-color: rgba(245, 196, 81, 0.3);
+}
+
 .beta-item-icon {
     font-size: 20px;
 }
@@ -9738,6 +9823,7 @@ body.ticket-combo .ticket-go.ticket-go--blocked {
 }
 
 .beta-status--sent { color: #a59fff; }
+.beta-status--later { color: #f5c451; }
 .beta-status--ok { color: #63d69f; }
 .beta-status--no { color: #858a98; }
 
@@ -13022,9 +13108,18 @@ body:not(.beta) .bet-card:not(.stakes-pop) .bet-question-icon {
 .chat-head {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 8px;
-    padding: 12px 14px;
+    padding: 6px 10px;
     border-bottom: 1px solid #23262f;
+}
+
+/* En haut de la liste : visible quand on remonte jusqu'au premier message. */
+.chat-wipe-note {
+    margin: 0 0 6px;
+    text-align: center;
+    color: #737887;
+    font-size: 11px;
 }
 
 .chat-head b {
@@ -13086,6 +13181,14 @@ body:not(.beta) .bet-card:not(.stakes-pop) .bet-question-icon {
     margin: 0 0 3px 4px;
 }
 
+/* Heure du message, à droite du pseudo */
+.chat-who-time {
+    margin-left: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #737887;
+}
+
 .chat-txt {
     background: #1f2330;
     border-radius: 14px 14px 14px 4px;
@@ -13136,15 +13239,41 @@ body:not(.beta) .bet-card:not(.stakes-pop) .bet-question-icon {
     font-size: 16px;
 }
 
+/* Bouton Envoyer : rond avec une icône d'avion en papier */
 .chat-form button {
+    flex-shrink: 0;
+    align-self: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    padding: 0;
     background: #6c63ff;
     border: none;
+    border-radius: 50%;
     color: white;
-    border-radius: 12px;
-    padding: 0 16px;
-    font: inherit;
-    font-weight: 800;
     cursor: pointer;
+    transition: background 0.15s, transform 0.12s;
+}
+
+.chat-form button svg {
+    width: 18px;
+    height: 18px;
+    margin-left: -2px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.chat-form button:hover:not(:disabled) {
+    background: #7d75ff;
+}
+
+.chat-form button:active:not(:disabled) {
+    transform: scale(0.9);
 }
 
 .chat-form button:disabled {
@@ -13386,9 +13515,13 @@ body.no-group .chat-panel {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    display: none;
     width: 28px;
     height: 28px;
+    /* Caché sans prendre le survol. S'efface au même rythme que la barre des
+       emojis ; le temps du fondu suffit pour que la souris aille jusqu'à lui. */
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.15s ease, visibility 0.2s;
     padding: 0;
     border: none;
     border-radius: 50%;
@@ -13416,13 +13549,18 @@ body.no-group .chat-panel {
 }
 
 .chat-msg.menu-open .chat-more {
-    display: block;
+    visibility: visible;
+    opacity: 1;
+    transition: none;
 }
 
 @media (hover: hover) {
 
-    .chat-msg:hover .chat-more {
-        display: block;
+    /* Survol de la bulle ou d'une réaction seulement (pas du pseudo). */
+    .chat-msg:has(.chat-txt:hover, .chat-react:hover) .chat-more {
+        visibility: visible;
+        opacity: 1;
+        transition: none;
     }
 
 }
@@ -13438,28 +13576,39 @@ body.no-group .chat-panel {
     border-radius: 14px;
     background: #262a38;
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
+
+    /* Ouverture / fermeture : petit zoom depuis les trois points.
+       « allow-discrete » laisse le fondu se finir avant display: none. */
+    opacity: 0;
+    transform: translateY(-6px) scale(0.92);
+    transition:
+        opacity 0.16s ease,
+        transform 0.18s cubic-bezier(0.34, 1.4, 0.64, 1),
+        display 0.18s allow-discrete;
 }
 
 .chat-msg:not(.me) .chat-more-menu {
     left: 0;
+    transform-origin: top left;
 }
 
 .chat-msg.me .chat-more-menu {
     right: 0;
+    transform-origin: top right;
 }
 
 .chat-msg.menu-open .chat-more-menu {
     display: grid;
     gap: 2px;
+    opacity: 1;
+    transform: none;
 }
 
-.chat-more-emojis {
-    display: flex;
-    justify-content: space-between;
-    gap: 2px;
-    margin-bottom: 4px;
-    padding-bottom: 6px;
-    border-bottom: 1px solid #343a4d;
+@starting-style {
+    .chat-msg.menu-open .chat-more-menu {
+        opacity: 0;
+        transform: translateY(-6px) scale(0.92);
+    }
 }
 
 .chat-more-menu button {
@@ -13474,11 +13623,102 @@ body.no-group .chat-panel {
     cursor: pointer;
 }
 
-.chat-more-emojis button {
-    padding: 4px 6px;
+/* ----- Barre des réactions (au-dessus de la bulle, au survol du message) ----- */
+
+.chat-emoji-bar {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    z-index: 7;
+    display: flex;
+    gap: 2px;
+    padding: 4px;
+    border: 1px solid #343a4d;
     border-radius: 99px;
+    background: #262a38;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+    white-space: nowrap;
+    font-style: normal;
+
+    /* Apparition / disparition : fondu + petit zoom depuis le bas. */
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(6px) scale(0.85);
+    transition:
+        opacity 0.15s ease,
+        transform 0.2s cubic-bezier(0.34, 1.5, 0.64, 1),
+        visibility 0.2s;
+}
+
+/* Pont invisible : la souris passe de la bulle à la barre sans la refermer. */
+.chat-emoji-bar::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: 8px;
+}
+
+.chat-msg:not(.me) .chat-emoji-bar {
+    left: 0;
+    transform-origin: bottom left;
+}
+
+.chat-msg.me .chat-emoji-bar {
+    right: 0;
+    transform-origin: bottom right;
+}
+
+.chat-msg.menu-open .chat-emoji-bar {
+    visibility: visible;
+    opacity: 1;
+    transform: none;
+}
+
+@media (hover: hover) {
+
+    /* Ordinateur : la barre suit le survol, et s'efface quand le ⋯ est ouvert. */
+    .chat-msg.menu-open .chat-emoji-bar {
+        visibility: hidden;
+        opacity: 0;
+        transform: translateY(6px) scale(0.85);
+    }
+
+    .chat-msg:has(.chat-txt:hover, .chat-react:hover):not(.menu-open) .chat-emoji-bar {
+        visibility: visible;
+        opacity: 1;
+        transform: none;
+    }
+
+}
+
+/* Le message survolé passe devant ses voisins (sa barre déborde au-dessus). */
+.chat-msg:hover,
+.chat-msg.menu-open {
+    z-index: 8;
+}
+
+.chat-emoji-bar button {
+    padding: 4px 6px;
+    border: none;
+    border-radius: 99px;
+    background: none;
+    font: inherit;
     font-size: 18px;
     line-height: 1.2;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.15s, filter 0.15s, background 0.15s;
+}
+
+.chat-emoji-bar button:hover {
+    background: #343a4d;
+    transform: scale(1.2);
+}
+
+/* Survol d'un emoji : les autres s'effacent. */
+.chat-emoji-bar:hover button:not(:hover) {
+    opacity: 0.35;
+    filter: grayscale(0.6);
 }
 
 .chat-more-menu button:hover {
@@ -13489,23 +13729,20 @@ body.no-group .chat-panel {
     color: #ff7a8a;
 }
 
-/* Zone de survol élargie : une bande invisible sur le côté du message
-   garde le ⋯ affiché quand la souris va de la bulle aux trois points. */
-.chat-msg:not(.deleted)::after {
-    content: "";
-    position: absolute;
-    top: -6px;
-    bottom: -6px;
-    width: 56px;
+/* Zone de survol réduite : seuls la bulle, le pseudo, chaque réaction (pas le vide
+   de leur ligne) et les fenêtres du message comptent (pas l'heure ni le vide autour). */
+.chat-msg {
+    pointer-events: none;
 }
 
-.chat-msg:not(.me)::after {
-    right: -56px;
+.chat-msg .chat-who [data-player],
+.chat-msg .chat-txt,
+.chat-msg .chat-react,
+.chat-msg .chat-emoji-bar,
+.chat-msg .chat-more-menu {
+    pointer-events: auto;
 }
 
-.chat-msg.me::after {
-    left: -56px;
-}
 
 .chat-more {
     z-index: 1;
@@ -13528,7 +13765,7 @@ body.no-group .chat-panel {
 }
 
 .chat-panel.closing {
-    animation: chat-close 0.18s ease-in forwards;
+    animation: chat-close 0.11s ease-in forwards;
     pointer-events: none;
 }
 
@@ -13736,8 +13973,16 @@ body.no-group .chat-panel {
     animation-play-state: paused !important;
 }
 
-.chat-list.scrolling .chat-msg {
-    pointer-events: none;
+.chat-list.scrolling .chat-msg,
+.chat-list.scrolling .chat-msg * {
+    pointer-events: none !important;
+}
+
+/* Pseudo d'un message hors de l'écran du chat : animations en pause (renderChat). */
+.chat-offscreen *,
+.chat-offscreen *::before,
+.chat-offscreen *::after {
+    animation-play-state: paused !important;
 }
 
 
@@ -13760,7 +14005,6 @@ body.no-group .chat-panel {
     position: absolute;
     left: 50%;
     bottom: 10px;
-    z-index: 7;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -13776,6 +14020,8 @@ body.no-group .chat-panel {
     cursor: pointer;
     box-shadow: 0 6px 18px rgba(108, 99, 255, 0.45);
     transform: translateX(-50%);
+    /* Au-dessus du message survolé (z-index 8). */
+    z-index: 20;
     animation: chat-new-arrow-in 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.3);
 }
 
@@ -14292,4 +14538,243 @@ html.force-phone .main-container {
     .shop-row-stage { grid-row: span 2; }
     .shop-row-actions { padding: 0 0 10px; }
     .shop-row-name { font-size: 16px; }
+}
+
+
+/* ----- Barre de chargement (tout en haut) ----- */
+
+.page-loader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    z-index: 100000;
+    pointer-events: none;
+    transition: opacity 0.4s 0.2s;
+}
+
+.page-loader.done {
+    opacity: 0;
+}
+
+.page-loader-fill {
+    height: 100%;
+    width: 0;
+    background: #6c63ff;
+    box-shadow: 0 0 8px rgba(108, 99, 255, 0.7);
+    transition: width 0.4s ease;
+}
+
+/* Logo BETLAB qui pulse au centre tant que l'application se prépare */
+.page-loader-logo {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 34px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    pointer-events: none;
+    animation: page-loader-pulse 1.2s ease-in-out infinite;
+}
+
+.page-loader-logo span {
+    color: #6c63ff;
+}
+
+body.app-loading .page-loader-logo {
+    display: flex;
+}
+
+@keyframes page-loader-pulse {
+    50% {
+        opacity: 0.35;
+    }
+}
+
+
+/* Bouton de connexion / inscription en attente : petit rond qui tourne */
+.primary-button.is-loading {
+    cursor: wait;
+    opacity: 0.85;
+}
+
+.primary-button.is-loading::before {
+    content: "";
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    margin-right: 8px;
+    vertical-align: -2px;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: auth-spin 0.7s linear infinite;
+}
+
+@keyframes auth-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+
+/* Perroquet : arrivée en cascade à la première connexion (initAppPage) */
+.parrot.parrot-arrive {
+    animation: parrot-arrive 0.7s 0.35s cubic-bezier(0.34, 1.4, 0.64, 1) backwards;
+}
+
+@keyframes parrot-arrive {
+    from {
+        opacity: 0;
+        transform: translateY(60px);
+    }
+}
+
+
+/* Barre du haut : arrivée en cascade à la première connexion (initAppPage) */
+.navbar.navbar-arrive {
+    animation: navbar-arrive 0.5s ease-out backwards;
+}
+
+@keyframes navbar-arrive {
+    from {
+        opacity: 0;
+        transform: translateY(-24px);
+    }
+}
+
+
+/* Aide app : boutons de statut des idées (Retenir, Plus tard, Pas retenue) */
+.beta-item-buttons button {
+    transition: transform 0.12s ease, opacity 0.15s;
+}
+
+/* Clic : le bouton s'enfonce un instant. */
+.beta-item-buttons button:active:not(:disabled) {
+    transform: scale(0.92);
+}
+
+/* En attente de Supabase : rond qui tourne, les autres boutons pâlissent. */
+.beta-item-buttons button:disabled:not(.is-busy) {
+    opacity: 0.4;
+}
+
+.beta-item-buttons button.is-busy {
+    cursor: wait;
+    animation: beta-busy-pulse 0.9s ease-in-out infinite;
+}
+
+.beta-item-buttons button.is-busy::before {
+    content: "";
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-right: 6px;
+    vertical-align: -2px;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: auth-spin 0.7s linear infinite;
+}
+
+@keyframes beta-busy-pulse {
+    50% {
+        transform: scale(0.96);
+    }
+}
+
+
+/* Ticket : le gain du bouton change (mise tapée, cote ajoutée…) */
+.ticket-go.gain-up {
+    animation: ticket-gain-up 0.5s ease-out;
+}
+
+.ticket-go.gain-down {
+    animation: ticket-gain-down 0.45s ease-out;
+}
+
+@keyframes ticket-gain-up {
+    40% {
+        transform: scale(1.04);
+        box-shadow: 0 0 0 4px rgba(99, 214, 159, 0.45), 0 8px 22px rgba(99, 214, 159, 0.35);
+    }
+}
+
+@keyframes ticket-gain-down {
+    40% {
+        transform: scale(0.98);
+        box-shadow: 0 0 0 4px rgba(255, 107, 107, 0.4);
+    }
+}
+
+
+/* ----- Chat : petite flèche ↓ quand on a remonté (ramène tout en bas) ----- */
+
+.chat-bottom-arrow {
+    position: absolute;
+    right: 14px;
+    bottom: 12px;
+    /* Au-dessus du message survolé (z-index 8) : toujours cliquable. */
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid rgba(200, 107, 255, 0.35);
+    border-radius: 50%;
+    /* Fond plein, sans flou : un flou derrière la flèche se recalculait
+       à chaque image du défilement et faisait ramer le chat. */
+    background: #1c1f2b;
+    color: #c86bff;
+    cursor: pointer;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(8px) scale(0.8);
+    transition:
+        opacity 0.18s ease,
+        transform 0.22s cubic-bezier(0.34, 1.5, 0.64, 1),
+        visibility 0.22s,
+        background 0.15s,
+        color 0.15s,
+        border-color 0.15s;
+}
+
+.chat-bottom-arrow svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.chat-bottom-arrow.show {
+    visibility: visible;
+    opacity: 1;
+    transform: none;
+}
+
+.chat-bottom-arrow:hover {
+    background: linear-gradient(135deg, #5b4fe0, #c86bff);
+    border-color: transparent;
+    color: white;
+}
+
+.chat-bottom-arrow:hover svg {
+    animation: chat-bottom-arrow-nudge 0.6s ease-in-out infinite;
+}
+
+@keyframes chat-bottom-arrow-nudge {
+    50% {
+        transform: translateY(2px);
+    }
 }

@@ -39,6 +39,30 @@
 
 
     <!-- =========================================
+         BARRE DE CHARGEMENT
+         Avance à chaque étape d'initAppPage (setLoadProgress),
+         puis disparaît quand body perd la classe app-loading.
+    ========================================== -->
+
+    <div
+        id="page-loader"
+        class="page-loader"
+    >
+
+        <div class="page-loader-fill"></div>
+
+    </div>
+
+
+    <div
+        id="page-loader-logo"
+        class="page-loader-logo"
+    >
+        <span>BET</span>LAB
+    </div>
+
+
+    <!-- =========================================
          NAVBAR
     ========================================== -->
 
@@ -3002,11 +3026,9 @@
         class="chat-panel hidden"
     >
 
+        <!-- Sans titre : juste le bouton de fermeture
+             (« effacé lundi » est en haut de la liste des messages). -->
         <div class="chat-head">
-
-            <b id="chat-title">💬 Chat</b>
-
-            <small>🧹 Effacé lundi à 0 h</small>
 
             <button
                 type="button"
@@ -3035,6 +3057,23 @@
             >
                 ↓
                 <span id="chat-new-label">Nouveau message</span>
+            </button>
+
+
+            <!-- Petite flèche : visible quand on remonte dans le chat, ramène tout en bas -->
+            <button
+                type="button"
+                id="chat-bottom-arrow"
+                class="chat-bottom-arrow"
+                title="Revenir en bas"
+                aria-label="Revenir en bas"
+            >
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <path d="M6 9.5l6 6 6-6" />
+                </svg>
             </button>
 
         </div>
@@ -3075,11 +3114,20 @@
                 autocomplete="off"
             >
 
+            <!-- Envoyer : petite icône d'avion en papier -->
             <button
                 type="submit"
                 id="chat-send"
+                title="Envoyer"
+                aria-label="Envoyer"
             >
-                Envoyer
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <path d="M4 12l16-8-6 16-2.5-6.5L4 12z" />
+                    <path d="M11.5 13.5L20 4" />
+                </svg>
             </button>
 
         </form>

@@ -942,7 +942,9 @@ function pulseXpCard() {
 
     }
 
-    card.classList.remove("xp-halo");
+    // La carte garde « cascade-in » après son arrivée : à la fin du halo, cette
+    // animation reprenait sa place et se rejouait (la carte disparaissait puis revenait).
+    card.classList.remove("xp-halo", "cascade-in");
 
     void card.offsetWidth;
 

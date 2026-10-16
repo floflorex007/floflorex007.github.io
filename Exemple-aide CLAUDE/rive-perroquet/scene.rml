@@ -1,0 +1,537 @@
+<Rive version="1" kind="fragment">
+    <Artboard defaultStateMachineId="0:200" styleId="0:5" width="460" height="540" name="Perroquet" id="0:2">
+        <LayoutComponentStyle name="Style" id="0:5"/>
+
+        <Shape x="230" y="270" name="Zone clic" id="0:61">
+            <Rectangle originX="0.5" originY="0.5" width="420" height="520" name="Path"/>
+            <Fill name="Fill">
+                <SolidColor colorValue="00000000" name="Color"/>
+            </Fill>
+        </Shape>
+
+        <Node x="230" y="500" name="Corps entier" id="0:20">
+            <RootBone x="94.00" y="-255.50" length="30" name="Poitrine" id="0:32">
+                <Node x="-15.00" y="10.00" name="Cou" id="0:40">
+                    <Node name="Tete hoche" id="0:41">
+                        <Image x="-79.00" y="25.50" assetId="0:91" name="Tete" id="0:42"/>
+                    </Node>
+                </Node>
+            </RootBone>
+            <RootBone x="54.00" y="-25.50" length="30" name="Pieds" id="0:30"/>
+            <RootBone x="94.00" y="-140.50" length="30" name="Ventre" id="0:31"/>
+            <RootBone x="19.00" y="-225.50" length="30" name="Aile" id="0:33"/>
+
+            <Image x="0" y="-220" assetId="0:90" name="Corps" id="0:50">
+                <Mesh triangleIndexBytes="AAEiACIhAQIjASMiAgMkAiQjAwQlAyUkBAUmBCYlBQYnBScmBgcoBignBwgJBwkoISIpISkgIiMqIiopIyQrIysqJCUsJCwrJSYtJS0sJicuJi4tJygvJy8uKAkKKAovICkwIDAfKSoxKTEwKisyKjIxKywzKzMyLC00LDQzLS41LTU0Li82LjY1LwoLLws2HzA3HzceMDE4MDg3MTI5MTk4MjM6Mjo5MzQ7Mzs6NDU8NDw7NTY9NT08NgsMNgw9Hjc+Hj4dNzg/Nz8+ODlAOEA/OTpBOUFAOjtCOkJBOzxDO0NCPD1EPERDPQwNPQ1EHT5FHUUcPj9GPkZFP0BHP0dGQEFIQEhHQUJJQUlIQkNKQkpJQ0RLQ0tKRA0ORA5LHEVMHEwbRUZNRU1MRkdORk5NR0hPR09OSElQSFBPSUpRSVFQSktSSlJRSw4PSw9SG0xTG1MaTE1UTFRTTU5VTVVUTk9WTlZVT1BXT1dWUFFYUFhXUVJZUVlYUg8QUhBZGlMYGhgZU1QXUxcYVFUWVBYXVVYVVRUWVlcUVhQVV1gTVxMUWFkSWBITWRARWRES" name="Mesh" id="0:51">
+                <ContourMeshVertex x="-196.00" y="-220.50" u="0.0000" v="0.0000">
+                    <Weight values="255" indices="3"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="-147.00" y="-220.50" u="0.1250" v="0.0000">
+                    <Weight values="255" indices="3"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="-98.00" y="-220.50" u="0.2500" v="0.0000">
+                    <Weight values="255" indices="3"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="-49.00" y="-220.50" u="0.3750" v="0.0000">
+                    <Weight values="255" indices="3"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="0.00" y="-220.50" u="0.5000" v="0.0000">
+                    <Weight values="255" indices="3"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="49.00" y="-220.50" u="0.6250" v="0.0000">
+                    <Weight values="255" indices="3"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="98.00" y="-220.50" u="0.7500" v="0.0000">
+                    <Weight values="255" indices="3"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="147.00" y="-220.50" u="0.8750" v="0.0000">
+                    <Weight values="255" indices="3"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="196.00" y="-220.50" u="1.0000" v="0.0000">
+                    <Weight values="255" indices="3"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="196.00" y="-171.50" u="1.0000" v="0.1111">
+                    <Weight values="255" indices="3"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="196.00" y="-122.50" u="1.0000" v="0.2222">
+                    <Weight values="255" indices="3"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="196.00" y="-73.50" u="1.0000" v="0.3333">
+                    <Weight values="255" indices="3"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="196.00" y="-24.50" u="1.0000" v="0.4444">
+                    <Weight values="54315" indices="770"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="196.00" y="24.50" u="1.0000" v="0.5556">
+                    <Weight values="10455" indices="770"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="196.00" y="73.50" u="1.0000" v="0.6667">
+                    <Weight values="255" indices="2"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="196.00" y="122.50" u="1.0000" v="0.7778">
+                    <Weight values="65025" indices="513"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="196.00" y="171.50" u="1.0000" v="0.8889">
+                    <Weight values="18615" indices="513"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="196.00" y="220.50" u="1.0000" v="1.0000">
+                    <Weight values="255" indices="1"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="147.00" y="220.50" u="0.8750" v="1.0000">
+                    <Weight values="255" indices="1"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="98.00" y="220.50" u="0.7500" v="1.0000">
+                    <Weight values="255" indices="1"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="49.00" y="220.50" u="0.6250" v="1.0000">
+                    <Weight values="255" indices="1"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="0.00" y="220.50" u="0.5000" v="1.0000">
+                    <Weight values="36465" indices="1025"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="-49.00" y="220.50" u="0.3750" v="1.0000">
+                    <Weight values="255" indices="4"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="-98.00" y="220.50" u="0.2500" v="1.0000">
+                    <Weight values="255" indices="4"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="-147.00" y="220.50" u="0.1250" v="1.0000">
+                    <Weight values="255" indices="4"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="-196.00" y="220.50" u="0.0000" v="1.0000">
+                    <Weight values="255" indices="4"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="-196.00" y="171.50" u="0.0000" v="0.8889">
+                    <Weight values="255" indices="4"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="-196.00" y="122.50" u="0.0000" v="0.7778">
+                    <Weight values="255" indices="4"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="-196.00" y="73.50" u="0.0000" v="0.6667">
+                    <Weight values="255" indices="4"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="-196.00" y="24.50" u="0.0000" v="0.5556">
+                    <Weight values="255" indices="4"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="-196.00" y="-24.50" u="0.0000" v="0.4444">
+                    <Weight values="446250" indices="262914"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="-196.00" y="-73.50" u="0.0000" v="0.3333">
+                    <Weight values="255" indices="3"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="-196.00" y="-122.50" u="0.0000" v="0.2222">
+                    <Weight values="255" indices="3"/>
+                </ContourMeshVertex>
+                <ContourMeshVertex x="-196.00" y="-171.50" u="0.0000" v="0.1111">
+                    <Weight values="255" indices="3"/>
+                </ContourMeshVertex>
+                <MeshVertex x="-147.00" y="-171.50" u="0.1250" v="0.1111">
+                    <Weight values="255" indices="3"/>
+                </MeshVertex>
+                <MeshVertex x="-98.00" y="-171.50" u="0.2500" v="0.1111">
+                    <Weight values="255" indices="3"/>
+                </MeshVertex>
+                <MeshVertex x="-49.00" y="-171.50" u="0.3750" v="0.1111">
+                    <Weight values="255" indices="3"/>
+                </MeshVertex>
+                <MeshVertex x="0.00" y="-171.50" u="0.5000" v="0.1111">
+                    <Weight values="255" indices="3"/>
+                </MeshVertex>
+                <MeshVertex x="49.00" y="-171.50" u="0.6250" v="0.1111">
+                    <Weight values="255" indices="3"/>
+                </MeshVertex>
+                <MeshVertex x="98.00" y="-171.50" u="0.7500" v="0.1111">
+                    <Weight values="255" indices="3"/>
+                </MeshVertex>
+                <MeshVertex x="147.00" y="-171.50" u="0.8750" v="0.1111">
+                    <Weight values="255" indices="3"/>
+                </MeshVertex>
+                <MeshVertex x="-147.00" y="-122.50" u="0.1250" v="0.2222">
+                    <Weight values="255" indices="3"/>
+                </MeshVertex>
+                <MeshVertex x="-98.00" y="-122.50" u="0.2500" v="0.2222">
+                    <Weight values="255" indices="3"/>
+                </MeshVertex>
+                <MeshVertex x="-49.00" y="-122.50" u="0.3750" v="0.2222">
+                    <Weight values="255" indices="3"/>
+                </MeshVertex>
+                <MeshVertex x="0.00" y="-122.50" u="0.5000" v="0.2222">
+                    <Weight values="255" indices="3"/>
+                </MeshVertex>
+                <MeshVertex x="49.00" y="-122.50" u="0.6250" v="0.2222">
+                    <Weight values="255" indices="3"/>
+                </MeshVertex>
+                <MeshVertex x="98.00" y="-122.50" u="0.7500" v="0.2222">
+                    <Weight values="255" indices="3"/>
+                </MeshVertex>
+                <MeshVertex x="147.00" y="-122.50" u="0.8750" v="0.2222">
+                    <Weight values="255" indices="3"/>
+                </MeshVertex>
+                <MeshVertex x="-147.00" y="-73.50" u="0.1250" v="0.3333">
+                    <Weight values="255" indices="3"/>
+                </MeshVertex>
+                <MeshVertex x="-98.00" y="-73.50" u="0.2500" v="0.3333">
+                    <Weight values="255" indices="3"/>
+                </MeshVertex>
+                <MeshVertex x="-49.00" y="-73.50" u="0.3750" v="0.3333">
+                    <Weight values="255" indices="3"/>
+                </MeshVertex>
+                <MeshVertex x="0.00" y="-73.50" u="0.5000" v="0.3333">
+                    <Weight values="255" indices="3"/>
+                </MeshVertex>
+                <MeshVertex x="49.00" y="-73.50" u="0.6250" v="0.3333">
+                    <Weight values="255" indices="3"/>
+                </MeshVertex>
+                <MeshVertex x="98.00" y="-73.50" u="0.7500" v="0.3333">
+                    <Weight values="255" indices="3"/>
+                </MeshVertex>
+                <MeshVertex x="147.00" y="-73.50" u="0.8750" v="0.3333">
+                    <Weight values="255" indices="3"/>
+                </MeshVertex>
+                <MeshVertex x="-147.00" y="-24.50" u="0.1250" v="0.4444">
+                    <Weight values="446250" indices="262914"/>
+                </MeshVertex>
+                <MeshVertex x="-98.00" y="-24.50" u="0.2500" v="0.4444">
+                    <Weight values="446250" indices="262914"/>
+                </MeshVertex>
+                <MeshVertex x="-49.00" y="-24.50" u="0.3750" v="0.4444">
+                    <Weight values="446250" indices="262914"/>
+                </MeshVertex>
+                <MeshVertex x="0.00" y="-24.50" u="0.5000" v="0.4444">
+                    <Weight values="250410" indices="262914"/>
+                </MeshVertex>
+                <MeshVertex x="49.00" y="-24.50" u="0.6250" v="0.4444">
+                    <Weight values="54315" indices="770"/>
+                </MeshVertex>
+                <MeshVertex x="98.00" y="-24.50" u="0.7500" v="0.4444">
+                    <Weight values="54315" indices="770"/>
+                </MeshVertex>
+                <MeshVertex x="147.00" y="-24.50" u="0.8750" v="0.4444">
+                    <Weight values="54315" indices="770"/>
+                </MeshVertex>
+                <MeshVertex x="-147.00" y="24.50" u="0.1250" v="0.5556">
+                    <Weight values="255" indices="4"/>
+                </MeshVertex>
+                <MeshVertex x="-98.00" y="24.50" u="0.2500" v="0.5556">
+                    <Weight values="255" indices="4"/>
+                </MeshVertex>
+                <MeshVertex x="-49.00" y="24.50" u="0.3750" v="0.5556">
+                    <Weight values="255" indices="4"/>
+                </MeshVertex>
+                <MeshVertex x="0.00" y="24.50" u="0.5000" v="0.5556">
+                    <Weight values="9310815" indices="262914"/>
+                </MeshVertex>
+                <MeshVertex x="49.00" y="24.50" u="0.6250" v="0.5556">
+                    <Weight values="10455" indices="770"/>
+                </MeshVertex>
+                <MeshVertex x="98.00" y="24.50" u="0.7500" v="0.5556">
+                    <Weight values="10455" indices="770"/>
+                </MeshVertex>
+                <MeshVertex x="147.00" y="24.50" u="0.8750" v="0.5556">
+                    <Weight values="10455" indices="770"/>
+                </MeshVertex>
+                <MeshVertex x="-147.00" y="73.50" u="0.1250" v="0.6667">
+                    <Weight values="255" indices="4"/>
+                </MeshVertex>
+                <MeshVertex x="-98.00" y="73.50" u="0.2500" v="0.6667">
+                    <Weight values="255" indices="4"/>
+                </MeshVertex>
+                <MeshVertex x="-49.00" y="73.50" u="0.3750" v="0.6667">
+                    <Weight values="255" indices="4"/>
+                </MeshVertex>
+                <MeshVertex x="0.00" y="73.50" u="0.5000" v="0.6667">
+                    <Weight values="36465" indices="1026"/>
+                </MeshVertex>
+                <MeshVertex x="49.00" y="73.50" u="0.6250" v="0.6667">
+                    <Weight values="255" indices="2"/>
+                </MeshVertex>
+                <MeshVertex x="98.00" y="73.50" u="0.7500" v="0.6667">
+                    <Weight values="255" indices="2"/>
+                </MeshVertex>
+                <MeshVertex x="147.00" y="73.50" u="0.8750" v="0.6667">
+                    <Weight values="255" indices="2"/>
+                </MeshVertex>
+                <MeshVertex x="-147.00" y="122.50" u="0.1250" v="0.7778">
+                    <Weight values="255" indices="4"/>
+                </MeshVertex>
+                <MeshVertex x="-98.00" y="122.50" u="0.2500" v="0.7778">
+                    <Weight values="255" indices="4"/>
+                </MeshVertex>
+                <MeshVertex x="-49.00" y="122.50" u="0.3750" v="0.7778">
+                    <Weight values="255" indices="4"/>
+                </MeshVertex>
+                <MeshVertex x="0.00" y="122.50" u="0.5000" v="0.7778">
+                    <Weight values="36720" indices="1026"/>
+                </MeshVertex>
+                <MeshVertex x="49.00" y="122.50" u="0.6250" v="0.7778">
+                    <Weight values="65025" indices="513"/>
+                </MeshVertex>
+                <MeshVertex x="98.00" y="122.50" u="0.7500" v="0.7778">
+                    <Weight values="65025" indices="513"/>
+                </MeshVertex>
+                <MeshVertex x="147.00" y="122.50" u="0.8750" v="0.7778">
+                    <Weight values="65025" indices="513"/>
+                </MeshVertex>
+                <MeshVertex x="-147.00" y="171.50" u="0.1250" v="0.8889">
+                    <Weight values="255" indices="4"/>
+                </MeshVertex>
+                <MeshVertex x="-98.00" y="171.50" u="0.2500" v="0.8889">
+                    <Weight values="255" indices="4"/>
+                </MeshVertex>
+                <MeshVertex x="-49.00" y="171.50" u="0.3750" v="0.8889">
+                    <Weight values="255" indices="4"/>
+                </MeshVertex>
+                <MeshVertex x="0.00" y="171.50" u="0.5000" v="0.8889">
+                    <Weight values="9314385" indices="262657"/>
+                </MeshVertex>
+                <MeshVertex x="49.00" y="171.50" u="0.6250" v="0.8889">
+                    <Weight values="18615" indices="513"/>
+                </MeshVertex>
+                <MeshVertex x="98.00" y="171.50" u="0.7500" v="0.8889">
+                    <Weight values="18615" indices="513"/>
+                </MeshVertex>
+                <MeshVertex x="147.00" y="171.50" u="0.8750" v="0.8889">
+                    <Weight values="18615" indices="513"/>
+                </MeshVertex>
+
+                <Skin tx="230" ty="280" name="Skin">
+                    <Tendon boneId="0:30" tx="284.00" ty="474.50" name="TA"/>
+                    <Tendon boneId="0:31" tx="324.00" ty="359.50" name="TB"/>
+                    <Tendon boneId="0:32" tx="324.00" ty="244.50" name="TC"/>
+                    <Tendon boneId="0:33" tx="249.00" ty="274.50" name="TD"/>
+                </Skin>
+                </Mesh>
+            </Image>
+        </Node>
+
+        <Shape x="274.00" y="502" name="Ombre" id="0:60">
+            <Ellipse originX="0.5" originY="0.5" width="230" height="24" name="Path"/>
+            <Fill name="Fill">
+                <SolidColor colorValue="38000000" name="Color"/>
+            </Fill>
+        </Shape>
+
+        <StateMachine name="Perroquet" id="0:200">
+            <StateMachineTrigger name="joie" id="0:201"/>
+            <StateMachineTrigger name="triste" id="0:202"/>
+
+            <StateMachineListenerSingle targetId="0:61" listenerTypeValue="click" name="Clic joie">
+                <ListenerTriggerChange inputId="0:201"/>
+            </StateMachineListenerSingle>
+
+            <StateMachineLayer name="Repos" id="0:210">
+                <AnyState x="0" y="-150"/>
+                <ExitState x="300" y="-150"/>
+                <EntryState x="0" y="0">
+                    <StateTransition stateToId="0:220"/>
+                </EntryState>
+                <AnimationState x="200" y="0" animationId="0:100" id="0:220"/>
+            </StateMachineLayer>
+
+            <StateMachineLayer name="Actions" id="0:211">
+                <AnyState x="0" y="-150"/>
+                <ExitState x="300" y="-150"/>
+                <EntryState x="0" y="0">
+                    <StateTransition stateToId="0:221"/>
+                </EntryState>
+                <AnimationState x="200" y="0" animationId="0:103" id="0:221">
+                    <StateTransition stateToId="0:222">
+                        <TransitionTriggerCondition inputId="0:201"/>
+                    </StateTransition>
+                    <StateTransition stateToId="0:223">
+                        <TransitionTriggerCondition inputId="0:202"/>
+                    </StateTransition>
+                </AnimationState>
+                <AnimationState x="400" y="-80" animationId="0:101" id="0:222">
+                    <StateTransition stateToId="0:221" enableExitTime="true" exitTimeIsPercetange="true" exitTime="100"/>
+                </AnimationState>
+                <AnimationState x="400" y="80" animationId="0:102" id="0:223">
+                    <StateTransition stateToId="0:221" enableExitTime="true" exitTimeIsPercetange="true" exitTime="100"/>
+                </AnimationState>
+            </StateMachineLayer>
+        </StateMachine>
+
+        <LinearAnimation loopValue="loop" duration="180" name="Repos" id="0:100">
+            <KeyedObject objectId="0:31">
+                <KeyedProperty property="scaleX">
+                    <KeyFrameDouble value="1.0000" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="1.0250" frame="90" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="1.0000" frame="180" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                </KeyedProperty>
+            </KeyedObject>
+            <KeyedObject objectId="0:31">
+                <KeyedProperty property="scaleY">
+                    <KeyFrameDouble value="1.0000" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="1.0400" frame="90" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="1.0000" frame="180" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                </KeyedProperty>
+            </KeyedObject>
+            <KeyedObject objectId="0:32">
+                <KeyedProperty property="y">
+                    <KeyFrameDouble value="-255.5000" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="-260.5000" frame="90" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="-255.5000" frame="180" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                </KeyedProperty>
+            </KeyedObject>
+            <KeyedObject objectId="0:32">
+                <KeyedProperty property="x">
+                    <KeyFrameDouble value="94.0000" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="96.0000" frame="60" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="93.0000" frame="150" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="94.0000" frame="180" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                </KeyedProperty>
+            </KeyedObject>
+            <KeyedObject objectId="0:32">
+                <KeyedProperty property="rotation">
+                    <KeyFrameDouble value="0.0000" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="-0.0350" frame="90" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.0000" frame="180" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                </KeyedProperty>
+            </KeyedObject>
+            <KeyedObject objectId="0:40">
+                <KeyedProperty property="rotation">
+                    <KeyFrameDouble value="0.0000" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.0600" frame="50" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="-0.0400" frame="120" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.0000" frame="180" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                </KeyedProperty>
+            </KeyedObject>
+            <KeyedObject objectId="0:33">
+                <KeyedProperty property="rotation">
+                    <KeyFrameDouble value="0.0000" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.0300" frame="90" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.0000" frame="180" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                </KeyedProperty>
+            </KeyedObject>
+        </LinearAnimation>
+
+        <LinearAnimation duration="72" name="Joie" id="0:101">
+            <KeyedObject objectId="0:20">
+                <KeyedProperty property="y">
+                    <KeyFrameDouble value="500.0000" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.2" y1="0" x2="0.3" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="500.0000" frame="8" interpolationType="cubic"><CubicEaseInterpolator x1="0.2" y1="0" x2="0.3" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="430.0000" frame="20" interpolationType="cubic"><CubicEaseInterpolator x1="0.2" y1="0" x2="0.3" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="500.0000" frame="32" interpolationType="cubic"><CubicEaseInterpolator x1="0.2" y1="0" x2="0.3" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="465.0000" frame="44" interpolationType="cubic"><CubicEaseInterpolator x1="0.2" y1="0" x2="0.3" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="500.0000" frame="56" interpolationType="cubic"><CubicEaseInterpolator x1="0.2" y1="0" x2="0.3" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="500.0000" frame="70" interpolationType="cubic"><CubicEaseInterpolator x1="0.2" y1="0" x2="0.3" y2="1"/></KeyFrameDouble>
+                </KeyedProperty>
+            </KeyedObject>
+            <KeyedObject objectId="0:20">
+                <KeyedProperty property="scaleY">
+                    <KeyFrameDouble value="1.0000" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.8600" frame="8" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="1.0800" frame="20" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.8800" frame="32" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="1.0500" frame="44" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.9300" frame="56" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="1.0000" frame="70" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                </KeyedProperty>
+            </KeyedObject>
+            <KeyedObject objectId="0:20">
+                <KeyedProperty property="scaleX">
+                    <KeyFrameDouble value="1.0000" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="1.1000" frame="8" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.9500" frame="20" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="1.0800" frame="32" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.9700" frame="44" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="1.0400" frame="56" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="1.0000" frame="70" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                </KeyedProperty>
+            </KeyedObject>
+            <KeyedObject objectId="0:33">
+                <KeyedProperty property="rotation">
+                    <KeyFrameDouble value="0.0000" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.4500" frame="12" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.0500" frame="20" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.4500" frame="28" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.0500" frame="36" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.4000" frame="44" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.0500" frame="52" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.0000" frame="64" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                </KeyedProperty>
+            </KeyedObject>
+            <KeyedObject objectId="0:41">
+                <KeyedProperty property="rotation">
+                    <KeyFrameDouble value="0.0000" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="-0.1500" frame="10" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.1000" frame="22" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="-0.1200" frame="34" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.0800" frame="46" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.0000" frame="60" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                </KeyedProperty>
+            </KeyedObject>
+            <KeyedObject objectId="0:60">
+                <KeyedProperty property="scaleX">
+                    <KeyFrameDouble value="1.0000" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="1.0500" frame="8" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.6000" frame="20" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="1.0500" frame="32" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.8000" frame="44" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="1.0000" frame="56" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="1.0000" frame="70" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                </KeyedProperty>
+            </KeyedObject>
+            <KeyedObject objectId="0:60">
+                <KeyedProperty property="scaleY">
+                    <KeyFrameDouble value="1.0000" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="1.0500" frame="8" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.6000" frame="20" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="1.0500" frame="32" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.8000" frame="44" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="1.0000" frame="56" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="1.0000" frame="70" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                </KeyedProperty>
+            </KeyedObject>
+        </LinearAnimation>
+
+        <LinearAnimation duration="132" name="Triste" id="0:102">
+            <KeyedObject objectId="0:41">
+                <KeyedProperty property="rotation">
+                    <KeyFrameDouble value="0.0000" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.2800" frame="30" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.2400" frame="40" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.2600" frame="100" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.0000" frame="130" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                </KeyedProperty>
+            </KeyedObject>
+            <KeyedObject objectId="0:20">
+                <KeyedProperty property="scaleY">
+                    <KeyFrameDouble value="1.0000" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.9400" frame="30" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.9400" frame="100" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="1.0000" frame="130" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                </KeyedProperty>
+            </KeyedObject>
+            <KeyedObject objectId="0:20">
+                <KeyedProperty property="scaleX">
+                    <KeyFrameDouble value="1.0000" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="1.0300" frame="30" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="1.0300" frame="100" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="1.0000" frame="130" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                </KeyedProperty>
+            </KeyedObject>
+            <KeyedObject objectId="0:33">
+                <KeyedProperty property="rotation">
+                    <KeyFrameDouble value="0.0000" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="-0.1000" frame="30" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="-0.1000" frame="100" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.0000" frame="130" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                </KeyedProperty>
+            </KeyedObject>
+            <KeyedObject objectId="0:32">
+                <KeyedProperty property="rotation">
+                    <KeyFrameDouble value="0.0000" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.0600" frame="30" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.0600" frame="100" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.0000" frame="130" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                </KeyedProperty>
+            </KeyedObject>
+        </LinearAnimation>
+
+        <LinearAnimation duration="1" name="Vide" id="0:103"/>
+    </Artboard>
+
+    <ImageAsset file="../../assets/perroquet/wait-body.png" name="corps" id="0:90"/>
+    <ImageAsset file="../../assets/perroquet/wait-head.png" name="tete" id="0:91"/>
+</Rive>

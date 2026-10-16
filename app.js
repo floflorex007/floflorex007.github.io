@@ -6505,10 +6505,18 @@ async function displayBets({ quiet = false, force = false } = {}) {
         container.appendChild(renderCreateBetCard());
 
 
+        // Paris bloqués pour moi ou « Trop tard » (mises closes) : à la fin,
+        // les autres gardent leur ordre. Une carte qui ferme en direct relance
+        // displayBets (updateCountdowns) et descend donc toute seule.
+        const isLockedForMe = bet =>
+            isBlockedTarget(bet) || isBetClosed(bet);
+
         const openBets =
-            bets.filter(
-                bet => bet.status === "open"
-            );
+            bets
+                .filter(
+                    bet => bet.status === "open"
+                )
+                .sort((a, b) => isLockedForMe(a) - isLockedForMe(b));
 
 
         // Nombre de paris disponibles, juste sous la carte « Créer un pari ».
@@ -6664,7 +6672,7 @@ async function displayBets({ quiet = false, force = false } = {}) {
 
                 card.className =
                     "bet-card" +
-                    (isBlockedTarget(bet) || isBetClosed(bet) ? " bet-card-locked" : "") +
+                    (isLockedForMe(bet) ? " bet-card-locked" : "") +
                     (isCreatedToday(bet.created_at) ? " bet-card-new" : "") +
                     (quiet && !previousIds.has(bet.id) && !draftFlips.has(bet.id) ? " bet-card-live-in" : "");
 
@@ -8000,15 +8008,34 @@ function renderTicket({ bump = false } = {}) {
     ticketTimer = null;
 
 
+    // Passage mise simple ↔ combiné : l'étiquette fait une petite animation.
+    const previousKind =
+        ticket.querySelector(".t-kind");
+
+    const kindSwitch =
+        previousKind && count > 0 && previousKind.classList.contains("combo") !== combo
+            ? " t-kind-switch"
+            : "";
+
     const kind = count === 0
         ? ""
         : combo
-            ? `<span class="t-kind combo">Combiné · ${count}</span>`
-            : `<span class="t-kind">Mise simple</span>`;
+            ? `<span class="t-kind combo${kindSwitch}">Combiné · ${count}</span>`
+            : `<span class="t-kind${kindSwitch}">Mise simple</span>`;
 
     const odds = ticketOdds(entries);
 
     const boost = combo ? comboBoost(count) : 0;
+
+    // Boost qui change (+5 % → +10 %…) : le pourcentage rebondit et brille.
+    const previousBoost =
+        Number(ticket.querySelector("[data-ticket-boost-pct]")?.dataset.ticketBoostPct) || 0;
+
+    const boostPct = Math.round(boost * 100);
+
+    const boostChanged = previousBoost > 0 && boostPct > 0 && boostPct !== previousBoost;
+
+    const boostUp = boostChanged && boostPct > previousBoost;
 
 
     ticket.innerHTML = `
@@ -8032,7 +8059,7 @@ function renderTicket({ bump = false } = {}) {
                 : `
                 <div class="ticket-legs">
                     ${entries.map(entry => `
-                        <div class="ticket-leg">
+                        <div class="ticket-leg${previousLayout.tops.has("leg-" + entry.bet.id) ? "" : " ticket-leg-new"}">
                             <span class="ticket-leg-text">
                                 <b>${escapeHtml(entry.choice.label)}</b>
                                 <span class="ticket-leg-question" title="${escapeHtml(entry.bet.question)}">${escapeHtml(entry.bet.question)}</span>
@@ -8052,7 +8079,7 @@ function renderTicket({ bump = false } = {}) {
                     : ""}
 
                 ${boost || (combo && odds >= COMBO_MAX_ODDS)
-                    ? `<p class="ticket-boost">${boost ? `⚡ Boost +${Math.round(boost * 100)} % inclus` : "⚡"}${odds >= COMBO_MAX_ODDS ? (boost ? " · " : " ") + "cote max " + COMBO_MAX_ODDS : ""}</p>`
+                    ? `<p class="ticket-boost">${boost ? `<span class="ticket-boost-pct${boostChanged ? (boostUp ? " up" : " down") : ""}" data-ticket-boost-pct="${boostPct}">⚡ Boost +${boostPct} %</span> inclus` : "⚡"}${odds >= COMBO_MAX_ODDS ? (boost ? " · " : " ") + "cote max " + COMBO_MAX_ODDS : ""}</p>`
                     : ""}
 
                 ${ticketDuplicate(entries)
@@ -8389,8 +8416,8 @@ function updateTicketLive() {
     // Gain possible : affiché directement sur le bouton (« Gain potentiel : … »).
     const boosted = ticketBoost && typeof treeBoost !== "undefined" && treeBoost.available;
 
-    const possibleWin =
-        formatMoney(ticketStake * odds * (boosted ? 1.2 : 1)) + (boosted ? " 🚀" : "");
+    const winValue =
+        ticketStake * odds * (boosted ? 1.2 : 1);
 
     const go = ticket.querySelector("[data-ticket-go]");
 
@@ -8411,15 +8438,102 @@ function updateTicketLive() {
         // le bouton change de couleur pour le faire comprendre.
         go.classList.toggle("ticket-go--blocked", blocked);
 
-        go.textContent = duplicate
-            ? "⛔ Combiné déjà joué"
-            : blocked
-            ? "⛔ Déjà misé sur ce pari"
-            : !ticketStake
-                ? "Choisis ta mise"
-                : "Gain potentiel : " + possibleWin + (publishing ? " et publier" : "");
+        if (blocked || !ticketStake) {
+
+            stopTicketWinCount();
+
+            // Pas de mise : le prochain montant tapé part de 0 €.
+            ticketWinShown = blocked ? null : 0;
+
+            go.textContent = duplicate
+                ? "⛔ Combiné déjà joué"
+                : blocked
+                ? "⛔ Déjà misé sur ce pari"
+                : "Choisis ta mise";
+
+            return;
+
+        }
+
+        const suffix = (boosted ? " 🚀" : "") + (publishing ? " et publier" : "");
+
+        // Gain qui change (mise tapée, cote ajoutée…) : le montant défile jusqu'au
+        // nouveau et le bouton pulse (vert s'il monte, rouge s'il baisse).
+        if (ticketWinShown !== null && Math.round(winValue) !== Math.round(ticketWinShown)) {
+
+            countTicketWin(go, winValue, suffix);
+
+        } else if (!ticketWinCount) {
+
+            go.textContent = "Gain potentiel : " + formatMoney(winValue) + suffix;
+
+        }
+
+        ticketWinShown = winValue;
 
     }
+
+}
+
+
+// Gain affiché sur le bouton du ticket, et défilement en cours vers le nouveau montant.
+let ticketWinShown = null;
+
+let ticketWinCount = null;
+
+function stopTicketWinCount() {
+
+    if (ticketWinCount) {
+        cancelAnimationFrame(ticketWinCount.frame);
+    }
+
+    ticketWinCount = null;
+
+}
+
+function countTicketWin(button, target, suffix) {
+
+    // Un défilement déjà en cours repart du montant affiché à cet instant.
+    const from = ticketWinCount ? ticketWinCount.current : ticketWinShown;
+
+    stopTicketWinCount();
+
+    button.classList.remove("gain-up", "gain-down");
+
+    void button.offsetWidth;
+
+    button.classList.add(target > from ? "gain-up" : "gain-down");
+
+    const start = performance.now();
+
+    const count = { current: from, frame: 0 };
+
+    ticketWinCount = count;
+
+    const step = now => {
+
+        const t = Math.min(1, (now - start) / 450);
+
+        const eased = 1 - Math.pow(1 - t, 3);
+
+        count.current = from + (target - from) * eased;
+
+        // Le ticket peut avoir été redessiné entre-temps : on reprend son bouton actuel.
+        const go = document.querySelector("#bet-ticket [data-ticket-go]");
+
+        if (go) {
+            go.textContent = "Gain potentiel : " + formatMoney(count.current) + suffix;
+        }
+
+        if (t < 1) {
+            count.frame = requestAnimationFrame(step);
+        } else if (ticketWinCount === count) {
+            ticketWinCount = null;
+        }
+
+    };
+
+    count.frame = requestAnimationFrame(step);
 
 }
 
@@ -14849,7 +14963,9 @@ async function notifyBetaUpdates() {
             notes.push(
                 idea.status === "kept"
                     ? `Ton idée « ${escapeHtml(idea.text)} » est retenue : <b>+${BETA_POINTS.ideaKept} 🪙</b>`
-                    : `Ton idée « ${escapeHtml(idea.text)} » n'a pas été retenue.`
+                    : idea.status === "later"
+                        ? `Ton idée « ${escapeHtml(idea.text)} » est gardée pour plus tard.`
+                        : `Ton idée « ${escapeHtml(idea.text)} » n'a pas été retenue.`
             );
 
         });
@@ -15111,7 +15227,7 @@ async function loadBetaData() {
             .order("created_at", { ascending: false }),
         supabaseClient
             .from("beta_ideas")
-            .select("id, user_id, kind, text, status, created_at, profiles!beta_ideas_user_id_fkey ( username )")
+            .select("id, user_id, kind, text, status, kept_rewarded, created_at, profiles!beta_ideas_user_id_fkey ( username )")
             .order("created_at", { ascending: false }),
         // Votes anonymes : les totaux et mon vote seulement (beta-votes-idees.sql).
         supabaseClient.rpc("beta_idea_votes")
@@ -15398,6 +15514,7 @@ const BETA_BUG_STATUS = {
 
 const BETA_IDEA_STATUS = {
     sent: { icon: "📨", label: "Envoyée", className: "sent" },
+    later: { icon: "⏳", label: "Plus tard", className: "later" },
     kept: { icon: "⭐", label: "Retenue", className: "ok" },
     rejected: { icon: "✖", label: "Pas retenue", className: "no" }
 };
@@ -15480,6 +15597,30 @@ function betaBugsHtml() {
 }
 
 
+// Date de publication d'une idée : « aujourd'hui à 14:32 », « hier à 9:05 », « le 3 oct. à 18:00 ».
+function betaDateLabel(value) {
+
+    const date = new Date(value);
+
+    const time = date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+
+    const yesterday = new Date();
+
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.toDateString() === new Date().toDateString()) {
+        return `aujourd'hui à ${time}`;
+    }
+
+    if (date.toDateString() === yesterday.toDateString()) {
+        return `hier à ${time}`;
+    }
+
+    return `le ${date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} à ${time}`;
+
+}
+
+
 function betaIdeasHtml() {
 
     const isAdmin =
@@ -15489,12 +15630,9 @@ function betaIdeasHtml() {
     const votesOf = id =>
         betaLikes.find(vote => vote.idea_id === id) || { likes: 0, dislikes: 0, my_vote: null };
 
-    const scoreOf = id => votesOf(id).likes - votesOf(id).dislikes;
-
-    // Les idées encore en attente d'abord, puis les mieux notées.
+    // Les plus récentes en haut.
     const sorted = [...betaIdeas].sort((a, b) =>
-        (a.status === "sent" ? 0 : 1) - (b.status === "sent" ? 0 : 1) ||
-        scoreOf(b.id) - scoreOf(a.id)
+        new Date(b.created_at) - new Date(a.created_at)
     );
 
     return `
@@ -15535,7 +15673,7 @@ function betaIdeasHtml() {
                                 <div class="beta-item beta-item--${status.className}">
                                     <div class="beta-item-text">
                                         <b>${escapeHtml(idea.text)}</b>
-                                        <p>${idea.kind === "design" ? "🎨 Design" : "🧩 Fonctionnalité"} · par ${mine ? "toi" : styledName(idea.profiles)}</p>
+                                        <p>${idea.kind === "design" ? "🎨 Design" : "🧩 Fonctionnalité"} · par ${mine ? "toi" : styledName(idea.profiles)} · ${betaDateLabel(idea.created_at)}</p>
                                     </div>
                                     <div class="beta-item-side">
                                         <div class="beta-item-status-row">
@@ -15555,10 +15693,18 @@ function betaIdeasHtml() {
                                             </div>
                                             <span class="beta-status beta-status--${status.className}">${status.icon} ${status.label}</span>
                                         </div>
-                                        ${isAdmin && idea.status === "sent" ? `
+                                        ${isAdmin ? `
                                             <div class="beta-item-buttons">
-                                                <button type="button" class="primary-button" data-beta-keep="${idea.id}">★ Retenir ${betaGainHtml(BETA_POINTS.ideaKept)}</button>
-                                                <button type="button" class="secondary-button" data-beta-reject="${idea.id}">Pas retenue</button>
+                                                ${idea.status !== "kept"
+                                                    // Les pièces ne sont versées qu'une fois (idees-changer-statut.sql).
+                                                    ? `<button type="button" class="primary-button" data-beta-status="kept" data-idea="${idea.id}">★ Retenir ${idea.kept_rewarded ? "" : betaGainHtml(BETA_POINTS.ideaKept)}</button>`
+                                                    : ""}
+                                                ${idea.status !== "later"
+                                                    ? `<button type="button" class="secondary-button" data-beta-status="later" data-idea="${idea.id}">⏳ Plus tard</button>`
+                                                    : ""}
+                                                ${idea.status !== "rejected"
+                                                    ? `<button type="button" class="secondary-button" data-beta-status="rejected" data-idea="${idea.id}">Pas retenue</button>`
+                                                    : ""}
                                             </div>
                                         ` : ""}
                                         ${isAdmin && idea.status === "kept"
@@ -15867,20 +16013,42 @@ function setupBetaPage() {
 
                 renderBetaPage();
 
-            } else if (data.betaKeep || data.betaReject) {
+            } else if (data.betaStatus) {
 
-                const { error } = await supabaseClient.rpc("beta_decide_idea", {
-                    p_idea: Number(data.betaKeep || data.betaReject),
-                    p_keep: Boolean(data.betaKeep)
+                // Statut changeable à tout moment par l'admin (idees-changer-statut.sql).
+                const idea = betaIdeas.find(item => String(item.id) === data.idea);
+
+                // Bouton en attente (rond qui tourne) jusqu'à la réponse de Supabase.
+                button.classList.add("is-busy");
+
+                button.closest(".beta-item-buttons")
+                    ?.querySelectorAll("button")
+                    .forEach(other => other.disabled = true);
+
+                const { error } = await supabaseClient.rpc("beta_set_idea_status", {
+                    p_idea: Number(data.idea),
+                    p_status: data.betaStatus
                 });
 
                 if (error) {
+
+                    button.classList.remove("is-busy");
+
+                    button.closest(".beta-item-buttons")
+                        ?.querySelectorAll("button")
+                        .forEach(other => other.disabled = false);
+
                     throw error;
+
                 }
 
-                message(data.betaKeep
-                    ? `Idée retenue : son auteur reçoit +${BETA_POINTS.ideaKept} 🪙 et une notification.`
-                    : "Idée marquée « pas retenue ».");
+                message({
+                    kept: idea?.kept_rewarded
+                        ? "Idée de nouveau retenue (pièces déjà versées) : son auteur est prévenu."
+                        : `Idée retenue : son auteur reçoit +${BETA_POINTS.ideaKept} 🪙 et une notification.`,
+                    later: "Idée gardée pour plus tard : son auteur est prévenu.",
+                    rejected: "Idée marquée « pas retenue » : son auteur est prévenu."
+                }[data.betaStatus]);
 
                 await loadBetaData();
 
@@ -17542,7 +17710,7 @@ async function checkReceivedGifts() {
 
 const CHAT_MAX = 300;
 
-// Fenêtre ⋯ : pouce, cœur, rire, choqué.
+// Petite barre au survol du message : pouce, cœur, rire, choqué.
 const CHAT_BAR_EMOJIS = ["👍", "❤️", "😂", "😮"];
 
 // Ordre d'affichage sous les messages (😢 et 🔥 : anciennes réactions).
@@ -17727,15 +17895,24 @@ function chatReactionsHtml(message) {
 }
 
 
-// ⋯ à côté du message (au survol) : il ouvre la fenêtre des réactions
-// et des actions (Répondre, + Modifier / Supprimer sur ses messages).
+// Barre des réactions : au-dessus de la bulle, visible au survol du message
+// (sur téléphone, avec l'appui long).
+function chatEmojiBarHtml() {
+
+    return `<div class="chat-emoji-bar">${CHAT_BAR_EMOJIS.map(emoji => `<button type="button" data-chat-react="${emoji}">${emoji}</button>`).join("")}</div>`;
+
+}
+
+
+// ⋯ à côté du message (au survol) : il ouvre la fenêtre des actions
+// (Répondre, + Modifier / Supprimer sur ses messages).
 function chatMoreHtml(message) {
 
     const own = message.user_id === currentUser.id
         ? `<button type="button" data-chat-act="edit">✏️ Modifier</button><button type="button" class="danger" data-chat-act="delete">🗑️ Supprimer</button>`
         : "";
 
-    return `<div class="chat-more-menu"><div class="chat-more-emojis">${CHAT_BAR_EMOJIS.map(emoji => `<button type="button" data-chat-react="${emoji}">${emoji}</button>`).join("")}</div><button type="button" data-chat-act="reply">↩️ Répondre</button>${own}</div>`;
+    return `<div class="chat-more-menu"><button type="button" data-chat-act="reply">↩️ Répondre</button>${own}</div>`;
 
 }
 
@@ -17754,18 +17931,24 @@ function chatMessageHtml(message) {
         ? "🚫 Message supprimé"
         : chatQuoteHtml(message) + escapeHtml(message.content);
 
+    const timeLabel = time + (message.edited_at && !deleted ? " · modifié" : "");
+
+    // Messages des autres : l'heure à droite du pseudo. Les miens (sans pseudo) : sous la bulle.
     return `
         <div class="chat-msg${mine ? " me" : ""}${deleted ? " deleted" : ""}" data-chat-id="${message.id}">
-            ${mine ? "" : `<div class="chat-who">${styledName(withGroupStyle(name ? { username: name } : null), "Ancien membre")}</div>`}
-            <div class="chat-txt">${body}${deleted ? "" : `<button type="button" class="chat-more" data-chat-more title="Réagir, répondre…">⋯</button>`}</div>
+            ${mine ? "" : `<div class="chat-who">${styledName(withGroupStyle(name ? { username: name } : null), "Ancien membre")}<span class="chat-who-time">${timeLabel}</span></div>`}
+            <div class="chat-txt">${body}${deleted ? "" : `<button type="button" class="chat-more" data-chat-more title="Répondre, modifier…">⋯</button>${chatEmojiBarHtml()}${chatMoreHtml(message)}`}</div>
             ${chatReactionsHtml(message)}
-            <div class="chat-time">${time}${message.edited_at && !deleted ? " · modifié" : ""}</div>
-            ${deleted ? "" : chatMoreHtml(message)}
+            ${mine ? `<div class="chat-time">${timeLabel}</div>` : ""}
         </div>
     `;
 
 }
 
+
+// Tout en haut de la liste, au-dessus du plus ancien message.
+const CHAT_WIPE_NOTE =
+    `<p class="chat-wipe-note">Les messages s'effacent lundi à 00:00</p>`;
 
 function renderChat() {
 
@@ -17778,13 +17961,13 @@ function renderChat() {
 
     if (chatMessages.length === 0) {
 
-        list.innerHTML = `<p class="chat-empty">Aucun message cette semaine. Lance la discussion !</p><div id="chat-typing"></div>`;
+        list.innerHTML = CHAT_WIPE_NOTE + `<p class="chat-empty">Aucun message cette semaine. Lance la discussion !</p><div id="chat-typing"></div>`;
 
     } else {
 
         let lastDay = "";
 
-        list.innerHTML = chatMessages.map(message => {
+        list.innerHTML = CHAT_WIPE_NOTE + chatMessages.map(message => {
 
             const date = new Date(message.created_at);
 
@@ -17803,6 +17986,34 @@ function renderChat() {
     renderChatTyping();
 
     list.scrollTop = atBottom ? list.scrollHeight : keep;
+
+    watchChatNamesOnScreen(list);
+
+}
+
+
+// Pseudos animés (néon, flammes, métal…) : en pause tant que leur message est
+// hors de l'écran du chat. Sinon ils se redessinaient tous en permanence et
+// le défilement ramait dès qu'il y avait beaucoup de messages.
+let chatNamesObserver = null;
+
+function watchChatNamesOnScreen(list) {
+
+    if (!("IntersectionObserver" in window)) {
+        return;
+    }
+
+    chatNamesObserver?.disconnect();
+
+    chatNamesObserver = new IntersectionObserver(entries => {
+
+        entries.forEach(entry => {
+            entry.target.classList.toggle("chat-offscreen", !entry.isIntersecting);
+        });
+
+    }, { root: list, rootMargin: "120px 0px" });
+
+    list.querySelectorAll(".chat-who").forEach(name => chatNamesObserver.observe(name));
 
 }
 
@@ -18057,11 +18268,34 @@ function scrollChatToBottom() {
 
 }
 
+// Petite flèche ↓ : on a remonté dans le chat (et pas de flèche « Nouveau message »).
+function renderChatBottomArrow() {
+
+    const list = document.getElementById("chat-list");
+
+    const arrow = document.getElementById("chat-bottom-arrow");
+
+    if (!list || !arrow) {
+        return;
+    }
+
+    const scrolledUp = list.scrollHeight - list.scrollTop - list.clientHeight > 150;
+
+    const show = scrolledUp && chatNewIds.length === 0;
+
+    if (arrow.classList.contains("show") !== show) {
+        arrow.classList.toggle("show", show);
+    }
+
+}
+
 function renderChatNewArrow() {
 
     const arrow = document.getElementById("chat-new-arrow");
 
     arrow.classList.toggle("hidden", chatNewIds.length === 0);
+
+    renderChatBottomArrow();
 
     document.getElementById("chat-new-label").textContent = chatNewIds.length > 1
         ? `${chatNewIds.length} nouveaux messages`
@@ -18347,9 +18581,27 @@ function onChatListClick(event) {
 
         element.classList.toggle("menu-open", !wasOpen);
 
-        // La fenêtre reste visible même sous le dernier message.
+        // La fenêtre reste visible même sous le dernier message : sous lui, rien ne
+        // permettait de descendre plus bas, d'où une marge le temps que la fenêtre est ouverte.
         if (!wasOpen) {
-            element.querySelector(".chat-more-menu").scrollIntoView({ block: "nearest", behavior: "smooth" });
+
+            const menu = element.querySelector(".chat-more-menu");
+
+            const list = element.closest(".chat-list");
+
+            if (list && !element.nextElementSibling?.matches(".chat-msg")) {
+
+                element.style.marginBottom = menu.offsetHeight + 12 + "px";
+
+                // Tout en bas : la fenêtre entière, marge comprise.
+                list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
+
+            } else {
+
+                menu.scrollIntoView({ block: "nearest", behavior: "smooth" });
+
+            }
+
         }
 
         return;
@@ -18410,7 +18662,13 @@ function closeChatBars() {
         return;
     }
 
-    document.querySelectorAll(".chat-msg.menu-open").forEach(element => element.classList.remove("menu-open"));
+    document.querySelectorAll(".chat-msg.menu-open").forEach(element => {
+
+        element.classList.remove("menu-open");
+
+        element.style.marginBottom = "";
+
+    });
 
 }
 
@@ -18426,7 +18684,7 @@ function setupChatLongPress(list) {
 
         const element = event.target.closest(".chat-msg:not(.deleted)");
 
-        if (!element || event.target.closest(".chat-more, .chat-more-menu, .chat-react, [data-player]")) {
+        if (!element || event.target.closest(".chat-more, .chat-more-menu, .chat-emoji-bar, .chat-react, [data-player]")) {
             return;
         }
 
@@ -18532,11 +18790,11 @@ function toggleChat(open) {
 
         panel.classList.add("closing");
 
-        // Caché à la fin de l'animation de fermeture (0,18 s).
+        // Caché à la fin de l'animation de fermeture (0,11 s).
         chatCloseTimer = setTimeout(() => {
             panel.classList.add("hidden");
             panel.classList.remove("closing");
-        }, 180);
+        }, 110);
 
     }
 
@@ -18579,8 +18837,6 @@ async function setupChat() {
         return;
     }
 
-    document.getElementById("chat-title").textContent = "💬 " + currentGroup.name;
-
     document.getElementById("chat-fab").classList.remove("hidden");
 
     document.body.classList.add("has-chat");
@@ -18605,19 +18861,43 @@ async function setupChat() {
 
     document.getElementById("chat-new-arrow").addEventListener("click", jumpToNewChatMessage);
 
+    document.getElementById("chat-bottom-arrow").addEventListener("click", () => {
+
+        list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
+
+    });
+
     // Pendant le défilement : animations des pseudos en pause et pas de survol,
     // pour un défilement fluide (style.css, .chat-list.scrolling).
     let chatScrollTimer = null;
 
+    // Mesures (bas atteint, petite flèche) : une fois par image au plus,
+    // pas à chaque événement de défilement.
+    let chatScrollFrame = 0;
+
     list.addEventListener("scroll", () => {
 
-        // Arrivé en bas : les nouveaux messages sont lus, la flèche part.
-        if (chatNewIds.length > 0 && isChatAtBottom()) {
-            chatNewIds = [];
-            renderChatNewArrow();
+        if (!chatScrollFrame) {
+
+            chatScrollFrame = requestAnimationFrame(() => {
+
+                chatScrollFrame = 0;
+
+                // Arrivé en bas : les nouveaux messages sont lus, la flèche part.
+                if (chatNewIds.length > 0 && isChatAtBottom()) {
+                    chatNewIds = [];
+                    renderChatNewArrow();
+                }
+
+                renderChatBottomArrow();
+
+            });
+
         }
 
-        list.classList.add("scrolling");
+        if (!list.classList.contains("scrolling")) {
+            list.classList.add("scrolling");
+        }
 
         clearTimeout(chatScrollTimer);
 
@@ -19315,6 +19595,46 @@ function setupPasswordEyes() {
 
 }
 
+// Connexion / inscription : bouton en attente + barre du haut qui avance,
+// pour voir tout de suite que le clic a été pris en compte.
+// Renvoie une fonction qui remet le bouton et la barre à zéro (en cas d'erreur).
+function startAuthLoading(form, label) {
+
+    const button = form.querySelector("button[type=submit]");
+
+    const originalLabel = button.textContent;
+
+    button.disabled = true;
+
+    button.classList.add("is-loading");
+
+    button.textContent = label;
+
+    setLoadProgress(15);
+
+    const timer = setTimeout(() => setLoadProgress(45), 300);
+
+    const timer2 = setTimeout(() => setLoadProgress(70), 1200);
+
+    return () => {
+
+        clearTimeout(timer);
+
+        clearTimeout(timer2);
+
+        setLoadProgress(0);
+
+        button.disabled = false;
+
+        button.classList.remove("is-loading");
+
+        button.textContent = originalLabel;
+
+    };
+
+}
+
+
 async function initAuthPage() {
 
     const loginForm =
@@ -19510,6 +19830,10 @@ async function initAuthPage() {
             errorElement.textContent = "";
 
 
+            const stopLoading =
+                startAuthLoading(loginForm, "Connexion…");
+
+
             try {
 
                 await loginUser(
@@ -19520,6 +19844,8 @@ async function initAuthPage() {
 
                 // Mot de passe provisoire de l'admin : à changer avant d'entrer.
                 if (currentProfile?.must_change_password) {
+
+                    stopLoading();
 
                     showAuthSection("new-password-section");
 
@@ -19537,6 +19863,8 @@ async function initAuthPage() {
             } catch (error) {
 
                 console.error(error);
+
+                stopLoading();
 
 
                 errorElement.textContent =
@@ -19597,6 +19925,10 @@ async function initAuthPage() {
             }
 
 
+            const stopLoading =
+                startAuthLoading(registerForm, "Création du compte…");
+
+
             try {
 
                 await registerUser(
@@ -19612,6 +19944,8 @@ async function initAuthPage() {
             } catch (error) {
 
                 console.error(error);
+
+                stopLoading();
 
 
                 errorElement.textContent =
@@ -19793,6 +20127,92 @@ async function initAuthPage() {
    15. INITIALISATION APPLICATION
 ========================================================= */
 
+// Barre de chargement du haut (app.html) : avance à chaque étape,
+// puis file à 100 % et disparaît dès que body perd la classe app-loading.
+function setLoadProgress(percent) {
+
+    const fill = document.querySelector("#page-loader .page-loader-fill");
+
+    if (fill) {
+
+        fill.style.width = percent + "%";
+
+    }
+
+}
+
+
+function watchPageLoader() {
+
+    const loader = document.getElementById("page-loader");
+
+    if (!loader) {
+
+        return;
+
+    }
+
+    const finish = () => {
+
+        setLoadProgress(100);
+
+        loader.classList.add("done");
+
+        setTimeout(() => loader.remove(), 700);
+
+        observer.disconnect();
+
+    };
+
+    const observer = new MutationObserver(() => {
+
+        if (!document.body.classList.contains("app-loading")) {
+
+            finish();
+
+        }
+
+    });
+
+    observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+
+    setLoadProgress(10);
+
+}
+
+
+// Animation d'arrivée jouée une seule fois au premier chargement (initAppPage).
+// La classe porte le même nom que l'animation CSS et est retirée à la fin.
+function playFirstArrival(element, name) {
+
+    if (!element) {
+
+        return;
+
+    }
+
+    element.classList.add(name);
+
+    // Les animations des éléments enfants remontent aussi jusqu'ici : on ne garde que la sienne.
+    const onArrived = event => {
+
+        if (event.animationName !== name) {
+
+            return;
+
+        }
+
+        element.classList.remove(name);
+
+        element.removeEventListener("animationend", onArrived);
+
+    };
+
+    element.addEventListener("animationend", onArrived);
+
+}
+
+
 async function initAppPage() {
 
     const betsPage =
@@ -19811,6 +20231,8 @@ async function initAppPage() {
         return;
 
     }
+
+    watchPageLoader();
 
 
     /*
@@ -19835,10 +20257,14 @@ async function initAppPage() {
     currentUser =
         data.session.user;
 
+    setLoadProgress(25);
+
 
     try {
 
         await loadCurrentProfile();
+
+        setLoadProgress(40);
 
 
         // Mot de passe provisoire de l'admin pas encore changé (mot-de-passe-oublie.sql).
@@ -19877,6 +20303,8 @@ async function initAppPage() {
 
         await checkGroupRemovals();
 
+        setLoadProgress(50);
+
 
         // Aucun groupe : page de bienvenue uniquement.
         if (!currentGroup) {
@@ -19896,6 +20324,8 @@ async function initAppPage() {
             loadWeekNews()
         ]);
 
+        setLoadProgress(60);
+
         // Version bêta sans accès : on recharge en version classique.
         if (!checkAppVersion()) {
             return;
@@ -19905,7 +20335,11 @@ async function initAppPage() {
         // la page, pour que les cartes arrivent d'un coup, une seule fois.
         await displayBets();
 
+        setLoadProgress(75);
+
         await displayLeaderboard();
+
+        setLoadProgress(88);
 
         // La barre du haut doit être définitive avant l'affichage : série de connexions,
         // coffre et pastille de l'onglet Missions arrivaient après et faisaient bouger la barre.
@@ -19921,6 +20355,12 @@ async function initAppPage() {
             cascadeIn(document.getElementById("bets-page"));
 
         }
+
+        // Première arrivée seulement (pas au changement d'onglet) : la barre du haut
+        // descend avec les cartes, puis le perroquet monte du bas de l'écran.
+        playFirstArrival(document.querySelector(".navbar"), "navbar-arrive");
+
+        playFirstArrival(document.getElementById("parrot"), "parrot-arrive");
 
         refreshJoinRequests();
 

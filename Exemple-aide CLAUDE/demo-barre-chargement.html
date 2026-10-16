@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BetLab – Barre de chargement (propositions)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e6e8ee; font-family: system-ui, sans-serif; padding: 24px 16px 100px; }
+h1 { font-size: 26px; margin-bottom: 6px; }
+.sub { color: #858a98; margin-bottom: 20px; max-width: 760px; }
+button { font: inherit; }
+
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+.tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; }
+.tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
+.variant-desc { color: #aaaeba; font-size: 14px; margin-bottom: 14px; max-width: 680px; min-height: 40px; }
+
+.replay { background: #1c202c; border: 1px solid #2c3040; color: white; padding: 9px 16px; border-radius: 10px; cursor: pointer; margin-bottom: 16px; }
+
+/* Faux site */
+.screen { position: relative; max-width: 760px; height: 340px; border: 1px solid #2c3040; border-radius: 14px; overflow: hidden; background: #0f1117; }
+.fake { transition: opacity .3s; }
+.screen.loading .fake { opacity: 0; }
+.nav { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background: #14161e; border-bottom: 1px solid #2c3040; }
+.logo { font-weight: 900; font-size: 20px; letter-spacing: 1px; }
+.logo span { color: #6c63ff; }
+.pill { background: #1c202c; border-radius: 999px; padding: 6px 12px; font-size: 13px; color: #f5c451; font-weight: 700; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; padding: 20px; }
+.c { height: 110px; border-radius: 14px; background: linear-gradient(180deg, #1c202c, #14161e); border: 1px solid #2c3040; }
+
+/* ===== Barres ===== */
+.lb { position: absolute; top: 0; left: 0; right: 0; height: 3px; z-index: 5; pointer-events: none; transition: opacity .4s .2s; }
+.lb.done { opacity: 0; }
+.lb .fill { height: 100%; width: 0; }
+
+/* A : fine violette qui avance */
+.lb-A .fill { background: #6c63ff; box-shadow: 0 0 8px rgba(108, 99, 255, .7); transition: width .4s ease; }
+
+/* B : dégradé violet → or qui avance, petite lueur au bout */
+.lb-B { height: 3px; }
+.lb-B .fill { position: relative; background: linear-gradient(90deg, #6c63ff, #d18bff, #f5c451); transition: width .4s ease; }
+.lb-B .fill::after { content: ""; position: absolute; right: -2px; top: 50%; width: 10px; height: 10px; transform: translateY(-50%); border-radius: 50%; background: #f5c451; box-shadow: 0 0 12px 4px rgba(245, 196, 81, .7); }
+
+/* C : bande qui glisse en boucle (sans pourcentage) */
+.lb-C { overflow: hidden; background: rgba(108, 99, 255, .15); }
+.lb-C .fill { width: 35% !important; background: linear-gradient(90deg, transparent, #6c63ff, #d18bff, transparent); animation: slide 1.1s ease-in-out infinite; }
+@keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+
+/* D : A + logo BETLAB qui pulse au centre pendant l'attente */
+.lb-D .fill { background: #6c63ff; box-shadow: 0 0 8px rgba(108, 99, 255, .7); transition: width .4s ease; }
+.center-logo { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; font-weight: 900; font-size: 30px; letter-spacing: 2px; animation: pulse 1.2s ease-in-out infinite; transition: opacity .3s; }
+.center-logo span { color: #6c63ff; }
+.screen.loading.v-D .center-logo { display: flex; }
+@keyframes pulse { 50% { opacity: .35; } }
+
+.bar { position: fixed; left: 0; right: 0; bottom: 0; background: #171a23; border-top: 1px solid #2c3040; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.bar strong { color: #f5c451; }
+.pick { background: #f5c451; color: #111; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 800; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<h1>Barre de chargement : 4 propositions</h1>
+<p class="sub">Une barre fine collée tout en haut de l'écran pendant que l'application se prépare (paris, classement, missions…), puis elle file à 100 % et disparaît quand la page s'affiche.</p>
+
+<div class="tabs">
+    <button class="tab active" data-v="A">A · Fine violette</button>
+    <button class="tab" data-v="B">B · Dégradé + étincelle</button>
+    <button class="tab" data-v="C">C · Bande qui glisse</button>
+    <button class="tab" data-v="D">D · Barre + logo au centre</button>
+</div>
+
+<p class="variant-desc" id="desc"></p>
+
+<button class="replay" id="replay">↻ Recharger la page</button>
+
+<div class="screen loading" id="screen">
+    <div class="lb" id="lb"><div class="fill"></div></div>
+    <div class="center-logo"><span>BET</span>LAB</div>
+    <div class="fake">
+        <div class="nav"><div class="logo"><span>BET</span>LAB</div><div class="pill">💰 1 250 €</div></div>
+        <div class="cards"><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div></div>
+    </div>
+</div>
+
+<div class="bar">
+    <span>Choix actuel : <strong id="current">A · Fine violette</strong></span>
+    <button class="pick" id="pick">Je choisis celle-ci</button>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const descs = {
+    A: "Barre violette de 3 px, comme sur YouTube ou GitHub. Elle avance à chaque étape réelle du chargement (connexion, paris, classement, missions) puis file à 100 %.",
+    B: "Même principe, mais en dégradé violet → rose → or avec une petite étincelle dorée au bout qui avance.",
+    C: "Une bande lumineuse glisse en boucle de gauche à droite, sans montrer d'avancement. Simple, toujours en mouvement.",
+    D: "La barre A, plus le logo BETLAB qui pulse au milieu de l'écran vide pour qu'on comprenne tout de suite que ça charge."
+};
+let v = "A", timers = [];
+
+function run() {
+    timers.forEach(clearTimeout); timers = [];
+    const screen = $("#screen"), lb = $("#lb"), fill = lb.querySelector(".fill");
+    screen.className = "screen loading v-" + v;
+    lb.className = "lb lb-" + v;
+    fill.style.transition = "none"; fill.style.width = "0";
+    fill.offsetWidth; fill.style.transition = "";
+    // Étapes du vrai chargement : connexion, groupe, paris, classement, missions
+    [[100, 20], [600, 45], [1300, 65], [2000, 80], [2600, 90]].forEach(([t, w]) =>
+        timers.push(setTimeout(() => fill.style.width = w + "%", t)));
+    timers.push(setTimeout(() => { fill.style.width = "100%"; }, 3200));
+    timers.push(setTimeout(() => { lb.classList.add("done"); screen.classList.remove("loading"); }, 3500));
+}
+
+document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === t));
+    v = t.dataset.v;
+    $("#desc").textContent = descs[v];
+    $("#current").textContent = t.textContent;
+    run();
+}));
+$("#replay").addEventListener("click", run);
+$("#desc").textContent = descs.A;
+run();
+
+$("#pick").addEventListener("click", () => {
+    const txt = "Je choisis la barre de chargement " + $("#current").textContent;
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).catch(() => {});
+    $("#pick").textContent = "✔ Copié ! Colle-le dans le chat";
+    setTimeout(() => $("#pick").textContent = "Je choisis celle-ci", 2500);
+});
+</script>
+</body>
+</html>
