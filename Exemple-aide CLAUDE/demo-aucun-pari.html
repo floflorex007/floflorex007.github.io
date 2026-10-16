@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Démo aucun pari</title>
+
+    <!-- Démo : les images viennent du dossier du site -->
+    <base href="../">
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #0f1117;
+            color: #f5f5f5;
+            min-height: 100vh;
+        }
+
+        button {
+            font: inherit;
+        }
+
+
+        /* ----- Choix de la version ----- */
+
+        .picker {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 12px 16px;
+            background: #0b0c11;
+            border-bottom: 1px solid #23263a;
+        }
+
+        .picker button {
+            border: 1px solid #343846;
+            background: #181b24;
+            color: #b6bac8;
+            border-radius: 99px;
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .picker button.on {
+            background: #6c63ff;
+            border-color: #6c63ff;
+            color: white;
+        }
+
+
+        /* ----- Décor : la page des paris ----- */
+
+        .navbar {
+            height: 64px;
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            padding: 0 26px;
+            background: #181b24;
+            border-bottom: 1px solid #292d39;
+        }
+
+        .logo {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -1px;
+        }
+
+        .logo span {
+            color: #6c63ff;
+        }
+
+        .navbar nav {
+            display: flex;
+            gap: 6px;
+            color: #858a98;
+            font-size: 14px;
+        }
+
+        .navbar nav b {
+            background: #262938;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-weight: 400;
+        }
+
+        .navbar nav span {
+            padding: 8px 12px;
+        }
+
+        .solde {
+            margin-left: auto;
+            padding: 6px 12px;
+            border: 1px solid #285c46;
+            background: #142019;
+            color: #63d69f;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 22px;
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .side {
+            background: #181b24;
+            border: 1px solid #292d39;
+            border-radius: 14px;
+            padding: 16px;
+            height: 300px;
+            color: #6f7486;
+            font-size: 13px;
+        }
+
+        .side h3 {
+            font-size: 14px;
+            color: white;
+            margin-bottom: 12px;
+        }
+
+        .side p {
+            padding: 7px 0;
+            border-bottom: 1px solid #23263a;
+        }
+
+        .list {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .create-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 16px 18px;
+            border: 2px dashed #3b3f5c;
+            border-radius: 14px;
+            color: #b6bac8;
+            cursor: pointer;
+        }
+
+        .create-card .plus {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: #6c63ff;
+            display: grid;
+            place-items: center;
+            color: white;
+            font-size: 22px;
+        }
+
+        .create-card b {
+            display: block;
+            color: white;
+        }
+
+        .create-card small {
+            font-size: 13px;
+        }
+
+        .empty {
+            position: relative;
+            min-height: calc(100vh - 220px);
+            border-radius: 18px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 30px 20px;
+        }
+
+        .cta {
+            border: 0;
+            background: #6c63ff;
+            color: white;
+            padding: 14px 22px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 15px;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(108, 99, 255, 0.35);
+            transition: transform 0.15s, background 0.15s;
+        }
+
+        .cta:hover {
+            background: #7b73ff;
+            transform: translateY(-2px);
+        }
+
+        .cta:active {
+            transform: scale(0.96);
+        }
+
+        .empty h2 {
+            font-size: 26px;
+            margin-bottom: 8px;
+        }
+
+        .empty .sub {
+            color: #8d92a0;
+            font-size: 15px;
+            line-height: 1.5;
+            max-width: 430px;
+            margin: 0 auto 22px;
+        }
+
+        .version {
+            display: none;
+        }
+
+        .version.on {
+            display: flex;
+        }
+
+        .label {
+            text-align: center;
+            color: #6f7486;
+            font-size: 13px;
+            margin: 14px 0 0;
+        }
+
+        .label b {
+            color: #c9c5ff;
+        }
+
+
+        /* ===== A · Le perroquet s'ennuie ===== */
+
+        .v-a {
+            background: radial-gradient(circle at 50% 35%, #1d1f33, #13151d 70%);
+            border: 1px solid #23263a;
+        }
+
+        .a-parrot {
+            position: relative;
+            width: 170px;
+            height: 170px;
+            margin: 0 auto 10px;
+            animation: a-breathe 3.2s ease-in-out infinite;
+            transform-origin: 50% 100%;
+        }
+
+        .a-parrot img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .a-parrot .head {
+            transform-origin: 62% 40%;
+            animation: a-nod 3.2s ease-in-out infinite;
+        }
+
+        @keyframes a-breathe {
+            50% { transform: scaleY(0.97) scaleX(1.02); }
+        }
+
+        @keyframes a-nod {
+            0%, 100% { transform: rotate(0); }
+            50% { transform: rotate(7deg) translateY(4px); }
+        }
+
+        .zzz {
+            position: absolute;
+            right: -6px;
+            top: 6px;
+            font-weight: 900;
+            color: #a78bff;
+        }
+
+        .zzz i {
+            position: absolute;
+            font-style: normal;
+            opacity: 0;
+            animation: a-z 3s ease-in infinite;
+        }
+
+        .zzz i:nth-child(2) { animation-delay: 1s; font-size: 20px; }
+        .zzz i:nth-child(3) { animation-delay: 2s; font-size: 26px; }
+
+        @keyframes a-z {
+            0% { opacity: 0; transform: translate(0, 0); }
+            20% { opacity: 1; }
+            100% { opacity: 0; transform: translate(26px, -50px); }
+        }
+
+        .ideas {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 22px;
+            max-width: 520px;
+        }
+
+        .ideas p {
+            width: 100%;
+            color: #6f7486;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+        }
+
+        .chip {
+            border: 1px solid #343846;
+            background: #181b24;
+            color: #d6d8e2;
+            border-radius: 99px;
+            padding: 8px 14px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: border-color 0.15s, transform 0.15s;
+        }
+
+        .chip:hover {
+            border-color: #6c63ff;
+            transform: translateY(-2px);
+        }
+
+
+        /* ===== B · Les cartes fantômes ===== */
+
+        .v-b {
+            border: 1px solid #23263a;
+            background: #12141b;
+        }
+
+        .ghosts {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            padding: 20px;
+            filter: blur(1px);
+            opacity: 0.55;
+            mask-image: radial-gradient(circle at 50% 50%, transparent 15%, black 70%);
+            -webkit-mask-image: radial-gradient(circle at 50% 50%, transparent 15%, black 70%);
+        }
+
+        .ghost {
+            border-radius: 14px;
+            background: #1a1d28;
+            border: 1px solid #262a38;
+            padding: 16px;
+            animation: b-float 6s ease-in-out infinite;
+        }
+
+        .ghost:nth-child(2n) { animation-delay: -2s; }
+        .ghost:nth-child(3n) { animation-delay: -4s; }
+
+        .ghost i {
+            display: block;
+            height: 11px;
+            border-radius: 6px;
+            background: linear-gradient(90deg, #262a38, #343a52, #262a38);
+            background-size: 200% 100%;
+            animation: b-shine 2.4s linear infinite;
+            margin-bottom: 10px;
+        }
+
+        .ghost i:nth-child(1) { width: 70%; }
+        .ghost i:nth-child(2) { width: 45%; }
+
+        .ghost .odds {
+            display: flex;
+            gap: 8px;
+            margin-top: 18px;
+        }
+
+        .ghost .odds span {
+            flex: 1;
+            height: 36px;
+            border-radius: 9px;
+            background: #222636;
+        }
+
+        @keyframes b-float {
+            50% { transform: translateY(-8px); }
+        }
+
+        @keyframes b-shine {
+            to { background-position: -200% 0; }
+        }
+
+        .b-center {
+            position: relative;
+            z-index: 1;
+            padding: 30px 34px;
+            border-radius: 20px;
+            background: rgba(18, 20, 27, 0.85);
+            backdrop-filter: blur(6px);
+            border: 1px solid #2c3040;
+        }
+
+        .b-icon {
+            font-size: 52px;
+            display: inline-block;
+            animation: b-wiggle 2.5s ease-in-out infinite;
+        }
+
+        @keyframes b-wiggle {
+            0%, 70%, 100% { transform: rotate(0); }
+            75% { transform: rotate(-12deg); }
+            85% { transform: rotate(10deg); }
+        }
+
+
+        /* ===== C · La machine à idées ===== */
+
+        .v-c {
+            background: linear-gradient(160deg, #1a1530, #12141b 60%);
+            border: 1px solid #2c2650;
+            flex-direction: column;
+        }
+
+        .slot {
+            width: min(460px, 100%);
+            margin: 0 auto 18px;
+            padding: 20px;
+            border-radius: 18px;
+            background: #0f1017;
+            border: 2px solid #3d3470;
+            box-shadow: inset 0 0 30px rgba(108, 99, 255, 0.15), 0 0 40px rgba(108, 99, 255, 0.15);
+        }
+
+        .slot-window {
+            height: 64px;
+            overflow: hidden;
+            border-radius: 12px;
+            background: #171a26;
+            position: relative;
+        }
+
+        .slot-window::before,
+        .slot-window::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 16px;
+            z-index: 1;
+        }
+
+        .slot-window::before {
+            top: 0;
+            background: linear-gradient(#171a26, transparent);
+        }
+
+        .slot-window::after {
+            bottom: 0;
+            background: linear-gradient(transparent, #171a26);
+        }
+
+        .slot-reel div {
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 14px;
+            font-size: 17px;
+            font-weight: 700;
+        }
+
+        .slot-odds {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .slot-odds span {
+            flex: 1;
+            padding: 9px;
+            border-radius: 10px;
+            background: #1c1f2e;
+            color: #c9c5ff;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .c-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .ghost-btn {
+            border: 1px solid #4a4380;
+            background: none;
+            color: #c9c5ff;
+            padding: 14px 18px;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .ghost-btn:hover {
+            border-color: #8179ff;
+            color: white;
+        }
+
+
+        /* ===== D · Le stade vide ===== */
+
+        .v-d {
+            background: radial-gradient(ellipse at 50% 120%, #1b3a2a 0%, #0f1a14 40%, #0b0d12 75%);
+            border: 1px solid #1f3328;
+        }
+
+        .spot-light {
+            position: absolute;
+            top: -40%;
+            width: 260px;
+            height: 160%;
+            background: linear-gradient(rgba(255, 255, 230, 0.16), transparent 70%);
+            clip-path: polygon(45% 0, 55% 0, 100% 100%, 0 100%);
+            transform-origin: 50% 0;
+            animation: d-sweep 7s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        .spot-light.l1 { left: 10%; }
+        .spot-light.l2 { right: 10%; animation-delay: -3.5s; }
+
+        @keyframes d-sweep {
+            0%, 100% { transform: rotate(-18deg); }
+            50% { transform: rotate(18deg); }
+        }
+
+        .pitch {
+            position: absolute;
+            left: 50%;
+            bottom: -60px;
+            width: 520px;
+            height: 160px;
+            transform: translateX(-50%);
+            border: 2px solid rgba(255, 255, 255, 0.08);
+            border-radius: 50% 50% 0 0;
+        }
+
+        .d-center {
+            position: relative;
+            z-index: 1;
+        }
+
+        .d-board {
+            display: inline-flex;
+            gap: 16px;
+            align-items: center;
+            padding: 10px 18px;
+            margin-bottom: 18px;
+            border-radius: 10px;
+            background: #07090c;
+            border: 1px solid #22302a;
+            font-family: "Courier New", monospace;
+            font-weight: 900;
+            font-size: 22px;
+            color: #f5c451;
+            letter-spacing: 2px;
+            box-shadow: 0 0 24px rgba(245, 196, 81, 0.15);
+        }
+
+        .d-board small {
+            color: #6f7486;
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+
+        .d-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #ff6b6b;
+            animation: d-blink 1.2s steps(2) infinite;
+        }
+
+        @keyframes d-blink {
+            50% { opacity: 0.2; }
+        }
+
+        .v-d h2 {
+            font-size: 30px;
+        }
+
+
+        @media (max-width: 800px) {
+
+            .navbar nav,
+            .side {
+                display: none;
+            }
+
+            .layout {
+                grid-template-columns: 1fr;
+                padding: 16px;
+            }
+
+            .ghosts {
+                grid-template-columns: 1fr;
+            }
+
+            .pitch {
+                width: 340px;
+            }
+
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="picker">
+        <button data-v="a" class="on">A · Perroquet qui s'ennuie</button>
+        <button data-v="b">B · Cartes fantômes</button>
+        <button data-v="c">C · Machine à idées</button>
+        <button data-v="d">D · Stade vide</button>
+    </div>
+
+    <div class="navbar">
+        <div class="logo"><span>BET</span>LAB</div>
+        <nav>
+            <b>Paris</b>
+            <span>Historique</span>
+            <span>Missions</span>
+            <span>Boutique</span>
+        </nav>
+        <div class="solde">1 000,00 €</div>
+    </div>
+
+    <div class="layout">
+
+        <aside class="side">
+            <h3>🏆 Top Parieurs</h3>
+            <p>1. Florian</p>
+            <p>2. Lucas</p>
+            <p>3. Inès</p>
+        </aside>
+
+        <div class="list">
+
+            <div class="create-card">
+                <span class="plus">+</span>
+                <div>
+                    <b>Créer un pari</b>
+                    <small>Propose un sujet, choisis les cotes, mise pour le publier.</small>
+                </div>
+            </div>
+
+
+            <!-- A -->
+            <div class="empty version v-a on" data-version="a">
+                <div>
+                    <div class="a-parrot">
+                        <img src="assets/perroquet/wait-body.png" alt="">
+                        <img class="head" src="assets/perroquet/wait-head.png" alt="">
+                        <span class="zzz"><i>z</i><i>z</i><i>Z</i></span>
+                    </div>
+                    <h2>C'est calme ici…</h2>
+                    <p class="sub">Aucun pari en cours dans le groupe. Réveille le perroquet en lançant le premier !</p>
+                    <button class="cta">🎲 Lancer un pari</button>
+
+                    <div class="ideas">
+                        <p>Besoin d'une idée ?</p>
+                        <button class="chip">⏰ Qui arrive en retard demain ?</button>
+                        <button class="chip">⚽ Le score du match ce soir</button>
+                        <button class="chip">🍕 Pizza ou burger vendredi ?</button>
+                        <button class="chip">📱 Qui répond en premier au groupe ?</button>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- B -->
+            <div class="empty version v-b" data-version="b">
+                <div class="ghosts">
+                    <div class="ghost"><i></i><i></i><div class="odds"><span></span><span></span></div></div>
+                    <div class="ghost"><i></i><i></i><div class="odds"><span></span><span></span><span></span></div></div>
+                    <div class="ghost"><i></i><i></i><div class="odds"><span></span><span></span></div></div>
+                    <div class="ghost"><i></i><i></i><div class="odds"><span></span><span></span></div></div>
+                    <div class="ghost"><i></i><i></i><div class="odds"><span></span><span></span><span></span></div></div>
+                    <div class="ghost"><i></i><i></i><div class="odds"><span></span><span></span></div></div>
+                </div>
+                <div class="b-center">
+                    <div class="b-icon">👻</div>
+                    <h2>Personne n'a encore parié</h2>
+                    <p class="sub">Les cartes attendent leur question. Sois le premier : celui qui crée le pari fixe les cotes.</p>
+                    <button class="cta">＋ Créer le premier pari</button>
+                </div>
+            </div>
+
+
+            <!-- C -->
+            <div class="empty version v-c" data-version="c">
+                <h2>Pas de pari ? Tire une idée ! 🎰</h2>
+                <p class="sub">La machine propose un sujet au hasard. Il te plaît ? Crée-le en un clic.</p>
+
+                <div class="slot">
+                    <div class="slot-window">
+                        <div class="slot-reel" id="reel"></div>
+                    </div>
+                    <div class="slot-odds" id="slot-odds"></div>
+                </div>
+
+                <div class="c-actions">
+                    <button class="ghost-btn" id="spin">🎰 Une autre idée</button>
+                    <button class="cta">✅ Créer ce pari</button>
+                </div>
+            </div>
+
+
+            <!-- D -->
+            <div class="empty version v-d" data-version="d">
+                <div class="spot-light l1"></div>
+                <div class="spot-light l2"></div>
+                <div class="pitch"></div>
+                <div class="d-center">
+                    <div class="d-board">
+                        <span class="d-dot"></span>
+                        0 PARI
+                        <small>EN DIRECT</small>
+                    </div>
+                    <h2>Le terrain est vide 🏟️</h2>
+                    <p class="sub">Les projecteurs sont allumés, le public attend. Qui donne le coup d'envoi ?</p>
+                    <button class="cta">⚡ Donner le coup d'envoi</button>
+                </div>
+            </div>
+
+            <p class="label" id="label"></p>
+
+        </div>
+
+    </div>
+
+
+    <script>
+        const labels = {
+            a: "<b>A</b> · Le perroquet dort (respire, hoche la tête, des « z » s'envolent) + idées de paris à cliquer.",
+            b: "<b>B</b> · De fausses cartes de paris flottent en fond, floutées, avec le message au centre.",
+            c: "<b>C</b> · Une machine à sous qui tire une idée de pari au hasard, prête à être créée.",
+            d: "<b>D</b> · Ambiance stade : projecteurs qui balaient, tableau d'affichage « 0 PARI »."
+        };
+
+        function pick(v) {
+            document.querySelectorAll(".picker button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+            document.querySelectorAll(".version").forEach(el => el.classList.toggle("on", el.dataset.version === v));
+            document.getElementById("label").innerHTML = labels[v];
+            if (v === "c") spin();
+        }
+
+        document.querySelectorAll(".picker button").forEach(b => b.onclick = () => pick(b.dataset.v));
+
+
+        /* Machine à idées */
+        const IDEAS = [
+            ["⏰ Qui arrive en retard demain ?", ["Lucas · 1.8", "Inès · 2.5", "Personne · 4.0"]],
+            ["⚽ Le PSG gagne ce soir ?", ["Oui · 1.5", "Non · 2.6"]],
+            ["🍕 Pizza ou burger vendredi ?", ["Pizza · 1.7", "Burger · 2.1"]],
+            ["📱 Qui répond en premier au groupe ?", ["Florian · 2.0", "Inès · 2.2", "Lucas · 3.0"]],
+            ["🌧️ Il pleut ce week-end ?", ["Oui · 1.9", "Non · 1.9"]],
+            ["🎮 Qui gagne la prochaine partie ?", ["Toi · 2.4", "Les autres · 1.6"]]
+        ];
+
+        let ideaIndex = 0;
+
+        function spin() {
+            const reel = document.getElementById("reel");
+            const target = (ideaIndex + 3 + Math.floor(Math.random() * (IDEAS.length - 1))) % IDEAS.length;
+            const items = [];
+            for (let i = 0; i < 12; i++) items.push(IDEAS[(ideaIndex + i) % IDEAS.length][0]);
+            items.push(IDEAS[target][0]);
+            reel.innerHTML = items.map(t => `<div>${t}</div>`).join("");
+            reel.animate(
+                [{ transform: "translateY(0)" }, { transform: `translateY(-${(items.length - 1) * 64}px)` }],
+                { duration: 1100, easing: "cubic-bezier(.15,.7,.2,1)", fill: "forwards" }
+            );
+            ideaIndex = target;
+            const odds = document.getElementById("slot-odds");
+            odds.style.opacity = 0;
+            setTimeout(() => {
+                odds.innerHTML = IDEAS[target][1].map(o => `<span>${o}</span>`).join("");
+                odds.animate([{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }], { duration: 300, fill: "forwards" });
+                odds.style.opacity = "";
+            }, 1050);
+        }
+
+        document.getElementById("spin").onclick = spin;
+
+        pick(location.hash.slice(1)||"a");
+    </script>
+
+</body>
+</html>

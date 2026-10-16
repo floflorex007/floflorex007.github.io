@@ -563,7 +563,7 @@
                 ></span>
 
 
-                <!-- Téléphone seulement : jauge d'XP et flamme de série, déplacées ici
+                <!-- Téléphone seulement : flamme de série, déplacée ici
                      depuis la barre du haut par placePhoneHeaderWidgets (app.js) -->
                 <div
                     id="phone-header-widgets"
@@ -1138,100 +1138,83 @@
                         <div class="create-section-body">
 
                             <label for="choice-one">
-                                Choix et cotes
+                                Choix et chances
+                                <small class="share-tip">(glisse les séparateurs)</small>
                             </label>
 
-                            <div class="duel">
+                            <!-- Répartition des chances (version D de demo-choix-cotes.html) :
+                                 chaque choix a ses chances en % et sa cote, calculée par setupShareBar.
+                                 Les cotes partent dans les champs cachés odds-one / two / three. -->
+                            <div class="share-rows">
 
-                                <div class="duel-side">
+                                <div class="share-row">
+
+                                    <span class="share-dot"></span>
 
                                     <input
                                         type="text"
                                         id="choice-one"
-                                        class="duel-name"
+                                        class="share-name"
                                         placeholder="Choix 1 : Oui"
                                         required
                                     >
 
-                                    <input
-                                        type="number"
-                                        id="odds-one"
-                                        class="duel-value"
-                                        min="1.01"
-                                        max="10"
-                                        step="any"
-                                        placeholder="1.80"
-                                        required
-                                    >
+                                    <span class="share-odds" data-share-odds="0"></span>
 
                                 </div>
 
 
-                                <div class="duel-vs">VS</div>
+                                <div class="share-row">
 
-
-                                <div class="duel-side">
+                                    <span class="share-dot"></span>
 
                                     <input
                                         type="text"
                                         id="choice-two"
-                                        class="duel-name"
+                                        class="share-name"
                                         placeholder="Choix 2 : Non"
                                         required
                                     >
 
-                                    <div class="duel-value-row">
-
-                                        <input
-                                            type="number"
-                                            id="odds-two"
-                                            class="duel-value"
-                                            min="1.01"
-                                            max="10"
-                                            step="any"
-                                            placeholder="auto"
-                                            readonly
-                                            required
-                                        >
-
-                                        <em class="duel-auto">auto</em>
-
-                                    </div>
+                                    <span class="share-odds" data-share-odds="1"></span>
 
                                 </div>
 
 
-                                <!-- 3e choix (bouton « Ajouter un 3e choix ») : sa cote se calcule toute seule -->
+                                <!-- 3e choix (bouton « Ajouter un 3e choix ») -->
                                 <div
                                     id="duel-third"
-                                    class="duel-side duel-third hidden"
+                                    class="share-row hidden"
                                 >
+
+                                    <span class="share-dot"></span>
 
                                     <input
                                         type="text"
                                         id="choice-three"
-                                        class="duel-name"
+                                        class="share-name"
                                         placeholder="Choix 3 : Peut-être"
                                     >
 
-                                    <div class="duel-value-row">
-
-                                        <input
-                                            type="number"
-                                            id="odds-three"
-                                            class="duel-value"
-                                            step="0.01"
-                                            placeholder="auto"
-                                            readonly
-                                        >
-
-                                        <em class="duel-auto">auto</em>
-
-                                    </div>
+                                    <span class="share-odds" data-share-odds="2"></span>
 
                                 </div>
 
                             </div>
+
+
+                            <div
+                                id="share-bar"
+                                class="share-bar"
+                            ></div>
+
+
+                            <input type="hidden" id="odds-one">
+
+                            <input type="hidden" id="odds-two">
+
+                            <input type="hidden" id="odds-three">
+
 
                             <button
                                 type="button"
@@ -1240,14 +1223,6 @@
                             >
                                 + Ajouter un 3e choix
                             </button>
-
-                            <p
-                                id="odds-hint"
-                                class="create-hint"
-                            >
-                                La cote du choix 2 se calcule toute seule.
-                                Cote maximum : 20.
-                            </p>
 
                             <p
                                 id="odds-error"
@@ -1313,9 +1288,12 @@
                     </div>
 
 
-                    <!-- Parieur concerné -->
+                    <!-- Parieur concerné (caché quand on est seul dans le groupe, voir loadTargetUsers) -->
 
-                    <div class="create-section">
+                    <div
+                        id="bet-target-section"
+                        class="create-section"
+                    >
 
                         <div class="create-section-icon">🎯</div>
 

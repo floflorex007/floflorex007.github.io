@@ -1705,6 +1705,8 @@ function applyProgression(info) {
 
         playerLevel = Infinity;
 
+        applyLevelLocks(playerLevel);
+
         applyParrotSkin();
 
         renderParrotSkins();
@@ -1759,6 +1761,9 @@ function applyProgression(info) {
 
 
     playerLevel = shown.level;
+
+    // Version simplifiée : pièces, missions, boutique, série et chat arrivent avec les niveaux.
+    applyLevelLocks(playerLevel);
 
     applyParrotSkin();
 
@@ -1832,6 +1837,9 @@ function claimNextLevel() {
 
     // L'animation du niveau se joue maintenant, puis la barre repart du début.
     showLevelUp(claimed + 1);
+
+    // Puis les nouveautés de ce niveau (pièces, série, chat…).
+    showLevelUnlocks(claimed + 1);
 
     const fill = document.getElementById("level-sidebar-fill");
 

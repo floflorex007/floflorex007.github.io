@@ -2336,8 +2336,8 @@ function checkHorizontalOverflow() {
 }
 
 /*
-    Téléphone : la jauge d'XP et la flamme de série quittent la barre du haut
-    pour l'en-tête de la page des paris (à gauche de « 🏆 Classement »), et
+    Téléphone : la flamme de série quitte la barre du haut pour l'en-tête
+    de la page des paris (à gauche de « 🏆 Classement »), et
     l'onglet « Aide app » quitte le menu du bas pour la barre du haut.
     Ordinateur : chacun reprend sa place d'origine (repérée par un commentaire).
 */
@@ -2356,8 +2356,8 @@ function placePhoneHeaderWidgets() {
 
     if (phoneMoves.length === 0) {
 
+        // La jauge d'XP reste dans la barre du haut (2026-10-16).
         [
-            [document.getElementById("xp-mini"), widgets],
             [document.getElementById("streak-widget"), widgets],
             [document.getElementById("beta-nav-button"), userArea, true]
         ].forEach(([element, target, first]) => {
@@ -6637,11 +6637,35 @@ async function displayBets({ quiet = false, force = false } = {}) {
 
         if (openBets.length === 0 && draftBets.length === 0 && claimableBets.length === 0 && commissionBets.length === 0 && comboClaims.length === 0) {
 
+            // Aucun pari : fausses cartes floutées en fond, message au centre
+            // (version B de demo-aucun-pari.html).
+            const ghostCard = choices => `
+                <div class="bets-empty-ghost">
+                    <i></i>
+                    <i></i>
+                    <div class="bets-empty-odds">${"<span></span>".repeat(choices)}</div>
+                </div>
+            `;
+
             container.insertAdjacentHTML("beforeend", `
-                <div class="empty-state">
-                    Aucun pari disponible pour le moment.
+                <div class="bets-empty">
+                    <div class="bets-empty-ghosts" aria-hidden="true">
+                        ${[2, 3, 2, 2, 3, 2].map(ghostCard).join("")}
+                    </div>
+                    <div class="bets-empty-center">
+                        <div class="bets-empty-icon">👻</div>
+                        <h2>Personne n'a encore parié</h2>
+                        <p>Les cartes attendent leur question. Sois le premier : celui qui crée le pari fixe les cotes.</p>
+                        <button type="button" class="primary-button bets-empty-button">
+                            ＋ Créer le premier pari
+                        </button>
+                    </div>
                 </div>
             `);
+
+            container
+                .querySelector(".bets-empty-button")
+                .addEventListener("click", openCreateModal);
 
             return;
 
@@ -11241,7 +11265,7 @@ async function resolveBet(
 
 /*
     Le formulaire de création est une fenêtre (bouton « + Créer un pari »
-    de la page des paris). Ce que tu as tapé est gardé si tu la fermes.
+    de la page des paris). Elle se vide quand on la ferme (closeCreateModal).
 */
 
 function openCreateModal() {
@@ -11250,6 +11274,8 @@ function openCreateModal() {
     resetDeadlinePicker();
 
     document.getElementById("create-modal").classList.remove("hidden");
+
+    updateCreateGuide();
 
     // Sur téléphone, pas de curseur automatique : le clavier cacherait la fenêtre.
     if (!PHONE_LAYOUT.matches) {
@@ -11263,6 +11289,19 @@ function openCreateModal() {
 function closeCreateModal() {
 
     document.getElementById("create-modal").classList.add("hidden");
+
+    // Fenêtre quittée : tout repart de zéro la prochaine fois.
+    document.getElementById("create-bet-form").reset();
+
+    document.getElementById("bet-target-options")?.classList.add("hidden");
+
+    document.getElementById("odds-error")?.classList.add("hidden");
+
+    document.getElementById("deadline-error")?.classList.add("hidden");
+
+    resetDeadlinePicker();
+
+    setThreeChoices(false);
 
 }
 
@@ -11379,6 +11418,150 @@ function updateCreateOdds() {
 
 }
 
+/*
+    Répartition des chances (version D de demo-choix-cotes.html) :
+    une barre partagée entre les choix, à glisser. Les chances font 100 %,
+    la cote d'un choix vaut 100 / chances (11 % minimum, soit une cote de 9,09 au plus).
+    Les cotes 1 (et 2 à trois choix) vont dans les champs cachés ; updateCreateOdds
+    calcule la dernière comme avant, et c'est elle qui est affichée.
+*/
+
+const SHARE_MIN = 11;
+
+const SHARE_COLORS = ["#6c63ff", "#ff7aa8", "#f5c451"];
+
+let createShares = [55, 45];
+
+// Curseur glissé au moins une fois : le halo passe à la date (updateCreateGuide).
+let createSharesTouched = false;
+
+
+function renderShareBar() {
+
+    const bar = document.getElementById("share-bar");
+
+    if (!bar) {
+        return;
+    }
+
+    const three = createShares.length === 3;
+
+    document.getElementById("odds-one").value = (Math.round(100 / createShares[0] * 100) / 100).toFixed(2);
+
+    if (three) {
+        document.getElementById("odds-two").value = (Math.round(100 / createShares[1] * 100) / 100).toFixed(2);
+    }
+
+    // Cote du dernier choix (et message d'erreur éventuel), comme avant.
+    updateCreateOdds();
+
+    const odds = ["odds-one", "odds-two", "odds-three"]
+        .slice(0, createShares.length)
+        .map(id => Number(document.getElementById(id).value));
+
+    const names = ["choice-one", "choice-two", "choice-three"]
+        .map((id, index) => document.getElementById(id).value.trim() || `Choix ${index + 1}`);
+
+    createShares.forEach((share, index) => {
+
+        document.querySelector(`[data-share-odds="${index}"]`).textContent =
+            odds[index] ? formatOdds(odds[index]) : "–";
+
+    });
+
+    bar.innerHTML = createShares
+        .map((share, index) => `
+            <div style="width: ${share}%; background: ${SHARE_COLORS[index]}">
+                ${share >= 16 ? escapeHtml(names[index]) : ""}
+            </div>
+        `)
+        .join("");
+
+    // Une poignée entre chaque paire de choix.
+    let left = 0;
+
+    createShares.slice(0, -1).forEach((share, index) => {
+
+        left += share;
+
+        const handle = document.createElement("span");
+
+        handle.className = "share-handle";
+
+        handle.style.left = left + "%";
+
+        handle.setAttribute("aria-hidden", "true");
+
+        handle.addEventListener("pointerdown", event => dragShare(event, index));
+
+        bar.appendChild(handle);
+
+    });
+
+}
+
+
+function dragShare(event, index) {
+
+    event.preventDefault();
+
+    const bar = document.getElementById("share-bar");
+
+    const rect = bar.getBoundingClientRect();
+
+    const before = createShares.slice(0, index).reduce((sum, share) => sum + share, 0);
+
+    const pair = createShares[index] + createShares[index + 1];
+
+    bar.classList.add("dragging");
+
+    const move = moveEvent => {
+
+        const x = Math.round((moveEvent.clientX - rect.left) / rect.width * 100) - before;
+
+        const share = Math.max(SHARE_MIN, Math.min(pair - SHARE_MIN, x));
+
+        if (share === createShares[index]) {
+            return;
+        }
+
+        createShares[index] = share;
+
+        createShares[index + 1] = pair - share;
+
+        renderShareBar();
+
+    };
+
+    const up = () => {
+
+        bar.classList.remove("dragging");
+
+        if (!createSharesTouched) {
+
+            createSharesTouched = true;
+
+            updateCreateGuide();
+
+        }
+
+        window.removeEventListener("pointermove", move);
+
+        window.removeEventListener("pointerup", up);
+
+        window.removeEventListener("pointercancel", up);
+
+    };
+
+    window.addEventListener("pointermove", move);
+
+    window.addEventListener("pointerup", up);
+
+    window.addEventListener("pointercancel", up);
+
+}
+
+
 // Bouton « Ajouter / Retirer le 3e choix ».
 function setThreeChoices(on) {
 
@@ -11390,33 +11573,23 @@ function setThreeChoices(on) {
 
     third.classList.toggle("hidden", !on);
 
-    document.querySelector(".duel")?.classList.toggle("duel--three", on);
+    createShares = on ? [45, 35, 20] : [55, 45];
 
-    const oddsTwoInput = document.getElementById("odds-two");
-
-    // À 3 choix, la cote 2 se saisit ; la 3e est automatique.
-    oddsTwoInput.readOnly = !on;
-
-    oddsTwoInput.placeholder = on ? "2.50" : "auto";
-
-    oddsTwoInput.closest(".duel-side").classList.toggle("duel-side--manual", on);
-
-    if (on) {
-        oddsTwoInput.value = "";
-    }
+    // Nouvelle répartition : le curseur est à régler de nouveau.
+    createSharesTouched = false;
 
     document.getElementById("choice-three").required = on;
+
+    document.getElementById("odds-two").value = "";
 
     document.getElementById("odds-three").value = "";
 
     document.getElementById("toggle-third-choice").textContent =
         on ? "✕ Retirer le 3e choix" : "+ Ajouter un 3e choix";
 
-    document.getElementById("odds-hint").textContent = on
-        ? "Tu fixes les cotes 1 et 2, celle du choix 3 se calcule toute seule. Cote maximum : 20."
-        : "La cote du choix 2 se calcule toute seule. Cote maximum : 20.";
+    renderShareBar();
 
-    updateCreateOdds();
+    updateCreateGuide();
 
 }
 
@@ -11789,7 +11962,75 @@ function getSelectedDeadline() {
 }
 
 
+/*
+    Fenêtre de création : halo sur la prochaine étape
+    (question → curseur des chances → jour de fin), qui passe à la suivante une fois faite.
+    Un nom de choix vidé reprend le halo avant le curseur.
+*/
+function updateCreateGuide() {
+
+    const question = document.getElementById("bet-question");
+
+    if (!question) {
+        return;
+    }
+
+    const steps = [
+        [question, question.value.trim()],
+        [document.getElementById("choice-one").closest(".share-row"), document.getElementById("choice-one").value.trim()],
+        [document.getElementById("choice-two").closest(".share-row"), document.getElementById("choice-two").value.trim()]
+    ];
+
+    if (threeChoicesOn()) {
+
+        steps.push([document.getElementById("duel-third"), document.getElementById("choice-three").value.trim()]);
+
+    }
+
+    steps.push([document.getElementById("share-bar"), createSharesTouched]);
+
+    steps.push([document.getElementById("deadline-days"), deadlineDayOffset !== null]);
+
+    const next = steps.find(([, filled]) => !filled)?.[0];
+
+    steps.forEach(([element]) => {
+        element?.classList.toggle("fill-here", element === next);
+    });
+
+    // Les sections suivantes (et le bouton) restent grisées tant que l'étape en cours n'est pas faite.
+    const form = document.getElementById("create-bet-form");
+
+    const sections = [...form.querySelectorAll(".create-section")];
+
+    const current = next ? sections.indexOf(next.closest(".create-section")) : -1;
+
+    // inert : ni clic ni clavier (Tab) dans une section grisée.
+    sections.forEach((section, index) => {
+
+        const later = current !== -1 && index > current;
+
+        section.classList.toggle("create-later", later);
+
+        section.inert = later;
+
+    });
+
+    const footer = form.querySelector(".create-footer");
+
+    if (footer) {
+
+        footer.classList.toggle("create-later", Boolean(next));
+
+        footer.inert = Boolean(next);
+
+    }
+
+}
+
+
 function updateDeadlinePreview() {
+
+    updateCreateGuide();
 
     const range =
         document.getElementById("deadline-range");
@@ -12128,6 +12369,23 @@ async function loadTargetUsers() {
         console.error("Erreur loadTargetUsers :", error);
 
         return;
+
+    }
+
+
+    // Seul dans le groupe : personne d'autre à viser, la section disparaît.
+    const alone =
+        !(data || []).some(member => member.profiles.id !== currentUser?.id);
+
+    document
+        .getElementById("bet-target-section")
+        ?.classList.toggle("hidden", alone);
+
+    if (alone) {
+
+        document.getElementById("bet-has-target").checked = false;
+
+        document.getElementById("bet-target-options")?.classList.add("hidden");
 
     }
 
@@ -19635,17 +19893,643 @@ function startAuthLoading(form, label) {
 }
 
 
+/* ----- Inscription en questions (Index.html) -----
+   Pseudo → mot de passe (le compte est créé ici) → rejoindre ou créer un groupe.
+   Le navigateur retient qu'on est déjà venu : la fois suivante,
+   on arrive directement sur la connexion. */
+
+const KNOWN_VISITOR_KEY = "betlab-deja-venu";
+
+// Réponse « Oui » à la question du tuto : lu (puis effacé) par startGuidedTour dans app.html.
+const GUIDED_TOUR_KEY = "betlab-tuto";
+
+function isKnownVisitor() {
+
+    try {
+
+        return localStorage.getItem(KNOWN_VISITOR_KEY) === "1";
+
+    } catch (error) {
+
+        return false;
+
+    }
+
+}
+
+
+function rememberKnownVisitor() {
+
+    try {
+
+        localStorage.setItem(KNOWN_VISITOR_KEY, "1");
+
+    } catch (error) {
+
+        // Stockage indisponible (navigation privée) : le questionnaire reviendra.
+
+    }
+
+}
+
+
+const ONBOARDING_STEPS = ["pseudo", "password", "group", "tuto", "done"];
+
+function showOnboardingStep(step, back = false) {
+
+    const index = ONBOARDING_STEPS.indexOf(step);
+
+    document
+        .querySelectorAll("#onboarding-section [data-onb-step]")
+        .forEach(element => {
+
+            const active = element.dataset.onbStep === step;
+
+            element.classList.toggle("hidden", !active);
+
+            element.classList.toggle("back", active && back);
+
+            const error = element.querySelector(".onb-error");
+
+            if (error) {
+                error.textContent = "";
+            }
+
+        });
+
+    document.getElementById("onb-gauge-fill").style.width =
+        [8, 32, 56, 80, 100][index] + "%";
+
+    document.getElementById("onb-gauge-label").textContent =
+        step === "done" ? "Terminé !" : `Question ${index + 1} sur 4`;
+
+    // Une fois le compte créé, plus de lien vers la connexion.
+    document.getElementById("onb-login-link").classList.toggle("hidden", index > 0);
+
+}
+
+
+function onboardingError(step, message, field) {
+
+    document
+        .querySelector(`#onboarding-section [data-onb-step="${step}"] .onb-error`)
+        .textContent = message;
+
+    if (field) {
+
+        field.classList.remove("bad");
+
+        void field.offsetWidth;
+
+        field.classList.add("bad");
+
+    }
+
+}
+
+
+// Bouton en attente pendant une étape ; renvoie de quoi le remettre.
+function onboardingLoading(button, label) {
+
+    const originalLabel = button.textContent;
+
+    button.disabled = true;
+
+    button.classList.add("is-loading");
+
+    button.textContent = label;
+
+    return () => {
+
+        button.disabled = false;
+
+        button.classList.remove("is-loading");
+
+        button.textContent = originalLabel;
+
+    };
+
+}
+
+
+function onboardingConfetti() {
+
+    const colors = ["#6c63ff", "#a78bff", "#63d69f", "#f5c451", "#ff6b6b"];
+
+    for (let i = 0; i < 70; i++) {
+
+        const piece = document.createElement("div");
+
+        piece.className = "onb-confetti";
+
+        piece.style.left = Math.random() * 100 + "vw";
+
+        piece.style.background = colors[i % colors.length];
+
+        piece.style.animationDuration = 1.6 + Math.random() * 1.6 + "s";
+
+        piece.style.animationDelay = Math.random() * 0.4 + "s";
+
+        document.body.appendChild(piece);
+
+        setTimeout(() => piece.remove(), 3800);
+
+    }
+
+}
+
+
+function setupOnboarding(showAuthSection) {
+
+    let pseudo = "";
+
+    let mode = "join";
+
+    let joining = false;
+
+    // Fin du questionnaire, préparée à la question 3 et affichée après la question 4.
+    let doneIcon = "🎉";
+
+    let doneText = "";
+
+
+    document.getElementById("onb-show-login").addEventListener("click", () => {
+
+        showAuthSection("login-section");
+
+        document.getElementById("login-username").focus();
+
+    });
+
+
+    /* Question 1 : pseudo */
+
+    const pseudoForm = document.getElementById("onb-pseudo-form");
+
+    pseudoForm.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const input = document.getElementById("onb-pseudo");
+
+        const field = input.closest(".onb-field");
+
+        const value = input.value.trim();
+
+        field.classList.remove("bad");
+
+        if (value.length < 3) {
+
+            onboardingError("pseudo", "Au moins 3 caractères.", field);
+
+            return;
+
+        }
+
+        const stopLoading = onboardingLoading(
+            pseudoForm.querySelector("button[type=submit]"),
+            "Vérification…"
+        );
+
+        // Même pseudo à la casse près = même compte (voir usernameToEmail).
+        const { data, error } = await supabaseClient
+            .from("profiles")
+            .select("id")
+            .ilike("username", value.replace(/[\\%_]/g, char => "\\" + char))
+            .limit(1);
+
+        stopLoading();
+
+        if (error) {
+
+            console.error(error);
+
+            onboardingError("pseudo", "Vérification impossible, réessaie.");
+
+            return;
+
+        }
+
+        if (data.length > 0) {
+
+            onboardingError("pseudo", "Ce pseudo est déjà pris, essaie autre chose.", field);
+
+            return;
+
+        }
+
+        pseudo = value;
+
+        document.getElementById("onb-password-hint").textContent =
+            `Pour retrouver ton compte, ${pseudo}.`;
+
+        showOnboardingStep("password");
+
+        document.getElementById("onb-password").focus();
+
+    });
+
+
+    /* Question 2 : mot de passe, et création du compte */
+
+    const passwordForm = document.getElementById("onb-password-form");
+
+    document.getElementById("onb-password-back").addEventListener("click", () => {
+
+        showOnboardingStep("pseudo", true);
+
+        document.getElementById("onb-pseudo").focus();
+
+    });
+
+    passwordForm.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const input = document.getElementById("onb-password");
+
+        const field = input.closest(".onb-field");
+
+        field.classList.remove("bad");
+
+        if (input.value.length < 4) {
+
+            onboardingError("password", "Au moins 4 caractères.", field);
+
+            return;
+
+        }
+
+        const stopLoading = onboardingLoading(
+            passwordForm.querySelector("button[type=submit]"),
+            "Création du compte…"
+        );
+
+        setLoadProgress(30);
+
+        try {
+
+            await registerUser(pseudo, input.value);
+
+        } catch (error) {
+
+            console.error(error);
+
+            stopLoading();
+
+            setLoadProgress(0);
+
+            // Pris entre-temps (ou même pseudo avec d'autres majuscules).
+            if (/already|registered|déjà utilisé/i.test(error.message || "")) {
+
+                showOnboardingStep("pseudo", true);
+
+                onboardingError(
+                    "pseudo",
+                    "Ce pseudo est déjà pris, essaie autre chose.",
+                    document.getElementById("onb-pseudo").closest(".onb-field")
+                );
+
+                return;
+
+            }
+
+            onboardingError("password", error.message || "Impossible de créer le compte.");
+
+            return;
+
+        }
+
+        setLoadProgress(0);
+
+        rememberKnownVisitor();
+
+        showOnboardingStep("group");
+
+        setTimeout(() => document.querySelector("#onb-code input")?.focus(), 50);
+
+    });
+
+
+    /* Question 3 : rejoindre (code du groupe) ou créer */
+
+    const groupStep = document.querySelector('#onboarding-section [data-onb-step="group"]');
+
+    const groupButton = document.getElementById("onb-group-button");
+
+    const codeBox = document.getElementById("onb-code");
+
+    const found = document.getElementById("onb-found");
+
+    const readCode = () =>
+        [...codeBox.querySelectorAll("input")].map(input => input.value).join("");
+
+
+    groupStep.querySelectorAll(".onb-choice").forEach(choice => {
+
+        choice.addEventListener("click", () => {
+
+            if (choice.classList.contains("active")) {
+                return;
+            }
+
+            groupStep.querySelectorAll(".onb-choice").forEach(other => {
+                other.classList.toggle("active", other === choice);
+            });
+
+            mode = choice.dataset.onbMode;
+
+            onboardingError("group", "");
+
+            groupButton.textContent = mode === "join" ? "Rejoindre →" : "Créer mon groupe →";
+
+            setTimeout(() => {
+
+                (mode === "join"
+                    ? codeBox.querySelector("input")
+                    : document.getElementById("onb-group-name")
+                ).focus();
+
+            }, 200);
+
+        });
+
+    });
+
+
+    async function previewCode() {
+
+        const code = readCode();
+
+        codeBox.classList.remove("ok", "bad");
+
+        found.innerHTML = "";
+
+        onboardingError("group", "");
+
+        if (code.length < 6) {
+            return;
+        }
+
+        const { data, error } =
+            await supabaseClient.rpc("preview_group", { p_code: code });
+
+        // Le code a changé pendant la recherche : on ignore ce résultat.
+        if (readCode() !== code) {
+            return;
+        }
+
+        if (error || !data || data.length === 0) {
+
+            onboardingError("group", "Code inconnu : vérifie-le auprès de tes amis.", codeBox);
+
+            return;
+
+        }
+
+        const group = data[0];
+
+        codeBox.classList.add("ok");
+
+        found.innerHTML = `
+            <div class="onb-found">
+                <span>✅</span>
+                <span>
+                    <b>${escapeHtml(group.name)}</b>
+                    <small>${group.members} membre${group.members > 1 ? "s" : ""}</small>
+                </span>
+            </div>
+        `;
+
+    }
+
+
+    for (let i = 0; i < 6; i++) {
+
+        const input = document.createElement("input");
+
+        input.maxLength = 1;
+
+        input.autocomplete = "off";
+
+        input.setAttribute("aria-label", `Caractère ${i + 1} du code`);
+
+        input.addEventListener("input", () => {
+
+            input.value = input.value.replace(/[^a-z0-9]/gi, "").toUpperCase().slice(0, 1);
+
+            if (input.value && input.nextElementSibling) {
+                input.nextElementSibling.focus();
+            }
+
+            previewCode();
+
+        });
+
+        input.addEventListener("keydown", event => {
+
+            if (event.key === "Backspace" && !input.value && input.previousElementSibling) {
+                input.previousElementSibling.focus();
+            }
+
+            if (event.key === "Enter") {
+                submitGroup();
+            }
+
+        });
+
+        input.addEventListener("paste", event => {
+
+            event.preventDefault();
+
+            const text = (event.clipboardData.getData("text") || "")
+                .replace(/[^a-z0-9]/gi, "")
+                .toUpperCase()
+                .slice(0, 6);
+
+            [...codeBox.children].forEach((element, index) => {
+                element.value = text[index] || "";
+            });
+
+            previewCode();
+
+        });
+
+        codeBox.appendChild(input);
+
+    }
+
+
+    async function submitGroup() {
+
+        if (joining) {
+            return;
+        }
+
+        if (mode === "join") {
+
+            const code = readCode();
+
+            if (code.length < 6) {
+
+                onboardingError("group", "Le code fait 6 caractères.", codeBox);
+
+                return;
+
+            }
+
+            joining = true;
+
+            const stopLoading = onboardingLoading(groupButton, "Envoi de la demande…");
+
+            const { error } =
+                await supabaseClient.rpc("join_group", { p_code: code });
+
+            joining = false;
+
+            if (error) {
+
+                stopLoading();
+
+                onboardingError("group", error.message || "Impossible de rejoindre ce groupe.", codeBox);
+
+                return;
+
+            }
+
+            const name = found.querySelector("b")?.textContent || "ce groupe";
+
+            stopLoading();
+
+            doneIcon = "📨";
+
+            doneText = `Ta demande pour rejoindre ${name} est envoyée. Tu entres dès qu'un gérant du groupe l'accepte.`;
+
+            showOnboardingStep("tuto");
+
+            return;
+
+        }
+
+        const nameInput = document.getElementById("onb-group-name");
+
+        const name = nameInput.value.trim();
+
+        if (name.length < 3) {
+
+            onboardingError("group", "Donne un nom d'au moins 3 caractères.", nameInput.closest(".onb-field"));
+
+            return;
+
+        }
+
+        joining = true;
+
+        const stopLoading = onboardingLoading(groupButton, "Création du groupe…");
+
+        const { data, error } =
+            await supabaseClient.rpc("create_group", { p_name: name });
+
+        joining = false;
+
+        stopLoading();
+
+        if (error) {
+
+            onboardingError("group", error.message || "Impossible de créer le groupe.");
+
+            return;
+
+        }
+
+        saveGroupId(data.id);
+
+        doneIcon = "🎉";
+
+        doneText = "";
+
+        showOnboardingStep("tuto");
+
+    }
+
+
+    groupButton.addEventListener("click", submitGroup);
+
+    document.getElementById("onb-group-name").addEventListener("keydown", event => {
+
+        if (event.key === "Enter") {
+            submitGroup();
+        }
+
+    });
+
+
+    /* Question 4 : tuto guidé ou non (lancé à l'arrivée dans app.html, voir startGuidedTour) */
+
+    document.querySelectorAll("[data-onb-tuto]").forEach(button => {
+
+        button.addEventListener("click", () => {
+
+            try {
+
+                if (button.dataset.onbTuto === "oui") {
+                    localStorage.setItem(GUIDED_TOUR_KEY, "1");
+                } else {
+                    localStorage.removeItem(GUIDED_TOUR_KEY);
+                }
+
+            } catch (error) {
+
+                // Stockage indisponible : pas de tuto.
+
+            }
+
+            finishOnboarding(doneIcon, doneText);
+
+        });
+
+    });
+
+
+    /* C'est tout bon ! */
+
+    function finishOnboarding(icon, text) {
+
+        document.getElementById("onb-done-icon").textContent = icon;
+
+        document.getElementById("onb-done-title").textContent = `C'est tout bon, ${pseudo} !`;
+
+        const textElement = document.getElementById("onb-done-text");
+
+        textElement.textContent = text;
+
+        textElement.classList.toggle("hidden", !text);
+
+        // Perroquet en pose « gagné ».
+        document.getElementById("onb-parrot").innerHTML =
+            '<img src="assets/perroquet/win-main.png" alt="">';
+
+        showOnboardingStep("done");
+
+        onboardingConfetti();
+
+    }
+
+
+    document.getElementById("onb-enter").addEventListener("click", () => {
+
+        window.location.href = "app.html";
+
+    });
+
+}
+
+
 async function initAuthPage() {
 
     const loginForm =
         document.getElementById(
             "login-form"
-        );
-
-
-    const registerForm =
-        document.getElementById(
-            "register-form"
         );
 
 
@@ -19655,22 +20539,33 @@ async function initAuthPage() {
         );
 
 
-    const showLogin =
-        document.getElementById(
-            "show-login"
-        );
-
-
     /*
         Si on est sur la page de connexion.
     */
 
     if (
         !loginForm ||
-        !registerForm
+        !document.getElementById("onboarding-section")
     ) {
 
         return;
+
+    }
+
+
+    /*
+        Première visite sur ce navigateur : le questionnaire d'inscription
+        plutôt que la page de connexion (affiché tout de suite, sans attendre
+        la vérification de session).
+    */
+
+    if (!isKnownVisitor()) {
+
+        document.getElementById("login-section").classList.add("hidden");
+
+        document.getElementById("onboarding-section").classList.remove("hidden");
+
+        document.body.classList.add("onboarding");
 
     }
 
@@ -19726,7 +20621,7 @@ async function initAuthPage() {
 
     const showAuthSection = id => {
 
-        ["login-section", "register-section", "forgot-section", "new-password-section"].forEach(section => {
+        ["login-section", "onboarding-section", "forgot-section", "new-password-section"].forEach(section => {
 
             document
                 .getElementById(section)
@@ -19734,68 +20629,41 @@ async function initAuthPage() {
 
         });
 
+        // Inscription en questions : perroquet au-dessus du logo, sans le sous-titre.
+        document.body.classList.toggle("onboarding", id === "onboarding-section");
+
     };
 
 
     setupPasswordEyes();
 
 
+    setupOnboarding(showAuthSection);
+
+
     /*
-        Afficher inscription.
+        Afficher inscription (le questionnaire).
     */
 
     showRegister.addEventListener(
         "click",
         () => {
 
-            document
-                .getElementById(
-                    "login-section"
-                )
-                .classList.add(
-                    "hidden"
-                );
+            showOnboardingStep("pseudo");
 
+            showAuthSection("onboarding-section");
 
-            document
-                .getElementById(
-                    "register-section"
-                )
-                .classList.remove(
-                    "hidden"
-                );
+            document.getElementById("onb-pseudo").focus();
 
         }
     );
 
 
-    /*
-        Afficher connexion.
-    */
+    if (!document.getElementById("onboarding-section").classList.contains("hidden")) {
 
-    showLogin.addEventListener(
-        "click",
-        () => {
+        document.getElementById("onb-pseudo").focus();
 
-            document
-                .getElementById(
-                    "register-section"
-                )
-                .classList.add(
-                    "hidden"
-                );
-
-
-            document
-                .getElementById(
-                    "login-section"
-                )
-                .classList.remove(
-                    "hidden"
-                );
-
-        }
-    );
+    }
 
 
     /*
@@ -19856,6 +20724,9 @@ async function initAuthPage() {
                 }
 
 
+                rememberKnownVisitor();
+
+
                 window.location.href =
                     "app.html";
 
@@ -19870,87 +20741,6 @@ async function initAuthPage() {
                 errorElement.textContent =
                     error.message ||
                     "Connexion impossible.";
-
-            }
-
-        }
-    );
-
-
-    /*
-        REGISTER
-    */
-
-    registerForm.addEventListener(
-        "submit",
-        async event => {
-
-            event.preventDefault();
-
-
-            const username =
-                document.getElementById(
-                    "register-username"
-                ).value;
-
-
-            const password =
-                document.getElementById(
-                    "register-password"
-                ).value;
-
-
-            const errorElement =
-                document.getElementById(
-                    "register-error"
-                );
-
-
-            const passwordConfirm =
-                document.getElementById(
-                    "register-password-confirm"
-                ).value;
-
-
-            errorElement.textContent = "";
-
-
-            if (password !== passwordConfirm) {
-
-                errorElement.textContent =
-                    "Les deux mots de passe ne sont pas identiques.";
-
-                return;
-
-            }
-
-
-            const stopLoading =
-                startAuthLoading(registerForm, "Création du compte…");
-
-
-            try {
-
-                await registerUser(
-                    username,
-                    password
-                );
-
-
-                window.location.href =
-                    "app.html";
-
-
-            } catch (error) {
-
-                console.error(error);
-
-                stopLoading();
-
-
-                errorElement.textContent =
-                    error.message ||
-                    "Impossible de créer le compte.";
 
             }
 
@@ -20213,6 +21003,437 @@ function playFirstArrival(element, name) {
 }
 
 
+/* ----- Tuto guidé (choisi à l'inscription, question 4) -----
+   Un projecteur passe d'un élément à l'autre avec une bulle d'explication.
+   Les éléments absents ou cachés (téléphone / ordinateur) sont sautés. */
+
+const GUIDED_TOUR_STEPS = [
+    {
+        targets: ["#bet-ticket"],
+        title: "Ton ticket",
+        text: "Choisis ta mise puis appuie sur « Parier ». Avec 2 à 4 cotes, c'est un combiné : les cotes se multiplient."
+    },
+    {
+        targets: ["#balance-widget"],
+        title: "Ton argent",
+        text: "De l'argent fictif, propre à chaque groupe. Gagne tes paris pour grimper au classement."
+    },
+    {
+        targets: ["#nav-create-button", "#bets-container .bet-create-card"],
+        title: "Crée tes paris",
+        text: "Pose une question à ton groupe et fixe les cotes : les autres parient dessus."
+    },
+    {
+        targets: ['.nav-button[data-page="missions-page"]'],
+        title: "Les missions",
+        text: "Des défis à relever pour gagner de l'XP et des récompenses."
+    },
+    {
+        targets: ["#leaderboard-sidebar", "#leaderboard-open-button"],
+        title: "Le classement",
+        text: "Qui est le meilleur parieur du groupe ? C'est ici."
+    },
+    {
+        targets: ["#chat-fab"],
+        title: "Le chat",
+        text: "Discute avec ton groupe. Les messages s'effacent chaque lundi."
+    },
+    {
+        targets: ["#group-switcher-button"],
+        title: "Ton groupe",
+        text: "Change de groupe, ou retrouve le code pour inviter tes amis."
+    }
+];
+
+
+function isTourTargetVisible(element) {
+
+    if (!element || element.closest(".hidden, .level-locked")) {
+        return false;
+    }
+
+    const rect = element.getBoundingClientRect();
+
+    return rect.width > 0 && rect.height > 0 && getComputedStyle(element).visibility !== "hidden";
+
+}
+
+
+function startGuidedTour(attempt = 0) {
+
+    let wanted = false;
+
+    try {
+        wanted = localStorage.getItem(GUIDED_TOUR_KEY) === "1";
+    } catch (error) {
+        wanted = false;
+    }
+
+    if (!wanted || !currentGroup || document.querySelector(".tour-layer")) {
+        return;
+    }
+
+    // Une fenêtre est ouverte (annonce, cadeau…) : on attend qu'elle se ferme.
+    if (document.querySelector(".modal:not(.hidden)") && attempt < 40) {
+
+        setTimeout(() => startGuidedTour(attempt + 1), 1000);
+
+        return;
+
+    }
+
+    // Une seule fois : le choix est effacé dès le départ.
+    try {
+        localStorage.removeItem(GUIDED_TOUR_KEY);
+    } catch (error) {
+        // Rien à faire.
+    }
+
+    runSpotlightTour(GUIDED_TOUR_STEPS);
+
+}
+
+
+// Projecteur + bulle sur une suite d'éléments (tuto guidé, nouveautés d'un niveau).
+// Renvoie false si aucun élément n'est visible.
+function runSpotlightTour(stepList, { lastLabel = "C'est parti !", onClose = null } = {}) {
+
+    if (document.querySelector(".tour-layer")) {
+        return false;
+    }
+
+    const steps = stepList
+        .map(step => ({
+            ...step,
+            element: step.targets
+                .map(selector => document.querySelector(selector))
+                .find(isTourTargetVisible)
+        }))
+        .filter(step => step.element);
+
+    if (steps.length === 0) {
+        return false;
+    }
+
+    const layer = document.createElement("div");
+
+    layer.className = "tour-layer";
+
+    layer.innerHTML = `
+        <div class="tour-spot"></div>
+        <div class="tour-bubble" role="dialog" aria-live="polite">
+            <div class="tour-bubble-title"></div>
+            <p class="tour-bubble-text"></p>
+            <div class="tour-bubble-foot">
+                <span class="tour-bubble-count"></span>
+                <button type="button" class="tour-skip">Passer</button>
+                <button type="button" class="tour-next primary-button"></button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(layer);
+
+    const spot = layer.querySelector(".tour-spot");
+
+    const bubble = layer.querySelector(".tour-bubble");
+
+    let index = 0;
+
+    let placeTimer = null;
+
+
+    function place() {
+
+        const element = steps[index].element;
+
+        const rect = element.getBoundingClientRect();
+
+        const pad = 8;
+
+        spot.style.top = rect.top - pad + "px";
+
+        spot.style.left = rect.left - pad + "px";
+
+        spot.style.width = rect.width + pad * 2 + "px";
+
+        spot.style.height = rect.height + pad * 2 + "px";
+
+        // Bulle sous l'élément, ou au-dessus s'il n'y a pas la place.
+        const gap = 16;
+
+        const bubbleHeight = bubble.offsetHeight;
+
+        const bubbleWidth = bubble.offsetWidth;
+
+        const below = rect.bottom + pad + gap + bubbleHeight < window.innerHeight - 16;
+
+        let top = below
+            ? rect.bottom + pad + gap
+            : rect.top - pad - gap - bubbleHeight;
+
+        top = Math.max(16, Math.min(top, window.innerHeight - bubbleHeight - 16));
+
+        let left = rect.left + rect.width / 2 - bubbleWidth / 2;
+
+        left = Math.max(16, Math.min(left, window.innerWidth - bubbleWidth - 16));
+
+        bubble.style.top = top + "px";
+
+        bubble.style.left = left + "px";
+
+    }
+
+
+    function show() {
+
+        const step = steps[index];
+
+        bubble.querySelector(".tour-bubble-title").textContent = step.title;
+
+        bubble.querySelector(".tour-bubble-text").textContent = step.text;
+
+        bubble.querySelector(".tour-bubble-count").textContent = `${index + 1} / ${steps.length}`;
+
+        bubble.querySelector(".tour-bubble-count").classList.toggle("hidden", steps.length < 2);
+
+        bubble.querySelector(".tour-next").textContent =
+            index === steps.length - 1 ? lastLabel : "Suivant →";
+
+        bubble.classList.remove("tour-bubble-in");
+
+        void bubble.offsetWidth;
+
+        bubble.classList.add("tour-bubble-in");
+
+        step.element.scrollIntoView({ block: "center", behavior: "smooth" });
+
+        place();
+
+    }
+
+
+    // Le projecteur suit l'élément à chaque image : défilement, élément qui
+    // arrive en glissant (bulle du chat tout juste débloquée…).
+    function follow() {
+
+        if (!layer.isConnected) {
+            return;
+        }
+
+        place();
+
+        placeTimer = requestAnimationFrame(follow);
+
+    }
+
+    placeTimer = requestAnimationFrame(follow);
+
+
+    function close() {
+
+        cancelAnimationFrame(placeTimer);
+
+        document.removeEventListener("keydown", onKey);
+
+        layer.classList.add("tour-closing");
+
+        setTimeout(() => {
+
+            layer.remove();
+
+            onClose?.();
+
+        }, 250);
+
+    }
+
+
+    function next() {
+
+        if (index >= steps.length - 1) {
+
+            close();
+
+            return;
+
+        }
+
+        index++;
+
+        show();
+
+    }
+
+
+    function onKey(event) {
+
+        if (event.key === "Escape") {
+            close();
+        }
+
+        if (event.key === "Enter" || event.key === "ArrowRight") {
+            event.preventDefault();
+            next();
+        }
+
+    }
+
+
+    layer.querySelector(".tour-next").addEventListener("click", next);
+
+    layer.querySelector(".tour-skip").addEventListener("click", close);
+
+    document.addEventListener("keydown", onKey);
+
+    show();
+
+    return true;
+
+}
+
+
+/* ----- Version simplifiée selon le niveau -----
+   Niveau 1 : l'essentiel seulement. Les nouveautés arrivent avec les niveaux,
+   présentées par le projecteur du tuto au moment où on les débloque.
+   (Classes level-lock-N sur body, voir style.css.) */
+
+const LEVEL_UNLOCKS = {
+    2: [
+        {
+            targets: ["#points-widget"],
+            title: "🔓 Niveau 2 : les pièces",
+            text: "Tu gagnes maintenant des pièces avec tes paris et tes missions."
+        },
+        {
+            targets: ['.nav-button[data-page="missions-page"]'],
+            title: "🔓 Les missions",
+            text: "Des défis à relever pour gagner de l'XP et des pièces."
+        },
+        {
+            targets: ['.nav-button[data-page="shop-page"]'],
+            title: "🔓 La boutique",
+            text: "Dépense tes pièces en skins, cadres et effets pour te démarquer."
+        }
+    ],
+    3: [
+        {
+            targets: ["#streak-sidebar", "#streak-widget"],
+            title: "🔓 Niveau 3 : ta série",
+            text: "Connecte-toi chaque jour pour faire grandir ta flamme 🔥 et gagner des bonus."
+        }
+    ],
+    4: [
+        {
+            targets: ["#chat-fab"],
+            title: "🔓 Niveau 4 : le chat",
+            text: "Discute avec ton groupe. Les messages s'effacent chaque lundi."
+        }
+    ],
+    5: [
+        {
+            targets: ["#diamond-widget"],
+            title: "🔓 Niveau 5 : les diamants",
+            text: "La monnaie rare de BetLab, la même dans tous tes groupes : elle débloque des objets exclusifs."
+        }
+    ]
+};
+
+
+function applyLevelLocks(level) {
+
+    // Admin (niveau illimité) : tout est ouvert.
+    const current = Number.isFinite(level) ? level || 1 : 99;
+
+    [2, 3, 4, 5].forEach(unlock => {
+        document.body.classList.toggle(`level-lock-${unlock}`, current < unlock);
+    });
+
+    document
+        .querySelectorAll('.nav-button[data-page="missions-page"], .nav-button[data-page="shop-page"]')
+        .forEach(button => {
+
+            button.classList.toggle("level-locked", current < 2);
+
+            button.dataset.unlockLevel = "2";
+
+        });
+
+}
+
+
+// Onglet verrouillé : petite bulle « débloqué au niveau 2 » au lieu d'ouvrir la page.
+// (En capture, avant le clic de navigation et les .click() du code.)
+document.addEventListener("click", event => {
+
+    const button = event.target.closest?.(".nav-button.level-locked");
+
+    if (!button) {
+        return;
+    }
+
+    event.preventDefault();
+
+    event.stopImmediatePropagation();
+
+    document.querySelector(".level-lock-tip")?.remove();
+
+    const tip = document.createElement("div");
+
+    tip.className = "level-lock-tip";
+
+    tip.textContent = `🔒 Se débloque au niveau ${button.dataset.unlockLevel}`;
+
+    document.body.appendChild(tip);
+
+    const rect = button.getBoundingClientRect();
+
+    const width = tip.offsetWidth;
+
+    const left = Math.max(12, Math.min(rect.left + rect.width / 2 - width / 2, window.innerWidth - width - 12));
+
+    // Au-dessus du menu du bas (téléphone), sinon en dessous de l'onglet.
+    const top = rect.top > window.innerHeight / 2
+        ? rect.top - tip.offsetHeight - 10
+        : rect.bottom + 10;
+
+    tip.style.left = left + "px";
+
+    tip.style.top = top + "px";
+
+    setTimeout(() => {
+
+        tip.classList.add("level-lock-tip-out");
+
+        setTimeout(() => tip.remove(), 250);
+
+    }, 1800);
+
+}, true);
+
+
+// Niveau tout juste débloqué : on présente ses nouveautés après l'animation du niveau.
+function showLevelUnlocks(level, attempt = 0) {
+
+    const steps = LEVEL_UNLOCKS[level];
+
+    if (!steps) {
+        return;
+    }
+
+    if ((document.querySelector(".lu-overlay, .tour-layer") || document.querySelector(".modal:not(.hidden)")) && attempt < 60) {
+
+        setTimeout(() => showLevelUnlocks(level, attempt + 1), 500);
+
+        return;
+
+    }
+
+    runSpotlightTour(steps, { lastLabel: "Super !" });
+
+}
+
+
 async function initAppPage() {
 
     const betsPage =
@@ -20343,9 +21564,11 @@ async function initAppPage() {
 
         // La barre du haut doit être définitive avant l'affichage : série de connexions,
         // coffre et pastille de l'onglet Missions arrivaient après et faisaient bouger la barre.
+        // Le niveau aussi : il décide de ce qui est affiché (version simplifiée, applyLevelLocks).
         await Promise.all([
             typeof dailyCheckin === "function" ? dailyCheckin() : null,
-            displayMissions()
+            displayMissions(),
+            refreshProgression()
         ]);
 
         document.body.classList.remove("app-loading");
@@ -20361,6 +21584,9 @@ async function initAppPage() {
         playFirstArrival(document.querySelector(".navbar"), "navbar-arrive");
 
         playFirstArrival(document.getElementById("parrot"), "parrot-arrive");
+
+        // Tuto guidé demandé à l'inscription : une fois les cartes arrivées.
+        setTimeout(startGuidedTour, 1600);
 
         refreshJoinRequests();
 
@@ -20558,20 +21784,25 @@ async function initAppPage() {
 
     if (oddsOneInput && oddsTwoInput) {
 
-        // Cotes calculées et message (cote max 10) tout de suite sous les cotes.
-        oddsOneInput.addEventListener("input", updateCreateOdds);
+        // Répartition des chances : les noms s'affichent aussi dans la barre.
+        ["choice-one", "choice-two", "choice-three"].forEach(id => {
 
-        oddsTwoInput.addEventListener("input", () => {
+            document.getElementById(id)?.addEventListener("input", renderShareBar);
 
-            if (threeChoicesOn()) {
-                updateCreateOdds();
-            }
+        });
+
+        // Halo sur le prochain champ à remplir.
+        ["bet-question", "choice-one", "choice-two", "choice-three"].forEach(id => {
+
+            document.getElementById(id)?.addEventListener("input", updateCreateGuide);
 
         });
 
         document
             .getElementById("toggle-third-choice")
             ?.addEventListener("click", () => setThreeChoices(!threeChoicesOn()));
+
+        renderShareBar();
 
     }
 

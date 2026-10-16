@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Démo inscription en questions</title>
+
+    <!-- Démo : les images viennent du dossier du site -->
+    <base href="../">
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #0f1117;
+            color: #f5f5f5;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 30px 16px;
+        }
+
+        button,
+        input {
+            font: inherit;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .onb {
+            width: 100%;
+            max-width: 440px;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 30px;
+            font-weight: 800;
+            letter-spacing: -1px;
+        }
+
+        .logo span {
+            color: #6c63ff;
+        }
+
+
+        /* ----- Jauge ----- */
+
+        .onb-gauge {
+            margin: 22px 0 18px;
+        }
+
+        .onb-gauge-top {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #888d9b;
+            margin-bottom: 8px;
+        }
+
+        .onb-gauge-top b {
+            color: #c9c5ff;
+        }
+
+        .onb-gauge-track {
+            height: 8px;
+            border-radius: 99px;
+            background: #232736;
+            overflow: hidden;
+        }
+
+        .onb-gauge-fill {
+            height: 100%;
+            width: 0;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #6c63ff, #a78bff);
+            box-shadow: 0 0 12px rgba(108, 99, 255, 0.6);
+            transition: width 0.5s cubic-bezier(0.3, 0.9, 0.3, 1);
+        }
+
+
+        /* ----- Carte question ----- */
+
+        .onb-card {
+            position: relative;
+            background: #181b24;
+            border: 1px solid #292d39;
+            border-radius: 18px;
+            padding: 30px 26px 26px;
+            text-align: left;
+            overflow: hidden;
+        }
+
+        .onb-step {
+            animation: onb-in 0.35s cubic-bezier(0.3, 0.9, 0.3, 1);
+        }
+
+        .onb-step.back {
+            animation-name: onb-in-back;
+        }
+
+        @keyframes onb-in {
+            from { opacity: 0; transform: translateX(40px); }
+        }
+
+        @keyframes onb-in-back {
+            from { opacity: 0; transform: translateX(-40px); }
+        }
+
+        .onb-parrot {
+            display: block;
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 6px;
+            position: relative;
+        }
+
+
+        .onb-parrot img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .onb-num {
+            font-size: 12px;
+            font-weight: 700;
+            color: #8179ff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-align: center;
+        }
+
+        .onb-step h1 {
+            font-size: 25px;
+            margin: 6px 0 6px;
+            text-align: center;
+        }
+
+        .onb-hint {
+            color: #8d92a0;
+            font-size: 14px;
+            text-align: center;
+            margin-bottom: 22px;
+        }
+
+        .onb-field {
+            position: relative;
+        }
+
+        .onb-field input {
+            width: 100%;
+            padding: 15px 16px;
+            border-radius: 12px;
+            border: 2px solid #343846;
+            background: #101219;
+            color: white;
+            font-size: 17px;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        .onb-field input:focus {
+            border-color: #6c63ff;
+        }
+
+        .onb-field.ok input {
+            border-color: #63d69f;
+        }
+
+        .onb-field.bad input {
+            border-color: #ff6b6b;
+            animation: onb-shake 0.35s;
+        }
+
+        @keyframes onb-shake {
+            20%, 60% { transform: translateX(-7px); }
+            40%, 80% { transform: translateX(7px); }
+        }
+
+        .onb-eye {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: 0;
+            background: none;
+            color: #888d9b;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 6px;
+        }
+
+        .onb-error {
+            color: #ff6b6b;
+            font-size: 13px;
+            min-height: 18px;
+            margin-top: 8px;
+        }
+
+        .onb-warning {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            margin-top: 6px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: #211f16;
+            border: 1px solid #3a3420;
+            color: #d8cb8f;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .onb-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .onb-back {
+            border: 1px solid #343846;
+            background: none;
+            color: #b5b9c6;
+            border-radius: 10px;
+            padding: 0 16px;
+            cursor: pointer;
+            transition: border-color 0.15s, color 0.15s;
+        }
+
+        .onb-back:hover {
+            border-color: #6c63ff;
+            color: white;
+        }
+
+        .primary-button {
+            flex: 1;
+            border: none;
+            background: #6c63ff;
+            color: white;
+            padding: 14px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            transition: 0.2s;
+        }
+
+        .primary-button:hover {
+            background: #7b73ff;
+            transform: translateY(-1px);
+        }
+
+        .primary-button:active {
+            transform: scale(0.97);
+        }
+
+        .primary-button:disabled {
+            opacity: 0.6;
+            cursor: default;
+            transform: none;
+        }
+
+        .primary-button.is-loading::before {
+            content: "";
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            margin-right: 8px;
+            vertical-align: -2px;
+            border: 2px solid rgba(255, 255, 255, 0.35);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: onb-spin 0.7s linear infinite;
+        }
+
+        @keyframes onb-spin {
+            to { transform: rotate(360deg); }
+        }
+
+
+        /* ----- Question 3 : rejoindre ou créer ----- */
+
+        .onb-choice {
+            display: block;
+            width: 100%;
+            text-align: left;
+            border: 2px solid #2c3040;
+            background: #14161e;
+            border-radius: 14px;
+            padding: 14px 16px;
+            color: inherit;
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s;
+        }
+
+        .onb-step h1 + .onb-choice {
+            margin-top: 20px;
+        }
+
+        .onb-choice + .onb-choice {
+            margin-top: 10px;
+        }
+
+        .onb-choice:hover {
+            border-color: #4a4f66;
+        }
+
+        .onb-choice.active {
+            border-color: #6c63ff;
+            background: #1a1a2e;
+            cursor: default;
+        }
+
+        .onb-choice-head {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .onb-choice-icon {
+            font-size: 24px;
+        }
+
+        .onb-choice-head b {
+            display: block;
+            font-size: 16px;
+        }
+
+        .onb-choice-head small {
+            color: #8d92a0;
+            font-size: 13px;
+        }
+
+        .onb-choice-body {
+            display: grid;
+            grid-template-rows: 0fr;
+            transition: grid-template-rows 0.3s ease;
+        }
+
+        .onb-choice.active .onb-choice-body {
+            grid-template-rows: 1fr;
+        }
+
+        .onb-choice-body > div {
+            overflow: hidden;
+        }
+
+        .onb-choice-inner {
+            padding-top: 14px;
+        }
+
+        .onb-code {
+            display: flex;
+            justify-content: center;
+            gap: 7px;
+        }
+
+        .onb-code input {
+            width: 44px;
+            height: 54px;
+            text-align: center;
+            font-size: 22px;
+            font-weight: 900;
+            text-transform: uppercase;
+            border-radius: 11px;
+            border: 2px solid #343846;
+            background: #101219;
+            color: white;
+            outline: none;
+            transition: border-color 0.15s, transform 0.15s;
+        }
+
+        .onb-code input:focus {
+            border-color: #6c63ff;
+            transform: translateY(-2px);
+        }
+
+        .onb-code.ok input {
+            border-color: #63d69f;
+            color: #63d69f;
+        }
+
+        .onb-code.bad {
+            animation: onb-shake 0.35s;
+        }
+
+        .onb-code.bad input {
+            border-color: #ff6b6b;
+        }
+
+        .onb-found {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 12px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: rgba(99, 214, 159, 0.1);
+            color: #9be8c2;
+            font-size: 14px;
+            animation: onb-in 0.3s ease;
+        }
+
+        .onb-found small {
+            display: block;
+            color: #79b79a;
+        }
+
+
+        /* ----- Fin ----- */
+
+        .onb-done {
+            text-align: center;
+        }
+
+        .onb-done-icon {
+            font-size: 54px;
+            animation: onb-pop 0.6s cubic-bezier(0.3, 1.6, 0.4, 1);
+        }
+
+        @keyframes onb-pop {
+            from { transform: scale(0) rotate(-20deg); }
+        }
+
+        .onb-done-code {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            margin: 14px 0 4px;
+            padding: 10px 16px;
+            border-radius: 12px;
+            border: 2px dashed #6c63ff;
+            font-size: 24px;
+            font-weight: 900;
+            letter-spacing: 4px;
+        }
+
+        .onb-done-code button {
+            border: 0;
+            background: #2a2b45;
+            color: #c9c5ff;
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 12px;
+            letter-spacing: 0;
+            cursor: pointer;
+        }
+
+        .onb-confetti {
+            position: fixed;
+            top: -12px;
+            width: 9px;
+            height: 14px;
+            border-radius: 2px;
+            pointer-events: none;
+            animation: onb-fall linear forwards;
+        }
+
+        @keyframes onb-fall {
+            to { transform: translateY(105vh) rotate(720deg); }
+        }
+
+        .onb-login {
+            margin-top: 18px;
+            font-size: 14px;
+            color: #888d9b;
+        }
+
+        .onb-login button {
+            border: 0;
+            background: none;
+            color: #8179ff;
+            cursor: pointer;
+        }
+
+        .demo-note {
+            margin-top: 26px;
+            font-size: 12px;
+            color: #5d6272;
+            line-height: 1.6;
+        }
+
+        .demo-note b {
+            color: #8d92a0;
+        }
+
+        @media (max-width: 420px) {
+            .onb-card { padding: 24px 18px 20px; }
+            .onb-code { gap: 5px; }
+            .onb-code input { width: 40px; height: 50px; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="onb">
+
+        <span class="onb-parrot" id="parrot"></span>
+
+        <div class="logo">
+            <span>BET</span>LAB
+        </div>
+
+
+        <!-- Jauge : le questionnaire est court -->
+        <div class="onb-gauge">
+
+            <div class="onb-gauge-top">
+                <span id="gauge-label">Question 1 sur 3</span>
+                <b>⏱ moins d'1 minute</b>
+            </div>
+
+            <div class="onb-gauge-track">
+                <div class="onb-gauge-fill" id="gauge-fill"></div>
+            </div>
+
+        </div>
+
+
+        <div class="onb-card" id="card"></div>
+
+
+        <div class="onb-login" id="login-link">
+            Déjà un compte ?
+            <button type="button" onclick="alert('→ ouvre la page de connexion actuelle')">Se connecter</button>
+        </div>
+
+
+    </div>
+
+
+    <script>
+        const state = { pseudo: "", password: "", mode: "join" };
+
+        const card = document.getElementById("card");
+
+        // Perroquet au-dessus du logo : pose « gagné » une fois l'inscription finie.
+        function setParrot(pose) {
+            const element = document.getElementById("parrot");
+            element.innerHTML = pose === "win"
+                ? '<img src="assets/perroquet/win-main.png" alt="">'
+                : '<img src="assets/perroquet/wait-body.png" alt=""><img src="assets/perroquet/wait-head.png" alt="">';
+        }
+
+        function setGauge(step) {
+            const pct = [8, 40, 72, 100][step];
+            document.getElementById("gauge-fill").style.width = pct + "%";
+            document.getElementById("gauge-label").textContent =
+                step < 3 ? `Question ${step + 1} sur 3` : "Terminé !";
+            document.getElementById("login-link").classList.toggle("hidden", step > 0);
+        }
+
+        function wait(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function shake(field, message) {
+            field.classList.remove("bad", "ok");
+            void field.offsetWidth;
+            field.classList.add("bad");
+            card.querySelector(".onb-error").textContent = message;
+        }
+
+        function load(button, label) {
+            button.disabled = true;
+            button.classList.add("is-loading");
+            button.textContent = label;
+        }
+
+
+        /* ----- Question 1 : pseudo ----- */
+
+        function stepPseudo(back) {
+            setGauge(0);
+            card.innerHTML = `
+                <form class="onb-step${back ? " back" : ""}" id="form">
+                    <div class="onb-num">Question 1</div>
+                    <h1>Choisis ton pseudo !</h1>
+                    <p class="onb-hint">C'est le nom que verront tes amis.</p>
+                    <div class="onb-field" id="field">
+                        <input id="input" maxlength="20" autocomplete="off" placeholder="Ex : Florian" value="${state.pseudo}">
+                    </div>
+                    <div class="onb-error"></div>
+                    <div class="onb-actions">
+                        <button class="primary-button" id="next">Suivant →</button>
+                    </div>
+                </form>`;
+
+            const input = document.getElementById("input");
+            input.focus();
+
+            document.getElementById("form").onsubmit = async event => {
+                event.preventDefault();
+                const field = document.getElementById("field");
+                const pseudo = input.value.trim();
+
+                if (pseudo.length < 3) {
+                    return shake(field, "Au moins 3 caractères.");
+                }
+
+                const button = document.getElementById("next");
+                load(button, "Vérification…");
+                await wait(500);
+
+                if (pseudo.toLowerCase() === "florian") {
+                    button.disabled = false;
+                    button.classList.remove("is-loading");
+                    button.textContent = "Suivant →";
+                    return shake(field, "Ce pseudo est déjà pris, essaie autre chose.");
+                }
+
+                state.pseudo = pseudo;
+                stepPassword();
+            };
+        }
+
+
+        /* ----- Question 2 : mot de passe ----- */
+
+        function stepPassword(back) {
+            setGauge(1);
+            card.innerHTML = `
+                <form class="onb-step${back ? " back" : ""}" id="form">
+                    <div class="onb-num">Question 2</div>
+                    <h1>Et ton mot de passe !</h1>
+                    <p class="onb-hint">Pour retrouver ton compte, ${escapeHtml(state.pseudo)}.</p>
+                    <div class="onb-field" id="field">
+                        <input id="input" type="password" placeholder="4 caractères minimum" autocomplete="new-password">
+                        <button type="button" class="onb-eye" id="eye" title="Afficher">👁</button>
+                    </div>
+                    <div class="onb-error"></div>
+                    <div class="onb-warning">
+                        <span>⚠️</span>
+                        <span>Cette démo ne sécurise pas les mots de passe.</span>
+                    </div>
+                    <div class="onb-actions">
+                        <button type="button" class="onb-back" id="back">←</button>
+                        <button class="primary-button" id="next">Créer mon compte →</button>
+                    </div>
+                </form>`;
+
+            const input = document.getElementById("input");
+            input.focus();
+
+            document.getElementById("eye").onclick = () => {
+                input.type = input.type === "password" ? "text" : "password";
+                input.focus();
+            };
+
+            document.getElementById("back").onclick = () => stepPseudo(true);
+
+            document.getElementById("form").onsubmit = async event => {
+                event.preventDefault();
+
+                if (input.value.length < 4) {
+                    return shake(document.getElementById("field"), "Au moins 4 caractères.");
+                }
+
+                state.password = input.value;
+                load(document.getElementById("next"), "Création du compte…");
+                await wait(800);
+                stepGroup();
+            };
+        }
+
+
+        /* ----- Question 3 : groupe ----- */
+
+        function stepGroup() {
+            setGauge(2);
+            card.innerHTML = `
+                <div class="onb-step">
+                    <div class="onb-num">Question 3</div>
+                    <h1>Rejoins-tu un groupe déjà existant ?</h1>
+
+                    <div class="onb-choice active" data-mode="join">
+                        <div class="onb-choice-head">
+                            <span class="onb-choice-icon">👥</span>
+                            <span>
+                                <b>Oui, je rejoins mes amis</b>
+                                <small>Entre le code de leur groupe</small>
+                            </span>
+                        </div>
+                        <div class="onb-choice-body"><div><div class="onb-choice-inner">
+                            <div class="onb-code" id="code"></div>
+                            <div id="found"></div>
+                        </div></div></div>
+                    </div>
+
+                    <div class="onb-choice" data-mode="create">
+                        <div class="onb-choice-head">
+                            <span class="onb-choice-icon">✨</span>
+                            <span>
+                                <b>Non, je crée mon groupe</b>
+                                <small>Tu inviteras tes amis avec un code</small>
+                            </span>
+                        </div>
+                        <div class="onb-choice-body"><div><div class="onb-choice-inner">
+                            <div class="onb-field" id="field">
+                                <input id="group-name" maxlength="30" placeholder="Nom du groupe, ex : Les Fous du BE">
+                            </div>
+                        </div></div></div>
+                    </div>
+
+                    <div class="onb-error"></div>
+
+                    <div class="onb-actions">
+                        <button class="primary-button" id="next">Rejoindre →</button>
+                    </div>
+                </div>`;
+
+            const code = document.getElementById("code");
+
+            for (let i = 0; i < 6; i++) {
+                const box = document.createElement("input");
+                box.maxLength = 1;
+                box.autocomplete = "off";
+                box.oninput = () => {
+                    box.value = box.value.replace(/[^a-z0-9]/gi, "").toUpperCase().slice(0, 1);
+                    if (box.value && box.nextElementSibling) box.nextElementSibling.focus();
+                    previewCode();
+                };
+                box.onkeydown = event => {
+                    if (event.key === "Backspace" && !box.value && box.previousElementSibling) {
+                        box.previousElementSibling.focus();
+                    }
+                    if (event.key === "Enter") submitGroup();
+                };
+                code.appendChild(box);
+            }
+
+            code.firstChild.focus();
+
+            card.querySelectorAll(".onb-choice").forEach(choice => {
+                choice.onclick = () => {
+                    if (choice.classList.contains("active")) return;
+                    card.querySelectorAll(".onb-choice").forEach(other => other.classList.remove("active"));
+                    choice.classList.add("active");
+                    state.mode = choice.dataset.mode;
+                    card.querySelector(".onb-error").textContent = "";
+                    document.getElementById("next").textContent =
+                        state.mode === "join" ? "Rejoindre →" : "Créer mon groupe →";
+                    setTimeout(() => {
+                        (state.mode === "join" ? code.firstChild : document.getElementById("group-name")).focus();
+                    }, 200);
+                };
+            });
+
+            document.getElementById("group-name").onkeydown = event => {
+                if (event.key === "Enter") submitGroup();
+            };
+
+            document.getElementById("next").onclick = submitGroup;
+        }
+
+        function readCode() {
+            return [...document.querySelectorAll("#code input")].map(box => box.value).join("");
+        }
+
+        function previewCode() {
+            const code = document.getElementById("code");
+            const found = document.getElementById("found");
+            code.classList.remove("ok", "bad");
+            found.innerHTML = "";
+            card.querySelector(".onb-error").textContent = "";
+
+            if (readCode().length < 6) return;
+
+            if (readCode() === "FOUS42") {
+                code.classList.add("ok");
+                found.innerHTML = `<div class="onb-found"><span>✅</span><span><b>Les Fous du BE</b><small>6 membres</small></span></div>`;
+            } else {
+                void code.offsetWidth;
+                code.classList.add("bad");
+                card.querySelector(".onb-error").textContent = "Code inconnu : vérifie-le auprès de tes amis.";
+            }
+        }
+
+        async function submitGroup() {
+            const button = document.getElementById("next");
+            if (button.disabled) return;
+
+            if (state.mode === "join") {
+                if (readCode() !== "FOUS42") {
+                    const code = document.getElementById("code");
+                    code.classList.remove("bad");
+                    void code.offsetWidth;
+                    code.classList.add("bad");
+                    card.querySelector(".onb-error").textContent =
+                        readCode().length < 6 ? "Le code fait 6 caractères." : "Code inconnu : vérifie-le auprès de tes amis.";
+                    return;
+                }
+                load(button, "Envoi de la demande…");
+                await wait(700);
+                stepDone({ join: true, name: "Les Fous du BE" });
+            } else {
+                const name = document.getElementById("group-name").value.trim();
+                if (name.length < 3) {
+                    return shake(document.getElementById("field"), "Donne un nom d'au moins 3 caractères.");
+                }
+                load(button, "Création du groupe…");
+                await wait(700);
+                stepDone({ join: false, name, code: "K7P2QX" });
+            }
+        }
+
+
+        /* ----- C'est tout bon ! ----- */
+
+        function stepDone(result) {
+            setGauge(3);
+            setParrot("win");
+            confetti();
+
+            card.innerHTML = result.join
+                ? `
+                <div class="onb-step onb-done">
+                    <div class="onb-done-icon">📨</div>
+                    <h1>C'est tout bon, ${escapeHtml(state.pseudo)} !</h1>
+                    <p class="onb-hint">Ta demande pour rejoindre <b>${escapeHtml(result.name)}</b> est envoyée.<br>Tu entres dès qu'un gérant du groupe l'accepte.</p>
+                    <div class="onb-actions">
+                        <button class="primary-button" onclick="alert('→ app.html (écran d\\'attente actuel)')">Entrer dans BetLab →</button>
+                    </div>
+                </div>`
+                : `
+                <div class="onb-step onb-done">
+                    <div class="onb-done-icon">🎉</div>
+                    <h1>C'est tout bon, ${escapeHtml(state.pseudo)} !</h1>
+                    <div class="onb-actions">
+                        <button class="primary-button" onclick="alert('→ app.html, dans le groupe')">Entrer dans BetLab →</button>
+                    </div>
+                </div>`;
+        }
+
+        function confetti() {
+            const colors = ["#6c63ff", "#a78bff", "#63d69f", "#f5c451", "#ff6b6b"];
+            for (let i = 0; i < 70; i++) {
+                const piece = document.createElement("div");
+                piece.className = "onb-confetti";
+                piece.style.left = Math.random() * 100 + "vw";
+                piece.style.background = colors[i % colors.length];
+                piece.style.animationDuration = 1.6 + Math.random() * 1.6 + "s";
+                piece.style.animationDelay = Math.random() * 0.4 + "s";
+                document.body.appendChild(piece);
+                setTimeout(() => piece.remove(), 3800);
+            }
+        }
+
+        function escapeHtml(text) {
+            return String(text).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+        }
+
+        setParrot();
+        stepPseudo();
+    </script>
+
+</body>
+</html>

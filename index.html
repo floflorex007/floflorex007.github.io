@@ -29,6 +29,19 @@
 
     <div class="auth-container">
 
+        <!-- Perroquet au-dessus du logo (inscription en questions) -->
+        <span
+            id="onb-parrot"
+            class="onb-parrot"
+        >
+
+            <img src="assets/perroquet/wait-body.png" alt="">
+
+            <img src="assets/perroquet/wait-head.png" alt="">
+
+        </span>
+
+
         <div class="logo">
             <span>BET</span>LAB
         </div>
@@ -118,80 +131,346 @@
         </div>
 
 
-        <!-- INSCRIPTION -->
+        <!-- INSCRIPTION EN QUESTIONS (première visite) -->
 
         <div
-            id="register-section"
-            class="auth-card hidden"
+            id="onboarding-section"
+            class="onb hidden"
         >
 
-            <h1>Créer un compte</h1>
+            <!-- Jauge : le questionnaire est court -->
+            <div class="onb-gauge">
 
-            <p class="auth-description">
-                Ton compte est enregistré dans la base de données BetLab.
-            </p>
+                <div class="onb-gauge-top">
+
+                    <span id="onb-gauge-label">
+                        Question 1 sur 4
+                    </span>
+
+                    <b>⏱ moins d'1 minute</b>
+
+                </div>
+
+                <div class="onb-gauge-track">
+
+                    <div
+                        id="onb-gauge-fill"
+                        class="onb-gauge-fill"
+                    ></div>
+
+                </div>
+
+            </div>
 
 
-            <form id="register-form">
+            <div class="auth-card onb-card">
 
-                <label for="register-username">
-                    Identifiant
-                </label>
 
-                <input
-                    type="text"
-                    id="register-username"
-                    placeholder="Ex : Florian"
-                    required
+                <!-- Question 1 : pseudo -->
+
+                <form
+                    id="onb-pseudo-form"
+                    class="onb-step"
+                    data-onb-step="pseudo"
                 >
 
+                    <div class="onb-num">Question 1</div>
 
-                <label for="register-password">
-                    Mot de passe
-                </label>
+                    <h1>Choisis ton pseudo !</h1>
 
-                <input
-                    type="password"
-                    id="register-password"
-                    placeholder="Ex : test123"
-                    required
+                    <p class="onb-hint">
+                        C'est le nom que verront tes amis.
+                    </p>
+
+                    <div class="onb-field">
+
+                        <input
+                            type="text"
+                            id="onb-pseudo"
+                            maxlength="20"
+                            autocomplete="off"
+                            placeholder="Ex : Florian"
+                        >
+
+                    </div>
+
+                    <p class="onb-error"></p>
+
+                    <div class="onb-actions">
+
+                        <button
+                            type="submit"
+                            class="primary-button"
+                        >
+                            Suivant →
+                        </button>
+
+                    </div>
+
+                </form>
+
+
+                <!-- Question 2 : mot de passe -->
+
+                <form
+                    id="onb-password-form"
+                    class="onb-step hidden"
+                    data-onb-step="password"
                 >
 
+                    <div class="onb-num">Question 2</div>
 
-                <label for="register-password-confirm">
-                    Confirme le mot de passe
-                </label>
+                    <h1>Et ton mot de passe !</h1>
 
-                <input
-                    type="password"
-                    id="register-password-confirm"
-                    placeholder="Retape ton mot de passe"
-                    required
+                    <p
+                        id="onb-password-hint"
+                        class="onb-hint"
+                    ></p>
+
+                    <div class="onb-field">
+
+                        <input
+                            type="password"
+                            id="onb-password"
+                            placeholder="4 caractères minimum"
+                            autocomplete="new-password"
+                        >
+
+                    </div>
+
+                    <p class="onb-error"></p>
+
+                    <div class="onb-warning">
+
+                        <span>⚠️</span>
+
+                        <span>Cette démo ne sécurise pas les mots de passe.</span>
+
+                    </div>
+
+                    <div class="onb-actions">
+
+                        <button
+                            type="button"
+                            id="onb-password-back"
+                            class="onb-back"
+                            aria-label="Retour"
+                        >
+                            ←
+                        </button>
+
+                        <button
+                            type="submit"
+                            class="primary-button"
+                        >
+                            Créer mon compte →
+                        </button>
+
+                    </div>
+
+                </form>
+
+
+                <!-- Question 3 : rejoindre ou créer un groupe -->
+
+                <div
+                    class="onb-step hidden"
+                    data-onb-step="group"
                 >
 
+                    <div class="onb-num">Question 3</div>
 
-                <button
-                    type="submit"
-                    class="primary-button"
+                    <h1>Rejoins-tu un groupe déjà existant ?</h1>
+
+                    <div
+                        class="onb-choice active"
+                        data-onb-mode="join"
+                    >
+
+                        <div class="onb-choice-head">
+
+                            <span class="onb-choice-icon">👥</span>
+
+                            <span>
+                                <b>Oui, je rejoins mes amis</b>
+                                <small>Entre le code de leur groupe</small>
+                            </span>
+
+                        </div>
+
+                        <div class="onb-choice-body">
+                            <div>
+                                <div class="onb-choice-inner">
+
+                                    <div
+                                        id="onb-code"
+                                        class="onb-code"
+                                    ></div>
+
+                                    <div id="onb-found"></div>
+
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div
+                        class="onb-choice"
+                        data-onb-mode="create"
+                    >
+
+                        <div class="onb-choice-head">
+
+                            <span class="onb-choice-icon">✨</span>
+
+                            <span>
+                                <b>Non, je crée mon groupe</b>
+                                <small>Tu inviteras tes amis avec un code</small>
+                            </span>
+
+                        </div>
+
+                        <div class="onb-choice-body">
+                            <div>
+                                <div class="onb-choice-inner">
+
+                                    <div class="onb-field">
+
+                                        <input
+                                            type="text"
+                                            id="onb-group-name"
+                                            maxlength="30"
+                                            autocomplete="off"
+                                            placeholder="Nom du groupe, ex : Les Fous du BE"
+                                        >
+
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <p class="onb-error"></p>
+
+                    <div class="onb-actions">
+
+                        <button
+                            type="button"
+                            id="onb-group-button"
+                            class="primary-button"
+                        >
+                            Rejoindre →
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Question 4 : tuto guidé ou non -->
+
+                <div
+                    class="onb-step hidden"
+                    data-onb-step="tuto"
                 >
-                    Créer mon compte
-                </button>
 
-            </form>
+                    <div class="onb-num">Question 4</div>
+
+                    <h1>Un petit tuto guidé ?</h1>
+
+                    <p class="onb-hint">
+                        On te montre l'essentiel de BetLab en 30 secondes.
+                    </p>
+
+                    <button
+                        type="button"
+                        class="onb-choice onb-tuto-choice"
+                        data-onb-tuto="oui"
+                    >
+
+                        <span class="onb-choice-head">
+
+                            <span class="onb-choice-icon">🧭</span>
+
+                            <span>
+                                <b>Oui, montre-moi !</b>
+                                <small>Une visite rapide, à ton arrivée</small>
+                            </span>
+
+                        </span>
+
+                    </button>
+
+                    <button
+                        type="button"
+                        class="onb-choice onb-tuto-choice"
+                        data-onb-tuto="non"
+                    >
+
+                        <span class="onb-choice-head">
+
+                            <span class="onb-choice-icon">🚀</span>
+
+                            <span>
+                                <b>Non merci, je me débrouille</b>
+                                <small>Tu arrives directement sur les paris</small>
+                            </span>
+
+                        </span>
+
+                    </button>
+
+                </div>
 
 
-            <p
-                id="register-error"
-                class="error-message"
-            ></p>
+                <!-- C'est tout bon ! -->
+
+                <div
+                    class="onb-step onb-done hidden"
+                    data-onb-step="done"
+                >
+
+                    <div
+                        id="onb-done-icon"
+                        class="onb-done-icon"
+                    >🎉</div>
+
+                    <h1 id="onb-done-title">C'est tout bon !</h1>
+
+                    <p
+                        id="onb-done-text"
+                        class="onb-hint"
+                    ></p>
+
+                    <div class="onb-actions">
+
+                        <button
+                            type="button"
+                            id="onb-enter"
+                            class="primary-button"
+                        >
+                            Entrer dans BetLab →
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
 
 
-            <div class="auth-switch">
+            <div
+                id="onb-login-link"
+                class="auth-switch"
+            >
 
                 Déjà un compte ?
 
                 <button
-                    id="show-login"
+                    id="onb-show-login"
                     class="link-button"
                 >
                     Se connecter
