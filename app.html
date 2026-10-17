@@ -595,7 +595,7 @@
 
                     <div class="leaderboard-header">
                         <span>🏆</span>
-                        <span>Top Parieurs</span>
+                        <span>Classement</span>
 
                         <!-- Téléphone seulement : ferme la fenêtre du classement -->
                         <button
@@ -1040,6 +1040,56 @@
             ></div>
 
 
+            <!-- Préférences d'affichage (setupOddsModeSwitch) -->
+            <div class="profile-card">
+
+                <h2>
+                    Préférences
+                </h2>
+
+                <p class="profile-hint">
+                    Affiche les chances de chaque choix en pourcentage
+                    plutôt qu'en cote (une cote de 2.00 = 50 %).
+                </p>
+
+                <label class="switch-row profile-switch">
+
+                    <input
+                        type="checkbox"
+                        id="odds-mode-switch"
+                    >
+
+                    <span class="switch-track"></span>
+
+                    Afficher en pourcentages
+
+                </label>
+
+            </div>
+
+
+            <!-- Relancer le tuto guidé (setupTourReplayButton) -->
+            <div class="profile-card">
+
+                <h2>
+                    Tuto
+                </h2>
+
+                <p class="profile-hint">
+                    Tu es passé à côté du tuto ? Revois l'essentiel de BetLab en 30 secondes.
+                </p>
+
+                <button
+                    type="button"
+                    id="tour-replay-button"
+                    class="secondary-button"
+                >
+                    🧭 Revoir le tuto
+                </button>
+
+            </div>
+
+
             <div class="profile-card">
 
                 <h2>
@@ -1203,10 +1253,19 @@
                             </div>
 
 
-                            <div
-                                id="share-bar"
-                                class="share-bar"
-                            ></div>
+                            <!-- Avant le niveau 4 : barre grisée avec le cadenas par-dessus (body.level-lock-4) -->
+                            <div class="share-bar-wrap">
+
+                                <div
+                                    id="share-bar"
+                                    class="share-bar"
+                                ></div>
+
+                                <span class="share-lock-hint">
+                                    🔒 Réglage cotes niveau 4
+                                </span>
+
+                            </div>
 
 
                             <input type="hidden" id="odds-one">
@@ -2447,11 +2506,6 @@
             </button>
 
 
-            <h2>
-                ⭐ Ton niveau
-            </h2>
-
-
             <div class="level-sidebar-current">
 
                 <strong id="xp-modal-label">
@@ -2477,20 +2531,13 @@
             <div class="xp-rule">
 
                 <div class="xp-rule-head">
-                    <span class="xp-rule-icon">🎲</span>
                     <div>
-                        <strong>Placer une mise</strong>
-                        <span>Plus la mise est grosse, plus elle rapporte</span>
+                        <strong>Miser sur un pari</strong>
                     </div>
-                    <em>+1 à +20 XP</em>
-                </div>
-
-                <div class="xp-scale">
-                    <div><span>10 €</span><strong>1 XP</strong></div>
-                    <div><span>50 €</span><strong>5 XP</strong></div>
-                    <div><span>100 €</span><strong>10 XP</strong></div>
-                    <div><span>550 €</span><strong>15 XP</strong></div>
-                    <div><span>1 000 €+</span><strong>20 XP</strong></div>
+                    <div class="xp-rule-steps">
+                        <span>10 € misé <em>+1 XP</em></span>
+                        <span>1 000 €+ misé <em>+20 XP</em></span>
+                    </div>
                 </div>
 
             </div>
@@ -2499,29 +2546,12 @@
             <div class="xp-rule">
 
                 <div class="xp-rule-head">
-                    <span class="xp-rule-icon">🏆</span>
                     <div>
                         <strong>Gagner un pari</strong>
-                        <span>Pour chaque mise gagnante, en plus de l'XP de la mise</span>
                     </div>
                     <em>+25 XP</em>
                 </div>
 
-            </div>
-
-
-            <p class="xp-note">
-                Il faut 100 XP pour passer au niveau 2, puis 50 XP de plus à chaque niveau.
-            </p>
-
-
-            <div class="xp-global">
-                <span>🌍</span>
-                <p>
-                    <strong>L'XP te suit dans tous tes groupes.</strong>
-                    C'est la seule valeur conservée d'un groupe à l'autre : ton solde, tes points
-                    et tes achats de boutique restent propres à chaque groupe.
-                </p>
             </div>
 
 

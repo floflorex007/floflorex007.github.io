@@ -5065,6 +5065,7 @@ function renderBetSummaryHtml(
                             }
 
                             <${tag}
+                                data-odds="${Number(choice.odds)}"
                                 class="bet-choice-button${onFire ? " odds-fire" : ""}${!validating && (isClosed || isTargetBlocked) ? " bet-choice-closed" : ""}${myChoiceIds.includes(choice.id) ? " bet-choice-picked" : ""}${interactive ? "" : " bet-choice-readonly"}${validating ? " bet-choice-validate" : ""}${validating && cardValidation?.pick === choice.id ? " validate-selected" : ""}"
                                 ${interactive
                                     ? `data-bet-id="${bet.id}" data-choice-id="${choice.id}" ${!validating && (isClosed || isTargetBlocked) ? "disabled" : ""}`
@@ -5077,7 +5078,7 @@ function renderBetSummaryHtml(
                                 </span>
 
                                 <strong>
-                                    ${Number(choice.odds).toFixed(2)}
+                                    ${oddsText(choice.odds)}
                                 </strong>
 
                                 ${oddsMoveHtml(choice)}
@@ -5442,17 +5443,12 @@ function renderDraftCard(bet) {
 
         ${isBetClosed(bet)
             ? `<div class="draft-banner draft-banner--closed">⏳ Échéance trop proche : ce brouillon ne peut plus être publié.</div>`
-            : `<div class="draft-banner">👆 Mise sur ton pari (seul ou dans un combiné) pour le publier</div>`
+            : `<div class="draft-banner">👆 Mise sur une réponse pour publier le pari</div>`
         }
 
         <div class="bet-footer">
 
             <button type="button" class="draft-delete">🗑 Supprimer le brouillon</button>
-
-            <div class="bet-total-footer">
-                <span>Solde misé</span>
-                <strong>${formatMoney(0)}</strong>
-            </div>
 
         </div>
     `;
@@ -7033,7 +7029,7 @@ async function displayBets({ quiet = false, force = false } = {}) {
                                 }
 
                                 // La cote enflammée (8 ou plus), coupée pendant la validation, revient.
-                                const odds = Number(choiceButton.querySelector("strong")?.textContent);
+                                const odds = Number(choiceButton.dataset.odds);
 
                                 if (!closed && !choiceButton.disabled && odds >= ODDS_FIRE_FROM && !choiceButton.classList.contains("odds-fire")) {
 
@@ -7255,7 +7251,7 @@ function openBetModal(
     document.getElementById(
         "modal-odds"
     ).textContent =
-        "× " + Number(choice.odds).toFixed(2);
+        oddsText(choice.odds, { times: true });
 
 
     document.getElementById(
@@ -7831,6 +7827,13 @@ function ticketDuplicate(entries = ticketEntries()) {
 }
 
 
+// Combinés débloqués au niveau 5 (body.level-lock-5, voir applyLevelLocks).
+function combosLocked() {
+
+    return document.body.classList.contains("level-lock-5");
+
+}
+
 function toggleTicketLeg(bet, choice) {
 
     bet = ticketBet(bet);
@@ -7861,6 +7864,13 @@ function toggleTicketLeg(bet, choice) {
 
         // Un seul choix par pari : l'autre cote remplace la première.
         ticketLegs[index].choiceId = choice.id;
+
+    } else if (combosLocked()) {
+
+        // Avant le niveau 5 : pas de combiné, la nouvelle cote remplace l'ancienne.
+        ticketLegs = [{ betId: bet.id, choiceId: choice.id }];
+
+        ticketOpen = true;
 
     } else if (ticketLegs.length < COMBO_MAX_LEGS) {
 
@@ -8066,7 +8076,7 @@ function renderTicket({ bump = false } = {}) {
 
         <button type="button" class="ticket-bar" data-ticket-toggle>
             ${kind}
-            <b class="ticket-bar-odds${bump ? " bump" : ""}">× ${formatOdds(odds)}</b>
+            <b class="ticket-bar-odds${bump ? " bump" : ""}">${oddsText(odds, { comma: true, times: true })}</b>
             <span class="ticket-bar-arrow">▲</span>
         </button>
 
@@ -8088,19 +8098,15 @@ function renderTicket({ bump = false } = {}) {
                                 <b>${escapeHtml(entry.choice.label)}</b>
                                 <span class="ticket-leg-question" title="${escapeHtml(entry.bet.question)}">${escapeHtml(entry.bet.question)}</span>
                             </span>
-                            <span class="ticket-leg-odds">${formatOdds(entry.choice.odds)}</span>
+                            <span class="ticket-leg-odds">${oddsText(entry.choice.odds, { comma: true })}</span>
                             <button type="button" class="ticket-leg-remove" data-ticket-remove="${entry.bet.id}" aria-label="Retirer">✕</button>
                         </div>
                     `).join("")}
                 </div>
 
                 <div class="ticket-sum">
-                    <b class="ticket-odds${bump ? " bump" : ""}">× ${formatOdds(odds)}</b>
+                    <b class="ticket-odds${bump ? " bump" : ""}">${oddsText(odds, { comma: true, times: true })}</b>
                 </div>
-
-                ${entries.some(entry => entry.bet.status === "draft")
-                    ? `<p class="ticket-note ticket-note-draft">📝 Ta mise publie ${entries.filter(entry => entry.bet.status === "draft").length > 1 ? "tes brouillons" : "ton brouillon"}.</p>`
-                    : ""}
 
                 ${boost || (combo && odds >= COMBO_MAX_ODDS)
                     ? `<p class="ticket-boost">${boost ? `<span class="ticket-boost-pct${boostChanged ? (boostUp ? " up" : " down") : ""}" data-ticket-boost-pct="${boostPct}">⚡ Boost +${boostPct} %</span> inclus` : "⚡"}${odds >= COMBO_MAX_ODDS ? (boost ? " · " : " ") + "cote max " + COMBO_MAX_ODDS : ""}</p>`
@@ -8962,7 +8968,7 @@ function renderComboClaimCard({ combo, state }) {
 
             <div class="claim-card-top">
                 <span class="claim-card-badge">🔗 Combiné perdu</span>
-                <span class="claim-card-result">Cote <b>× ${formatOdds(combo.odds)}</b></span>
+                <span class="claim-card-result">Cote <b>${oddsText(combo.odds, { comma: true, times: true })}</b></span>
             </div>
 
             <h3>Combiné · ${legs.length} paris</h3>
@@ -9005,7 +9011,7 @@ function renderComboClaimCard({ combo, state }) {
 
         <div class="claim-card-top">
             <span class="claim-card-badge">${refunded ? "↺ Combiné remboursé" : "🔗 Combiné gagné"}</span>
-            <span class="claim-card-result">Cote <b>× ${formatOdds(refunded ? 1 : state.payout / Number(combo.stake))}</b></span>
+            <span class="claim-card-result">Cote <b>${oddsText(refunded ? 1 : state.payout / Number(combo.stake), { comma: true, times: true })}</b></span>
         </div>
 
         <h3>Combiné · ${legs.length} paris</h3>
@@ -9149,7 +9155,7 @@ function renderComboRow(row, contestButtonShown) {
             <li class="combo-leg combo-leg--${legResult}">
                 <span class="combo-leg-dot">${mark(legResult) || "⏳"}</span>
                 <span class="combo-leg-text"><b>${escapeHtml(comboLegLabel(leg))}</b> · ${escapeHtml(bet.question || "")}</span>
-                <span class="combo-leg-odds">${formatOdds(leg.odds)}</span>
+                <span class="combo-leg-odds">${oddsText(leg.odds, { comma: true })}</span>
                 ${contestHtml}
             </li>
         `;
@@ -9167,7 +9173,7 @@ function renderComboRow(row, contestButtonShown) {
 
             <p>
                 <b class="combo-progress">${wonCount}/${counted}</b> gagnés
-                · cote × ${formatOdds(combo.odds)}
+                · cote ${oddsText(combo.odds, { comma: true, times: true })}
                 · mise ${formatMoney(combo.stake)}
                 ${contestable ? " · <span class=\"combo-contest-hint\">⚖️ contestable</span>" : ""}
             </p>
@@ -9571,7 +9577,7 @@ async function displayMyBets({ cascade = false } = {}) {
 
                         <p>
                             ${escapeHtml(choice.label)}
-                            · ${(Number(stake.potential_win) / Number(stake.stake) / (stake.boosted ? 1.2 : 1) || Number(choice.odds)).toFixed(2)}
+                            · ${oddsText(Number(stake.potential_win) / Number(stake.stake) / (stake.boosted ? 1.2 : 1) || Number(choice.odds))}
                             · mise ${formatMoney(stake.stake)}${stake.boosted ? " · 🚀 boost +20 %" : ""}
                         </p>
 
@@ -9637,7 +9643,7 @@ async function displayMyBets({ cascade = false } = {}) {
                     <h3>${escapeHtml(bet.question)}</h3>
 
                     <p>
-                        ${choices.map(choice => escapeHtml(choice.label) + " " + Number(choice.odds).toFixed(2)).join(" · ")}
+                        ${choices.map(choice => escapeHtml(choice.label) + " " + oddsText(choice.odds)).join(" · ")}
                         ${cancelled ? "" : done && winner ? " · 🏆 " + escapeHtml(winner.label) : done ? "" : draft ? " · brouillon, mise dessus pour le publier" : " · en cours"}
                     </p>
 
@@ -10371,7 +10377,7 @@ async function displayMyCreatedBets() {
                                 return `
                                     <div class="created-bet-result ${isWinner ? "win" : "lose"}">
                                         <span>${isWinner ? "🏆 " : ""}${escapeHtml(choice.label)}</span>
-                                        <strong>${Number(choice.odds).toFixed(2)}</strong>
+                                        <strong>${oddsText(choice.odds)}</strong>
                                     </div>
                                 `;
 
@@ -10400,7 +10406,7 @@ async function displayMyCreatedBets() {
                             <h3>${escapeHtml(bet.question)}</h3>
 
                             <p class="created-bet-meta">
-                                ${bet.deadline_at ? "Se ferme le " + formatDeadline(bet.deadline_at) + " · " : ""}${choices.map(choice => escapeHtml(choice.label) + " " + Number(choice.odds).toFixed(2)).join(" · ")}
+                                ${bet.deadline_at ? "Se ferme le " + formatDeadline(bet.deadline_at) + " · " : ""}${choices.map(choice => escapeHtml(choice.label) + " " + oddsText(choice.odds)).join(" · ")}
                             </p>
 
                         </div>
@@ -10564,7 +10570,7 @@ function renderResolveStepOne(bet, stakes) {
                             <b>${escapeHtml(choice.label)}</b>
                             <small>${count} parieur${count > 1 ? "s" : ""}</small>
                         </span>
-                        <span class="resolve-pick-odds">${Number(choice.odds).toFixed(2)} →</span>
+                        <span class="resolve-pick-odds">${oddsText(choice.odds)} →</span>
                     </button>
                 `;
 
@@ -10824,8 +10830,8 @@ async function openStakesModal(bet, card) {
                             </div>
                             <div class="stake-row-details">
                                 <span>💰 ${amounts} €</span>
-                                <span>🎲 ${(totalWin / group.stakes.reduce((sum, stake) => sum + Number(stake.stake), 0) || Number(choice?.odds || 0)).toFixed(2)}</span>
-                                <span>🏆 ${formatMoney(totalWin)}</span>
+                                <span>${oddsText(totalWin / group.stakes.reduce((sum, stake) => sum + Number(stake.stake), 0) || Number(choice?.odds || 0))}</span>
+                                <span>${formatMoney(totalWin)}</span>
                             </div>
                         </div>
                     `;
@@ -10847,8 +10853,8 @@ async function openStakesModal(bet, card) {
                             </div>
                             <div class="stake-row-details">
                                 <span>💰 ${Number(combo.stake).toLocaleString("fr-FR")} €</span>
-                                <span>🎲 ${Number(choice?.odds || 0).toFixed(2)} · combiné × ${Number(combo.odds).toFixed(2)}</span>
-                                <span>🏆 ${formatMoney(combo.potential_win)}</span>
+                                <span>${oddsText(choice?.odds || 0)} · combiné ${oddsText(combo.odds, { times: true })}</span>
+                                <span>${formatMoney(combo.potential_win)}</span>
                             </div>
                         </div>
                     `;
@@ -11273,6 +11279,11 @@ function openCreateModal() {
     // Échéance repartie de zéro : une date choisie puis abandonnée ne reste pas affichée.
     resetDeadlinePicker();
 
+    // Avant le niveau 4 : 2 choix à 2 / 2.
+    if (createOddsLocked()) {
+        setThreeChoices(false);
+    }
+
     document.getElementById("create-modal").classList.remove("hidden");
 
     updateCreateGuide();
@@ -11394,7 +11405,8 @@ function updateCreateOdds() {
 
         const oddsTwo = Number(oddsTwoInput.value);
 
-        const oddsThree = calculerCoteTroisieme(oddsOne, oddsTwo);
+        // Calculée depuis ses chances (pas depuis les cotes 1 et 2 arrondies).
+        const oddsThree = shareOdds(createShares[2]);
 
         oddsThreeInput.value = oddsThree && oddsThree !== Infinity ? oddsThree.toFixed(2) : "";
 
@@ -11402,7 +11414,7 @@ function updateCreateOdds() {
 
     } else {
 
-        const cote = calculerCoteComplementaire(oddsOne);
+        const cote = shareOdds(createShares[1]);
 
         oddsTwoInput.value = cote ? cote.toFixed(2) : "";
 
@@ -11421,16 +11433,16 @@ function updateCreateOdds() {
 /*
     Répartition des chances (version D de demo-choix-cotes.html) :
     une barre partagée entre les choix, à glisser. Les chances font 100 %,
-    la cote d'un choix vaut 100 / chances (11 % minimum, soit une cote de 9,09 au plus).
+    la cote d'un choix vaut 100 / chances (20 % minimum, soit une cote de 5 au plus).
     Les cotes 1 (et 2 à trois choix) vont dans les champs cachés ; updateCreateOdds
     calcule la dernière comme avant, et c'est elle qui est affichée.
 */
 
-const SHARE_MIN = 11;
+const SHARE_MIN = 20;
 
 const SHARE_COLORS = ["#6c63ff", "#ff7aa8", "#f5c451"];
 
-let createShares = [55, 45];
+let createShares = [50, 50];
 
 // Curseur glissé au moins une fois : le halo passe à la date (updateCreateGuide).
 let createSharesTouched = false;
@@ -11462,12 +11474,67 @@ function renderShareBar() {
     const names = ["choice-one", "choice-two", "choice-three"]
         .map((id, index) => document.getElementById(id).value.trim() || `Choix ${index + 1}`);
 
+    let changed = false;
+
     createShares.forEach((share, index) => {
 
-        document.querySelector(`[data-share-odds="${index}"]`).textContent =
-            odds[index] ? formatOdds(odds[index]) : "–";
+        const label = document.querySelector(`[data-share-odds="${index}"]`);
+
+        // Mode pourcentages (profil) : les chances du choix au lieu de sa cote.
+        const text = !odds[index] ? "–" : oddsAsPercent() ? Math.round(share) + " %" : formatOdds(odds[index]);
+
+        if (label.textContent === text) {
+            return;
+        }
+
+        label.textContent = text;
+
+        // Petit « pop » de la cote qui change pendant le glissé.
+        if (bar.classList.contains("dragging")) {
+
+            changed = true;
+
+            label.classList.remove("pop");
+
+            void label.offsetWidth;
+
+            label.classList.add("pop");
+
+        }
 
     });
+
+    // Petit clic sous le doigt à chaque cran (téléphones qui le permettent).
+    if (changed) {
+        navigator.vibrate?.(4);
+    }
+
+    const segments = bar.querySelectorAll(":scope > div");
+
+    // Même nombre de choix : on change seulement les largeurs, pour que ça glisse en douceur.
+    if (segments.length === createShares.length) {
+
+        let left = 0;
+
+        const handles = bar.querySelectorAll(".share-handle");
+
+        createShares.forEach((share, index) => {
+
+            segments[index].style.width = share + "%";
+
+            segments[index].textContent = share >= 16 ? names[index] : "";
+
+            left += share;
+
+            if (handles[index]) {
+                handles[index].style.left = left + "%";
+            }
+
+        });
+
+        return;
+
+    }
 
     bar.innerHTML = createShares
         .map((share, index) => `
@@ -11501,9 +11568,51 @@ function renderShareBar() {
 }
 
 
+/*
+    Crans du séparateur : une cote ronde (pas de 0,5, de 1,5 à 5) pour le choix
+    de gauche ou celui de droite, le cran le plus proche du doigt.
+    x : chances voulues pour le choix de gauche ; pair : chances des deux choix.
+*/
+const ODDS_STEP = 0.5;
+
+// Cote d'un choix d'après ses chances (en %).
+function shareOdds(share) {
+
+    return Math.round(100 / share * 100) / 100;
+
+}
+
+function snapShare(x, pair) {
+
+    const candidates = [];
+
+    for (let odds = 1.5; odds <= ODDS_MAX + 0.001; odds += ODDS_STEP) {
+
+        candidates.push(100 / odds, pair - 100 / odds);
+
+    }
+
+    const allowed = candidates.filter(share =>
+        share >= SHARE_MIN - 0.001 && share <= pair - SHARE_MIN + 0.001
+    );
+
+    if (!allowed.length) {
+        return null;
+    }
+
+    return allowed.reduce((best, share) =>
+        Math.abs(share - x) < Math.abs(best - x) ? share : best
+    );
+
+}
+
 function dragShare(event, index) {
 
     event.preventDefault();
+
+    if (createOddsLocked()) {
+        return;
+    }
 
     const bar = document.getElementById("share-bar");
 
@@ -11517,11 +11626,11 @@ function dragShare(event, index) {
 
     const move = moveEvent => {
 
-        const x = Math.round((moveEvent.clientX - rect.left) / rect.width * 100) - before;
+        const x = (moveEvent.clientX - rect.left) / rect.width * 100 - before;
 
-        const share = Math.max(SHARE_MIN, Math.min(pair - SHARE_MIN, x));
+        const share = snapShare(x, pair);
 
-        if (share === createShares[index]) {
+        if (share === null || Math.abs(share - createShares[index]) < 0.001) {
             return;
         }
 
@@ -11562,6 +11671,16 @@ function dragShare(event, index) {
 }
 
 
+/*
+    Avant le niveau 4 (body.level-lock-4) : pas de curseur ni de 3e choix,
+    les paris se créent à 2 / 2.
+*/
+function createOddsLocked() {
+
+    return document.body.classList.contains("level-lock-4");
+
+}
+
 // Bouton « Ajouter / Retirer le 3e choix ».
 function setThreeChoices(on) {
 
@@ -11573,7 +11692,7 @@ function setThreeChoices(on) {
 
     third.classList.toggle("hidden", !on);
 
-    createShares = on ? [45, 35, 20] : [55, 45];
+    createShares = on ? [40, 40, 20] : [50, 50];
 
     // Nouvelle répartition : le curseur est à régler de nouveau.
     createSharesTouched = false;
@@ -11595,6 +11714,11 @@ function setThreeChoices(on) {
 
 
 async function createBet() {
+
+    // Avant le niveau 4 : quoi qu'il arrive, 2 choix à 2 / 2.
+    if (createOddsLocked() && (threeChoicesOn() || createShares[0] !== 50)) {
+        setThreeChoices(false);
+    }
 
     const question =
         document.getElementById(
@@ -11630,10 +11754,9 @@ async function createBet() {
     const three =
         threeChoicesOn();
 
+    // Cotes 2 et 3 : celles affichées (updateCreateOdds, depuis les chances).
     const oddsTwo =
-        three
-            ? Number(document.getElementById("odds-two").value)
-            : calculerCoteComplementaire(oddsOne);
+        Number(document.getElementById("odds-two").value);
 
     const choiceThree =
         three
@@ -11642,7 +11765,7 @@ async function createBet() {
 
     const oddsThree =
         three
-            ? calculerCoteTroisieme(oddsOne, oddsTwo)
+            ? Number(document.getElementById("odds-three").value)
             : 0;
 
 
@@ -11987,7 +12110,7 @@ function updateCreateGuide() {
 
     }
 
-    steps.push([document.getElementById("share-bar"), createSharesTouched]);
+    steps.push([document.getElementById("share-bar"), createSharesTouched || createOddsLocked()]);
 
     steps.push([document.getElementById("deadline-days"), deadlineDayOffset !== null]);
 
@@ -12261,15 +12384,16 @@ function resetDeadlinePicker() {
 
 
 /*
-    Cotes autorisées : de 1,01 à 20 (vérifié aussi par Supabase, voir securite-paris.sql).
-    La cote 2 étant calculée depuis la cote 1, la cote 1 doit rester entre 1,12 et 10
-    (en dessous de 1,12, la cote 2 dépasserait 10).
-    Cote max aussi vérifiée côté base (cotes-et-combines.sql).
+    Cotes autorisées à la création : de 1,01 à 5.
+    La cote 2 étant calculée depuis la cote 1, la cote 1 doit rester entre 1,25 et 5
+    (en dessous de 1,25, la cote 2 dépasserait 5).
+    Aussi vérifié côté base : cote-max-5.sql (création), cotes-et-combines.sql (10 ensuite).
 */
 
 const ODDS_MIN = 1.01;
 
-const ODDS_MAX = 10;
+// Plafond à la création (les cotes qui bougent peuvent ensuite monter jusqu'à 10).
+const ODDS_MAX = 5;
 
 // Cote enflammée (étincelles) à partir de 8.
 const ODDS_FIRE_FROM = 8;
@@ -12291,7 +12415,7 @@ function oddsMoveHtml(choice) {
 
     const up = odds > start;
 
-    return `<em class="odds-move ${up ? "up" : "down"}" title="Cote de départ : ${start.toFixed(2)}">${up ? "▲" : "▼"}</em>`;
+    return `<em class="odds-move ${up ? "up" : "down"}" title="Au départ : ${oddsText(start)}">${up !== oddsAsPercent() ? "▲" : "▼"}</em>`;
 
 }
 
@@ -12306,7 +12430,7 @@ function oddsProblem(oddsOne, oddsTwo) {
     }
 
     if (oddsOne < ODDS_MIN || oddsTwo > ODDS_MAX) {
-        return "Cote trop basse : avec " + formatOdds(oddsOne) + ", le choix 2 dépasserait " + ODDS_MAX + ". Mets au moins 1,12.";
+        return "Cote trop basse : avec " + formatOdds(oddsOne) + ", le choix 2 dépasserait " + ODDS_MAX + ". Mets au moins 1,25.";
     }
 
     return "";
@@ -12316,6 +12440,92 @@ function oddsProblem(oddsOne, oddsTwo) {
 function formatOdds(value) {
 
     return Number(value).toFixed(2).replace(".", ",");
+
+}
+
+/*
+    Préférence d'affichage (profil) : cotes (2.50) ou pourcentages (40 %).
+    Le pourcentage est la chance que la cote suppose : 100 / cote.
+    Rangé dans ce navigateur seulement.
+*/
+const ODDS_MODE_KEY = "betlab-odds-mode";
+
+function oddsAsPercent() {
+
+    try {
+        return localStorage.getItem(ODDS_MODE_KEY) === "percent";
+    } catch {
+        return false;
+    }
+
+}
+
+function setOddsAsPercent(on) {
+
+    try {
+        localStorage.setItem(ODDS_MODE_KEY, on ? "percent" : "odds");
+    } catch {
+        // Navigateur sans stockage : le réglage ne sera pas gardé.
+    }
+
+}
+
+// comma : « 2,50 » au lieu de « 2.50 » ; times : « × 2,50 » (rien en pourcentage).
+function oddsText(value, { comma = false, times = false } = {}) {
+
+    const odds = Number(value);
+
+    if (oddsAsPercent()) {
+
+        if (!odds) {
+            return "0 %";
+        }
+
+        const percent = 100 / odds;
+
+        // En dessous de 1 % (gros combinés), une décimale pour ne pas afficher 0 %.
+        return (percent < 1
+            ? percent.toFixed(1).replace(".", ",")
+            : Math.round(percent)) + " %";
+
+    }
+
+    const text = comma ? formatOdds(odds) : odds.toFixed(2);
+
+    return times ? "× " + text : text;
+
+}
+
+// Interrupteur « Cotes / Pourcentages » du profil : tout se redessine aussitôt.
+function setupOddsModeSwitch() {
+
+    const input = document.getElementById("odds-mode-switch");
+
+    if (!input) {
+        return;
+    }
+
+    input.checked = oddsAsPercent();
+
+    input.addEventListener("change", () => {
+
+        setOddsAsPercent(input.checked);
+
+        renderShareBar();
+
+        if (!currentGroup) {
+            return;
+        }
+
+        displayBets({ quiet: true, force: true });
+
+        displayMyBets();
+
+        displayMyCreatedBets();
+
+        renderTicket();
+
+    });
 
 }
 
@@ -17465,14 +17675,14 @@ function playerBetHtml(item, index, canCopy) {
                 ${item.legs.map(leg => `
                     <li>
                         <span class="pp-leg-q">${escapeHtml(leg.question)} → <b>${escapeHtml(leg.label)}</b></span>
-                        <span class="pp-leg-o">${Number(leg.odds).toFixed(2)}</span>
+                        <span class="pp-leg-o">${oddsText(leg.odds)}</span>
                     </li>
                 `).join("")}
             </ul>
             <div class="pp-bet-foot">
                 <span>
                     Mise <b>${euros(item.stake)}</b>
-                    ${item.combo ? ` · cote <b>${Number(item.odds).toFixed(2)}</b>` : ""}
+                    ${item.combo ? ` · cote <b>${oddsText(item.odds)}</b>` : ""}
                     ${item.state === "won" ? ` · gain <b class="pp-win">+${euros(item.win)}</b>` : ""}
                 </span>
                 ${item.state === "open" && canCopy
@@ -19935,6 +20145,48 @@ function rememberKnownVisitor() {
 
 const ONBOARDING_STEPS = ["pseudo", "password", "group", "tuto", "done"];
 
+
+/* Questionnaire en cours après la création du compte (questions 3 et 4) :
+   si la page est rechargée, on y revient au lieu de partir sur app.html.
+   { user, step, pseudo, doneIcon, doneText }, effacé à la réponse au tuto. */
+const ONBOARDING_RESUME_KEY = "betlab-inscription-en-cours";
+
+function saveOnboardingResume(state) {
+
+    try {
+        localStorage.setItem(ONBOARDING_RESUME_KEY, JSON.stringify(state));
+    } catch (error) {
+        // Stockage indisponible : un rechargement mènera directement à l'app.
+    }
+
+}
+
+function readOnboardingResume(userId) {
+
+    try {
+
+        const state = JSON.parse(localStorage.getItem(ONBOARDING_RESUME_KEY));
+
+        return state && state.user === userId ? state : null;
+
+    } catch (error) {
+
+        return null;
+
+    }
+
+}
+
+function clearOnboardingResume() {
+
+    try {
+        localStorage.removeItem(ONBOARDING_RESUME_KEY);
+    } catch (error) {
+        // Rien à effacer.
+    }
+
+}
+
 function showOnboardingStep(step, back = false) {
 
     const index = ONBOARDING_STEPS.indexOf(step);
@@ -19963,8 +20215,8 @@ function showOnboardingStep(step, back = false) {
     document.getElementById("onb-gauge-label").textContent =
         step === "done" ? "Terminé !" : `Question ${index + 1} sur 4`;
 
-    // Une fois le compte créé, plus de lien vers la connexion.
-    document.getElementById("onb-login-link").classList.toggle("hidden", index > 0);
+    // Lien vers la connexion pendant toutes les questions, retiré à la fin.
+    document.getElementById("onb-login-link").classList.toggle("hidden", step === "done");
 
 }
 
@@ -20053,7 +20305,19 @@ function setupOnboarding(showAuthSection) {
     let doneText = "";
 
 
+    // Étape atteinte, gardée pour un éventuel rechargement de la page.
+    const rememberStep = step => saveOnboardingResume({
+        user: currentUser?.id,
+        step,
+        pseudo,
+        doneIcon,
+        doneText
+    });
+
+
     document.getElementById("onb-show-login").addEventListener("click", () => {
+
+        clearOnboardingResume();
 
         showAuthSection("login-section");
 
@@ -20092,11 +20356,9 @@ function setupOnboarding(showAuthSection) {
         );
 
         // Même pseudo à la casse près = même compte (voir usernameToEmail).
-        const { data, error } = await supabaseClient
-            .from("profiles")
-            .select("id")
-            .ilike("username", value.replace(/[\\%_]/g, char => "\\" + char))
-            .limit(1);
+        // Sans compte, profiles n'est pas lisible : on passe par pseudo-disponible.sql.
+        const { data: available, error } = await supabaseClient
+            .rpc("pseudo_disponible", { p_username: value });
 
         stopLoading();
 
@@ -20110,7 +20372,7 @@ function setupOnboarding(showAuthSection) {
 
         }
 
-        if (data.length > 0) {
+        if (!available) {
 
             onboardingError("pseudo", "Ce pseudo est déjà pris, essaie autre chose.", field);
 
@@ -20203,6 +20465,8 @@ function setupOnboarding(showAuthSection) {
         setLoadProgress(0);
 
         rememberKnownVisitor();
+
+        rememberStep("group");
 
         showOnboardingStep("group");
 
@@ -20405,6 +20669,8 @@ function setupOnboarding(showAuthSection) {
 
             doneText = `Ta demande pour rejoindre ${name} est envoyée. Tu entres dès qu'un gérant du groupe l'accepte.`;
 
+            rememberStep("tuto");
+
             showOnboardingStep("tuto");
 
             return;
@@ -20448,6 +20714,8 @@ function setupOnboarding(showAuthSection) {
 
         doneText = "";
 
+        rememberStep("tuto");
+
         showOnboardingStep("tuto");
 
     }
@@ -20483,6 +20751,8 @@ function setupOnboarding(showAuthSection) {
                 // Stockage indisponible : pas de tuto.
 
             }
+
+            clearOnboardingResume();
 
             finishOnboarding(doneIcon, doneText);
 
@@ -20521,6 +20791,29 @@ function setupOnboarding(showAuthSection) {
         window.location.href = "app.html";
 
     });
+
+
+    // Reprise après un rechargement (voir ONBOARDING_RESUME_KEY).
+    return state => {
+
+        pseudo = state.pseudo || currentProfile?.username || "";
+
+        doneIcon = state.doneIcon || "🎉";
+
+        doneText = state.doneText || "";
+
+        document.getElementById("onb-password-hint").textContent =
+            `Pour retrouver ton compte, ${pseudo}.`;
+
+        showOnboardingStep(state.step);
+
+        showAuthSection("onboarding-section");
+
+        if (state.step === "group") {
+            setTimeout(() => document.querySelector("#onb-code input")?.focus(), 50);
+        }
+
+    };
 
 }
 
@@ -20586,6 +20879,8 @@ async function initAuthPage() {
 
     let mustChangePassword = false;
 
+    let resumeState = null;
+
 
     if (data.session) {
 
@@ -20607,7 +20902,11 @@ async function initAuthPage() {
         }
 
 
-        if (!mustChangePassword) {
+        // Compte créé mais questionnaire pas fini (groupe ou tuto) : on y revient.
+        resumeState =
+            mustChangePassword ? null : readOnboardingResume(currentUser.id);
+
+        if (!mustChangePassword && !resumeState) {
 
             window.location.href =
                 "app.html";
@@ -20638,7 +20937,8 @@ async function initAuthPage() {
     setupPasswordEyes();
 
 
-    setupOnboarding(showAuthSection);
+    const resumeOnboarding =
+        setupOnboarding(showAuthSection);
 
 
     /*
@@ -20909,6 +21209,12 @@ async function initAuthPage() {
 
     }
 
+    if (resumeState) {
+
+        resumeOnboarding(resumeState);
+
+    }
+
 }
 
 
@@ -21011,7 +21317,7 @@ const GUIDED_TOUR_STEPS = [
     {
         targets: ["#bet-ticket"],
         title: "Ton ticket",
-        text: "Choisis ta mise puis appuie sur « Parier ». Avec 2 à 4 cotes, c'est un combiné : les cotes se multiplient."
+        text: "Choisis ta mise puis appuie sur « Parier »."
     },
     {
         targets: ["#balance-widget"],
@@ -21021,7 +21327,7 @@ const GUIDED_TOUR_STEPS = [
     {
         targets: ["#nav-create-button", "#bets-container .bet-create-card"],
         title: "Crée tes paris",
-        text: "Pose une question à ton groupe et fixe les cotes : les autres parient dessus."
+        text: "Pose une question à ton groupe : les autres parient dessus."
     },
     {
         targets: ['.nav-button[data-page="missions-page"]'],
@@ -21090,6 +21396,21 @@ function startGuidedTour(attempt = 0) {
     }
 
     runSpotlightTour(GUIDED_TOUR_STEPS);
+
+}
+
+
+// Bouton « Revoir le tuto » du profil : retour sur les paris, puis le tuto guidé.
+function setupTourReplayButton() {
+
+    document.getElementById("tour-replay-button")?.addEventListener("click", () => {
+
+        showPage("bets-page");
+
+        // Le temps que la page des paris s'affiche.
+        setTimeout(() => runSpotlightTour(GUIDED_TOUR_STEPS), 400);
+
+    });
 
 }
 
@@ -21321,20 +21642,30 @@ const LEVEL_UNLOCKS = {
             targets: ["#streak-sidebar", "#streak-widget"],
             title: "🔓 Niveau 3 : ta série",
             text: "Connecte-toi chaque jour pour faire grandir ta flamme 🔥 et gagner des bonus."
+        },
+        {
+            targets: ["#chat-fab"],
+            title: "🔓 Le chat",
+            text: "Discute avec ton groupe. Les messages s'effacent chaque lundi."
+        },
+        {
+            targets: ["#diamond-widget"],
+            title: "🔓 Les diamants",
+            text: "La monnaie rare de BetLab, la même dans tous tes groupes : elle débloque des objets exclusifs."
         }
     ],
     4: [
         {
-            targets: ["#chat-fab"],
-            title: "🔓 Niveau 4 : le chat",
-            text: "Discute avec ton groupe. Les messages s'effacent chaque lundi."
+            targets: ["#nav-create-button", ".bet-create-card"],
+            title: "🔓 Niveau 4 : tes propres cotes",
+            text: "Quand tu crées un pari, glisse le curseur pour choisir les cotes (jusqu'à 5) et ajoute un 3e choix si tu veux."
         }
     ],
     5: [
         {
-            targets: ["#diamond-widget"],
-            title: "🔓 Niveau 5 : les diamants",
-            text: "La monnaie rare de BetLab, la même dans tous tes groupes : elle débloque des objets exclusifs."
+            targets: ["#bets-container .bet-card:not(.bet-card-draft)", "#bet-ticket"],
+            title: "🔓 Niveau 5 : les combinés",
+            text: "Touche les cotes de 2 à 4 paris différents : elles se multiplient dans ton ticket. Tout ou rien !"
         }
     ]
 };
@@ -21519,6 +21850,10 @@ async function initAppPage() {
         setupLeaderboardPopup();
 
         setupContestModal();
+
+        setupOddsModeSwitch();
+
+        setupTourReplayButton();
 
         setupParrotFit();
 

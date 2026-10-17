@@ -274,17 +274,6 @@ input {
     margin-left: 4px;
 }
 
-.demo-warning {
-    margin-top: 20px;
-    padding: 15px;
-    border-radius: 8px;
-    background: #211f16;
-    color: #c8bd8a;
-    font-size: 12px;
-    line-height: 1.5;
-}
-
-
 /* ================================
    NAVBAR
 ================================ */
@@ -2335,6 +2324,22 @@ input {
 
 .switch-row input:checked + .switch-track::after {
     transform: translateX(16px);
+}
+
+/* Interrupteur des préférences (profil) */
+label.profile-switch {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #c4c8d4;
+    cursor: pointer;
+}
+
+.profile-switch input {
+    display: none;
 }
 
 
@@ -5412,8 +5417,9 @@ body.app-loading .enjeu-cadre {
     max-width: 480px;
 }
 
-.xp-modal-content h2 {
-    margin-bottom: 16px;
+/* Plus de titre : la ligne du niveau laisse la place à la croix de fermeture */
+.xp-modal-content > .level-sidebar-current {
+    padding-right: 36px;
 }
 
 .xp-modal-content .level-bar.level-bar-large {
@@ -5443,8 +5449,11 @@ body.app-loading .enjeu-cadre {
     overflow-y: auto;
 }
 
+/* Séparation nette entre « Comment gagner de l'XP ? » et les skins */
 .xp-skins-title {
-    margin-top: 22px;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #2c3040;
 }
 
 .xp-skins {
@@ -5452,6 +5461,47 @@ body.app-loading .enjeu-cadre {
     display: flex;
     flex-direction: column;
     gap: 8px;
+}
+
+/* Skins de niveau : jauge verticale à gauche, un point par skin.
+   Un trait du centre d'un skin au suivant, rempli de --path-fill (renderParrotSkins). */
+.xp-skins-path {
+    padding-left: 24px;
+}
+
+.xp-skins-path .xp-skin {
+    position: relative;
+}
+
+.xp-skins-path .xp-skin:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    left: -19px;
+    top: 50%;
+    width: 4px;
+    height: calc(100% + 8px);
+    border-radius: 2px;
+    background: linear-gradient(180deg, #c86bff var(--path-fill, 0%), #2c3040 var(--path-fill, 0%));
+}
+
+.xp-skins-path .xp-skin::before {
+    content: "";
+    position: absolute;
+    left: -23px;
+    top: 50%;
+    width: 12px;
+    height: 12px;
+    margin-top: -6px;
+    border-radius: 50%;
+    background: #c86bff;
+    border: 2px solid #14161e;
+    box-shadow: 0 0 0 2px #c86bff;
+    z-index: 1;
+}
+
+.xp-skins-path .xp-skin.locked::before {
+    background: #2c3040;
+    box-shadow: 0 0 0 2px #3a3f50;
 }
 
 .xp-skin {
@@ -5477,9 +5527,10 @@ body.app-loading .enjeu-cadre {
     flex-shrink: 0;
 }
 
+/* Skin verrouillé : aperçu flouté, pour donner envie de le débloquer */
 .xp-skin.locked img {
-    filter: saturate(0.6) brightness(0.6);
-    opacity: 0.7;
+    filter: blur(2.5px) saturate(0.8) brightness(0.75);
+    opacity: 0.85;
 }
 
 .xp-skin-text {
@@ -5627,6 +5678,24 @@ body.app-loading .enjeu-cadre {
     padding: 4px 10px;
 }
 
+/* « Placer une mise » : montant à gauche, XP dans la bulle (10 € → 1 000 €+) */
+.xp-rule-head .xp-rule-steps {
+    margin-left: auto;
+    flex-shrink: 0;
+    align-items: flex-end;
+    gap: 6px;
+}
+
+.xp-rule-steps span {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #b9bdc9;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
 .xp-scale {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
@@ -5659,34 +5728,6 @@ body.app-loading .enjeu-cadre {
     color: #858a98;
     font-size: 12px;
     margin: 4px 2px 12px;
-}
-
-.xp-global {
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-    padding: 10px 12px;
-    border-radius: 12px;
-    background: rgba(99, 214, 159, 0.08);
-    border: 1px solid rgba(99, 214, 159, 0.35);
-}
-
-.xp-global > span {
-    font-size: 18px;
-    line-height: 1.2;
-}
-
-.xp-global p {
-    color: #b9bdc9;
-    font-size: 12px;
-    line-height: 1.45;
-}
-
-.xp-global strong {
-    display: block;
-    color: #9ff0c8;
-    font-size: 13px;
-    margin-bottom: 2px;
 }
 
 
@@ -8352,6 +8393,12 @@ body.parrot-phenix #parrot {
     white-space: nowrap;
 }
 
+/* Brouillon : personne n'a encore misé, pas de répartition à montrer */
+.bet-card-draft .choice-bar-track,
+.bet-card-draft .choice-pct {
+    display: none;
+}
+
 .bet-card-draft .bet-choice-button:not(:disabled) {
     border-color: #f5c451;
     animation: draft-pulse 1.4s infinite;
@@ -9121,11 +9168,6 @@ body.ticket-combo .ticket-go:not(:disabled) {
     font-weight: 700;
     white-space: nowrap;
 }
-
-.ticket-note-draft {
-    color: #f5c451;
-}
-
 
 /* ================================
    HISTORIQUE : LIGNE D'UN COMBINÉ
@@ -10822,12 +10864,6 @@ body.ticket-combo .ticket-go.ticket-go--blocked {
     height: 100%;
     border-radius: inherit;
     background: linear-gradient(90deg, #2fa36f, #63d69f);
-}
-
-.balance-modal-content .bal-hint {
-    margin: 0 0 10px;
-    color: #858a98;
-    font-size: 12px;
 }
 
 /* Paliers, avec la jauge verticale à gauche */
@@ -14784,17 +14820,13 @@ body.app-loading .page-loader-logo {
    INSCRIPTION EN QUESTIONS (Index.html, première visite)
 ========================================================= */
 
-/* Perroquet au-dessus du logo : seulement pendant le questionnaire */
+/* Perroquet au-dessus du logo (connexion et questionnaire) */
 .onb-parrot {
-    display: none;
+    display: block;
     position: relative;
     width: 120px;
     height: 120px;
     margin: 0 auto 6px;
-}
-
-body.onboarding .onb-parrot {
-    display: block;
 }
 
 .onb-parrot img {
@@ -14805,8 +14837,7 @@ body.onboarding .onb-parrot {
     object-fit: contain;
 }
 
-body.onboarding .subtitle,
-body.onboarding .demo-warning {
+body.onboarding .subtitle {
     display: none;
 }
 
@@ -15289,15 +15320,20 @@ body.onboarding .demo-warning {
 
 /* =========================================================
    VERSION SIMPLIFIÉE SELON LE NIVEAU (applyLevelLocks dans app.js)
-   Niveau 2 : pièces, missions, boutique · 3 : série · 4 : chat · 5 : diamants
+   Niveau 2 : pièces, missions, boutique · 3 : série, chat, diamants
+   · 4 : réglage des cotes (création) · 5 : combinés (combosLocked)
 ========================================================= */
 
 body.level-lock-2 #points-widget,
+/* Fenêtre du solde : les boosts de clic arrivent avec la boutique (niveau 2) */
+body.level-lock-2 .bal-boost-title,
+body.level-lock-2 .bal-boosts,
+body.level-lock-2 .bal-shop-link,
 body.level-lock-3 #streak-widget,
 body.level-lock-3 #streak-sidebar,
-body.level-lock-4 #chat-fab,
-body.level-lock-4 #chat-panel,
-body.level-lock-5 #diamond-widget {
+body.level-lock-3 #chat-fab,
+body.level-lock-3 #chat-panel,
+body.level-lock-3 #diamond-widget {
     display: none !important;
 }
 
@@ -15547,6 +15583,47 @@ body.level-lock-5 #diamond-widget {
    (version D de demo-choix-cotes.html, renderShareBar dans app.js)
 ========================================================= */
 
+/* Avant le niveau 4 : barre figée à 2 / 2 et grisée, cadenas par-dessus, sans poignée ni 3e choix */
+.share-bar-wrap {
+    position: relative;
+    margin-top: 14px;
+}
+
+.share-bar-wrap .share-bar {
+    margin-top: 0;
+}
+
+.share-lock-hint {
+    display: none;
+    position: absolute;
+    inset: 0;
+    place-items: center;
+    font-size: 13px;
+    font-weight: 800;
+    color: #ffffff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+    pointer-events: none;
+}
+
+body.level-lock-4 .share-lock-hint {
+    display: grid;
+}
+
+body.level-lock-4 .share-bar {
+    filter: grayscale(1) brightness(0.55);
+    cursor: not-allowed;
+}
+
+body.level-lock-4 .share-bar > div {
+    color: transparent;
+}
+
+body.level-lock-4 .share-handle,
+body.level-lock-4 .share-tip,
+body.level-lock-4 #toggle-third-choice {
+    display: none;
+}
+
 .share-tip {
     margin-left: 4px;
     color: #737887;
@@ -15632,11 +15709,8 @@ body.level-lock-5 #diamond-widget {
     font-size: 12px;
     font-weight: 900;
     color: rgba(255, 255, 255, 0.92);
-    transition: width 0.12s ease-out;
-}
-
-.share-bar.dragging > div {
-    transition: none;
+    /* Petit ressort d'un cran à l'autre (renderShareBar change seulement les largeurs) */
+    transition: width 0.28s cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
 /* Poignée entre deux choix (zone large pour le doigt) */
@@ -15648,6 +15722,7 @@ body.level-lock-5 #diamond-widget {
     width: 28px;
     margin-left: -14px;
     cursor: ew-resize;
+    transition: left 0.28s cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
 .share-handle::after {
@@ -15660,12 +15735,36 @@ body.level-lock-5 #diamond-widget {
     border-radius: 2px;
     background: white;
     box-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
-    transition: transform 0.15s;
+    transition: transform 0.2s cubic-bezier(0.34, 1.6, 0.64, 1), box-shadow 0.2s;
 }
 
-.share-handle:hover::after,
-.share-bar.dragging .share-handle::after {
+.share-handle:hover::after {
     transform: scaleX(1.5);
+}
+
+/* Poignée attrapée : plus grosse, avec un halo */
+.share-bar.dragging .share-handle::after {
+    transform: scaleX(1.75) scaleY(1.12);
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.5), 0 0 12px rgba(255, 255, 255, 0.75);
+}
+
+.share-bar.dragging {
+    cursor: ew-resize;
+}
+
+/* Cote qui change pendant le glissé */
+.share-odds {
+    transform-origin: right center;
+}
+
+.share-odds.pop {
+    animation: share-odds-pop 0.28s cubic-bezier(0.34, 1.6, 0.64, 1);
+}
+
+@keyframes share-odds-pop {
+    0% { transform: scale(1); color: #ffffff; }
+    40% { transform: scale(1.22); color: #ffffff; }
+    100% { transform: scale(1); }
 }
 
 @media (max-width: 480px) {

@@ -1200,7 +1200,7 @@ function skinItemHtml(skin, active) {
     const isActive = skin.id === active;
 
     const button = !unlocked
-        ? `<button type="button" class="xp-skin-button locked" disabled>🔒 Non disponible</button>`
+        ? `<button type="button" class="xp-skin-button locked" disabled>🔒 ${skin.level ? "Niveau " + skin.level : "Non disponible"}</button>`
         : skin.id === "classique"
             ? `<button type="button" class="xp-skin-button${isActive ? " active" : ""}" data-skin="classique" ${isActive ? "disabled" : ""}>${isActive ? "✓ Activé" : "Activer"}</button>`
             : `<button type="button" class="xp-skin-button${isActive ? " active" : ""}" data-skin="${skin.id}">${isActive ? "Désactiver" : "Activer"}</button>`;
@@ -1213,7 +1213,10 @@ function skinItemHtml(skin, active) {
                 : `<img src="assets/perroquet/skins/${skin.id}/thumb.png" alt="">`}
             <div class="xp-skin-text">
                 <strong>Skin ${escapeHtml(skin.name)}</strong>
-                <span>${skin.diamond ? "💎 Exclusivité diamant" : skin.october ? "🎀 Offert pour Octobre rose" : skin.event ? skin.event : skin.streak ? "🔥 " + skin.streak + " jours de série" : skin.level ? "Niveau " + skin.level : "Dès le départ"}</span>
+                ${skin.level
+                    // Skins de niveau : le niveau est sur le bouton tant qu'ils sont verrouillés.
+                    ? ""
+                    : `<span>${skin.diamond ? "💎 Exclusivité diamant" : skin.october ? "🎀 Offert pour Octobre rose" : skin.event ? skin.event : skin.streak ? "🔥 " + skin.streak + " jours de série" : "Dès le départ"}</span>`}
             </div>
             ${button}
         </li>
@@ -1261,6 +1264,38 @@ function flameNameItemHtml() {
 }
 
 
+// Remplissage de la jauge des skins de niveau (0 à 100 %).
+// Les skins sont à intervalles égaux : on avance d'un skin au suivant selon le niveau et l'XP.
+function skinPathPercent(levelSkins) {
+
+    if (!Number.isFinite(playerLevel)) {
+        return 100;
+    }
+
+    const levels = levelSkins.map(skin => Math.max(1, skin.level));
+
+    // Niveau en cours, avec la part d'XP déjà gagnée vers le suivant.
+    const info = lastProgressInfo;
+
+    const part = info && info.level === playerLevel && info.needed
+        ? Math.min(1, info.current / info.needed)
+        : 0;
+
+    const position = playerLevel + part;
+
+    if (position >= levels[levels.length - 1]) {
+        return 100;
+    }
+
+    const index = levels.findIndex((level, i) => position < levels[i + 1]);
+
+    const step = (position - levels[index]) / (levels[index + 1] - levels[index]);
+
+    return Math.max(0, (index + step) / (levels.length - 1) * 100);
+
+}
+
+
 // Fenêtre XP : skins de niveau. Fenêtre de la série : skins de série (Phénix).
 function renderParrotSkins() {
 
@@ -1270,10 +1305,31 @@ function renderParrotSkins() {
 
     if (xpList) {
 
-        xpList.innerHTML = PARROT_SKINS
-            .filter(skin => !skin.streak && (!(skin.diamond || skin.october || skin.event) || skinUnlocked(skin)))
-            .map(skin => skinItemHtml(skin, active))
-            .join("");
+        // Skins de niveau sur un chemin vertical (jauge à gauche), les spéciaux en dessous.
+        const levelSkins = PARROT_SKINS.filter(skin => skin.level !== undefined);
+
+        const otherSkins = PARROT_SKINS
+            .filter(skin => skin.level === undefined && !skin.streak && skinUnlocked(skin));
+
+        xpList.innerHTML = `
+            <li class="xp-skins-path">
+                <ul class="xp-skins">
+                    ${levelSkins.map(skin => skinItemHtml(skin, active)).join("")}
+                </ul>
+            </li>
+            ${otherSkins.map(skin => skinItemHtml(skin, active)).join("")}
+        `;
+
+        // Chaque trait relie un skin au suivant : rempli selon l'avancée vers ce skin.
+        const reached = skinPathPercent(levelSkins) / 100 * (levelSkins.length - 1);
+
+        xpList.querySelectorAll(".xp-skins-path .xp-skin").forEach((item, index) => {
+
+            const fill = Math.min(1, Math.max(0, reached - index)) * 100;
+
+            item.style.setProperty("--path-fill", fill + "%");
+
+        });
 
     }
 
@@ -5655,7 +5711,7 @@ function balanceModalHtml() {
         return `
             <div class="bal-boost${owned ? " owned" : ""}">
                 <span class="bal-boost-mult">×${boost.mult}</span>
-                <span class="bal-boost-what">Clic du perroquet ×${boost.mult} : ${boost.mult} € par clic</span>
+                <span class="bal-boost-what">1 clic = ${boost.mult} €</span>
                 <span class="bal-boost-price">${owned ? "✓ Possédé" : (item?.price ?? "?") + " 🪙"}</span>
             </div>
         `;
@@ -5674,8 +5730,8 @@ function balanceModalHtml() {
             <!-- Perroquet entier, avec le skin choisi (wait-body.png n'a pas la tête). -->
             <img src="assets/perroquet/skins/${activeParrotSkin()}/thumb.png" alt="">
             <p>
-                <b>${balance <= 0 ? "Tu es à 0 € ?" : "Plus d'argent ?"}</b> Pas de panique !
-                Clique sur le perroquet : chaque clic te donne <b>${mult} €</b>, jusqu'à ton plafond du jour.
+                <b>${balance <= 0 ? "Tu es à 0 € ?" : "Plus d'argent ?"}</b><br>
+                Clique sur le perroquet : <b>1 clic = ${mult}€</b>
                 ${mult > 1 ? `<br><span class="bal-boost-on">✓ Clic du perroquet ×${mult} activé</span>` : ""}
             </p>
         </div>
@@ -5689,10 +5745,6 @@ function balanceModalHtml() {
         </div>
 
         <p class="level-sidebar-title bal-boost-title">🛍️ Booste tes clics</p>
-
-        <p class="bal-hint">
-            Dans la boutique, des objets multiplient ce que te rapporte chaque clic sur le perroquet.
-        </p>
 
         <div class="bal-boosts">${boosts}</div>
 
