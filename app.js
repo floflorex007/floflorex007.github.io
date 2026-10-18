@@ -114,8 +114,11 @@ function formatDeadline(value) {
 
 
 /*
-    Échéance affichée sur les cartes : l'heure seule si c'est
-    aujourd'hui (« 14:30 »), sinon la date et l'heure (« 09/10 à 14:30 »).
+    Échéance affichée sur les cartes : le temps restant.
+    Les jours (« 3 j »), les heures le jour même (« 5 h »),
+    les minutes la dernière heure (« 42 min »),
+    les secondes la dernière minute (« 37 s »).
+    Mis à jour chaque seconde par refreshCardDeadlines().
 */
 
 function formatCardDeadline(value) {
@@ -129,19 +132,67 @@ function formatCardDeadline(value) {
     const date =
         new Date(value);
 
-    if (date.toDateString() !== new Date().toDateString()) {
+    const ms =
+        date - Date.now();
 
-        return formatDeadline(value);
+    if (ms <= 0) {
+
+        return "Terminé";
 
     }
 
-    return date.toLocaleTimeString(
-        "fr-FR",
-        {
-            hour: "2-digit",
-            minute: "2-digit"
+    if (date.toDateString() !== new Date().toDateString()) {
+
+        // Jours de calendrier : demain = 1 j, même à moins de 24 h.
+        const today = new Date();
+
+        today.setHours(0, 0, 0, 0);
+
+        const day = new Date(date);
+
+        day.setHours(0, 0, 0, 0);
+
+        return Math.round((day - today) / 86400000) + " j";
+
+    }
+
+    if (ms >= 3600000) {
+
+        return Math.floor(ms / 3600000) + " h";
+
+    }
+
+    if (ms >= 60000) {
+
+        return Math.floor(ms / 60000) + " min";
+
+    }
+
+    return Math.ceil(ms / 1000) + " s";
+
+}
+
+
+function refreshCardDeadlines() {
+
+    document.querySelectorAll(".bet-deadline[data-deadline]").forEach(element => {
+
+        // Carte rouge : « ⏳ mm:ss » avant la fin des mises (updateCountdowns, animations.js).
+        if (element.closest(".bet-card-urgent")) {
+
+            return;
+
         }
-    );
+
+        const label = formatCardDeadline(element.dataset.deadline);
+
+        if (label && element.textContent.trim() !== label) {
+
+            element.textContent = label;
+
+        }
+
+    });
 
 }
 
@@ -4988,11 +5039,6 @@ function renderBetSummaryHtml(
         );
 
 
-    const maxCount =
-        Math.max(
-            0,
-            ...stakesByChoice.map(s => s.count)
-        );
 
 
     return `
@@ -5018,7 +5064,7 @@ function renderBetSummaryHtml(
                 ${escapeHtml(bet.question)}
             </h3>
 
-            <span class="bet-deadline">
+            <span class="bet-deadline"${bet.deadline_at ? ` data-deadline="${escapeHtml(bet.deadline_at)}"` : ""}>
                 ${escapeHtml(deadlineLabel)}
             </span>
 
@@ -5032,16 +5078,12 @@ function renderBetSummaryHtml(
         <div class="bet-choices">
 
             ${stakesByChoice.map(
-                ({ choice, count, amount }) => {
+                ({ choice, amount }) => {
 
                     const pct =
                         totalStaked > 0
                             ? Math.round((amount / totalStaked) * 100)
                             : 0;
-
-                    const showBadge =
-                        maxCount > 0 &&
-                        count === maxCount;
 
                     const tag =
                         interactive
@@ -5058,11 +5100,6 @@ function renderBetSummaryHtml(
                     return `
 
                         <div class="bet-choice-wrapper">
-
-                            ${showBadge
-                                ? `<span class="choice-badge">${count}</span>`
-                                : ""
-                            }
 
                             <${tag}
                                 data-odds="${Number(choice.odds)}"
@@ -10830,8 +10867,8 @@ async function openStakesModal(bet, card) {
                             </div>
                             <div class="stake-row-details">
                                 <span>💰 ${amounts} €</span>
-                                <span>${oddsText(totalWin / group.stakes.reduce((sum, stake) => sum + Number(stake.stake), 0) || Number(choice?.odds || 0))}</span>
-                                <span>${formatMoney(totalWin)}</span>
+                                <span>🎲 ${oddsText(totalWin / group.stakes.reduce((sum, stake) => sum + Number(stake.stake), 0) || Number(choice?.odds || 0))}</span>
+                                <span>🏆 ${formatMoney(totalWin)}</span>
                             </div>
                         </div>
                     `;
@@ -10853,8 +10890,8 @@ async function openStakesModal(bet, card) {
                             </div>
                             <div class="stake-row-details">
                                 <span>💰 ${Number(combo.stake).toLocaleString("fr-FR")} €</span>
-                                <span>${oddsText(choice?.odds || 0)} · combiné ${oddsText(combo.odds, { times: true })}</span>
-                                <span>${formatMoney(combo.potential_win)}</span>
+                                <span>🎲 ${oddsText(choice?.odds || 0)} · combiné ${oddsText(combo.odds, { times: true })}</span>
+                                <span>🏆 ${formatMoney(combo.potential_win)}</span>
                             </div>
                         </div>
                     `;
@@ -21785,6 +21822,9 @@ async function initAppPage() {
     }
 
     watchPageLoader();
+
+    // Compte à rebours des cartes de pari (jours, heures, minutes, secondes).
+    setInterval(refreshCardDeadlines, 1000);
 
 
     /*

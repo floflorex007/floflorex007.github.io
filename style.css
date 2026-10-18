@@ -563,10 +563,13 @@ input {
 
 .bet-question-row h3 {
     flex: 1;
+    min-width: 0;
     font-size: 17px;
     font-weight: 800;
     line-height: 1.35;
     margin: 0;
+    /* Un mot très long sans espace passe à la ligne au lieu de sortir de la carte. */
+    overflow-wrap: anywhere;
 }
 
 .bet-deadline {
@@ -5676,6 +5679,18 @@ body.app-loading .enjeu-cadre {
     border: 1px solid rgba(200, 107, 255, 0.35);
     border-radius: 999px;
     padding: 4px 10px;
+}
+
+/* « +10 XP / pari validé » : la bulle d'XP en début de ligne, même largeur
+   sur toutes les lignes pour que les « / » soient alignés */
+.xp-rule-head strong em {
+    display: inline-block;
+    box-sizing: border-box;
+    min-width: 66px;
+    margin-left: 0;
+    margin-right: 8px;
+    padding: 2px 8px;
+    text-align: center;
 }
 
 /* « Placer une mise » : montant à gauche, XP dans la bulle (10 € → 1 000 €+) */
@@ -12778,11 +12793,11 @@ body.ticket-combo .ticket-go.ticket-go--blocked {
 }
 
 
-/* Version classique : carte de pari repliée sans 🏆 devant « Créé par » ni
-   🎲 devant la question (ils restent sur la carte dépliée, .stakes-pop).
-   La bêta les retire partout (beta.css). */
-body:not(.beta) .bet-card:not(.stakes-pop) .bet-card-header > span:first-child:not(.bet-author),
-body:not(.beta) .bet-card:not(.stakes-pop) .bet-question-icon {
+/* Version classique : carte de pari sans 🏆 devant « Créé par » ni
+   🎲 devant la question, repliée comme dépliée (.stakes-pop).
+   La bêta les retire aussi (beta.css). */
+body:not(.beta) .bet-card .bet-card-header > span:first-child:not(.bet-author),
+body:not(.beta) .bet-card .bet-question-icon {
     display: none;
 }
 
