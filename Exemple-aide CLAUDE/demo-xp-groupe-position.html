@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Démo : position de l'XP du groupe</title>
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #0f1117; color: #e6e8ee; }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 16px 60px; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .sub { color: #858a98; font-size: 13px; margin: 0 0 16px; }
+
+    .controls { background: #171a23; border: 1px dashed #4a4f66; border-radius: 16px; padding: 14px; margin-bottom: 18px; display: grid; gap: 12px; }
+    .ctl-title { font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: #737887; margin-bottom: 6px; }
+    .seg { display: flex; flex-wrap: wrap; gap: 6px; }
+    .seg button { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; font: inherit; font-size: 13px; padding: 7px 12px; border-radius: 999px; cursor: pointer; }
+    .seg button.on { background: #6c63ff; border-color: #6c63ff; color: white; }
+    .desc { font-size: 13px; color: #aaaeba; background: #12141b; border-radius: 10px; padding: 10px 12px; line-height: 1.5; }
+    .desc b { color: #ffc36b; }
+
+    /* Maquette de la page Paris (simplifiée) */
+    .site { border: 1px solid #262a38; border-radius: 18px; overflow: hidden; background: #0f1117; }
+    .topbar { display: flex; align-items: center; gap: 14px; padding: 12px 18px; background: #14161e; border-bottom: 1px solid #262a38; flex-wrap: wrap; }
+    .logo { font-weight: 900; font-size: 18px; }
+    .group-btn { position: relative; display: flex; flex-direction: column; gap: 4px; border: 1px solid #2c3040; background: #1c202c; color: #e6e8ee; font: inherit; font-size: 13px; padding: 7px 12px; border-radius: 12px; cursor: pointer; min-width: 170px; text-align: left; }
+    .group-btn .gb-top { display: flex; align-items: center; gap: 6px; }
+    .nav { display: flex; gap: 6px; }
+    .nav span { padding: 7px 12px; border-radius: 10px; font-size: 13px; color: #aaaeba; }
+    .nav span.on { background: #6c63ff; color: white; }
+    .spacer { flex: 1; }
+    .chip { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 12px; background: #1c202c; border: 1px solid #2c3040; font-size: 12px; color: #aaaeba; }
+    .chip b { color: #e6e8ee; }
+    .mini { display: flex; flex-direction: column; gap: 4px; min-width: 120px; padding: 6px 10px; border-radius: 12px; background: #1c202c; border: 1px solid #2c3040; font-size: 11px; cursor: pointer; }
+    .mini .top { display: flex; justify-content: space-between; gap: 8px; color: #aaaeba; }
+    .mini .top b { color: #c86bff; }
+    .bar { height: 4px; border-radius: 99px; background: #262a38; overflow: hidden; }
+    .bar i { display: block; height: 100%; }
+    .bar.violet i { background: linear-gradient(90deg, #6c63ff, #c86bff); }
+    .bar.gold i { background: linear-gradient(90deg, #ff9f43, #ffd36b); }
+    .mini.group .top b { color: #ffc36b; }
+
+    .layout { display: grid; grid-template-columns: 260px minmax(0, 1fr) 240px; gap: 16px; padding: 18px; align-items: start; }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .right { display: none; } }
+    .box { background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; border-radius: 18px; padding: 16px; }
+    .box-head { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 15px; margin-bottom: 12px; }
+    .lb-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #262a38; font-size: 13px; }
+    .lb-row:last-child { border-bottom: none; }
+    .lb-row .rk { width: 16px; color: #737887; }
+    .lb-row .money { margin-left: auto; color: #63d69f; font-weight: 700; }
+    .bets { display: grid; gap: 14px; }
+    .bet { height: 120px; border-radius: 18px; background: #171a23; border: 1px solid #262a38; padding: 16px; }
+    .bet .q { height: 12px; width: 70%; border-radius: 6px; background: #2c3040; margin-bottom: 16px; }
+    .bet .c { display: flex; gap: 8px; }
+    .bet .c span { flex: 1; height: 44px; border-radius: 12px; background: #1c202c; border: 1px solid #2c3040; }
+    .right { display: grid; gap: 14px; }
+    .lvl-row { display: flex; justify-content: space-between; font-size: 12px; color: #858a98; margin-bottom: 6px; }
+    .lvl-row b { font-size: 16px; color: #c86bff; }
+
+    /* Éléments de l'XP de groupe (orangé doré) */
+    .gx-label { color: #ffc36b; font-weight: 800; }
+    .gx-vote { border: 1px solid rgba(255, 159, 67, .55); background: rgba(255, 159, 67, .1); color: #ffc36b; font: inherit; font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 8px; cursor: pointer; animation: pulse 2.6s ease-in-out infinite; }
+    @keyframes pulse { 50% { box-shadow: 0 0 12px rgba(255, 159, 67, .4); } }
+    .dot { position: absolute; top: -5px; right: -5px; width: 12px; height: 12px; border-radius: 50%; background: #ff9f43; box-shadow: 0 0 0 3px #14161e; animation: dot 1.4s ease-in-out infinite; }
+    @keyframes dot { 50% { transform: scale(1.25); } }
+
+    /* B : dans l'en-tête du classement */
+    .head-xp { margin: -4px 0 12px; }
+    .head-xp .row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #858a98; margin-bottom: 5px; }
+
+    /* C : menu du groupe */
+    .menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 5; width: 260px; background: #181b24; border: 1px solid #2c3040; border-radius: 14px; padding: 8px; box-shadow: 0 16px 40px rgba(0, 0, 0, .5); cursor: default; }
+    .menu .item { padding: 9px 10px; border-radius: 10px; font-size: 13px; color: #c9ccd6; }
+    .menu .item.on { background: rgba(108, 99, 255, .15); color: white; }
+    .menu .sep { height: 1px; background: #2c3040; margin: 6px 0; }
+    .menu .gx { padding: 10px; border-radius: 10px; background: #12141b; border: 1px solid #2c3040; }
+    .menu .gx .row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #858a98; margin-bottom: 6px; }
+    .menu .gx .link { margin-top: 8px; font-size: 12px; color: #ffb36b; font-weight: 700; }
+
+    /* E : anneau autour du blason du groupe */
+    .ring { position: relative; width: 26px; height: 26px; flex: none; }
+    .ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+    .ring span { position: absolute; inset: 0; display: grid; place-items: center; font-size: 13px; }
+
+    .note { padding: 0 18px 16px; font-size: 12px; color: #737887; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+    <h1>🌳 Démo : où mettre l'XP du groupe ?</h1>
+    <p class="sub">Version actuelle : une carte en bas de la section « Groupe ». Voici 5 places plus discrètes. Chaque version a l'état « vote en cours » pour voir comment on est invité à voter.</p>
+
+    <div class="controls">
+        <div>
+            <div class="ctl-title">Position</div>
+            <div class="seg" data-ctl="pos">
+                <button data-v="A">A · Sous le nom du groupe (en haut)</button>
+                <button data-v="B">B · Fine ligne sous « Groupe »</button>
+                <button data-v="C">C · Dans le menu du groupe</button>
+                <button data-v="D">D · Jauge à côté de ton XP</button>
+                <button data-v="E">E · Anneau autour de 👥</button>
+            </div>
+        </div>
+        <div>
+            <div class="ctl-title">État</div>
+            <div class="seg" data-ctl="state">
+                <button data-v="normal">Palier pas encore atteint</button>
+                <button data-v="vote">Palier atteint : vote en cours</button>
+            </div>
+        </div>
+        <div class="desc" id="desc"></div>
+    </div>
+
+    <div class="site" id="site"></div>
+
+</div>
+
+<script>
+const opts = { pos: "A", state: "normal" };
+
+const DESC = {
+    A: "Une barre très fine (3 px) <b>dans le bouton du groupe</b>, en haut à gauche, sous le nom. Vote : une pastille orange qui pulse sur le bouton. Clic : ouvre l'arbre.",
+    B: "Une ligne fine <b>juste sous le titre « Groupe »</b>, avant le classement : « Niv. 0 » et l'XP en petit. Vote : un petit bouton « Voter » sur la même ligne. Rien en bas, donc pas de souci avec le ticket.",
+    C: "Rien sur la page. L'XP du groupe est <b>dans le menu qui s'ouvre en cliquant sur le groupe</b> (en haut à gauche). Vote : une pastille orange sur le bouton du groupe pour prévenir.",
+    D: "Une petite jauge <b>à côté de ta jauge d'XP</b> dans la barre du haut, en orangé pour la distinguer. Vote : « Voter » remplace l'XP dans la jauge.",
+    E: "Un <b>anneau orangé autour de l'icône 👥</b> du bouton du groupe, qui se remplit avec l'XP. Le plus discret. Vote : l'anneau est plein et pulse, avec la pastille."
+};
+
+const ring = (pct, pulse) => `
+    <span class="ring"${pulse ? ' style="animation: dot 1.4s ease-in-out infinite"' : ""}>
+        <svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="11" fill="none" stroke="#2c3040" stroke-width="3"/>
+        <circle cx="13" cy="13" r="11" fill="none" stroke="url(#g)" stroke-width="3" stroke-linecap="round" stroke-dasharray="69.1" stroke-dashoffset="${69.1 * (1 - pct / 100)}"/>
+        <defs><linearGradient id="g"><stop offset="0" stop-color="#ff9f43"/><stop offset="1" stop-color="#ffd36b"/></linearGradient></defs></svg>
+        <span>👥</span>
+    </span>`;
+
+function render() {
+    const vote = opts.state === "vote";
+    const pct = vote ? 100 : 64;
+    const xpText = vote ? "2 000 / 2 000 XP" : "1 280 / 2 000 XP";
+    const p = opts.pos;
+
+    const groupBtn = `
+        <button class="group-btn" id="gb">
+            <span class="gb-top">${p === "E" ? ring(pct, vote) : "👥"} <span>Les Fous du BE</span> ▾</span>
+            ${p === "A" ? `<span class="bar gold" style="height:3px"><i style="width:${pct}%"></i></span>` : ""}
+            ${(vote && ["A", "C", "E"].includes(p)) ? '<span class="dot"></span>' : ""}
+            ${p === "C" && opts.menu ? `
+                <div class="menu">
+                    <div class="item on">Les Fous du BE</div>
+                    <div class="item">BE MECA</div>
+                    <div class="sep"></div>
+                    <div class="gx">
+                        <div class="row"><span class="gx-label">🌳 Niveau 0</span><span>${xpText}</span></div>
+                        <div class="bar gold"><i style="width:${pct}%"></i></div>
+                        ${vote ? '<div style="margin-top:8px"><button class="gx-vote" style="width:100%">Voter</button></div>' : '<div class="link">🌳 Voir l\'arbre du groupe ›</div>'}
+                    </div>
+                    <div class="sep"></div>
+                    <div class="item">⚙️ Gérer le groupe</div>
+                    <div class="item">＋ Rejoindre ou créer un groupe</div>
+                </div>` : ""}
+        </button>`;
+
+    const groupMini = p === "D" ? `
+        <div class="mini group">
+            <div class="top"><b>🌳 Niv. 0</b>${vote ? '<span style="color:#ffc36b;font-weight:800">Voter ›</span>' : `<span>${xpText.replace(" XP", "")}</span>`}</div>
+            <div class="bar gold"><i style="width:${pct}%"></i></div>
+        </div>` : "";
+
+    const headXp = p === "B" ? `
+        <div class="head-xp">
+            <div class="row"><span><span class="gx-label">🌳 Niv. 0</span> · ${xpText}</span>${vote ? '<button class="gx-vote">Voter</button>' : ""}</div>
+            <div class="bar gold" style="height:3px"><i style="width:${pct}%"></i></div>
+        </div>` : "";
+
+    const players = [["Florian", "12 450 €"], ["Yann", "9 870 €"], ["Lina_", "8 120 €"], ["Just1", "6 300 €"], ["victor", "4 990 €"], ["Balac", "3 210 €"]];
+
+    document.getElementById("site").innerHTML = `
+        <div class="topbar">
+            <span class="logo">BetLab</span>
+            ${groupBtn}
+            <div class="nav"><span class="on">Paris</span><span>Historique</span><span>Boutique</span></div>
+            <span class="spacer"></span>
+            ${groupMini}
+            <div class="mini"><div class="top"><b>Niv. 12</b><span>353 / 650</span></div><div class="bar violet"><i style="width:54%"></i></div></div>
+            <span class="chip">🔥 <b>12</b></span>
+            <span class="chip">🪙 <b>240</b></span>
+        </div>
+        <div class="layout">
+            <div class="box">
+                <div class="box-head">🏆 Groupe</div>
+                ${headXp}
+                ${players.map((pl, i) => `<div class="lb-row"><span class="rk">${i + 1}</span><span>${pl[0]}</span><span class="money">${pl[1]}</span></div>`).join("")}
+            </div>
+            <div class="bets">
+                ${[1, 2, 3].map(() => '<div class="bet"><div class="q"></div><div class="c"><span></span><span></span></div></div>').join("")}
+            </div>
+            <div class="right">
+                <div class="box"><div class="box-head">⭐ Ton niveau</div><div class="lvl-row"><b>Niveau 12</b><span>353 / 650 XP</span></div><div class="bar violet" style="height:8px"><i style="width:54%"></i></div></div>
+                <div class="box"><div class="box-head">🔥 Ta série</div><div class="lvl-row"><b style="color:#ff9f43">12 jours</b></div></div>
+            </div>
+        </div>
+        ${p === "C" ? '<p class="note">👆 Clique sur le bouton « Les Fous du BE » pour ouvrir le menu.</p>' : ""}`;
+
+    document.getElementById("desc").innerHTML = DESC[p];
+    if (p === "C") document.getElementById("gb").addEventListener("click", e => { if (!e.target.closest(".menu")) { opts.menu = !opts.menu; render(); } });
+}
+
+document.querySelectorAll("[data-ctl]").forEach(seg => seg.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+    opts[seg.dataset.ctl] = b.dataset.v;
+    opts.menu = seg.dataset.ctl === "pos" && b.dataset.v === "C";
+    seg.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+    render();
+})));
+Object.keys(opts).forEach(k => document.querySelectorAll(`[data-ctl="${k}"] button`).forEach(b => b.classList.toggle("on", b.dataset.v === opts[k])));
+render();
+
+/* Bouton « Copier mes choix » : copie les réglages sélectionnés pour les coller dans la conversation. */
+(function () {
+    const style = document.createElement("style");
+    style.textContent = `
+        .copy-bar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+        .copy-btn { border: none; border-radius: 10px; padding: 10px 16px; font: inherit; font-weight: 800; cursor: pointer; background: linear-gradient(90deg, #6c63ff, #c86bff); color: white; }
+        .copy-btn.done { background: #63d69f; color: #0d2a1d; }
+        .copy-text { flex: 1; min-width: 220px; font-size: 12px; color: #aaaeba; background: #12141b; border: 1px solid #2c3040; border-radius: 10px; padding: 8px 10px; user-select: all; }
+    `;
+    document.head.appendChild(style);
+
+    const bar = document.createElement("div");
+    bar.className = "copy-bar";
+    bar.innerHTML = `<button type="button" class="copy-btn">📋 Copier mes choix</button><div class="copy-text"></div>`;
+    document.querySelector(".controls").appendChild(bar);
+
+    const text = () => document.title + " : " + [...document.querySelectorAll("[data-ctl]")].map(seg => {
+        const title = seg.parentElement.querySelector(".ctl-title")?.textContent.trim() || seg.dataset.ctl;
+        const on = seg.querySelector("button.on")?.textContent.trim() || "?";
+        return `${title} = ${on}`;
+    }).join(" | ");
+
+    const refresh = () => { bar.querySelector(".copy-text").textContent = text(); };
+    document.addEventListener("click", () => setTimeout(refresh, 0));
+    refresh();
+
+    const button = bar.querySelector(".copy-btn");
+    button.addEventListener("click", async () => {
+        const value = text();
+        try {
+            await navigator.clipboard.writeText(value);
+        } catch (error) {
+            const area = document.createElement("textarea");
+            area.value = value;
+            document.body.appendChild(area);
+            area.select();
+            document.execCommand("copy");
+            area.remove();
+        }
+        button.textContent = "✅ Copié ! Colle-le dans la conversation";
+        button.classList.add("done");
+        setTimeout(() => { button.textContent = "📋 Copier mes choix"; button.classList.remove("done"); }, 2500);
+    });
+})();
+</script>
+</body>
+</html>

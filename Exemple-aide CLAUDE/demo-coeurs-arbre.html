@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Démo : cœurs dans l'arbre</title>
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #0f1117; color: #e6e8ee; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 20px 16px 60px; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .sub { color: #858a98; font-size: 13px; margin: 0 0 18px; }
+
+    .controls { background: #171a23; border: 1px dashed #4a4f66; border-radius: 16px; padding: 14px; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 700px) { .controls { grid-template-columns: 1fr; } }
+    .ctl-title { font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: #737887; margin-bottom: 6px; }
+    .seg { display: flex; flex-wrap: wrap; gap: 6px; }
+    .seg button { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; font: inherit; font-size: 13px; padding: 7px 12px; border-radius: 999px; cursor: pointer; }
+    .seg button.on { background: #6c63ff; border-color: #6c63ff; color: white; }
+    .choice { grid-column: 1 / -1; font-size: 13px; color: #aaaeba; background: #12141b; border-radius: 10px; padding: 8px 12px; }
+    .choice b { color: #ffd36b; }
+
+    .panel { background: #171a23; border: 1px solid #262a38; border-radius: 18px; padding: 16px; }
+    .tree { position: relative; }
+    .tree svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    .lvl { font-size: 11px; color: #737887; margin: 0 0 6px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+    .row { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; margin-bottom: 40px; }
+    .row:last-child { margin-bottom: 0; }
+    .r0 .node { grid-column: 1 / -1; max-width: 120px; }
+    .r1 .node { grid-column: span 4; }
+    .r2 .node { grid-column: span 2; }
+
+    .node { position: relative; z-index: 1; justify-self: center; width: 100%; max-width: 150px; border: 2px solid #343a4d; background: #12141b; color: #e6e8ee; font: inherit; border-radius: 14px; padding: 8px 6px; text-align: center; cursor: pointer; transition: transform .15s, border-color .2s; }
+    .node:hover { transform: translateY(-2px); }
+    .node .e { font-size: 24px; display: block; }
+    .node .n { font-size: 12px; font-weight: 800; display: block; margin-top: 2px; }
+    .node .t { font-size: 10px; color: #858a98; display: block; margin-top: 2px; }
+    .node.root { border-color: #6c63ff; }
+    .node.chosen { border-color: #63d69f; background: linear-gradient(180deg, #173226, #12141b); box-shadow: 0 0 16px rgba(99, 214, 159, .25); }
+    .node.locked { opacity: .22; filter: grayscale(1); cursor: default; }
+    .node.future { opacity: .7; }
+    .node.future:hover { opacity: 1; }
+    .node.liked { border-color: #ff5c8a; opacity: 1; }
+    .node.liked.glow { box-shadow: 0 0 14px rgba(255, 92, 138, .35); }
+
+    /* Cœur dans le coin de la case */
+    .heart { position: absolute; top: -9px; right: -9px; z-index: 2; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 99px; display: flex; align-items: center; justify-content: center; gap: 3px; font-size: 12px; font-weight: 900; background: #1c202c; border: 1px solid #343a4d; color: #aaaeba; cursor: pointer; transition: transform .15s, background .2s, border-color .2s; }
+    .heart:hover { transform: scale(1.15); border-color: #ff5c8a; }
+    .heart.on { background: #ff5c8a; border-color: #ff5c8a; color: white; }
+    .heart.pop { animation: heart-pop .4s cubic-bezier(.3, 1.8, .5, 1); }
+    @keyframes heart-pop { 40% { transform: scale(1.5); } }
+
+    .likers { display: flex; justify-content: center; margin-top: 6px; min-height: 18px; }
+    .av { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; margin-left: -5px; font-size: 9px; font-weight: 900; color: white; border: 2px solid #12141b; }
+    .av:first-child { margin-left: 0; }
+    .av.me { outline: 2px solid #ff5c8a; }
+    .count-under { display: block; margin-top: 4px; font-size: 11px; color: #ff8fb0; font-weight: 800; }
+
+    /* Bulle au survol */
+    .tip { position: fixed; z-index: 50; width: min(290px, calc(100vw - 20px)); padding: 14px; text-align: center; background: #181b24; border: 1px solid #343846; border-radius: 14px; box-shadow: 0 12px 32px rgba(0, 0, 0, .5); }
+    .tip .e { font-size: 34px; display: block; }
+    .tip h4 { margin: 2px 0 6px; font-size: 17px; }
+    .tip .plus { font-size: 13px; line-height: 1.45; padding: 8px 10px; border-radius: 10px; background: rgba(99, 214, 159, .1); color: #9fe6c4; text-align: left; }
+    .tip .like-btn { width: 100%; margin-top: 10px; padding: 9px; border-radius: 10px; font: inherit; font-weight: 800; cursor: pointer; border: 1px solid #ff5c8a; background: none; color: #ff8fb0; }
+    .tip .like-btn.on { background: #ff5c8a; color: white; }
+    .tip .who { margin-top: 8px; font-size: 12px; color: #aaaeba; }
+
+    .flying { position: fixed; z-index: 80; pointer-events: none; font-size: 16px; }
+
+    .legend { margin-top: 18px; font-size: 12px; color: #737887; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+    <h1>❤️ Démo : mettre un cœur sur les cases qu'on aime</h1>
+    <p class="sub">Exemple : le groupe a choisi WTF au palier 1. Chacun peut mettre un cœur sur les cases à venir pour montrer ce qu'il aimerait débloquer. Ça ne compte pas comme un vote.</p>
+
+    <div class="controls">
+        <div>
+            <div class="ctl-title">A · Où est le cœur</div>
+            <div class="seg" data-ctl="where">
+                <button data-v="corner">Coin de la case</button>
+                <button data-v="tip">Dans la bulle au survol</button>
+                <button data-v="both">Les deux</button>
+            </div>
+        </div>
+        <div>
+            <div class="ctl-title">B · Ce que les autres voient</div>
+            <div class="seg" data-ctl="show">
+                <button data-v="count">Le nombre de cœurs</button>
+                <button data-v="avatars">Qui a mis un cœur</button>
+                <button data-v="me">Rien (cœurs privés)</button>
+            </div>
+        </div>
+        <div>
+            <div class="ctl-title">C · Combien de cœurs par joueur</div>
+            <div class="seg" data-ctl="limit">
+                <button data-v="free">Autant qu'on veut</button>
+                <button data-v="3">3 maximum</button>
+                <button data-v="1">1 par palier</button>
+            </div>
+        </div>
+        <div>
+            <div class="ctl-title">D · Case aimée</div>
+            <div class="seg" data-ctl="glow">
+                <button data-v="glow">Bordure rose + lueur</button>
+                <button data-v="border">Bordure rose seule</button>
+                <button data-v="none">Rien, juste le cœur</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel"><div class="tree" id="tree"></div></div>
+
+    <p class="legend">Clique sur un cœur (ou survole une case selon le réglage A) pour l'aimer ou ne plus l'aimer. Les cases de la branche Try hard sont verrouillées : pas de cœur possible.</p>
+
+</div>
+
+<script>
+const NODES = {
+    root: { e: "🏳️", n: "Départ", t: "Tous pareils" },
+    w: { e: "🤪", n: "WTF", t: "Bonus", plus: "1 boost gratuit par semaine pour chaque membre." },
+    t: { e: "🎯", n: "Try hard", t: "Bonus", plus: "+50 % d'XP le lundi pour tous les membres." },
+    w1: { e: "🎰", n: "Roulette", t: "Pari spécial", plus: "Une fois par jour, miser en mode roulette : la cote est tirée au hasard entre x1,2 et x8." },
+    w2: { e: "🎭", n: "Pari mystère", t: "Pari spécial", plus: "Chaque semaine, un pari du groupe devient « mystère » en secret : ses gagnants touchent leur gain x1,5." },
+    t1: { e: "⚔️", n: "Duel", t: "Pari spécial", plus: "" }, t2: { e: "🏆", n: "Rivalité", t: "Rivalité", plus: "" },
+    w1a: { e: "💥", n: "Double ou rien", t: "Bonus", plus: "Après un pari gagné, rejouer tout le gain à pile ou face." },
+    w1b: { e: "🌪️", n: "Lundi fou", t: "Événement", plus: "Chaque lundi, toutes les cotes du groupe sont augmentées de 20 %." },
+    w2a: { e: "🃏", n: "À l'aveugle", t: "Pari spécial", plus: "Pouvoir créer des paris à l'aveugle : personne ne voit les mises des autres avant la clôture." },
+    w2b: { e: "🎡", n: "Roue surprise", t: "Événement", plus: "De temps en temps, une roue apparaît pour tout le groupe : chaque membre la tourne et gagne quelque chose." },
+    t1a: { e: "🩸", n: "Duel à mort", t: "Bonus", plus: "" }, t1b: { e: "🛡️", n: "Assurance", t: "Bonus", plus: "" },
+    t2a: { e: "🏰", n: "Conquête", t: "Rivalité", plus: "" }, t2b: { e: "📊", n: "Analystes", t: "Stats", plus: "" }
+};
+const LEVELS = [["w", "t"], ["w1", "w2", "t1", "t2"], ["w1a", "w1b", "w2a", "w2b", "t1a", "t1b", "t2a", "t2b"]];
+const COLORS = { Toi: "#c86bff", Inès: "#ff6bd5", Lucas: "#4fc3ff", Max: "#ff9f43", Bertin: "#63d69f", Léa: "#ffd36b" };
+const likes = { w1: ["Inès", "Max", "Lucas"], w2: ["Léa"], w1a: ["Max", "Bertin"], w2b: ["Inès", "Léa", "Bertin", "Lucas"] };
+const opts = { where: "corner", show: "count", limit: "free", glow: "glow" };
+const LABELS = {
+    where: { corner: "Coin de la case", tip: "Dans la bulle", both: "Les deux" },
+    show: { count: "Nombre de cœurs", avatars: "Qui a mis un cœur", me: "Cœurs privés" },
+    limit: { free: "Autant qu'on veut", 3: "3 maximum", 1: "1 par palier" },
+    glow: { glow: "Bordure rose + lueur", border: "Bordure rose seule", none: "Juste le cœur" }
+};
+
+function kids(id) {
+    if (id === "root") return ["w", "t"];
+    if (id.length === 1) return [id + "1", id + "2"];
+    if (id.length === 2) return [id + "a", id + "b"];
+    return [];
+}
+function state(id) {
+    if (id === "root" || id === "w") return "chosen";
+    if (id[0] === "t") return "locked";
+    return "future";
+}
+const mine = id => (likes[id] || []).includes("Toi");
+
+function heartHtml(id) {
+    const list = likes[id] || [];
+    const n = opts.show === "me" ? "" : list.length || "";
+    return `<span class="heart${mine(id) ? " on" : ""}" data-heart="${id}">${mine(id) ? "❤️" : "🤍"}${n ? `<span>${n}</span>` : ""}</span>`;
+}
+
+function likersHtml(id) {
+    const list = likes[id] || [];
+    if (opts.show !== "avatars" || !list.length) return "";
+    return `<span class="likers">${list.map(name => `<span class="av${name === "Toi" ? " me" : ""}" style="background:${COLORS[name]}" title="${name}">${name[0]}</span>`).join("")}</span>`;
+}
+
+function nodeHtml(id) {
+    const node = NODES[id];
+    const st = state(id);
+    const liked = st === "future" && mine(id) && opts.glow !== "none";
+    return `<button class="node ${id === "root" ? "root" : ""} ${st}${liked ? " liked" : ""}${liked && opts.glow === "glow" ? " glow" : ""}" data-node="${id}">
+        ${st === "future" && opts.where !== "tip" ? heartHtml(id) : ""}
+        <span class="e">${node.e}</span><span class="n">${node.n}</span><span class="t">${node.t}</span>
+        ${st === "future" ? likersHtml(id) : ""}
+        ${st === "future" && opts.where === "tip" && opts.show === "count" && (likes[id] || []).length ? `<span class="count-under">❤️ ${likes[id].length}</span>` : ""}
+    </button>`;
+}
+
+function render() {
+    const tree = document.getElementById("tree");
+    tree.innerHTML = `<svg></svg>
+        <p class="lvl">Création</p><div class="row r0">${nodeHtml("root")}</div>
+        <p class="lvl">Palier 1</p><div class="row r1">${LEVELS[0].map(nodeHtml).join("")}</div>
+        <p class="lvl">Palier 2</p><div class="row r2">${LEVELS[1].map(nodeHtml).join("")}</div>
+        <p class="lvl">Palier 3</p><div class="row r3">${LEVELS[2].map(nodeHtml).join("")}</div>`;
+    tree.querySelectorAll("[data-heart]").forEach(h => h.addEventListener("click", e => { e.stopPropagation(); toggle(h.dataset.heart, h); }));
+    tree.querySelectorAll("[data-node]").forEach(el => {
+        el.addEventListener("mouseenter", () => showTip(el));
+        el.addEventListener("mouseleave", e => { if (!e.relatedTarget?.closest?.(".tip")) hideTip(); });
+        el.addEventListener("click", () => showTip(el));
+    });
+    requestAnimationFrame(drawLinks);
+}
+
+function drawLinks() {
+    const tree = document.getElementById("tree");
+    const svg = tree.querySelector("svg");
+    const box = tree.getBoundingClientRect();
+    let lines = "";
+    tree.querySelectorAll("[data-node]").forEach(el => {
+        kids(el.dataset.node).forEach(kid => {
+            const child = tree.querySelector(`[data-node="${kid}"]`);
+            const a = el.getBoundingClientRect(), b = child.getBoundingClientRect();
+            const x1 = a.left + a.width / 2 - box.left, y1 = a.bottom - box.top, x2 = b.left + b.width / 2 - box.left, y2 = b.top - box.top, m = (y1 + y2) / 2;
+            const st = state(kid);
+            lines += `<path d="M${x1},${y1} C${x1},${m} ${x2},${m} ${x2},${y2}" stroke="${st === "chosen" ? "#63d69f" : "#343a4d"}" stroke-width="${st === "chosen" ? 3 : 2}" fill="none" opacity="${st === "locked" ? .25 : 1}" ${st === "future" ? 'stroke-dasharray="4 4"' : ""}/>`;
+        });
+    });
+    svg.setAttribute("viewBox", `0 0 ${box.width} ${box.height}`);
+    svg.innerHTML = lines;
+}
+
+function canLike(id) {
+    if (mine(id)) return true;
+    const all = Object.keys(likes).filter(mine);
+    if (opts.limit === "3" && all.length >= 3) return "Tu as déjà 3 cœurs : retire-en un pour en mettre un ici.";
+    if (opts.limit === "1") {
+        const same = all.find(other => other.length === id.length);
+        if (same) return "same:" + same;
+    }
+    return true;
+}
+
+function toggle(id, from) {
+    likes[id] = likes[id] || [];
+    if (mine(id)) {
+        likes[id] = likes[id].filter(n => n !== "Toi");
+    } else {
+        const ok = canLike(id);
+        if (typeof ok === "string" && !ok.startsWith("same:")) { alert(ok); return; }
+        if (typeof ok === "string") likes[ok.slice(5)] = likes[ok.slice(5)].filter(n => n !== "Toi");
+        likes[id].push("Toi");
+        if (from) fly(from);
+    }
+    const tipOpen = document.querySelector(".tip");
+    render();
+    document.querySelector(`[data-heart="${id}"]`)?.classList.add("pop");
+    if (tipOpen) showTip(document.querySelector(`[data-node="${id}"]`));
+}
+
+function fly(el) {
+    const r = el.getBoundingClientRect();
+    for (let i = 0; i < 6; i++) {
+        const h = document.createElement("div");
+        h.className = "flying";
+        h.textContent = "❤️";
+        h.style.left = r.left + r.width / 2 - 8 + "px";
+        h.style.top = r.top + "px";
+        document.body.appendChild(h);
+        const dx = (Math.random() - .5) * 70;
+        h.animate([{ transform: "translate(0,0) scale(.6)", opacity: 1 }, { transform: `translate(${dx}px, -${50 + Math.random() * 40}px) scale(1.1)`, opacity: 0 }],
+            { duration: 700 + Math.random() * 300, easing: "ease-out" }).onfinish = () => h.remove();
+    }
+}
+
+function showTip(el) {
+    hideTip();
+    const id = el.dataset.node;
+    const node = NODES[id];
+    const st = state(id);
+    if (st === "locked") return;
+    const tip = document.createElement("div");
+    tip.className = "tip";
+    const list = likes[id] || [];
+    const withBtn = st === "future" && opts.where !== "corner";
+    tip.innerHTML = `<span class="e">${node.e}</span><h4>${node.n}</h4>${node.plus ? `<div class="plus">${node.plus}</div>` : ""}
+        ${withBtn ? `<button class="like-btn${mine(id) ? " on" : ""}">${mine(id) ? "❤️ Tu aimes cette case" : "🤍 J'aimerais bien cette case"}</button>` : ""}
+        ${st === "future" && opts.show !== "me" && list.length ? `<div class="who">❤️ ${opts.show === "avatars" ? list.join(", ") : list.length + " membre" + (list.length > 1 ? "s" : "")} ${list.length > 1 ? "aiment" : "aime"} cette case</div>` : ""}`;
+    document.body.appendChild(tip);
+    const r = el.getBoundingClientRect();
+    tip.style.left = Math.min(Math.max(10, r.left + r.width / 2 - tip.offsetWidth / 2), innerWidth - tip.offsetWidth - 10) + "px";
+    tip.style.top = (r.bottom + 8 + tip.offsetHeight > innerHeight - 10 ? Math.max(10, r.top - tip.offsetHeight - 8) : r.bottom + 8) + "px";
+    tip.addEventListener("mouseleave", hideTip);
+    tip.querySelector(".like-btn")?.addEventListener("click", e => toggle(id, e.currentTarget));
+}
+function hideTip() { document.querySelectorAll(".tip").forEach(t => t.remove()); }
+
+document.querySelectorAll("[data-ctl]").forEach(seg => seg.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+    opts[seg.dataset.ctl] = b.dataset.v;
+    seg.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+    hideTip();
+    render();
+})));
+Object.keys(opts).forEach(k => document.querySelectorAll(`[data-ctl="${k}"] button`).forEach(b => b.classList.toggle("on", b.dataset.v === opts[k])));
+document.addEventListener("click", e => { if (!e.target.closest(".tip, .node")) hideTip(); });
+window.addEventListener("resize", () => { hideTip(); drawLinks(); });
+render();
+
+/* Bouton « Copier mes choix » : copie les réglages sélectionnés pour les coller dans la conversation. */
+(function () {
+    const style = document.createElement("style");
+    style.textContent = `
+        .copy-bar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+        .copy-btn { border: none; border-radius: 10px; padding: 10px 16px; font: inherit; font-weight: 800; cursor: pointer; background: linear-gradient(90deg, #6c63ff, #c86bff); color: white; }
+        .copy-btn.done { background: #63d69f; color: #0d2a1d; }
+        .copy-text { flex: 1; min-width: 220px; font-size: 12px; color: #aaaeba; background: #12141b; border: 1px solid #2c3040; border-radius: 10px; padding: 8px 10px; user-select: all; }
+    `;
+    document.head.appendChild(style);
+
+    const bar = document.createElement("div");
+    bar.className = "copy-bar";
+    bar.innerHTML = `<button type="button" class="copy-btn">📋 Copier mes choix</button><div class="copy-text"></div>`;
+    document.querySelector(".controls").appendChild(bar);
+
+    const text = () => document.title + " : " + [...document.querySelectorAll("[data-ctl]")].map(seg => {
+        const title = seg.parentElement.querySelector(".ctl-title")?.textContent.trim() || seg.dataset.ctl;
+        const on = seg.querySelector("button.on")?.textContent.trim() || "?";
+        return `${title} = ${on}`;
+    }).join(" | ");
+
+    const refresh = () => { bar.querySelector(".copy-text").textContent = text(); };
+    document.addEventListener("click", () => setTimeout(refresh, 0));
+    refresh();
+
+    const button = bar.querySelector(".copy-btn");
+    button.addEventListener("click", async () => {
+        const value = text();
+        try {
+            await navigator.clipboard.writeText(value);
+        } catch (error) {
+            const area = document.createElement("textarea");
+            area.value = value;
+            document.body.appendChild(area);
+            area.select();
+            document.execCommand("copy");
+            area.remove();
+        }
+        button.textContent = "✅ Copié ! Colle-le dans la conversation";
+        button.classList.add("done");
+        setTimeout(() => { button.textContent = "📋 Copier mes choix"; button.classList.remove("done"); }, 2500);
+    });
+})();
+</script>
+</body>
+</html>

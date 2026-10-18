@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Démo : historique des défis</title>
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #0f1117; color: #e6e8ee; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 60px; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .sub { color: #858a98; font-size: 13px; margin: 0 0 16px; line-height: 1.5; }
+
+    .controls { background: #171a23; border: 1px dashed #4a4f66; border-radius: 16px; padding: 14px; margin-bottom: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 760px) { .controls { grid-template-columns: 1fr; } }
+    .ctl-title { font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: #737887; margin-bottom: 6px; }
+    .seg { display: flex; flex-wrap: wrap; gap: 6px; }
+    .seg button { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; font: inherit; font-size: 12px; padding: 6px 11px; border-radius: 999px; cursor: pointer; }
+    .seg button.on { background: #6c63ff; border-color: #6c63ff; color: white; }
+    .desc { grid-column: 1 / -1; font-size: 13px; color: #aaaeba; background: #12141b; border-radius: 10px; padding: 10px 12px; line-height: 1.5; }
+    .desc b { color: #ff8a8a; }
+
+    /* Site simplifié */
+    .site { border: 1px solid #262a38; border-radius: 18px; overflow: hidden; }
+    .topbar { display: flex; align-items: center; gap: 8px; padding: 12px 18px; background: #14161e; border-bottom: 1px solid #262a38; }
+    .logo { font-weight: 900; margin-right: 10px; }
+    .nav { padding: 7px 12px; border-radius: 10px; font-size: 13px; color: #aaaeba; cursor: pointer; border: none; background: none; font-family: inherit; }
+    .nav.on { background: #6c63ff; color: white; }
+    .page { padding: 18px; display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 18px; align-items: start; }
+    .page.single { grid-template-columns: minmax(0, 640px); justify-content: center; }
+    @media (max-width: 800px) { .page { grid-template-columns: 1fr; } }
+    .box { position: relative; border: 1px solid #2c3040; border-radius: 18px; padding: 16px; background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); }
+    .head { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 15px; margin-bottom: 12px; }
+    .head .link { margin-left: auto; font-size: 12px; font-weight: 700; color: #ff8a8a; cursor: pointer; border: none; background: none; font-family: inherit; }
+    .row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #262a38; font-size: 13px; }
+    .row:last-child { border-bottom: none; }
+    .rk { width: 16px; color: #737887; }
+    .money { margin-left: auto; color: #6c63ff; font-weight: 800; }
+    .bet { height: 110px; border-radius: 18px; background: #171a23; border: 1px solid #262a38; margin-bottom: 14px; }
+    .tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+    .tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; font: inherit; font-size: 13px; padding: 7px 13px; border-radius: 999px; cursor: pointer; }
+    .tab.on { background: #6c63ff; border-color: #6c63ff; color: white; }
+    .tab.red.on { background: #ff4d4d; border-color: #ff4d4d; }
+
+    /* Lignes d'historique */
+    .filters { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+    .filters button { border: 1px solid #2c3040; background: transparent; color: #858a98; font: inherit; font-size: 12px; padding: 5px 10px; border-radius: 999px; cursor: pointer; }
+    .filters button.on { border-color: #ff4d4d; color: #ff8a8a; }
+    .h-list { display: grid; gap: 8px; }
+
+    .h-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid #262a38; border-radius: 12px; background: #12141b; font-size: 13px; }
+    .h-av { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; color: white; font-size: 13px; }
+    .h-main b { color: white; }
+    .h-main small { display: block; color: #858a98; font-size: 11px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .h-dir { font-size: 11px; color: #858a98; }
+    .tag { justify-self: end; padding: 3px 9px; border-radius: 99px; font-size: 11px; font-weight: 900; white-space: nowrap; }
+    .t-won { background: rgba(99, 214, 159, .15); color: #63d69f; }
+    .t-lost { background: rgba(255, 92, 92, .15); color: #ff8a8a; }
+    .t-pending { background: rgba(255, 211, 107, .12); color: #ffd36b; }
+    .t-active { background: rgba(79, 195, 255, .12); color: #7cc8ff; }
+    .t-refused { background: rgba(133, 138, 152, .15); color: #aaaeba; }
+    .t-draw { background: rgba(133, 138, 152, .15); color: #c9ccd6; }
+    .money-delta { display: block; text-align: right; font-size: 11px; font-weight: 800; margin-top: 3px; }
+    .plus { color: #63d69f; }
+    .minus { color: #ff8a8a; }
+
+    /* Variante compacte (une ligne) */
+    .h-line { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid #262a38; font-size: 12px; color: #aaaeba; }
+    .h-line:last-child { border-bottom: none; }
+    .h-line b { color: #e6e8ee; }
+    .h-line .tag { margin-left: auto; }
+
+    /* Variante par adversaire */
+    .opp { padding: 10px 12px; border: 1px solid #262a38; border-radius: 12px; background: #12141b; }
+    .opp-head { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+    .opp-head b { color: white; }
+    .opp-score { margin-left: auto; font-weight: 900; font-size: 13px; }
+    .opp-bar { display: flex; height: 5px; border-radius: 99px; overflow: hidden; margin-top: 8px; background: #262a38; }
+    .opp-bar .w { background: #63d69f; }
+    .opp-bar .l { background: #ff5c5c; }
+    .opp-list { margin-top: 8px; }
+
+    /* Fenêtre */
+    .overlay { position: fixed; inset: 0; z-index: 40; background: rgba(0, 0, 0, .7); display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .modal { position: relative; width: 100%; max-width: 500px; max-height: 88vh; overflow-y: auto; background: #181b24; border: 1px solid #343846; border-radius: 16px; padding: 20px; }
+    .modal h2 { margin: 0 0 12px; font-size: 18px; }
+    .close { position: absolute; top: 10px; right: 12px; border: none; background: none; color: #858a98; font-size: 22px; cursor: pointer; }
+
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+    .stat { padding: 8px; border-radius: 10px; background: #12141b; border: 1px solid #262a38; text-align: center; }
+    .stat b { display: block; font-size: 18px; }
+    .stat small { font-size: 11px; color: #858a98; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+    <h1>⚔️ Démo : historique de tes défis</h1>
+    <p class="sub">À qui tu as envoyé un défi (et qui t'en a envoyé), avec le résultat. Choisis où le mettre et comment le présenter.</p>
+
+    <div class="controls">
+        <div>
+            <div class="ctl-title">A · Où</div>
+            <div class="seg" data-ctl="where">
+                <button data-v="tab">Onglet « Défis » dans Historique</button>
+                <button data-v="group">Lien dans la section Groupe → fenêtre</button>
+                <button data-v="side">Petite carte sous le classement</button>
+            </div>
+        </div>
+        <div>
+            <div class="ctl-title">B · Présentation</div>
+            <div class="seg" data-ctl="style">
+                <button data-v="cards">Cartes (rond, pari, résultat)</button>
+                <button data-v="lines">Lignes compactes</button>
+                <button data-v="opp">Regroupé par adversaire</button>
+            </div>
+        </div>
+        <div>
+            <div class="ctl-title">C · Lesquels</div>
+            <div class="seg" data-ctl="which">
+                <button data-v="sent">Seulement ceux que j'ai envoyés</button>
+                <button data-v="all">Envoyés et reçus (avec filtres)</button>
+            </div>
+        </div>
+        <div>
+            <div class="ctl-title">D · En haut</div>
+            <div class="seg" data-ctl="stats">
+                <button data-v="yes">Petit bilan (gagnés, perdus, gain total)</button>
+                <button data-v="no">Rien, juste la liste</button>
+            </div>
+        </div>
+        <div class="desc" id="desc"></div>
+    </div>
+
+    <div class="site" id="site"></div>
+
+</div>
+
+<script>
+const COLORS = { Yann: "#4fc3ff", Lina_: "#ff6bd5", Just1: "#ff9f43", victor: "#63d69f", maskims: "#ffd36b", Balac: "#6c63ff" };
+const DUELS = [
+    { who: "Yann", sent: true, q: "Il pleut samedi ?", pct: 10, amount: 1245, status: "pending", when: "il y a 2 h" },
+    { who: "Lina_", sent: true, q: "Qui arrive en retard demain ?", pct: 20, amount: 2490, status: "active", when: "hier" },
+    { who: "Yann", sent: false, q: "Score du match de foot jeudi", pct: 5, amount: 620, status: "won", delta: +1300, when: "lun. 13" },
+    { who: "victor", sent: true, q: "Marie parle aux nouvelles ?", pct: 10, amount: 1180, status: "lost", delta: -1180, when: "dim. 12" },
+    { who: "Just1", sent: true, q: "Il neige avant novembre ?", pct: 15, amount: 1700, status: "refused", delta: 0, when: "sam. 11" },
+    { who: "Yann", sent: true, q: "Bertin arrive à l'heure ?", pct: 10, amount: 1100, status: "won", delta: +2250, when: "ven. 10" },
+    { who: "Balac", sent: false, q: "Qui gagne le baby-foot ?", pct: 30, amount: 3300, status: "draw", delta: 0, when: "jeu. 9" }
+];
+const TAGS = { pending: ["t-pending", "⏳ En attente"], active: ["t-active", "⚔️ En cours"], won: ["t-won", "✅ Gagné"], lost: ["t-lost", "❌ Perdu"], refused: ["t-refused", "🚫 Refusé"], draw: ["t-draw", "🤝 Nul"] };
+const opts = { where: "tab", style: "cards", which: "all", stats: "yes" };
+const st = { page: "paris", filter: "all", modal: false, open: {} };
+
+const DESC = {
+    tab: "Dans la page <b>Historique</b>, un nouvel onglet <b>« ⚔️ Défis »</b> à côté de tes paris.",
+    group: "Dans la section Groupe, un petit lien <b>« ⚔️ Mes défis »</b> à côté du titre, qui ouvre une fenêtre.",
+    side: "Une <b>petite carte « ⚔️ Mes défis »</b> sous le classement (les 3 derniers, avec « Tout voir »)."
+};
+
+function list() {
+    let items = DUELS.filter(d => opts.which === "all" || d.sent);
+    if (opts.which === "all" && st.filter !== "all") items = items.filter(d => st.filter === "sent" ? d.sent : !d.sent);
+    return items;
+}
+
+function tag(d) { const [c, t] = TAGS[d.status]; return `<span class="tag ${c}">${t}</span>`; }
+function delta(d) { return d.delta ? `<span class="money-delta ${d.delta > 0 ? "plus" : "minus"}">${d.delta > 0 ? "+" : ""}${d.delta.toLocaleString("fr-FR")} €</span>` : ""; }
+function av(name, size) { return `<span class="h-av" style="background:${COLORS[name]};${size ? `width:${size}px;height:${size}px` : ""}">${name[0].toUpperCase()}</span>`; }
+
+function statsHtml() {
+    if (opts.stats !== "yes") return "";
+    const done = DUELS.filter(d => ["won", "lost"].includes(d.status));
+    const w = done.filter(d => d.status === "won").length, l = done.length - w;
+    const total = DUELS.reduce((s, d) => s + (d.delta || 0), 0);
+    return `<div class="stats"><div class="stat"><b style="color:#63d69f">${w}</b><small>gagnés</small></div><div class="stat"><b style="color:#ff8a8a">${l}</b><small>perdus</small></div><div class="stat"><b class="${total >= 0 ? "plus" : "minus"}">${total >= 0 ? "+" : ""}${total.toLocaleString("fr-FR")} €</b><small>bilan</small></div></div>`;
+}
+
+function filtersHtml() {
+    if (opts.which !== "all") return "";
+    return `<div class="filters">${[["all", "Tous"], ["sent", "Envoyés"], ["received", "Reçus"]].map(([k, l]) => `<button class="${st.filter === k ? "on" : ""}" data-filter="${k}">${l}</button>`).join("")}</div>`;
+}
+
+function itemsHtml(items, limit) {
+    items = limit ? items.slice(0, limit) : items;
+    if (opts.style === "lines") {
+        return items.map(d => `<div class="h-line">${d.sent ? "→" : "←"} <span>${d.sent ? "À" : "De"} <b>${d.who}</b> · ${d.pct} % · ${d.when}</span>${tag(d)}</div>`).join("");
+    }
+    if (opts.style === "opp") {
+        const byOpp = {};
+        items.forEach(d => (byOpp[d.who] = byOpp[d.who] || []).push(d));
+        return `<div class="h-list">${Object.entries(byOpp).map(([who, ds]) => {
+            const w = ds.filter(d => d.status === "won").length, l = ds.filter(d => d.status === "lost").length;
+            return `<div class="opp"><div class="opp-head" data-opp="${who}">${av(who, 28)}<b>${who}</b><span style="font-size:11px;color:#858a98">${ds.length} défi${ds.length > 1 ? "s" : ""}</span><span class="opp-score"><span class="plus">${w}</span> – <span class="minus">${l}</span></span></div>
+                ${w + l ? `<div class="opp-bar"><span class="w" style="flex:${w}"></span><span class="l" style="flex:${l}"></span></div>` : ""}
+                ${st.open[who] ? `<div class="opp-list">${ds.map(d => `<div class="h-line">${d.sent ? "→ envoyé" : "← reçu"} · ${d.q} · ${d.pct} %${tag(d)}</div>`).join("")}</div>` : ""}</div>`;
+        }).join("")}</div>`;
+    }
+    return `<div class="h-list">${items.map(d => `
+        <div class="h-card">${av(d.who)}
+            <div class="h-main"><span class="h-dir">${d.sent ? "Envoyé à" : "Reçu de"}</span> <b>${d.who}</b> · ${d.pct} % (${d.amount.toLocaleString("fr-FR")} €)<small>${d.q} · ${d.when}</small></div>
+            <div>${tag(d)}${delta(d)}</div>
+        </div>`).join("")}</div>`;
+}
+
+function historyBody(limit) {
+    return `${statsHtml()}${filtersHtml()}${itemsHtml(list(), limit)}`;
+}
+
+function board(extraHead, under) {
+    return `<div class="box"><div class="head">🏆 Groupe${extraHead || ""}</div>
+        ${["Florian", "Yann", "Lina_", "Just1", "victor"].map((n, i) => `<div class="row"><span class="rk">${i + 1}</span><span>${n}</span><span class="money">${(12450 - i * 1800).toLocaleString("fr-FR")} €</span></div>`).join("")}
+    </div>${under || ""}`;
+}
+
+function render() {
+    const site = document.getElementById("site");
+    const showTabs = opts.where === "tab";
+    const nav = `<div class="topbar"><span class="logo">BetLab</span>
+        <button class="nav ${st.page === "paris" ? "on" : ""}" data-page="paris">Paris</button>
+        <button class="nav ${st.page === "histo" ? "on" : ""}" data-page="histo">Historique</button></div>`;
+    let page;
+    if (st.page === "histo" && showTabs) {
+        page = `<div class="page single"><div>
+            <div class="tabs"><button class="tab">🎟️ Mes paris</button><button class="tab">✍️ Mes créations</button><button class="tab red on">⚔️ Défis</button></div>
+            <div class="box">${historyBody()}</div></div></div>`;
+    } else {
+        const head = opts.where === "group" ? `<button class="link" data-modal="1">⚔️ Mes défis</button>` : "";
+        const under = opts.where === "side" ? `<div class="box" style="margin-top:14px"><div class="head">⚔️ Mes défis<button class="link" data-modal="1">Tout voir ›</button></div>${itemsHtml(list(), 3)}</div>` : "";
+        page = `<div class="page"><div>${board(head, under)}</div><div>${[1, 2, 3].map(() => '<div class="bet"></div>').join("")}</div></div>`;
+    }
+    site.innerHTML = nav + page + (showTabs && st.page !== "histo" ? `<p style="padding:0 18px 16px;font-size:12px;color:#737887">👆 Clique sur « Historique » pour voir l'onglet.</p>` : "");
+    document.getElementById("desc").innerHTML = DESC[opts.where];
+    document.querySelectorAll(".overlay").forEach(o => o.remove());
+    if (st.modal) {
+        const ov = document.createElement("div");
+        ov.className = "overlay";
+        ov.innerHTML = `<div class="modal"><button class="close" data-close="1">×</button><h2>⚔️ Mes défis</h2>${historyBody()}</div>`;
+        document.body.appendChild(ov);
+    }
+}
+
+document.addEventListener("click", e => {
+    const t = e.target;
+    if (t.closest("[data-page]")) { st.page = t.closest("[data-page]").dataset.page; render(); return; }
+    if (t.closest("[data-modal]")) { st.modal = true; render(); return; }
+    if (t.closest("[data-close]") || t.classList.contains("overlay")) { st.modal = false; render(); return; }
+    if (t.closest("[data-filter]")) { st.filter = t.closest("[data-filter]").dataset.filter; render(); return; }
+    if (t.closest("[data-opp]")) { const w = t.closest("[data-opp]").dataset.opp; st.open[w] = !st.open[w]; render(); }
+});
+
+document.querySelectorAll("[data-ctl]").forEach(seg => seg.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+    opts[seg.dataset.ctl] = b.dataset.v;
+    seg.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+    st.page = opts.where === "tab" ? "histo" : "paris";
+    st.modal = false;
+    render();
+})));
+Object.keys(opts).forEach(k => document.querySelectorAll(`[data-ctl="${k}"] button`).forEach(b => b.classList.toggle("on", b.dataset.v === opts[k])));
+st.page = "histo";
+render();
+
+/* Bouton « Copier mes choix » : copie les réglages sélectionnés pour les coller dans la conversation. */
+(function () {
+    const style = document.createElement("style");
+    style.textContent = `
+        .copy-bar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+        .copy-btn { border: none; border-radius: 10px; padding: 10px 16px; font: inherit; font-weight: 800; cursor: pointer; background: linear-gradient(90deg, #6c63ff, #c86bff); color: white; }
+        .copy-btn.done { background: #63d69f; color: #0d2a1d; }
+        .copy-text { flex: 1; min-width: 220px; font-size: 12px; color: #aaaeba; background: #12141b; border: 1px solid #2c3040; border-radius: 10px; padding: 8px 10px; user-select: all; }
+    `;
+    document.head.appendChild(style);
+
+    const bar = document.createElement("div");
+    bar.className = "copy-bar";
+    bar.innerHTML = `<button type="button" class="copy-btn">📋 Copier mes choix</button><div class="copy-text"></div>`;
+    document.querySelector(".controls").appendChild(bar);
+
+    const text = () => document.title + " : " + [...document.querySelectorAll("[data-ctl]")].map(seg => {
+        const title = seg.parentElement.querySelector(".ctl-title")?.textContent.trim() || seg.dataset.ctl;
+        const on = seg.querySelector("button.on")?.textContent.trim() || "?";
+        return `${title} = ${on}`;
+    }).join(" | ");
+
+    const refresh = () => { bar.querySelector(".copy-text").textContent = text(); };
+    document.addEventListener("click", () => setTimeout(refresh, 0));
+    refresh();
+
+    const button = bar.querySelector(".copy-btn");
+    button.addEventListener("click", async () => {
+        const value = text();
+        try {
+            await navigator.clipboard.writeText(value);
+        } catch (error) {
+            const area = document.createElement("textarea");
+            area.value = value;
+            document.body.appendChild(area);
+            area.select();
+            document.execCommand("copy");
+            area.remove();
+        }
+        button.textContent = "✅ Copié ! Colle-le dans la conversation";
+        button.classList.add("done");
+        setTimeout(() => { button.textContent = "📋 Copier mes choix"; button.classList.remove("done"); }, 2500);
+    });
+})();
+</script>
+</body>
+</html>

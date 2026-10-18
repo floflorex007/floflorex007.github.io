@@ -504,6 +504,7 @@ async function dailyCheckin() {
     streakState.shields = row.shields || 0;
     streakState.canRestore = Boolean(row.can_restore);
     streakState.lost = row.lost_streak || 0;
+    streakState.missed = row.lost_missed || 1;
 
 
     const widget =
@@ -1337,10 +1338,34 @@ function renderParrotSkins() {
 
     if (streakList) {
 
-        streakList.innerHTML = flameNameItemHtml() + PARROT_SKINS
-            .filter(skin => skin.streak)
-            .map(skin => skinItemHtml(skin, active))
-            .join("");
+        // Même chemin vertical que les skins de niveau : pseudo enflammé puis skins de série.
+        const streakSkins = PARROT_SKINS.filter(skin => skin.streak);
+
+        streakList.innerHTML = `
+            <li class="xp-skins-path streak-path">
+                <ul class="xp-skins">
+                    ${flameNameItemHtml()}
+                    ${streakSkins.map(skin => skinItemHtml(skin, active)).join("")}
+                </ul>
+            </li>
+        `;
+
+        // Chaque trait se remplit selon la série, d'une récompense à la suivante.
+        const steps = [FLAME_NAME_STREAK, ...streakSkins.map(skin => skin.streak)];
+
+        const streak = currentProfile?.is_admin ? Infinity : Number(currentProfile?.streak_days) || 0;
+
+        streakList.querySelectorAll(".xp-skins-path .xp-skin").forEach((item, index) => {
+
+            const next = steps[index + 1];
+
+            const fill = next === undefined
+                ? 0
+                : Math.min(1, Math.max(0, (streak - steps[index]) / (next - steps[index]))) * 100;
+
+            item.style.setProperty("--path-fill", fill + "%");
+
+        });
 
     }
 
@@ -1414,6 +1439,20 @@ function setupParrotSkins() {
 document.addEventListener("DOMContentLoaded", setupParrotSkins);
 
 
+// Fenêtre de la série : série actuelle et meilleure série.
+function renderStreakGauge(current) {
+
+    const days = n => n + " jour" + (n > 1 ? "s" : "");
+
+    const admin = Boolean(currentProfile?.is_admin);
+
+    document.getElementById("streak-modal-current").textContent = admin ? "🔥 ∞" : "🔥 " + days(current);
+
+    document.getElementById("streak-modal-best").textContent = admin ? "🏆 ∞" : "🏆 " + days(Math.max(current, bestStreak()));
+
+}
+
+
 /*
     Fenêtre de la série : un clic sur la flamme explique le comptage,
     les protections et la récompense de série.
@@ -1431,17 +1470,11 @@ function setupStreakModal() {
 
     }
 
-    const days = n => n + " jour" + (n > 1 ? "s" : "");
-
     const open = () => {
 
         const current = Number(document.getElementById("streak-count").textContent) || 0;
 
-        const admin = Boolean(currentProfile?.is_admin);
-
-        document.getElementById("streak-modal-current").textContent = admin ? "🔥 ∞" : "🔥 " + days(current);
-
-        document.getElementById("streak-modal-best").textContent = admin ? "🏆 ∞" : "🏆 " + days(Math.max(current, bestStreak()));
+        renderStreakGauge(current);
 
         renderParrotSkins();
 
@@ -1478,16 +1511,32 @@ document.addEventListener("DOMContentLoaded", setupStreakModal);
 
 /*
     Protections de la série : bouclier (boutique, 40 points, 3 maximum)
-    et rattrapage 24 h (60 points). Voir serie-protection.sql.
+    et rattrapage le jour du retour (60, 110 ou 160 points selon 1, 2 ou
+    3 jours manqués). Voir serie-protection.sql et rattrapage-serie.sql.
 */
 
 const SHIELD_PRICE = 40;
 
 const SHIELD_MAX = 3;
 
-const RESTORE_PRICE = 60;
+// Prix du rattrapage selon le nombre de jours manqués.
+const RESTORE_PRICES = { 1: 60, 2: 110, 3: 160 };
 
-const streakState = { shields: 0, canRestore: false, lost: 0 };
+const streakState = { shields: 0, canRestore: false, lost: 0, missed: 1 };
+
+
+function restorePrice() {
+
+    return RESTORE_PRICES[streakState.missed] || RESTORE_PRICES[1];
+
+}
+
+
+function restoreSinceText() {
+
+    return streakState.missed > 1 ? "il y a " + (streakState.missed + 1) + " jours" : "hier";
+
+}
 
 
 function renderStreakProtect() {
@@ -1507,39 +1556,120 @@ function renderStreakProtect() {
 
     const full = streakState.shields >= SHIELD_MAX;
 
+    const price = restorePrice();
+
     box.innerHTML = `
         <div class="xp-rule streak-protect">
             <div class="xp-rule-head">
                 <span class="xp-rule-icon">🛡️</span>
                 <div>
                     <strong>Bouclier de série</strong>
-                    <span>Utilisé tout seul si tu rates un jour : ta série continue. Un bouclier par jour manqué.</span>
+                    <span>Utilisé tout seul si tu rates un jour : ta série continue.</span>
                 </div>
                 <em>${streakState.shields} / ${SHIELD_MAX}</em>
             </div>
-            <button type="button" class="streak-action shield-buy" ${full || points < SHIELD_PRICE ? "disabled" : ""}>
-                ${full ? "Maximum atteint" : points < SHIELD_PRICE ? "Il te manque " + (SHIELD_PRICE - points) + " 🪙" : "Acheter un bouclier · " + SHIELD_PRICE + " 🪙"}
-            </button>
+            ${full
+                ? ""
+                : `<button type="button" class="streak-action streak-shop-link">Voir boutique</button>`}
         </div>
 
         <div class="xp-rule streak-protect${streakState.canRestore ? " restorable" : ""}">
             <div class="xp-rule-head">
                 <span class="xp-rule-icon">⏪</span>
                 <div>
-                    <strong>Rattrapage 24 h</strong>
+                    <strong>Rattrapage de série</strong>
                     <span>${streakState.canRestore
-                        ? "Ta série de " + streakState.lost + " jours s'est arrêtée hier. Récupère-la avant minuit !"
-                        : "Si tu rates un seul jour sans bouclier, tu pourras récupérer ta série le jour de ton retour, jusqu'à minuit."}</span>
+                        ? "Ta série de " + streakState.lost + " jours s'est arrêtée " + restoreSinceText() + ". Récupère-la avant minuit !"
+                        : "Si tu rates 1 à 3 jours sans bouclier, tu pourras récupérer ta série le jour de ton retour."}</span>
                 </div>
-                <em>${RESTORE_PRICE} 🪙</em>
+                <em>${streakState.canRestore ? price : RESTORE_PRICES[1] + "-" + RESTORE_PRICES[3]} 🪙</em>
             </div>
             ${streakState.canRestore
-                ? `<button type="button" class="streak-action restore-streak" ${points < RESTORE_PRICE ? "disabled" : ""}>
-                    ${points < RESTORE_PRICE ? "Il te manque " + (RESTORE_PRICE - points) + " 🪙" : "Rattraper ma série · " + RESTORE_PRICE + " 🪙"}
+                ? `<button type="button" class="streak-action restore-streak" ${points < price ? "disabled" : ""}>
+                    ${points < price ? "Il te manque " + (price - points) + " 🪙" : "Rattraper ma série · " + price + " 🪙"}
                    </button>`
                 : ""}
         </div>
     `;
+
+}
+
+
+// Ferme la fenêtre de la série, ouvre la boutique et amène la carte du bouclier à l'écran.
+function openShopAtShield() {
+
+    document.getElementById("streak-modal")?.classList.add("hidden");
+
+    // Filtre « Tout » : la catégorie « Série » doit être visible.
+    if (typeof shopFilter !== "undefined") {
+        shopFilter = "all";
+    }
+
+    document.querySelector('.nav-button[data-page="shop-page"]')?.click();
+
+    // La boutique se recharge puis ses cartes arrivent en cascade : on attend
+    // la fin de ce rechargement avant de mettre la carte en avant.
+    let tries = 0;
+
+    const reveal = () => {
+
+        const page = document.getElementById("shop-page");
+
+        const card = page?.querySelector('[data-shop-item="bouclier"]');
+
+        const ready = card
+            && !card.closest(".hidden")
+            && !page.classList.contains("page-refreshing");
+
+        if (!ready) {
+
+            if (++tries < 60) {
+                setTimeout(reveal, 100);
+            }
+
+            return;
+
+        }
+
+        setTimeout(() => {
+
+            // La carte a pu être redessinée entre-temps.
+            const target = page.querySelector('[data-shop-item="bouclier"]');
+
+            if (!target) {
+                return;
+            }
+
+            target.scrollIntoView({ behavior: "smooth", block: "center" });
+
+            spotlightShopCard(target);
+
+        }, 500);
+
+    };
+
+    setTimeout(reveal, 150);
+
+}
+
+
+// Carte mise en avant : un halo orange doux s'allume, reste un moment, puis s'efface.
+// En animation JavaScript, pour passer devant les animations CSS de la carte.
+function spotlightShopCard(card) {
+
+    const glow = "0 0 0 2px rgba(255, 159, 67, 0.8), 0 0 26px rgba(255, 159, 67, 0.35)";
+
+    const rest = "0 0 0 0 rgba(255, 159, 67, 0), 0 0 0 rgba(255, 159, 67, 0)";
+
+    card.animate(
+        [
+            { boxShadow: rest },
+            { boxShadow: glow, offset: 0.2 },
+            { boxShadow: glow, offset: 0.7 },
+            { boxShadow: rest }
+        ],
+        { duration: 3200, delay: 300, easing: "ease-in-out" }
+    );
 
 }
 
@@ -1622,6 +1752,8 @@ async function restoreStreak(button, messageId = "streak-message") {
 
     const pointsBefore = Number(currentProfile?.points || 0);
 
+    const price = restorePrice();
+
     button.disabled = true;
 
     const { data, error } = await supabaseClient.rpc("restore_streak", { p_group: currentGroup.id });
@@ -1638,15 +1770,17 @@ async function restoreStreak(button, messageId = "streak-message") {
 
     if (typeof spendCoins === "function") {
 
-        currentProfile.points = pointsBefore - RESTORE_PRICE;
+        currentProfile.points = pointsBefore - price;
 
-        await spendCoins(rect, RESTORE_PRICE, pointsBefore);
+        await spendCoins(rect, price, pointsBefore);
 
     }
 
     streakState.canRestore = false;
 
     streakState.lost = 0;
+
+    streakState.missed = 1;
 
     // Met à jour la flamme, la meilleure série et le coffre.
     await dailyCheckin();
@@ -1655,9 +1789,7 @@ async function restoreStreak(button, messageId = "streak-message") {
 
     const days = Number(data) || 0;
 
-    document.getElementById("streak-modal-current").textContent = "🔥 " + days + " jour" + (days > 1 ? "s" : "");
-
-    document.getElementById("streak-modal-best").textContent = "🏆 " + Math.max(days, bestStreak()) + " jours";
+    renderStreakGauge(days);
 
     renderStreakProtect();
 
@@ -1676,11 +1808,10 @@ async function restoreStreak(button, messageId = "streak-message") {
 
 document.addEventListener("click", event => {
 
-    const shield = event.target.closest("#streak-protect .shield-buy");
+    // Bouclier : il s'achète dans la boutique (catégorie « Série »).
+    if (event.target.closest("#streak-protect .streak-shop-link")) {
 
-    if (shield && !shield.disabled) {
-
-        buyStreakShield(shield);
+        openShopAtShield();
 
         return;
 
@@ -1702,12 +1833,14 @@ function restoreCardHtml(points) {
 
     const can = streakState.canRestore && !currentProfile?.is_admin;
 
-    const enough = points >= RESTORE_PRICE;
+    const price = restorePrice();
+
+    const enough = points >= price;
 
     return shopRowHtml({
         id: "rattrapage",
-        title: "Rattrapage 24 h",
-        price: RESTORE_PRICE,
+        title: "Rattrapage de série",
+        price,
         stage: `
             <span class="shop-row-util">
                 <span class="shop-row-icon">🔥</span>
@@ -1715,7 +1848,7 @@ function restoreCardHtml(points) {
             </span>
         `,
         middle: can ? `<span class="shop-row-note">À rattraper avant minuit</span>` : "",
-        actions: shopPriceButtonHtml("restore-buy", "", RESTORE_PRICE, can && enough)
+        actions: shopPriceButtonHtml("restore-buy", "", price, can && enough)
     });
 
 }
@@ -4273,6 +4406,14 @@ function initModalAnimations() {
 
         let wasHidden = modal.classList.contains("hidden");
 
+        // Position de défilement retenue en direct : une fois la fenêtre cachée,
+        // elle ne se lit plus (0), et la copie de fermeture remonterait en haut.
+        modal.querySelector(".modal-content")?.addEventListener("scroll", event => {
+
+            modal._lastScroll = event.currentTarget.scrollTop;
+
+        });
+
         new MutationObserver(() => {
 
             const hidden = modal.classList.contains("hidden");
@@ -4355,7 +4496,7 @@ function initModalAnimations() {
 
             if (ghostContent && content) {
 
-                ghostContent.scrollTop = content.scrollTop;
+                ghostContent.scrollTop = modal._lastScroll || 0;
 
             }
 

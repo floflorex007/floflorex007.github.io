@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Démo : vote dans l'arbre</title>
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #0f1117; color: #e6e8ee; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 20px 16px 60px; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .sub { color: #858a98; font-size: 13px; margin: 0 0 18px; }
+
+    /* Réglages de la démo */
+    .controls { background: #171a23; border: 1px dashed #4a4f66; border-radius: 16px; padding: 14px; margin-bottom: 20px; display: grid; gap: 12px; }
+    .ctl-title { font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: #737887; margin-bottom: 6px; }
+    .seg { display: flex; flex-wrap: wrap; gap: 6px; }
+    .seg button { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; font: inherit; font-size: 13px; padding: 7px 12px; border-radius: 999px; cursor: pointer; }
+    .seg button.on { background: #6c63ff; border-color: #6c63ff; color: white; }
+    .seg.state button.on { background: #ff9f43; border-color: #ff9f43; color: #1a1206; font-weight: 800; }
+    .ctl-note { font-size: 12px; color: #737887; margin-top: 4px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 700px) { .grid2 { grid-template-columns: 1fr; } }
+
+    /* Page de l'arbre (mêmes couleurs que l'app) */
+    .panel { position: relative; background: #171a23; border: 1px solid #262a38; border-radius: 18px; padding: 16px; }
+
+    .banner { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; margin-bottom: 14px; font-size: 14px; }
+    .banner .big { font-size: 24px; }
+    .banner b { display: block; font-size: 15px; }
+    .banner small { color: #aaaeba; font-size: 12px; }
+    .banner.open { background: rgba(255, 159, 67, .1); border: 1px solid rgba(255, 159, 67, .5); }
+    .banner.open b { color: #ffb36b; }
+    .banner.voted { background: rgba(200, 107, 255, .1); border: 1px solid rgba(200, 107, 255, .45); }
+    .banner.voted b { color: #e2c4ff; }
+    .banner.done { background: rgba(99, 214, 159, .12); border: 1px solid rgba(99, 214, 159, .55); }
+    .banner.done b { color: #9fe6c4; }
+    .banner-prog { margin-left: auto; text-align: right; font-size: 12px; color: #aaaeba; white-space: nowrap; }
+    .banner-prog strong { color: #ffd36b; font-size: 16px; }
+
+    .tree { position: relative; }
+    .tree svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    .lvl { font-size: 11px; color: #737887; margin: 0 0 6px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; display: flex; gap: 8px; align-items: center; }
+    .lvl em { font-style: normal; text-transform: none; letter-spacing: 0; color: #ffb36b; font-weight: 800; }
+    .lvl em.ok { color: #63d69f; }
+    .row { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; margin-bottom: 40px; position: relative; }
+    .row:last-child { margin-bottom: 0; }
+    .r0 .node { grid-column: 1 / -1; max-width: 120px; }
+    .r1 .node { grid-column: span 4; }
+    .r2 .node { grid-column: span 2; }
+
+    .node { position: relative; z-index: 1; justify-self: center; width: 100%; max-width: 150px; border: 2px solid #343a4d; background: #12141b; color: #e6e8ee; font: inherit; border-radius: 14px; padding: 8px 6px; text-align: center; cursor: pointer; transition: transform .2s, border-color .3s, opacity .4s, filter .4s, box-shadow .3s; }
+    .node .e { font-size: 24px; display: block; }
+    .node .n { font-size: 12px; font-weight: 800; display: block; margin-top: 2px; }
+    .node .t { font-size: 10px; color: #858a98; display: block; margin-top: 2px; }
+    .node.root { border-color: #6c63ff; }
+    .node.chosen { border-color: #63d69f; background: linear-gradient(180deg, #173226, #12141b); box-shadow: 0 0 16px rgba(99, 214, 159, .25); }
+    .node.locked { opacity: .22; filter: grayscale(1); }
+    .node.future { opacity: .55; }
+
+    /* Les 2 cases du vote, plus grandes */
+    .r1 .node.open, .r1 .node.mine, .r1 .node.other { max-width: 210px; padding: 12px 10px; }
+    .r1 .node.open .e, .r1 .node.mine .e, .r1 .node.other .e { font-size: 32px; }
+    .r1 .node.open .n, .r1 .node.mine .n, .r1 .node.other .n { font-size: 15px; }
+    .node .plus { display: block; font-size: 11px; color: #9fe6c4; margin-top: 6px; line-height: 1.35; }
+
+    .node.open { border-color: #ff9f43; }
+    .halo-breath .node.open { animation: halo 2s ease-in-out infinite; }
+    .halo-breath .node.open + .node.open { animation-delay: 1s; }
+    .halo-fixed .node.open { box-shadow: 0 0 0 3px rgba(255, 159, 67, .2), 0 0 22px rgba(255, 159, 67, .45); }
+    .node.open:hover { transform: translateY(-3px) scale(1.03); box-shadow: 0 0 0 3px rgba(255, 159, 67, .35), 0 0 30px rgba(255, 159, 67, .55); animation-play-state: paused; }
+    @keyframes halo {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(255, 159, 67, 0), 0 0 10px rgba(255, 159, 67, .2); }
+        50% { box-shadow: 0 0 0 5px rgba(255, 159, 67, .18), 0 0 28px rgba(255, 159, 67, .55); }
+    }
+    .node.mine { border-color: #c86bff; box-shadow: 0 0 0 3px rgba(200, 107, 255, .25), 0 0 20px rgba(200, 107, 255, .35); }
+    .node.other { border-color: #4a4f66; opacity: .8; }
+    .node.other:hover { opacity: 1; border-color: #ff9f43; transform: translateY(-2px); }
+
+    .tag { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; font-weight: 900; padding: 2px 8px; border-radius: 99px; }
+    .tag.vote { background: #ff9f43; color: #1a1206; }
+    .tag.mine { background: #c86bff; color: white; }
+    .tag.win { background: #63d69f; color: #0d2a1d; }
+
+    .or { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 900; color: #ffd36b; background: #171a23; border: 2px solid #ff9f43; pointer-events: none; }
+
+    /* Votes affichés sur la case */
+    .count { display: block; margin-top: 8px; font-size: 12px; color: #aaaeba; }
+    .count b { color: #e6e8ee; }
+    .avatars { display: flex; justify-content: center; margin-top: 8px; min-height: 22px; }
+    .av { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 900; color: white; border: 2px solid #12141b; margin-left: -6px; }
+    .av:first-child { margin-left: 0; }
+    .av.me { outline: 2px solid #c86bff; }
+    .gauge { display: block; margin-top: 8px; }
+    .gauge i { display: block; height: 6px; border-radius: 99px; background: #262a38; overflow: hidden; }
+    .gauge i span { display: block; height: 100%; background: linear-gradient(90deg, #ff9f43, #ffd36b); transition: width .5s; }
+    .gauge small { display: block; margin-top: 4px; font-size: 11px; color: #aaaeba; }
+
+    .members { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; padding-top: 14px; border-top: 1px solid #262a38; align-items: center; }
+    .members .lab { font-size: 12px; color: #737887; margin-right: 4px; }
+    .mb { font-size: 12px; padding: 4px 9px; border-radius: 99px; background: #1c202c; border: 1px solid #2c3040; color: #aaaeba; }
+    .mb.done { border-color: #63d69f; color: #9fe6c4; }
+
+    /* Bulle de confirmation */
+    .pop { position: fixed; z-index: 50; width: min(290px, calc(100vw - 20px)); background: #181b24; border: 1px solid #ff9f43; border-radius: 14px; padding: 14px; text-align: center; box-shadow: 0 14px 40px rgba(0, 0, 0, .55); animation: pop-in .18s ease-out; }
+    .pop .e { font-size: 34px; display: block; }
+    .pop h4 { margin: 2px 0 6px; font-size: 17px; }
+    .pop p { margin: 0 0 6px; font-size: 13px; line-height: 1.45; color: #9fe6c4; background: rgba(99, 214, 159, .1); padding: 8px 10px; border-radius: 10px; text-align: left; }
+    .pop .ex { color: #ffe3a0; background: rgba(255, 211, 107, .08); }
+    .pop .go { width: 100%; margin-top: 6px; border: none; border-radius: 10px; padding: 10px; font: inherit; font-weight: 800; cursor: pointer; background: linear-gradient(90deg, #ff9f43, #ffc36b); color: #1a1206; }
+    .pop .cancel { width: 100%; margin-top: 6px; border: 1px solid #2c3040; background: none; color: #aaaeba; border-radius: 10px; padding: 8px; font: inherit; cursor: pointer; }
+    @keyframes pop-in { from { opacity: 0; transform: translateY(6px) scale(.96); } }
+
+    .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 60; background: #1c202c; border: 1px solid #c86bff; color: #e6e8ee; padding: 10px 16px; border-radius: 12px; font-size: 14px; box-shadow: 0 10px 30px rgba(0, 0, 0, .5); animation: pop-in .2s ease-out; }
+
+    /* Fin du vote : la case gagnante s'allume */
+    .node.win-anim { animation: win 1.2s ease-out; }
+    @keyframes win {
+        0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(99, 214, 159, .8); }
+        30% { transform: scale(1.12); box-shadow: 0 0 0 12px rgba(99, 214, 159, .25), 0 0 40px rgba(99, 214, 159, .7); }
+        100% { transform: scale(1); box-shadow: 0 0 16px rgba(99, 214, 159, .25); }
+    }
+    .node.lose-anim { animation: lose .9s ease-in; }
+    @keyframes lose { 0% { opacity: 1; filter: none; } 40% { transform: translateY(2px); } 100% { opacity: .22; filter: grayscale(1); } }
+    .confetti { position: fixed; z-index: 70; width: 8px; height: 12px; border-radius: 2px; pointer-events: none; }
+
+    .legend { margin-top: 20px; font-size: 12px; color: #737887; line-height: 1.6; }
+    .legend b { color: #aaaeba; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+    <h1>🌳 Démo : voter directement dans l'arbre</h1>
+    <p class="sub">Plus de panneau de vote séparé : les 2 cases du palier deviennent les boutons de vote. Choisis l'état et les réglages, puis clique dans l'arbre.</p>
+
+    <div class="controls">
+        <div>
+            <div class="ctl-title">État du vote</div>
+            <div class="seg state" data-ctl="state">
+                <button data-v="open">1 · Pas encore voté</button>
+                <button data-v="voted">2 · J'ai voté</button>
+                <button data-v="done">3 · Tout le monde a voté</button>
+            </div>
+            <div class="ctl-note">Groupe de 7 membres actifs : il faut 4 voix pour adopter une case.</div>
+        </div>
+
+        <div class="grid2">
+            <div>
+                <div class="ctl-title">A · Comment on vote</div>
+                <div class="seg" data-ctl="action">
+                    <button data-v="confirm">Clic → bulle « Voter »</button>
+                    <button data-v="direct">Clic = vote direct</button>
+                </div>
+            </div>
+            <div>
+                <div class="ctl-title">B · Votes affichés sur les cases</div>
+                <div class="seg" data-ctl="display">
+                    <button data-v="avatars">Pastilles des votants</button>
+                    <button data-v="count">Compteur</button>
+                    <button data-v="gauge">Jauge vers 4 voix</button>
+                    <button data-v="none">Rien (surprise)</button>
+                </div>
+            </div>
+            <div>
+                <div class="ctl-title">C · Bandeau au-dessus de l'arbre</div>
+                <div class="seg" data-ctl="banner">
+                    <button data-v="on">Oui</button>
+                    <button data-v="off">Non (que l'arbre)</button>
+                </div>
+            </div>
+            <div>
+                <div class="ctl-title">D · Halo des 2 cases</div>
+                <div class="seg" data-ctl="halo">
+                    <button data-v="breath">Qui respire</button>
+                    <button data-v="fixed">Fixe</button>
+                </div>
+            </div>
+            <div>
+                <div class="ctl-title">E · Qui a voté</div>
+                <div class="seg" data-ctl="members">
+                    <button data-v="list">Liste sous l'arbre</button>
+                    <button data-v="off">Caché</button>
+                </div>
+            </div>
+            <div>
+                <div class="ctl-title">F · Quand le vote est adopté</div>
+                <div class="seg" data-ctl="end">
+                    <button data-v="party">Case qui s'allume + confettis</button>
+                    <button data-v="calm">Juste le résultat</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel" id="page"></div>
+
+    <p class="legend">
+        <b>Dans l'état 1</b>, clique sur WTF ou Try hard pour voter (ça passe à l'état 2).
+        <b>Dans l'état 2</b>, clique sur l'autre case pour changer ton vote.
+        <b>L'état 3</b> rejoue l'adoption à chaque clic sur le bouton.
+    </p>
+
+</div>
+
+<script>
+const NODES = {
+    root: { e: "🏳️", n: "Départ", t: "Tous pareils" },
+    w: { e: "🤪", n: "WTF", t: "Bonus", plus: "1 boost gratuit par semaine pour chaque membre.", ex: "Inès mise 100 € à cote 3 avec son boost : elle gagne 360 € au lieu de 300 €." },
+    t: { e: "🎯", n: "Try hard", t: "Bonus", plus: "+50 % d'XP le lundi pour tous les membres.", ex: "Le lundi, une mise qui rapporte 20 XP en rapporte 30." },
+    w1: { e: "🎰", n: "Roulette", t: "Pari spécial" }, w2: { e: "🎭", n: "Pari mystère", t: "Pari spécial" },
+    t1: { e: "⚔️", n: "Duel", t: "Pari spécial" }, t2: { e: "🏆", n: "Rivalité", t: "Rivalité" },
+    w1a: { e: "💥", n: "Double ou rien", t: "Bonus" }, w1b: { e: "🌪️", n: "Lundi fou", t: "Événement" },
+    w2a: { e: "🃏", n: "À l'aveugle", t: "Pari spécial" }, w2b: { e: "🎡", n: "Roue surprise", t: "Événement" },
+    t1a: { e: "🩸", n: "Duel à mort", t: "Bonus" }, t1b: { e: "🛡️", n: "Assurance", t: "Bonus" },
+    t2a: { e: "🏰", n: "Conquête", t: "Rivalité" }, t2b: { e: "📊", n: "Analystes", t: "Stats" }
+};
+const LEVELS = [["w", "t"], ["w1", "w2", "t1", "t2"], ["w1a", "w1b", "w2a", "w2b", "t1a", "t1b", "t2a", "t2b"]];
+const MEMBERS = ["Toi", "Inès", "Lucas", "Max", "Bertin", "Léa", "Hugo"];
+const COLORS = { Toi: "#c86bff", Inès: "#ff6bd5", Lucas: "#4fc3ff", Max: "#ff9f43", Bertin: "#63d69f", Léa: "#ffd36b", Hugo: "#6c63ff" };
+const NEED = 4;
+
+const PRESETS = {
+    open: { mine: null, votes: { w: ["Inès", "Lucas"], t: ["Max"] } },
+    voted: { mine: "w", votes: { w: ["Inès", "Lucas", "Toi"], t: ["Max"] } },
+    done: { mine: "w", votes: { w: ["Inès", "Lucas", "Toi", "Léa"], t: ["Max", "Bertin", "Hugo"] } }
+};
+
+const opts = { state: "open", action: "confirm", display: "avatars", banner: "on", halo: "breath", members: "list", end: "party" };
+let data = JSON.parse(JSON.stringify(PRESETS.open));
+let playEnd = false;
+
+function kids(id) {
+    if (id === "root") return ["w", "t"];
+    if (id.length === 1) return [id + "1", id + "2"];
+    if (id.length === 2) return [id + "a", id + "b"];
+    return [];
+}
+
+function winner() {
+    return opts.state === "done" ? (data.votes.w.length >= NEED ? "w" : "t") : null;
+}
+
+function nodeState(id) {
+    if (id === "root") return "chosen";
+    const win = winner();
+    if (id === "w" || id === "t") {
+        if (win) return id === win ? "chosen" : "locked";
+        if (opts.state === "voted") return data.mine === id ? "mine" : "other";
+        return "open";
+    }
+    if (win && id[0] !== win) return "locked";
+    return "future";
+}
+
+function votesHtml(id) {
+    const list = data.votes[id];
+    if (opts.display === "none" && opts.state !== "done") return "";
+    if (opts.display === "count" || (opts.display === "none" && opts.state === "done")) {
+        return `<span class="count"><b>${list.length}</b> vote${list.length > 1 ? "s" : ""}</span>`;
+    }
+    if (opts.display === "gauge") {
+        return `<span class="gauge"><i><span style="width:${Math.min(100, list.length / NEED * 100)}%"></span></i><small>${list.length} / ${NEED} voix</small></span>`;
+    }
+    return `<span class="avatars">${list.map(name =>
+        `<span class="av${name === "Toi" ? " me" : ""}" style="background:${COLORS[name]}" title="${name}">${name[0]}</span>`).join("")}</span>`;
+}
+
+function nodeHtml(id) {
+    const node = NODES[id];
+    const state = nodeState(id);
+    const isVote = id === "w" || id === "t";
+    let tag = "";
+    if (state === "open") tag = `<span class="tag vote">🗳️ VOTE</span>`;
+    if (state === "mine") tag = `<span class="tag mine">✓ TON VOTE</span>`;
+    if (state === "chosen" && isVote) tag = `<span class="tag win">✅ ADOPTÉ</span>`;
+    return `
+        <button class="node ${id === "root" ? "root" : ""} ${state}" data-node="${id}">
+            ${tag}
+            <span class="e">${node.e}</span>
+            <span class="n">${node.n}</span>
+            ${isVote && state !== "locked" ? `<span class="plus">➕ ${node.plus}</span>` : `<span class="t">${node.t}</span>`}
+            ${isVote && state !== "locked" ? votesHtml(id) : ""}
+        </button>`;
+}
+
+function bannerHtml() {
+    if (opts.banner === "off") return "";
+    const total = data.votes.w.length + data.votes.t.length;
+    if (opts.state === "open") {
+        return `<div class="banner open"><span class="big">🗳️</span><div><b>Votez pour débloquer le palier 1 !</b><small>Clique sur l'une des 2 cases qui brillent. Le choix est définitif.</small></div>
+            <div class="banner-prog"><strong>${total} / ${MEMBERS.length}</strong><br>ont voté</div></div>`;
+    }
+    if (opts.state === "voted") {
+        const n = NODES[data.mine];
+        return `<div class="banner voted"><span class="big">${n.e}</span><div><b>Tu as voté ${n.n}</b><small>Plus que ${NEED - data.votes[data.mine].length} voix pour l'adopter. Tu peux encore changer d'avis.</small></div>
+            <div class="banner-prog"><strong>${total} / ${MEMBERS.length}</strong><br>ont voté</div></div>`;
+    }
+    const n = NODES[winner()];
+    return `<div class="banner done"><span class="big">🎉</span><div><b>${n.e} ${n.n} adopté : palier 1 débloqué !</b><small>${n.plus}</small></div>
+        <div class="banner-prog"><strong>${data.votes[winner()].length} – ${data.votes[winner() === "w" ? "t" : "w"].length}</strong><br>voix</div></div>`;
+}
+
+function membersHtml() {
+    if (opts.members === "off") return "";
+    const voted = [...data.votes.w, ...data.votes.t];
+    return `<div class="members"><span class="lab">${opts.state === "done" ? "Tout le monde a voté :" : "Ont voté :"}</span>
+        ${MEMBERS.map(name => `<span class="mb ${voted.includes(name) ? "done" : ""}">${name}${voted.includes(name) ? " ✓" : ""}</span>`).join("")}</div>`;
+}
+
+function render() {
+    const page = document.getElementById("page");
+    const p1 = opts.state === "done" ? `<em class="ok">✅ débloqué</em>` : `<em>🗳️ vote en cours</em>`;
+    let tree = `<svg></svg>
+        <p class="lvl">Création</p><div class="row r0">${nodeHtml("root")}</div>
+        <p class="lvl">Palier 1 ${p1}</p>
+        <div class="row r1">${LEVELS[0].map(nodeHtml).join("")}${opts.state === "open" ? '<span class="or">OU</span>' : ""}</div>
+        <p class="lvl">Palier 2</p><div class="row r2">${LEVELS[1].map(nodeHtml).join("")}</div>
+        <p class="lvl">Palier 3</p><div class="row r3">${LEVELS[2].map(nodeHtml).join("")}</div>`;
+    page.innerHTML = `${bannerHtml()}<div class="tree halo-${opts.halo}" id="tree">${tree}</div>${membersHtml()}`;
+
+    page.querySelectorAll("[data-node]").forEach(el => el.addEventListener("click", () => clickNode(el)));
+    requestAnimationFrame(drawLinks);
+
+    if (playEnd && opts.state === "done") {
+        playEnd = false;
+        if (opts.end === "party") {
+            const win = page.querySelector(`[data-node="${winner()}"]`);
+            const lose = page.querySelector(`[data-node="${winner() === "w" ? "t" : "w"}"]`);
+            win.classList.add("win-anim");
+            lose.classList.add("lose-anim");
+            confetti(win);
+        }
+    }
+}
+
+function drawLinks() {
+    const tree = document.getElementById("tree");
+    const svg = tree.querySelector("svg");
+    const box = tree.getBoundingClientRect();
+    let lines = "";
+    tree.querySelectorAll("[data-node]").forEach(el => {
+        kids(el.dataset.node).forEach(kid => {
+            const child = tree.querySelector(`[data-node="${kid}"]`);
+            if (!child) return;
+            const a = el.getBoundingClientRect(), b = child.getBoundingClientRect();
+            const x1 = a.left + a.width / 2 - box.left, y1 = a.bottom - box.top;
+            const x2 = b.left + b.width / 2 - box.left, y2 = b.top - box.top, mid = (y1 + y2) / 2;
+            const st = nodeState(kid);
+            const color = st === "chosen" ? "#63d69f" : st === "open" ? "#ff9f43" : st === "mine" ? "#c86bff" : "#343a4d";
+            lines += `<path d="M${x1},${y1} C${x1},${mid} ${x2},${mid} ${x2},${y2}" stroke="${color}" stroke-width="${["chosen", "open", "mine"].includes(st) ? 3 : 2}" fill="none" opacity="${st === "locked" ? .25 : 1}" ${st === "future" || st === "other" ? 'stroke-dasharray="4 4"' : ""}/>`;
+        });
+    });
+    svg.setAttribute("viewBox", `0 0 ${box.width} ${box.height}`);
+    svg.innerHTML = lines;
+}
+
+function clickNode(el) {
+    const id = el.dataset.node;
+    const st = nodeState(id);
+    if (!["open", "other"].includes(st)) return;
+    if (opts.action === "direct") return vote(id);
+    showPop(el, id);
+}
+
+function showPop(el, id) {
+    closePop();
+    const n = NODES[id];
+    const pop = document.createElement("div");
+    pop.className = "pop";
+    pop.innerHTML = `<span class="e">${n.e}</span><h4>${n.n}</h4><p>➕ ${n.plus}</p><p class="ex">💡 ${n.ex}</p>
+        <button class="go">🗳️ ${data.mine ? "Changer pour " : "Voter "}${n.n}</button><button class="cancel">Annuler</button>`;
+    document.body.appendChild(pop);
+    const r = el.getBoundingClientRect();
+    pop.style.left = Math.min(Math.max(10, r.left + r.width / 2 - pop.offsetWidth / 2), innerWidth - pop.offsetWidth - 10) + "px";
+    pop.style.top = (r.bottom + 10 + pop.offsetHeight > innerHeight ? Math.max(10, r.top - pop.offsetHeight - 10) : r.bottom + 10) + "px";
+    pop.querySelector(".go").onclick = () => { closePop(); vote(id); };
+    pop.querySelector(".cancel").onclick = closePop;
+}
+
+function closePop() { document.querySelectorAll(".pop").forEach(p => p.remove()); }
+
+function vote(id) {
+    data.votes.w = data.votes.w.filter(n => n !== "Toi");
+    data.votes.t = data.votes.t.filter(n => n !== "Toi");
+    data.votes[id].push("Toi");
+    data.mine = id;
+    setOpt("state", "voted", false);
+    toast(`${NODES[id].e} Vote enregistré pour ${NODES[id].n} !`);
+}
+
+function toast(text) {
+    document.querySelectorAll(".toast").forEach(t => t.remove());
+    const t = document.createElement("div");
+    t.className = "toast";
+    t.textContent = text;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2200);
+}
+
+function confetti(el) {
+    const r = el.getBoundingClientRect();
+    const colors = ["#63d69f", "#ffd36b", "#ff6bd5", "#4fc3ff", "#c86bff", "#ff9f43"];
+    for (let i = 0; i < 46; i++) {
+        const c = document.createElement("div");
+        c.className = "confetti";
+        c.style.background = colors[i % colors.length];
+        c.style.left = r.left + r.width / 2 + "px";
+        c.style.top = r.top + r.height / 2 + "px";
+        document.body.appendChild(c);
+        const angle = Math.random() * Math.PI * 2, dist = 80 + Math.random() * 160;
+        c.animate([
+            { transform: "translate(0,0) rotate(0)", opacity: 1 },
+            { transform: `translate(${Math.cos(angle) * dist}px, ${Math.sin(angle) * dist + 120}px) rotate(${Math.random() * 720}deg)`, opacity: 0 }
+        ], { duration: 1100 + Math.random() * 600, easing: "cubic-bezier(.2,.7,.4,1)" }).onfinish = () => c.remove();
+    }
+}
+
+function setOpt(key, value, resetData = true) {
+    opts[key] = value;
+    document.querySelectorAll(`[data-ctl="${key}"] button`).forEach(b => b.classList.toggle("on", b.dataset.v === value));
+    if (key === "state" && resetData) {
+        data = JSON.parse(JSON.stringify(PRESETS[value]));
+        playEnd = value === "done";
+    }
+    closePop();
+    render();
+}
+
+document.querySelectorAll("[data-ctl]").forEach(seg => {
+    seg.querySelectorAll("button").forEach(b => b.addEventListener("click", () => setOpt(seg.dataset.ctl, b.dataset.v)));
+});
+Object.keys(opts).forEach(k => document.querySelectorAll(`[data-ctl="${k}"] button`).forEach(b => b.classList.toggle("on", b.dataset.v === opts[k])));
+document.addEventListener("click", e => { if (!e.target.closest(".pop, .node")) closePop(); });
+window.addEventListener("resize", () => { closePop(); drawLinks(); });
+render();
+
+/* Bouton « Copier mes choix » : copie les réglages sélectionnés pour les coller dans la conversation. */
+(function () {
+    const style = document.createElement("style");
+    style.textContent = `
+        .copy-bar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+        .copy-btn { border: none; border-radius: 10px; padding: 10px 16px; font: inherit; font-weight: 800; cursor: pointer; background: linear-gradient(90deg, #6c63ff, #c86bff); color: white; }
+        .copy-btn.done { background: #63d69f; color: #0d2a1d; }
+        .copy-text { flex: 1; min-width: 220px; font-size: 12px; color: #aaaeba; background: #12141b; border: 1px solid #2c3040; border-radius: 10px; padding: 8px 10px; user-select: all; }
+    `;
+    document.head.appendChild(style);
+
+    const bar = document.createElement("div");
+    bar.className = "copy-bar";
+    bar.innerHTML = `<button type="button" class="copy-btn">📋 Copier mes choix</button><div class="copy-text"></div>`;
+    document.querySelector(".controls").appendChild(bar);
+
+    const text = () => document.title + " : " + [...document.querySelectorAll("[data-ctl]")].map(seg => {
+        const title = seg.parentElement.querySelector(".ctl-title")?.textContent.trim() || seg.dataset.ctl;
+        const on = seg.querySelector("button.on")?.textContent.trim() || "?";
+        return `${title} = ${on}`;
+    }).join(" | ");
+
+    const refresh = () => { bar.querySelector(".copy-text").textContent = text(); };
+    document.addEventListener("click", () => setTimeout(refresh, 0));
+    refresh();
+
+    const button = bar.querySelector(".copy-btn");
+    button.addEventListener("click", async () => {
+        const value = text();
+        try {
+            await navigator.clipboard.writeText(value);
+        } catch (error) {
+            const area = document.createElement("textarea");
+            area.value = value;
+            document.body.appendChild(area);
+            area.select();
+            document.execCommand("copy");
+            area.remove();
+        }
+        button.textContent = "✅ Copié ! Colle-le dans la conversation";
+        button.classList.add("done");
+        setTimeout(() => { button.textContent = "📋 Copier mes choix"; button.classList.remove("done"); }, 2500);
+    });
+})();
+</script>
+</body>
+</html>

@@ -198,6 +198,50 @@ function refreshCardDeadlines() {
 
 
 
+/*
+    Chaque fenêtre (.modal) s'ouvre toujours en haut : on remet son
+    défilement à zéro dès qu'elle perd la classe « hidden ».
+*/
+
+function setupModalScrollReset() {
+
+    const observer = new MutationObserver(mutations => {
+
+        mutations.forEach(({ target, oldValue }) => {
+
+            const opened =
+                (oldValue || "").split(" ").includes("hidden") &&
+                !target.classList.contains("hidden");
+
+            if (!opened) {
+                return;
+            }
+
+            target.scrollTop = 0;
+
+            target.querySelectorAll(".modal-content, .modal-content *").forEach(element => {
+
+                if (element.scrollTop) {
+                    element.scrollTop = 0;
+                }
+
+            });
+
+        });
+
+    });
+
+    document.querySelectorAll(".modal").forEach(modal => {
+
+        observer.observe(modal, { attributes: true, attributeFilter: ["class"], attributeOldValue: true });
+
+    });
+
+}
+
+document.addEventListener("DOMContentLoaded", setupModalScrollReset);
+
+
 /* =========================================================
    4. AUTHENTIFICATION
 ========================================================= */
@@ -220,13 +264,36 @@ function refreshCardDeadlines() {
 */
 
 
-function usernameToEmail(username) {
+// Pseudo sans espaces, sans accents, en minuscules : « Hélène » et « Helene »
+// sont le même compte (même transformation que pseudo_cle dans pseudo-accents.sql).
+function usernameKey(username) {
 
     return username
         .trim()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
         .toLowerCase()
-        .replace(/\s+/g, "")
-        + "@betlab.test";
+        .replace(/\s+/g, "");
+
+}
+
+
+function usernameToEmail(username) {
+
+    return usernameKey(username) + "@betlab.test";
+
+}
+
+
+// Supabase Auth exige 6 caractères minimum (réglage impossible à baisser) :
+// un mot de passe plus court reçoit en coulisse un complément fixe.
+const PASSWORD_AUTH_MIN = 6;
+
+function passwordForAuth(password) {
+
+    return password.length < PASSWORD_AUTH_MIN
+        ? password + "#betlab"
+        : password;
 
 }
 
@@ -303,7 +370,7 @@ async function registerUser(username, password) {
 
         email: email,
 
-        password: password,
+        password: passwordForAuth(password),
 
         options: {
             data: {
@@ -356,16 +423,30 @@ async function loginUser(username, password) {
     const email = usernameToEmail(username);
 
 
-    const {
+    let {
         data,
         error
     } = await supabaseClient.auth.signInWithPassword({
 
         email: email,
 
-        password: password
+        password: passwordForAuth(password)
 
     });
+
+
+    // Mot de passe court posé tel quel par l'admin (admin_set_password) : sans le complément.
+    if (error && password.length < PASSWORD_AUTH_MIN) {
+
+        ({ data, error } = await supabaseClient.auth.signInWithPassword({
+
+            email: email,
+
+            password: password
+
+        }));
+
+    }
 
 
     if (error) {
@@ -647,13 +728,6 @@ function renderGroupSwitcher() {
 
         <div class="group-menu-separator"></div>
 
-        ${typeof hasTreeAccess === "function" && hasTreeAccess() ? `
-            <button type="button" class="group-menu-item" data-group-action="tree">
-                🌳 Arbre du groupe
-                ${typeof refreshTreeDot === "function" && refreshTreeDot() ? '<small class="tree-menu-vote">🗳️ Vote en cours</small>' : ""}
-            </button>
-        ` : ""}
-
         <button type="button" class="group-menu-item" data-group-action="manage">
             ${currentGroup && currentGroup.isManager ? "⚙️ Gérer le groupe" : "ℹ️ Infos du groupe"}
         </button>
@@ -676,11 +750,6 @@ function renderGroupSwitcher() {
 
         });
 
-    });
-
-    menu.querySelector('[data-group-action="tree"]')?.addEventListener("click", () => {
-        menu.classList.add("hidden");
-        openTreePage();
     });
 
     menu.querySelector('[data-group-action="manage"]').addEventListener("click", () => {
@@ -2875,7 +2944,7 @@ async function getLeaderboard() {
         error
     } = await supabaseClient
         .from("group_members")
-        .select("balance, profiles!inner ( username, is_admin, gold_frame_until, name_color_until, cosmetics )")
+        .select("balance, user_id, profiles!inner ( username, is_admin, gold_frame_until, name_color_until, cosmetics )")
         .eq("group_id", currentGroup?.id)
         .eq("profiles.is_admin", false)
         .order("balance", { ascending: false })
@@ -2890,7 +2959,7 @@ async function getLeaderboard() {
 
     // Même forme qu'avant : un profil avec le solde du groupe.
     return (data || []).map(
-        member => ({ ...member.profiles, balance: member.balance })
+        member => ({ ...member.profiles, balance: member.balance, user_id: member.user_id })
     );
 
 }
@@ -3150,6 +3219,7 @@ function leaderboardRowHtml(profile, { rank, medal, balance, extraClass = "", ef
             <span class="leaderboard-medal">${medal}</span>
             <span class="leaderboard-pseudo${hasEffect ? " has-effect" : ""}">${afk ? `<span class="afk-name">${nameHtml(profile, effects)}</span><span class="afk-tag">AFK</span>` : nameHtml(profile, effects)}</span>
             <span class="leaderboard-balance">${balance}</span>
+            ${!forcedEffects && typeof duelButtonHtml === "function" ? duelButtonHtml(profile) : ""}
         </div>
     `;
 
@@ -3229,11 +3299,10 @@ async function displayLeaderboard() {
 
     try {
 
-        const profiles =
-            await getLeaderboard();
-
-        const medals =
-            ["🥇", "🥈", "🥉"];
+        const [profiles] = await Promise.all([
+            getLeaderboard(),
+            typeof loadWinStreaks === "function" ? loadWinStreaks() : null
+        ]);
 
         /*
             L'admin n'est jamais classé : seul lui voit
@@ -3252,7 +3321,12 @@ async function displayLeaderboard() {
         container.innerHTML = adminRow + profiles.map(
             (profile, index) => leaderboardRowHtml(
                 profile,
-                { rank: index + 1, medal: medals[index] || "", balance: formatBalance(profile.balance) }
+                {
+                    rank: index + 1,
+                    // Plus de médailles : la place sert à la flamme bleue des victoires d'affilée (duels.js).
+                    medal: typeof winStreakBadgeHtml === "function" ? winStreakBadgeHtml(profile.username) : "",
+                    balance: formatBalance(profile.balance)
+                }
             )
         ).join("");
 
@@ -3260,6 +3334,12 @@ async function displayLeaderboard() {
         setupLeaderboardHover(container);
 
         animateLeaderboard(profiles);
+
+        // Duels : défis reçus remis tout de suite sur les lignes, puis mis à jour.
+        if (typeof refreshDuels === "function") {
+            markDuelRows();
+            refreshDuels();
+        }
 
     } catch (error) {
 
@@ -6216,7 +6296,7 @@ function animateLiveCards(container, previousTops) {
 
 function playDraftFlips(container, draftFlips) {
 
-    draftFlips.forEach((front, betId) => {
+    draftFlips.forEach(({ front, height: draftHeight }, betId) => {
 
         const card =
             container.querySelector(`.bet-card[data-bet-id="${betId}"]`);
@@ -6236,7 +6316,10 @@ function playDraftFlips(container, draftFlips) {
             left: rect.left + "px",
             top: rect.top + "px",
             width: rect.width + "px",
-            height: rect.height + "px",
+            height: draftHeight + "px",
+            // Seul le bas est coupé pendant l'ajustement de hauteur : les pastilles
+            // posées à cheval sur le bord haut restent entières.
+            clipPath: "inset(-30px -30px 0 -30px)",
             margin: "0",
             zIndex: "5",
             pointerEvents: "none",
@@ -6248,6 +6331,34 @@ function playDraftFlips(container, draftFlips) {
         document.body.appendChild(front);
 
         const timing = { duration: 1100, delay: 150, easing: "cubic-bezier(.45,0,.25,1)", fill: "both" };
+
+        // Hauteur : brouillon → carte publiée, pendant le retournement, pour les deux faces.
+        // La liste en dessous suit le mouvement au lieu de sauter d'un coup.
+        if (Math.abs(rect.height - draftHeight) > 1) {
+
+            const resize = {
+                duration: 900,
+                delay: 250,
+                easing: "cubic-bezier(.4,0,.2,1)"
+            };
+
+            front.animate(
+                [{ height: draftHeight + "px" }, { height: rect.height + "px" }],
+                { ...resize, fill: "forwards" }
+            );
+
+            card.style.clipPath = "inset(-30px -30px 0 -30px)";
+
+            card.animate(
+                [{ height: draftHeight + "px" }, { height: rect.height + "px" }],
+                { ...resize, fill: "backwards" }
+            ).finished.finally(() => {
+
+                card.style.clipPath = "";
+
+            });
+
+        }
 
         // Recto : le brouillon part de face et passe de dos.
         front.animate(
@@ -6522,7 +6633,11 @@ async function displayBets({ quiet = false, force = false } = {}) {
 
                     if (bets.some(bet => bet.id === id && bet.status === "open")) {
 
-                        draftFlips.set(id, card.cloneNode(true));
+                        // Hauteur du brouillon : la carte publiée part de là et s'ajuste en douceur.
+                        draftFlips.set(id, {
+                            front: card.cloneNode(true),
+                            height: card.getBoundingClientRect().height
+                        });
 
                     }
 
@@ -7152,9 +7267,11 @@ async function displayBets({ quiet = false, force = false } = {}) {
 
         if (quiet) {
 
-            animateLiveCards(container, previousTops);
-
+            // Avant animateLiveCards : la carte publiée reprend d'abord la hauteur
+            // du brouillon, les cartes du dessous ne sautent donc pas.
             playDraftFlips(container, draftFlips);
+
+            animateLiveCards(container, previousTops);
 
         }
 
@@ -7825,7 +7942,13 @@ function ticketOdds(entries = ticketEntries()) {
 
     const product = entries.reduce((total, entry) => total * Number(entry.choice.odds), 1);
 
-    return entries.length === 1 ? product : comboOdds(product, entries.length);
+    // Mise simple : la flamme bleue (victoires d'affilée) booste la cote (duels.js).
+    const streakBoost =
+        typeof winStreakBoost === "function" ? winStreakBoost(myWinStreak()) : 0;
+
+    return entries.length === 1
+        ? Math.round(product * (1 + streakBoost) * 100) / 100
+        : comboOdds(product, entries.length);
 
 }
 
@@ -7927,6 +8050,20 @@ function toggleTicketLeg(bet, choice) {
     renderTicket({ bump: true });
 
     syncTicketHighlights();
+
+    // Cote choisie : le champ de mise est prêt, on peut taper le montant tout de suite
+    // (ordinateur ; sur téléphone le clavier ne s'ouvre pas tout seul).
+    const chosen = ticketLegs.some(leg => leg.betId === bet.id);
+
+    const input = document.querySelector("#bet-ticket [data-ticket-stake]");
+
+    if (chosen && input && !PHONE_LAYOUT.matches && !isStakesPanelOpen()) {
+
+        input.focus({ preventScroll: true });
+
+        input.select();
+
+    }
 
 }
 
@@ -8147,6 +8284,10 @@ function renderTicket({ bump = false } = {}) {
 
                 ${boost || (combo && odds >= COMBO_MAX_ODDS)
                     ? `<p class="ticket-boost">${boost ? `<span class="ticket-boost-pct${boostChanged ? (boostUp ? " up" : " down") : ""}" data-ticket-boost-pct="${boostPct}">⚡ Boost +${boostPct} %</span> inclus` : "⚡"}${odds >= COMBO_MAX_ODDS ? (boost ? " · " : " ") + "cote max " + COMBO_MAX_ODDS : ""}</p>`
+                    : ""}
+
+                ${!combo && typeof winStreakBoost === "function" && winStreakBoost(myWinStreak())
+                    ? `<p class="ticket-boost ticket-streak-boost"><span class="win-streak-flame">🔥</span> Série de ${myWinStreak()} victoires : boost +${Math.round(winStreakBoost(myWinStreak()) * 100)} % inclus</p>`
                     : ""}
 
                 ${ticketDuplicate(entries)
@@ -10748,6 +10889,37 @@ function stakesMoreClosed(popHeight, cardHeight) {
 }
 
 /*
+    Répartition des mises (barre + pourcentage) : cachée sur la carte,
+    visible sur la copie dépliée. Sa hauteur suit le dépliage pour que la
+    copie colle toujours à la carte (sinon les cotes sautent au départ
+    et au retour).
+*/
+
+function animateChoicePct(pop, open, options) {
+
+    pop.querySelectorAll(".choice-bar-track, .choice-pct").forEach(element => {
+
+        const style = getComputedStyle(element);
+
+        if (style.display === "none") {
+            return;
+        }
+
+        const shown = {
+            height: element.getBoundingClientRect().height + "px",
+            marginTop: style.marginTop,
+            opacity: 1
+        };
+
+        const hidden = { height: "0px", marginTop: "0px", opacity: 0 };
+
+        element.animate(open ? [hidden, shown] : [shown, hidden], options);
+
+    });
+
+}
+
+/*
     Regroupe les mises d'un même joueur sur un même choix en une seule
     ligne, dans l'ordre où elles ont été placées.
 */
@@ -11055,6 +11227,8 @@ async function openStakesModal(bet, card) {
         { duration: T(520), easing: PANEL_EASE }
     );
 
+    animateChoicePct(pop, true, { duration: T(520), easing: PANEL_EASE });
+
     // La carte était peut-être légèrement inclinée (suivi de la souris) :
     // la copie démarre avec la même inclinaison puis se remet à plat.
     const tilt = tiltedTransform || "";
@@ -11115,6 +11289,8 @@ async function closeStakesPanel(instant = false) {
             ],
             { duration: T(440), easing: PANEL_EASE, fill: "forwards" }
         );
+
+        animateChoicePct(pop, false, { duration: T(440), easing: PANEL_EASE, fill: "forwards" });
 
         await pop.animate(
             [
@@ -12999,7 +13175,7 @@ function shopStageHtml(itemId, selected) {
 
     if (effects.gold || effects.aura) {
 
-        return leaderboardRowHtml(me, { rank: 3, medal: "🥉", balance: formatBalance(1520), effects });
+        return leaderboardRowHtml(me, { rank: 3, medal: "", balance: formatBalance(1520), effects });
 
     }
 
@@ -13877,13 +14053,11 @@ function shopLookRowsHtml() {
 
     const ranking = shopLookRanking || [];
 
-    const medals = ["🥇", "🥈", "🥉"];
-
     const row = (player, index, mine) => leaderboardRowHtml(
         mine ? currentProfile : { username: player.username },
         {
             rank: index + 1,
-            medal: medals[index] || "",
+            medal: "",
             balance: formatBalance(player.balance),
             // Les voisins sans leurs effets : l'œil va sur ma ligne.
             effects: mine ? getEffects(currentProfile) : {},
@@ -14360,8 +14534,8 @@ function openShopPreview(itemId, option) {
 
         stage.innerHTML = `
             <div class="shop-preview-board">
-                ${leaderboardRowHtml({ username: "Emma" }, { rank: 2, medal: "🥈", balance: formatBalance(1840), effects: {}, extraClass: " shop-preview-dim" })}
-                ${leaderboardRowHtml(me, { rank: 3, medal: "🥉", balance: formatBalance(1520), effects })}
+                ${leaderboardRowHtml({ username: "Emma" }, { rank: 2, medal: "", balance: formatBalance(1840), effects: {}, extraClass: " shop-preview-dim" })}
+                ${leaderboardRowHtml(me, { rank: 3, medal: "", balance: formatBalance(1520), effects })}
                 ${leaderboardRowHtml({ username: "Lucas" }, { rank: 4, medal: "", balance: formatBalance(1310), effects: {}, extraClass: " shop-preview-dim" })}
             </div>
             <p class="shop-preview-bet-line">
@@ -15904,8 +16078,8 @@ function openBetaTierPreview(style) {
     document.getElementById("shop-preview-stage").innerHTML = `
         <h3 class="beta-preview-title">Pseudo ${tier.name}</h3>
         <div class="shop-preview-board">
-            ${leaderboardRowHtml({ username: "Emma" }, { rank: 2, medal: "🥈", balance: formatBalance(1840), effects: {}, extraClass: " shop-preview-dim" })}
-            ${leaderboardRowHtml(me, { rank: 3, medal: "🥉", balance: formatBalance(1520), effects })}
+            ${leaderboardRowHtml({ username: "Emma" }, { rank: 2, medal: "", balance: formatBalance(1840), effects: {}, extraClass: " shop-preview-dim" })}
+            ${leaderboardRowHtml(me, { rank: 3, medal: "", balance: formatBalance(1520), effects })}
             ${leaderboardRowHtml({ username: "Lucas" }, { rank: 4, medal: "", balance: formatBalance(1310), effects: {}, extraClass: " shop-preview-dim" })}
         </div>
         <p class="shop-preview-bet-line">
@@ -17087,7 +17261,7 @@ function diamondPreviewHtml(item) {
 
     const row = (effects, extra = "") => `
         <div class="dia-peek">
-            ${leaderboardRowHtml(me, { rank: 3, medal: "🥉", balance: formatBalance(1520), effects, extraClass: extra })}
+            ${leaderboardRowHtml(me, { rank: 3, medal: "", balance: formatBalance(1520), effects, extraClass: extra })}
         </div>
     `;
 
@@ -17158,7 +17332,6 @@ function diamondShopHtml() {
                     <h3>${escapeHtml(item.title)}<span class="dia-excl">EXCLU</span></h3>
                     <span class="mission-points dia-price">${item.price} 💎</span>
                 </div>
-                <p class="mission-description">${escapeHtml(item.description)}</p>
                 ${exclusiveTagHtml("diamond:" + item.id)}
                 ${diamondPreviewHtml(item)}
                 <div class="mission-footer">
@@ -17878,7 +18051,7 @@ function setupPlayerProfile() {
 
         const target = event.target.closest("[data-player]");
 
-        if (!target || target.closest(".shop-preview-stage, .dia-peek, .shop-card, #player-modal")) {
+        if (!target || target.closest(".shop-preview-stage, .dia-peek, .shop-card, #player-modal") || event.target.closest(".lb-duel-btn, .lb-duel-chip")) {
             return;
         }
 
@@ -20180,12 +20353,12 @@ function rememberKnownVisitor() {
 }
 
 
-const ONBOARDING_STEPS = ["pseudo", "password", "group", "tuto", "done"];
+const ONBOARDING_STEPS = ["pseudo", "password", "group", "tuto"];
 
 
 /* Questionnaire en cours après la création du compte (questions 3 et 4) :
    si la page est rechargée, on y revient au lieu de partir sur app.html.
-   { user, step, pseudo, doneIcon, doneText }, effacé à la réponse au tuto. */
+   { user, step, pseudo }, effacé à la réponse au tuto. */
 const ONBOARDING_RESUME_KEY = "betlab-inscription-en-cours";
 
 function saveOnboardingResume(state) {
@@ -20224,6 +20397,55 @@ function clearOnboardingResume() {
 
 }
 
+
+/* Questionnaire à reprendre pour le compte connecté, ou null pour entrer dans l'app.
+   Sans étape gardée sur ce navigateur (autre appareil, ou passé par « Se connecter »
+   pendant le questionnaire) : pas de groupe ni de demande en attente = question 3. */
+async function pendingOnboardingStep() {
+
+    const saved = readOnboardingResume(currentUser.id);
+
+    if (saved) {
+        return saved;
+    }
+
+    if (currentProfile?.is_admin) {
+        return null;
+    }
+
+    const [members, requests] = await Promise.all([
+        supabaseClient
+            .from("group_members")
+            .select("group_id")
+            .eq("user_id", currentUser.id)
+            .limit(1),
+        supabaseClient.rpc("my_join_requests")
+    ]);
+
+    // En cas de doute, on laisse entrer dans l'app.
+    if (members.error || requests.error) {
+
+        console.error(members.error || requests.error);
+
+        return null;
+
+    }
+
+    if (
+        members.data.length > 0 ||
+        (requests.data || []).some(request => request.status === "pending")
+    ) {
+        return null;
+    }
+
+    return {
+        user: currentUser.id,
+        step: "group",
+        pseudo: currentProfile?.username || ""
+    };
+
+}
+
 function showOnboardingStep(step, back = false) {
 
     const index = ONBOARDING_STEPS.indexOf(step);
@@ -20247,13 +20469,10 @@ function showOnboardingStep(step, back = false) {
         });
 
     document.getElementById("onb-gauge-fill").style.width =
-        [8, 32, 56, 80, 100][index] + "%";
+        [10, 35, 60, 85][index] + "%";
 
     document.getElementById("onb-gauge-label").textContent =
-        step === "done" ? "Terminé !" : `Question ${index + 1} sur 4`;
-
-    // Lien vers la connexion pendant toutes les questions, retiré à la fin.
-    document.getElementById("onb-login-link").classList.toggle("hidden", step === "done");
+        `Question ${index + 1} sur 4`;
 
 }
 
@@ -20301,33 +20520,6 @@ function onboardingLoading(button, label) {
 }
 
 
-function onboardingConfetti() {
-
-    const colors = ["#6c63ff", "#a78bff", "#63d69f", "#f5c451", "#ff6b6b"];
-
-    for (let i = 0; i < 70; i++) {
-
-        const piece = document.createElement("div");
-
-        piece.className = "onb-confetti";
-
-        piece.style.left = Math.random() * 100 + "vw";
-
-        piece.style.background = colors[i % colors.length];
-
-        piece.style.animationDuration = 1.6 + Math.random() * 1.6 + "s";
-
-        piece.style.animationDelay = Math.random() * 0.4 + "s";
-
-        document.body.appendChild(piece);
-
-        setTimeout(() => piece.remove(), 3800);
-
-    }
-
-}
-
-
 function setupOnboarding(showAuthSection) {
 
     let pseudo = "";
@@ -20336,19 +20528,12 @@ function setupOnboarding(showAuthSection) {
 
     let joining = false;
 
-    // Fin du questionnaire, préparée à la question 3 et affichée après la question 4.
-    let doneIcon = "🎉";
-
-    let doneText = "";
-
 
     // Étape atteinte, gardée pour un éventuel rechargement de la page.
     const rememberStep = step => saveOnboardingResume({
         user: currentUser?.id,
         step,
-        pseudo,
-        doneIcon,
-        doneText
+        pseudo
     });
 
 
@@ -20382,6 +20567,19 @@ function setupOnboarding(showAuthSection) {
         if (value.length < 3) {
 
             onboardingError("pseudo", "Au moins 3 caractères.", field);
+
+            return;
+
+        }
+
+        // Le pseudo devient un e-mail (usernameToEmail) : accents enlevés, emojis refusés.
+        if (!/^[a-z0-9_-]+(\.[a-z0-9_-]+)*$/.test(usernameKey(value))) {
+
+            onboardingError(
+                "pseudo",
+                "Lettres, chiffres, point, tiret ou _ seulement.",
+                field
+            );
 
             return;
 
@@ -20698,13 +20896,7 @@ function setupOnboarding(showAuthSection) {
 
             }
 
-            const name = found.querySelector("b")?.textContent || "ce groupe";
-
             stopLoading();
-
-            doneIcon = "📨";
-
-            doneText = `Ta demande pour rejoindre ${name} est envoyée. Tu entres dès qu'un gérant du groupe l'accepte.`;
 
             rememberStep("tuto");
 
@@ -20747,10 +20939,6 @@ function setupOnboarding(showAuthSection) {
 
         saveGroupId(data.id);
 
-        doneIcon = "🎉";
-
-        doneText = "";
-
         rememberStep("tuto");
 
         showOnboardingStep("tuto");
@@ -20791,41 +20979,10 @@ function setupOnboarding(showAuthSection) {
 
             clearOnboardingResume();
 
-            finishOnboarding(doneIcon, doneText);
+            // Fin du questionnaire : directement dans l'app, sans écran de plus.
+            window.location.href = "app.html";
 
         });
-
-    });
-
-
-    /* C'est tout bon ! */
-
-    function finishOnboarding(icon, text) {
-
-        document.getElementById("onb-done-icon").textContent = icon;
-
-        document.getElementById("onb-done-title").textContent = `C'est tout bon, ${pseudo} !`;
-
-        const textElement = document.getElementById("onb-done-text");
-
-        textElement.textContent = text;
-
-        textElement.classList.toggle("hidden", !text);
-
-        // Perroquet en pose « gagné ».
-        document.getElementById("onb-parrot").innerHTML =
-            '<img src="assets/perroquet/win-main.png" alt="">';
-
-        showOnboardingStep("done");
-
-        onboardingConfetti();
-
-    }
-
-
-    document.getElementById("onb-enter").addEventListener("click", () => {
-
-        window.location.href = "app.html";
 
     });
 
@@ -20834,10 +20991,6 @@ function setupOnboarding(showAuthSection) {
     return state => {
 
         pseudo = state.pseudo || currentProfile?.username || "";
-
-        doneIcon = state.doneIcon || "🎉";
-
-        doneText = state.doneText || "";
 
         document.getElementById("onb-password-hint").textContent =
             `Pour retrouver ton compte, ${pseudo}.`;
@@ -20941,7 +21094,7 @@ async function initAuthPage() {
 
         // Compte créé mais questionnaire pas fini (groupe ou tuto) : on y revient.
         resumeState =
-            mustChangePassword ? null : readOnboardingResume(currentUser.id);
+            mustChangePassword ? null : await pendingOnboardingStep();
 
         if (!mustChangePassword && !resumeState) {
 
@@ -20957,7 +21110,7 @@ async function initAuthPage() {
 
     const showAuthSection = id => {
 
-        ["login-section", "onboarding-section", "forgot-section", "new-password-section"].forEach(section => {
+        ["login-section", "onboarding-section", "forgot-section", "find-username-section", "new-password-section"].forEach(section => {
 
             document
                 .getElementById(section)
@@ -21064,6 +21217,22 @@ async function initAuthPage() {
                 rememberKnownVisitor();
 
 
+                // Questionnaire quitté à la question 3 : on y revient.
+                const pendingStep = await pendingOnboardingStep();
+
+                if (pendingStep) {
+
+                    stopLoading();
+
+                    saveOnboardingResume(pendingStep);
+
+                    resumeOnboarding(pendingStep);
+
+                    return;
+
+                }
+
+
                 window.location.href =
                     "app.html";
 
@@ -21162,6 +21331,116 @@ async function initAuthPage() {
 
 
     /*
+        IDENTIFIANT OUBLIÉ
+        On demande la 1ère lettre du pseudo, puis on liste les pseudos
+        qui commencent par elle (voir identifiant-oublie.sql).
+    */
+
+    const findLetter = document.getElementById("find-username-letter");
+
+    const findList = document.getElementById("find-username-list");
+
+    const findError = document.getElementById("find-username-error");
+
+
+    document
+        .getElementById("show-find-username")
+        ?.addEventListener("click", () => {
+
+            findLetter.value = "";
+
+            findList.innerHTML = "";
+
+            findError.textContent = "";
+
+            showAuthSection("find-username-section");
+
+            findLetter.focus();
+
+        });
+
+
+    document
+        .getElementById("find-username-back")
+        ?.addEventListener("click", () => showAuthSection("login-section"));
+
+
+    findLetter?.addEventListener("input", async () => {
+
+        findLetter.value = findLetter.value.trim().slice(0, 1).toUpperCase();
+
+        const letter = findLetter.value;
+
+        findList.innerHTML = "";
+
+        findError.textContent = "";
+
+        if (!letter) {
+            return;
+        }
+
+        const { data, error } = await supabaseClient
+            .rpc("pseudos_par_lettre", { p_lettre: letter });
+
+        // La lettre a changé pendant la recherche : on ignore ce résultat.
+        if (findLetter.value !== letter) {
+            return;
+        }
+
+        if (error) {
+
+            console.error(error);
+
+            findError.textContent = "Recherche impossible pour le moment, réessaie.";
+
+            return;
+
+        }
+
+        if (!data || data.length === 0) {
+
+            findList.innerHTML = `<p>Aucun pseudo ne commence par « ${escapeHtml(letter)} ».</p>`;
+
+            return;
+
+        }
+
+        findList.innerHTML =
+            "<p>Clique sur ton pseudo :</p>" +
+            data
+                .map(username => `
+                    <button
+                        type="button"
+                        class="find-username-pseudo"
+                        data-username="${escapeHtml(username)}"
+                    >
+                        ${escapeHtml(username)}
+                    </button>
+                `)
+                .join("");
+
+    });
+
+
+    // Pseudo choisi : retour à la connexion avec l'identifiant déjà rempli.
+    findList?.addEventListener("click", event => {
+
+        const button = event.target.closest(".find-username-pseudo");
+
+        if (!button) {
+            return;
+        }
+
+        document.getElementById("login-username").value = button.dataset.username;
+
+        showAuthSection("login-section");
+
+        document.getElementById("login-password").focus();
+
+    });
+
+
+    /*
         NOUVEAU MOT DE PASSE (après le mot de passe provisoire de l'admin)
     */
 
@@ -21199,7 +21478,7 @@ async function initAuthPage() {
 
             button.disabled = true;
 
-            const { error } = await supabaseClient.auth.updateUser({ password: password });
+            const { error } = await supabaseClient.auth.updateUser({ password: passwordForAuth(password) });
 
             if (error) {
 
@@ -21972,6 +22251,11 @@ async function initAppPage() {
         // Arbre du groupe : pastille si un vote attend le joueur (arbre.js).
         if (typeof setupTree === "function") {
             setupTree().then(renderGroupSwitcher);
+        }
+
+        // Duels en attente ou en cours, défi reçu en fenêtre (duels.js).
+        if (typeof refreshDuels === "function") {
+            refreshDuels();
         }
 
         await displayAdminMessage();

@@ -46,13 +46,13 @@ const TREE_NODES = {
               "Quand il est résolu, il se révèle avec un badge 🎭 et tous ses gagnants touchent 50 % de gain en plus.",
               "Personne ne peut savoir à l'avance lequel c'est : ça pousse à miser sur plein de paris."],
         ex: "Bertin avait gagné 200 € : le pari était mystère, il touche 300 €." },
-    t1: { e: "⚔️", n: "Duel", t: "Pari spécial", titre: "Les Duellistes",
-        plus: "Défier un membre en 1 contre 1 sur un pari : le gagnant prend les deux mises.",
-        how: ["Sur un pari ouvert du groupe, tu choisis un membre et une somme.",
-              "Il a 24 h pour accepter. S'il accepte, il mise la même somme sur un autre choix que toi.",
-              "À la résolution, celui qui a le bon choix prend les deux mises. S'il refuse ou ne répond pas, rien n'est perdu.",
-              "La mise d'un duel va jusqu'à 5 000 €, comme un pari normal."],
-        ex: "Toi contre Lucas, 300 € chacun : tu gagnes, tu récupères 600 €." },
+    // Remplace l'ancien « Duel » (2026-10-19) : les duels sont maintenant ouverts à tous (duels.js).
+    t1: { e: "🏅", n: "Tournoi", t: "Événement", titre: "Les Compétiteurs",
+        plus: "Chaque semaine, un tournoi : le meilleur gagnant de la semaine remporte +1 000 € et +200 XP.",
+        how: ["Du lundi au dimanche, un classement à part compte seulement les gains de la semaine dans le groupe.",
+              "Dimanche à minuit, le 1er gagne +1 000 € et +200 XP, le 2e +500 € et +100 XP, le 3e +250 € et +50 XP.",
+              "Le classement repart de zéro chaque lundi : tout le monde a sa chance."],
+        ex: "Lucas gagne 3 200 € cette semaine, plus que tous les autres : il remporte le tournoi." },
     t2: { e: "🏆", n: "Rivalité", t: "Rivalité", titre: "Les Rivaux",
         plus: "Défier un autre groupe sur un pari commun et entrer au classement des groupes.",
         how: ["Le groupe propose un pari à un autre groupe : il apparaît chez les deux.",
@@ -87,11 +87,13 @@ const TREE_NODES = {
               "Toutes les cases font gagner : un boost, une mise gratuite de 100 € ou de l'XP (+30 à +100).",
               "Ceux qui ne sont pas connectés pendant l'heure la ratent : il faut être là au bon moment."],
         ex: "Mardi 18 h 12, la roue apparaît : Inès tombe sur une mise gratuite de 100 €." },
-    t1a: { e: "🩸", n: "Duel à mort", t: "Bonus", titre: "Les Gladiateurs",
-        plus: "Mise max des duels multipliée par 3 : jusqu'à 15 000 €.",
-        how: ["Les duels marchent comme avant, mais on peut miser jusqu'à 15 000 € au lieu de 5 000 €.",
-              "Le gagnant d'un duel gagne aussi +20 XP."],
-        ex: "Toi contre Bertin, 8 000 € chacun : le gagnant repart avec 16 000 €." },
+    // Remplace l'ancien « Duel à mort » (2026-10-19).
+    t1a: { e: "👑", n: "Couronne", t: "Bonus", titre: "Les Rois",
+        plus: "Le vainqueur du tournoi porte une couronne toute la semaine suivante, et ses gains sont augmentés de 10 %.",
+        how: ["Le gagnant du tournoi de la semaine a une 👑 à côté de son pseudo, partout sur le site, pendant 7 jours.",
+              "Pendant ces 7 jours, ses gains de paris sont augmentés de 10 %.",
+              "S'il gagne encore le tournoi suivant, il garde sa couronne."],
+        ex: "Bertin a gagné le tournoi : toute la semaine, il porte la 👑 et un gain de 500 € lui rapporte 550 €." },
     t1b: { e: "🛡️", n: "Assurance", t: "Bonus", titre: "Les Assureurs",
         plus: "Sur un pari perdu, 25 % de la mise est remboursé.",
         how: ["À chaque pari perdu (simple ou combiné), 25 % de la mise revient automatiquement sur le solde.",
@@ -119,13 +121,6 @@ const TREE_LEVELS = [
 
 // Mêmes seuils que tree_threshold dans arbre-groupe.sql.
 const TREE_SEUILS = [2000, 16000, 65000];
-
-const TREE_LVL_NAMES = ["Palier 1 · le caractère", "Palier 2 · le bonus", "Palier 3 · la spécialité"];
-
-const TREE_LVL_DELAIS = ["≈ une journée", "≈ une semaine", "≈ un mois"];
-
-// Cases dont l'effet est déjà codé (arbre-palier1.sql) ; les autres arrivent.
-const TREE_ACTIVE = ["w", "t"];
 
 
 // État de l'arbre du groupe en cours (fonction group_tree_state).
@@ -214,20 +209,6 @@ function treeNodeState(id) {
 }
 
 
-function treeBranchClass(path) {
-
-    return !path.length ? "" : path[0] === "w" ? "wtf" : "th";
-
-}
-
-
-function treeTitleOf(path) {
-
-    return path.length ? TREE_NODES[path[path.length - 1]].titre : "Groupe sans voie";
-
-}
-
-
 /*
     Données.
 */
@@ -251,6 +232,8 @@ async function loadTree() {
     treeState = state.data;
 
     refreshTreeDot();
+
+    renderGroupXpCard();
 
 }
 
@@ -305,7 +288,7 @@ function ticketBoostHtml() {
 }
 
 
-// Pastille sur le bouton du groupe : un vote attend le joueur.
+// Un vote attend le joueur : la section XP du groupe (page Paris) le signale.
 function refreshTreeDot() {
 
     const waiting = Boolean(
@@ -315,7 +298,7 @@ function refreshTreeDot() {
         !currentProfile?.is_admin
     );
 
-    document.getElementById("group-tree-dot")?.classList.toggle("hidden", !waiting);
+    document.getElementById("group-xp-card")?.classList.toggle("voting", waiting);
 
     return waiting;
 
@@ -324,7 +307,7 @@ function refreshTreeDot() {
 
 async function openTreePage() {
 
-    showPage("tree-page");
+    document.getElementById("tree-modal").classList.remove("hidden");
 
     const root = document.getElementById("tree-root");
 
@@ -335,6 +318,9 @@ async function openTreePage() {
     await loadTree();
 
     renderTreePage();
+
+    // Les traits sont redessinés une fois la fenêtre à sa taille finale (fin du zoom d'ouverture).
+    setTimeout(drawTreeLinks, 320);
 
 }
 
@@ -349,11 +335,30 @@ function treeNodeHtml(id) {
 
     const state = treeNodeState(id);
 
+    // Case au vote : le joueur (pas l'admin) vote en cliquant dessus.
+    const mine = treeState?.my_vote;
+
+    const vote = state !== "open" || currentProfile?.is_admin
+        ? ""
+        : !mine ? "vote-wait" : mine === id ? "vote-mine" : "vote-other";
+
+    const tag = vote === "vote-wait"
+        ? '<span class="tree-tag">🗳️ VOTE</span>'
+        : vote === "vote-mine" ? '<span class="tree-tag mine">✓ TON VOTE</span>' : "";
+
+    // Case à venir : cœur « j'aimerais bien » (arbre-coeurs.sql).
+    const likers = state === "future" ? treeLikers(id) : [];
+
+    const liked = likers.includes(currentProfile?.username);
+
     return `
-        <button type="button" class="tree-node ${id === "root" ? "root" : ""} ${state} ${treeSelected === id ? "sel" : ""}" data-node="${id}">
+        <button type="button" class="tree-node ${id === "root" ? "root" : ""} ${state} ${vote} ${liked ? "liked" : ""} ${treeSelected === id ? "sel" : ""}" data-node="${id}">
+            ${tag}
+            ${state === "future" ? treeHeartHtml(id, likers, liked) : ""}
             <span class="e">${node.e}</span>
             <span class="n">${node.n}</span>
-            <span class="t">${node.t}</span>
+            ${state === "open" ? `<span class="tree-node-plus">${node.plus}</span>${treeVotersHtml(id)}` : ""}
+            ${state === "future" ? treeLikersHtml(likers) : ""}
         </button>`;
 
 }
@@ -363,26 +368,16 @@ function treeHowHtml(node) {
 
     return `
         <p class="tree-how-t">Comment ça marche</p>
-        <ul class="tree-how">${node.how.map(line => `<li>${line}</li>`).join("")}</ul>
-        ${node.ex ? `<p class="tree-ex">💡 <b>Exemple :</b> ${node.ex}</p>` : ""}`;
+        <ul class="tree-how">${node.how.map(line => `<li>${line}</li>`).join("")}</ul>`;
 
 }
 
 
+// Explication détaillée : seulement en vue admin (les joueurs n'en ont pas).
 function treeGuideHtml() {
 
     if (treeMode !== "admin") {
-
-        return `
-            <div class="tree-panel tree-guide">
-                <h3>📖 Comment ça marche</h3>
-                <ul>
-                    <li>En jouant, le groupe gagne de l'<b>XP</b>.</li>
-                    <li>À chaque palier, on <b>vote</b> entre 2 bonus. Le choix est <b>définitif</b>.</li>
-                    <li>Clique sur une case pour voir ce qu'elle débloque.</li>
-                </ul>
-            </div>`;
-
+        return "";
     }
 
     return `
@@ -437,11 +432,10 @@ function treeAdminHtml() {
 }
 
 
-function treeHeadHtml() {
+// Barre d'XP du groupe (page Paris) : XP gagnée dans le palier en cours.
+function treeXpInfo() {
 
-    const path = treePath();
-
-    const level = path.length;
+    const level = treePath().length;
 
     const prev = level ? TREE_SEUILS[level - 1] : 0;
 
@@ -449,40 +443,115 @@ function treeHeadHtml() {
 
     const xp = treeState.xp || 0;
 
-    const percent = level >= 3 ? 100 : Math.max(0, Math.min(100, (xp - prev) / (next - prev) * 100));
-
-    const full = level >= 3 || treeState.voting;
-
-    return `
-        <div class="tree-panel">
-            <div class="tree-ghead">
-                <div class="tree-blason ${treeBranchClass(path)}">${TREE_NODES[treeCurrent()].e}</div>
-                <div>
-                    <div class="tree-gname">${escapeHtml(currentGroup.name)}</div>
-                    <div class="tree-gtitle">${treeTitleOf(path)}</div>
-                </div>
-            </div>
-            <div class="tree-xpbar${full ? " full" : ""}"><i style="width: ${percent}%"></i></div>
-            <div class="tree-xplegend">
-                <span>${treeFmt(xp)} XP · niveau ${level}</span>
-                <span>${level >= 3 ? "Arbre terminé 🏁" : treeState.voting ? "Palier atteint, au vote !" : `prochain palier : ${treeFmt(next)} XP`}</span>
-            </div>
-        </div>`;
+    return {
+        xp,
+        level,
+        prev,
+        next,
+        percent: level >= 3 ? 100 : Math.max(0, Math.min(100, (xp - prev) / (next - prev) * 100))
+    };
 
 }
 
 
-function treeVoteHtml() {
+// XP du groupe en bas de la section « Groupe » (classement, page Paris) ; un clic ouvre l'arbre.
+function renderGroupXpCard() {
+
+    const card = document.getElementById("group-xp-card");
+
+    if (!card) {
+        return;
+    }
+
+    if (!treeState || !hasTreeAccess()) {
+
+        card.classList.add("hidden");
+
+        return;
+
+    }
+
+    // Fine ligne : niveau et XP gagnée dans le palier en cours, bouton « Voter » au palier.
+    const { xp, level, prev, next, percent } = treeXpInfo();
+
+    const progress = level >= 3
+        ? "arbre terminé"
+        : `${treeFmt(Math.min(xp, next) - prev)} / ${treeFmt(next - prev)} XP`;
+
+    refreshTreeDot();
+
+    card.innerHTML = `
+        <div class="group-xp-row">
+            <span><b>🌳 Niv. ${level}</b> · ${progress}</span>
+            ${treeState.voting
+                ? '<button type="button" class="group-xp-vote">Voter</button>'
+                : '<button type="button" class="group-xp-tree">🌳 Arbre</button>'}
+        </div>
+        <div class="group-xp-bar"><div style="width: ${percent}%"></div></div>`;
+
+    card.classList.remove("hidden");
+
+    if (!card.dataset.ready) {
+
+        card.dataset.ready = "1";
+
+        // Seuls les boutons « Arbre » et « Voter » ouvrent l'arbre (pas la ligne entière).
+        card.addEventListener("click", event => {
+
+            if (event.target.closest(".group-xp-tree, .group-xp-vote")) {
+                openTreePage();
+            }
+
+        });
+
+    }
+
+}
+
+
+/*
+    Vote dans l'arbre (maquette demo-vote-dans-arbre.html) : les 2 cases au vote
+    brillent, un clic ouvre une bulle « Voter », les pastilles des votants
+    s'affichent sur chaque case et la liste des membres sous l'arbre.
+*/
+
+const TREE_AVATAR_COLORS = ["#c86bff", "#ff6bd5", "#4fc3ff", "#ff9f43", "#63d69f", "#ffd36b", "#6c63ff", "#ff6b6b"];
+
+function treeAvatarColor(name) {
+
+    let hash = 0;
+
+    [...name].forEach(letter => {
+        hash = (hash * 31 + letter.charCodeAt(0)) >>> 0;
+    });
+
+    return TREE_AVATAR_COLORS[hash % TREE_AVATAR_COLORS.length];
+
+}
+
+
+// Pastilles des membres qui ont voté pour cette case (voir arbre-vote-pastilles.sql).
+function treeVotersHtml(id) {
+
+    const voters = (treeState.members || []).filter(member => member.vote === id);
+
+    return `
+        <span class="tree-voters">
+            ${voters.map(member => `
+                <span class="tree-av${member.username === currentProfile?.username ? " me" : ""}"
+                      style="background: ${treeAvatarColor(member.username)}"
+                      title="${escapeHtml(member.username)}">${escapeHtml(member.username.charAt(0).toUpperCase())}</span>`).join("")}
+        </span>`;
+
+}
+
+
+// Qui a voté : sous l'arbre, pendant un vote.
+function treeMembersHtml() {
 
     if (!treeState.enabled || !treeState.voting) {
         return "";
     }
-
-    const level = treePath().length;
-
-    const votes = treeState.votes || {};
-
-    const isAdmin = Boolean(currentProfile?.is_admin);
 
     const members = treeState.members || [];
 
@@ -491,38 +560,321 @@ function treeVoteHtml() {
     const voted = members.filter(member => member.voted).length;
 
     return `
-        <div class="tree-panel tree-vote">
-            <h3>🗳️ ${TREE_LVL_NAMES[level]} : à vous de choisir !</h3>
-            <div class="tree-opts">
-                ${treeKids(treeCurrent()).map(id => {
-                    const node = TREE_NODES[id];
-                    return `
-                        <button type="button" class="tree-opt${treeState.my_vote === id ? " mine" : ""}" data-vote="${id}" ${isAdmin ? "disabled" : ""}>
-                            <span class="e">${node.e}</span>
-                            <h4>${node.n}</h4>
-                            <div class="tree-plus">➕ ${node.plus}</div>
-                            ${treeMode === "admin" ? `<ul class="tree-how">${node.how.map(line => `<li>${line}</li>`).join("")}</ul>` : ""}
-                            <div class="tree-count"><b>${votes[id] || 0}</b> vote(s)${treeState.my_vote === id ? " · ✓ ton vote" : ""}</div>
-                        </button>`;
-                }).join("")}
-            </div>
-            <div class="tree-members">
-                ${members.map(member => `
-                    <span class="tree-mb ${!member.active ? "off" : member.voted ? "done" : ""}">
-                        ${escapeHtml(member.username)}${!member.active ? " · absent" : member.voted ? " ✓" : ""}
-                    </span>`).join("")}
-            </div>
+        <div class="tree-members">
+            <span class="tree-members-lab">Ont voté :</span>
+            ${members.map(member => `
+                <span class="tree-mb ${!member.active ? "off" : member.voted ? "done" : ""}">
+                    ${escapeHtml(member.username)}${!member.active ? " · absent" : member.voted ? " ✓" : ""}
+                </span>`).join("")}
+        </div>
+        ${treeMode === "admin" ? `
             <p class="tree-votemsg">
-                ${isAdmin
-                    ? "L'admin ne vote pas : ce sont les membres qui choisissent."
-                    : `${voted} / ${active} membres actifs ont voté · il faut <b>${treeState.need}</b> voix pour adopter.`}
-            </p>
-            <p class="tree-muted">
-                ${treeMode === "admin"
-                    ? "Il faut la majorité des membres actifs. Les membres absents depuis plus de 7 jours ne sont pas comptés. Pas de limite de temps : chacun peut changer son vote tant que rien n'est adopté."
-                    : "La majorité l'emporte. Tu peux changer ton vote tant que rien n'est adopté."}
-            </p>
-        </div>`;
+                ${voted} / ${active} membres actifs ont voté · il faut <b>${treeState.need}</b> voix pour adopter.
+                L'admin ne vote pas. Les membres absents depuis plus de 7 jours ne sont pas comptés.
+            </p>` : ""}`;
+
+}
+
+
+/*
+    Cœurs sur les cases à venir (maquette demo-coeurs-arbre.html) :
+    « j'aimerais bien débloquer ça ». Ce n'est pas un vote : autant de
+    cœurs qu'on veut, et le groupe voit qui a aimé quoi.
+*/
+
+function treeLikers(id) {
+
+    return treeState?.likes?.[id] || [];
+
+}
+
+
+function treeHeartHtml(id, likers, liked) {
+
+    return `
+        <span class="tree-heart${liked ? " on" : ""}" data-like="${id}" title="${liked ? "Je n'aime plus" : "J'aime"}">
+            ${liked ? "❤️" : "🤍"}${likers.length ? `<span>${likers.length}</span>` : ""}
+        </span>`;
+
+}
+
+
+function treeLikersHtml(likers) {
+
+    if (!likers.length) {
+        return "";
+    }
+
+    return `
+        <span class="tree-likers">
+            ${likers.map(name => `
+                <span class="tree-av${name === currentProfile?.username ? " me" : ""}"
+                      style="background: ${treeAvatarColor(name)}"
+                      title="${escapeHtml(name)}">${escapeHtml(name.charAt(0).toUpperCase())}</span>`).join("")}
+        </span>`;
+
+}
+
+
+function treeLikeButtonHtml(id) {
+
+    const likers = treeLikers(id);
+
+    const liked = likers.includes(currentProfile?.username);
+
+    return `
+        <button type="button" class="tree-like-btn${liked ? " on" : ""}" data-like="${id}">
+            ${liked ? "❤️ J'aime" : "🤍 J'aime"}
+        </button>`;
+
+}
+
+
+// Met ou retire mon cœur : affiché tout de suite, puis confirmé par la base.
+async function likeTreeNode(id, from) {
+
+    const me = currentProfile?.username;
+
+    if (!treeState || !me) {
+        return;
+    }
+
+    const likers = treeLikers(id);
+
+    const adding = !likers.includes(me);
+
+    if (adding) {
+        treeFlyHearts(from);
+    }
+
+    treeState.likes = {
+        ...(treeState.likes || {}),
+        [id]: adding ? [...likers, me] : likers.filter(name => name !== me)
+    };
+
+    renderTreePage();
+
+    if (adding) {
+        document.querySelector(`#tree-root [data-like="${id}"]`)?.classList.add("pop");
+    }
+
+    const { data, error } = await supabaseClient.rpc("group_tree_like", {
+        p_group: currentGroup.id,
+        p_node: id
+    });
+
+    if (error) {
+
+        alertToast(escapeHtml(error.message), { type: "error" });
+
+        await loadTree();
+
+    } else {
+
+        treeState = data;
+
+    }
+
+    renderTreePage();
+
+}
+
+
+function treeFlyHearts(from) {
+
+    const rect = from.getBoundingClientRect();
+
+    for (let i = 0; i < 6; i++) {
+
+        const heart = document.createElement("div");
+
+        heart.className = "tree-flying-heart";
+
+        heart.textContent = "❤️";
+
+        heart.style.left = rect.left + rect.width / 2 - 8 + "px";
+
+        heart.style.top = rect.top + "px";
+
+        document.body.appendChild(heart);
+
+        heart.animate(
+            [
+                { transform: "translate(0, 0) scale(.6)", opacity: 1 },
+                { transform: `translate(${(Math.random() - .5) * 70}px, -${50 + Math.random() * 40}px) scale(1.1)`, opacity: 0 }
+            ],
+            { duration: 700 + Math.random() * 300, easing: "ease-out" }
+        ).onfinish = () => heart.remove();
+
+    }
+
+}
+
+
+// Fenêtre de l'arbre : croix, clic à côté ou Échap la ferment.
+function closeTreeModal() {
+
+    hideTreeTip();
+
+    closeTreeVotePop();
+
+    document.getElementById("tree-modal")?.classList.add("hidden");
+
+}
+
+
+document.addEventListener("DOMContentLoaded", () => {
+
+    const modal = document.getElementById("tree-modal");
+
+    if (!modal) {
+        return;
+    }
+
+    document.getElementById("close-tree-modal").addEventListener("click", closeTreeModal);
+
+    modal.addEventListener("click", event => {
+
+        if (event.target === modal) {
+            closeTreeModal();
+        }
+
+    });
+
+    document.addEventListener("keydown", event => {
+
+        if (event.key === "Escape" && !modal.classList.contains("hidden")) {
+            closeTreeModal();
+        }
+
+    });
+
+});
+
+
+// Bulle « Voter » au clic sur une case au vote.
+function showTreeVotePop(button) {
+
+    closeTreeVotePop();
+
+    hideTreeTip();
+
+    const id = button.dataset.node;
+
+    const node = TREE_NODES[id];
+
+    const pop = document.createElement("div");
+
+    pop.className = "tree-vote-pop";
+
+    pop.innerHTML = `
+        <span class="e">${node.e}</span>
+        <h4>${node.n}</h4>
+        <div class="tree-plus">${node.plus}</div>
+        <button type="button" class="tree-vote-go">🗳️ ${treeState.my_vote ? "Changer pour" : "Voter"} ${node.n}</button>`;
+
+    document.body.appendChild(pop);
+
+    // Sous la case, ou au-dessus s'il n'y a pas la place ; toujours dans l'écran.
+    const rect = button.getBoundingClientRect();
+
+    const margin = 10;
+
+    pop.style.left = Math.min(
+        Math.max(margin, rect.left + rect.width / 2 - pop.offsetWidth / 2),
+        window.innerWidth - pop.offsetWidth - margin
+    ) + "px";
+
+    pop.style.top = (rect.bottom + 10 + pop.offsetHeight > window.innerHeight - margin
+        ? Math.max(margin, rect.top - pop.offsetHeight - 10)
+        : rect.bottom + 10) + "px";
+
+    pop.querySelector(".tree-vote-go").addEventListener("click", () => {
+
+        closeTreeVotePop();
+
+        voteTree(id);
+
+    });
+
+}
+
+
+function closeTreeVotePop() {
+
+    document.querySelectorAll(".tree-vote-pop").forEach(pop => pop.remove());
+
+}
+
+
+// Case adoptée : elle s'allume avec des confettis, une fois par joueur et par palier.
+function celebrateTreeAdoption() {
+
+    const path = treePath();
+
+    const key = "betlab-tree-seen-" + currentGroup.id;
+
+    let seen;
+
+    try {
+        seen = Number(localStorage.getItem(key) || 0);
+        localStorage.setItem(key, String(path.length));
+    } catch (error) {
+        return;
+    }
+
+    if (path.length <= seen) {
+        return;
+    }
+
+    const id = path[path.length - 1];
+
+    const tree = document.getElementById("tree-tree");
+
+    const win = tree?.querySelector(`[data-node="${id}"]`);
+
+    if (!win) {
+        return;
+    }
+
+    // L'autre case du même vote se grise.
+    const sibling = id.slice(0, -1) + { w: "t", t: "w", 1: "2", 2: "1", a: "b", b: "a" }[id.slice(-1)];
+
+    win.classList.add("tree-win");
+
+    tree.querySelector(`[data-node="${sibling}"]`)?.classList.add("tree-lose");
+
+    const rect = win.getBoundingClientRect();
+
+    const colors = ["#63d69f", "#ffd36b", "#ff6bd5", "#4fc3ff", "#c86bff", "#ff9f43"];
+
+    for (let i = 0; i < 46; i++) {
+
+        const piece = document.createElement("div");
+
+        piece.className = "tree-confetti";
+
+        piece.style.background = colors[i % colors.length];
+
+        piece.style.left = rect.left + rect.width / 2 + "px";
+
+        piece.style.top = rect.top + rect.height / 2 + "px";
+
+        document.body.appendChild(piece);
+
+        const angle = Math.random() * Math.PI * 2;
+
+        const distance = 80 + Math.random() * 160;
+
+        piece.animate(
+            [
+                { transform: "translate(0, 0) rotate(0)", opacity: 1 },
+                { transform: `translate(${Math.cos(angle) * distance}px, ${Math.sin(angle) * distance + 120}px) rotate(${Math.random() * 720}deg)`, opacity: 0 }
+            ],
+            { duration: 1100 + Math.random() * 600, easing: "cubic-bezier(.2, .7, .4, 1)" }
+        ).onfinish = () => piece.remove();
+
+    }
 
 }
 
@@ -534,63 +886,162 @@ function treeTreeHtml() {
     TREE_LEVELS.forEach((level, index) => {
 
         html += `
-            <p class="tree-lvl">${TREE_LVL_NAMES[index]} · ${treeFmt(TREE_SEUILS[index])} XP <span>(${TREE_LVL_DELAIS[index]})</span></p>
+            <p class="tree-lvl">Palier ${index + 1}</p>
             <div class="tree-row r${index + 1}">${level.map(treeNodeHtml).join("")}</div>`;
 
     });
 
-    return `<div class="tree-panel"><div class="tree-tree" id="tree-tree">${html}</div></div>`;
-
-}
-
-
-function treeDetailHtml() {
-
-    const node = TREE_NODES[treeSelected];
-
-    const state = treeNodeState(treeSelected);
-
-    const label = {
-        chosen: "✅ Débloqué",
-        open: "🗳️ Au vote maintenant",
-        locked: "🔒 Verrouillé (l'autre branche a gagné)",
-        future: "⏳ Plus tard"
-    }[state];
-
-    return `
-        <div class="tree-panel tree-detail">
-            <span class="e">${node.e}</span>
-            <h4>${node.n}</h4>
-            <span class="tree-pill">${node.t}</span>${treeSelected !== "root" ? `<span class="tree-pill">${label}</span>` : ""}
-            ${node.titre && treeMode === "admin" ? `<p class="tree-muted">Titre du groupe : <b>${node.titre}</b></p>` : ""}
-            <div class="tree-plus">➕ ${node.plus}</div>
-            ${treeMode === "admin" ? treeHowHtml(node) : node.ex ? `<p class="tree-ex">💡 ${node.ex}</p>` : ""}
-        </div>`;
-
-}
-
-
-function treeEffectsHtml() {
-
-    const path = treePath();
-
     return `
         <div class="tree-panel">
-            <h3>⚙️ Bonus débloqués</h3>
-            <ul class="tree-actifs">
-                ${path.length
-                    ? path.map(id => `
-                        <li>
-                            ${TREE_NODES[id].e} <b>${TREE_NODES[id].n}</b> : ${TREE_NODES[id].plus}
-                            ${TREE_ACTIVE.includes(id)
-                                ? '<span class="tree-on">✅ Actif</span>'
-                                : '<span class="tree-soon">⏳ Bientôt actif</span>'}
-                        </li>`).join("")
-                    : '<li class="tree-muted">Aucun pour l\'instant : le groupe est comme tous les autres.</li>'}
-            </ul>
+            <div class="tree-tree" id="tree-tree">${html}<span class="tree-or hidden">OU</span></div>
+            ${treeMembersHtml()}
         </div>`;
 
 }
+
+
+function treeDetailHtml(id) {
+
+    const node = TREE_NODES[id];
+
+    const state = treeNodeState(id);
+
+    return `
+            <span class="e">${node.e}</span>
+            <h4>${node.n}</h4>
+            ${node.titre && treeMode === "admin" ? `<p class="tree-muted">Titre du groupe : <b>${node.titre}</b></p>` : ""}
+            <div class="tree-plus">${node.plus}</div>
+            ${state === "future" ? treeLikeButtonHtml(id) : ""}
+            ${treeMode === "admin" ? treeHowHtml(node) : ""}`;
+
+}
+
+
+// Détail d'une case : bulle au survol de la case (au toucher sur téléphone).
+function showTreeTip(button) {
+
+    const tip = document.getElementById("tree-node-tip");
+
+    if (!tip) {
+        return;
+    }
+
+    clearTimeout(treeTipTimer);
+
+    treeTipNode = button.dataset.node;
+
+    tip.innerHTML = treeDetailHtml(button.dataset.node);
+
+    // Déjà ouverte : elle glisse vers la nouvelle case ; sinon elle apparaît sur place.
+    const already = tip.classList.contains("show");
+
+    // Sous la case, ou au-dessus s'il n'y a pas la place ; toujours dans l'écran.
+    const rect = button.getBoundingClientRect();
+
+    const margin = 10;
+
+    const left = Math.min(
+        Math.max(margin, rect.left + rect.width / 2 - tip.offsetWidth / 2),
+        window.innerWidth - tip.offsetWidth - margin
+    );
+
+    const below = rect.bottom + 8;
+
+    const top = below + tip.offsetHeight > window.innerHeight - margin
+        ? Math.max(margin, rect.top - tip.offsetHeight - 8)
+        : below;
+
+    if (!already) {
+        tip.style.transition = "none";
+    }
+
+    tip.style.left = left + "px";
+
+    tip.style.top = top + "px";
+
+    tip.classList.toggle("above", top < rect.top);
+
+    if (!already) {
+
+        tip.getBoundingClientRect();
+
+        tip.style.transition = "";
+
+    }
+
+    tip.classList.add("show");
+
+}
+
+
+function hideTreeTip() {
+
+    clearTimeout(treeTipTimer);
+
+    treeTipNode = null;
+
+    document.getElementById("tree-node-tip")?.classList.remove("show");
+
+}
+
+
+// La souris quitte la case : la bulle attend un peu (le temps d'y entrer pour cliquer le cœur).
+function hideTreeTipSoon() {
+
+    clearTimeout(treeTipTimer);
+
+    treeTipTimer = setTimeout(hideTreeTip, 180);
+
+}
+
+
+let treeTipNode = null;
+
+let treeTipTimer = null;
+
+
+document.addEventListener("DOMContentLoaded", () => {
+
+    const tip = document.getElementById("tree-node-tip");
+
+    tip?.addEventListener("mouseenter", () => clearTimeout(treeTipTimer));
+
+    tip?.addEventListener("mouseleave", hideTreeTipSoon);
+
+});
+
+
+window.addEventListener("scroll", () => {
+
+    hideTreeTip();
+
+    closeTreeVotePop();
+
+}, true);
+
+// Sur téléphone (pas de survol) : un toucher ailleurs referme la bulle.
+document.addEventListener("click", event => {
+
+    // Cœur sur une case ou dans la bulle.
+    const heart = event.target.closest("[data-like]");
+
+    if (heart) {
+
+        likeTreeNode(heart.dataset.like, heart);
+
+        return;
+
+    }
+
+    if (!event.target.closest(".tree-node, #tree-node-tip")) {
+        hideTreeTip();
+    }
+
+    if (!event.target.closest(".tree-node, .tree-vote-pop")) {
+        closeTreeVotePop();
+    }
+
+});
 
 
 function renderTreePage() {
@@ -612,27 +1063,47 @@ function renderTreePage() {
     root.innerHTML = `
         ${treeAdminHtml()}
         ${treeGuideHtml()}
-        <div class="tree-layout">
-            <div class="tree-col">
-                ${treeHeadHtml()}
-                ${treeVoteHtml()}
-                ${treeTreeHtml()}
-            </div>
-            <div class="tree-col">
-                ${treeDetailHtml()}
-                ${treeEffectsHtml()}
-            </div>
+        <div class="tree-col">
+            ${treeTreeHtml()}
         </div>`;
 
     root.querySelectorAll("[data-node]").forEach(button => {
 
-        button.addEventListener("click", () => {
+        button.addEventListener("click", event => {
+
+            if (event.target.closest("[data-like]")) {
+                return;
+            }
+
+            // Case au vote (pas encore la mienne) : bulle « Voter ».
+            if (button.matches(".vote-wait, .vote-other")) {
+
+                showTreeVotePop(button);
+
+                return;
+
+            }
 
             treeSelected = button.dataset.node;
 
-            renderTreePage();
+            root.querySelectorAll(".tree-node.sel").forEach(node => node.classList.remove("sel"));
+
+            button.classList.add("sel");
+
+            showTreeTip(button);
 
         });
+
+        button.addEventListener("mouseenter", () => {
+
+            // Les cases au vote montrent déjà leur bonus : pas de bulle au survol.
+            if (!button.matches(".vote-wait, .vote-other, .vote-mine")) {
+                showTreeTip(button);
+            }
+
+        });
+
+        button.addEventListener("mouseleave", hideTreeTipSoon);
 
     });
 
@@ -648,15 +1119,21 @@ function renderTreePage() {
 
     });
 
-    root.querySelectorAll("[data-vote]").forEach(button => {
-
-        button.addEventListener("click", () => voteTree(button.dataset.vote));
-
-    });
-
     document.getElementById("tree-toggle")?.addEventListener("click", toggleTree);
 
-    requestAnimationFrame(drawTreeLinks);
+    requestAnimationFrame(() => {
+
+        drawTreeLinks();
+
+        celebrateTreeAdoption();
+
+        const open = treeTipNode && root.querySelector(`[data-node="${treeTipNode}"]`);
+
+        if (open) {
+            showTreeTip(open);
+        }
+
+    });
 
 }
 
@@ -716,6 +1193,29 @@ function drawTreeLinks() {
 
     });
 
+    // « OU » entre les 2 cases au vote (tant que le joueur n'a pas voté).
+    const or = tree.querySelector(".tree-or");
+
+    const pair = tree.querySelectorAll(".tree-node.vote-wait");
+
+    if (or) {
+
+        or.classList.toggle("hidden", pair.length !== 2);
+
+        if (pair.length === 2) {
+
+            const a = pair[0].getBoundingClientRect();
+
+            const b = pair[1].getBoundingClientRect();
+
+            or.style.left = (a.right + b.left) / 2 - box.left + "px";
+
+            or.style.top = (a.top + a.bottom) / 2 - box.top + "px";
+
+        }
+
+    }
+
     svg.setAttribute("viewBox", `0 0 ${box.width} ${box.height}`);
 
     svg.innerHTML = lines;
@@ -759,6 +1259,10 @@ async function voteTree(node) {
         treeSelected = treePath()[treePath().length - 1];
 
         alertToast(`🎉 <strong>${adopted.n}</strong> adopté ! L'autre branche est verrouillée pour toujours.`, { type: "joined" });
+
+    } else {
+
+        alertToast(`${TREE_NODES[node].e} Vote enregistré pour <strong>${TREE_NODES[node].n}</strong> !`, { type: "joined" });
 
     }
 
@@ -901,7 +1405,7 @@ async function setupTree() {
 
     window.addEventListener("resize", () => {
 
-        if (!document.getElementById("tree-page")?.classList.contains("hidden")) {
+        if (!document.getElementById("tree-modal")?.classList.contains("hidden")) {
             drawTreeLinks();
         }
 
@@ -909,13 +1413,19 @@ async function setupTree() {
 
     // Un vote en attente se signale dès l'arrivée sur le site,
     // et le ticket sait si le joueur a un boost WTF.
-    if (currentGroup.tree_enabled) {
+    // L'admin voit l'arbre même éteint (pour l'allumer).
+    if (hasTreeAccess()) {
 
         await Promise.all([loadTree(), loadTreeBoost()]);
 
         if (typeof renderTicket === "function") {
             renderTicket();
         }
+
+    } else {
+
+        // Arbre éteint dans ce groupe : pas de barre d'XP du groupe.
+        document.getElementById("group-xp-card")?.classList.add("hidden");
 
     }
 

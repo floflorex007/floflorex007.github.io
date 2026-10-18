@@ -108,6 +108,13 @@
                     Mot de passe oublié ?
                 </button>
 
+                <button
+                    id="show-find-username"
+                    class="link-button"
+                >
+                    Identifiant oublié ?
+                </button>
+
             </div>
 
 
@@ -416,40 +423,6 @@
 
                 </div>
 
-
-                <!-- C'est tout bon ! -->
-
-                <div
-                    class="onb-step onb-done hidden"
-                    data-onb-step="done"
-                >
-
-                    <div
-                        id="onb-done-icon"
-                        class="onb-done-icon"
-                    >🎉</div>
-
-                    <h1 id="onb-done-title">C'est tout bon !</h1>
-
-                    <p
-                        id="onb-done-text"
-                        class="onb-hint"
-                    ></p>
-
-                    <div class="onb-actions">
-
-                        <button
-                            type="button"
-                            id="onb-enter"
-                            class="primary-button"
-                        >
-                            Entrer dans BetLab →
-                        </button>
-
-                    </div>
-
-                </div>
-
             </div>
 
 
@@ -470,6 +443,38 @@
             </div>
 
         </div>
+
+
+        <!--
+            Première visite : la question 1 tout de suite, sans voir la
+            connexion le temps que Supabase et app.js se chargent
+            (même clé que KNOWN_VISITOR_KEY dans app.js).
+        -->
+        <script>
+
+            (function () {
+
+                let known = false;
+
+                try {
+
+                    known = localStorage.getItem("betlab-deja-venu") === "1";
+
+                } catch (error) {}
+
+                if (!known) {
+
+                    document.getElementById("login-section").classList.add("hidden");
+
+                    document.getElementById("onboarding-section").classList.remove("hidden");
+
+                    document.body.classList.add("onboarding");
+
+                }
+
+            })();
+
+        </script>
 
 
         <!-- MOT DE PASSE OUBLIÉ -->
@@ -527,6 +532,61 @@
 
                 <button
                     id="forgot-back"
+                    class="link-button"
+                >
+                    Retour à la connexion
+                </button>
+
+            </div>
+
+        </div>
+
+
+        <!-- IDENTIFIANT OUBLIÉ -->
+
+        <div
+            id="find-username-section"
+            class="auth-card hidden"
+        >
+
+            <h1>Identifiant oublié</h1>
+
+            <p class="auth-description">
+                Tape la 1ère lettre de ton pseudo, puis choisis-le dans la liste.
+            </p>
+
+
+            <label for="find-username-letter">
+                1ère lettre de ton pseudo
+            </label>
+
+            <input
+                type="text"
+                id="find-username-letter"
+                class="find-username-letter"
+                maxlength="1"
+                autocomplete="off"
+                autocapitalize="characters"
+                placeholder="A"
+            >
+
+
+            <p
+                id="find-username-error"
+                class="error-message"
+            ></p>
+
+
+            <div
+                id="find-username-list"
+                class="find-username-list"
+            ></div>
+
+
+            <div class="auth-switch">
+
+                <button
+                    id="find-username-back"
                     class="link-button"
                 >
                     Retour à la connexion

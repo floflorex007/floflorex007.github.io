@@ -274,6 +274,49 @@ input {
     margin-left: 4px;
 }
 
+/* Identifiant oublié : une seule lettre, puis les pseudos à cliquer. */
+.auth-card input.find-username-letter {
+    width: 64px;
+    text-align: center;
+    font-size: 24px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.find-username-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.find-username-list:empty {
+    display: none;
+}
+
+.find-username-list p {
+    color: #8d92a0;
+    font-size: 14px;
+    width: 100%;
+}
+
+.find-username-pseudo {
+    padding: 9px 14px;
+    border-radius: 999px;
+    border: 1px solid #343846;
+    background: #101219;
+    color: white;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.find-username-pseudo:hover {
+    border-color: #6c63ff;
+    background: rgba(108, 99, 255, 0.12);
+}
+
 /* ================================
    NAVBAR
 ================================ */
@@ -479,10 +522,20 @@ input {
     font-weight: 700;
 }
 
+/* Largeur fixe (place de la plus grande flamme) : les pseudos restent alignés,
+   avec ou sans flamme. */
 .leaderboard-medal {
-    width: 20px;
+    width: 32px;
+    margin-left: -5px;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
     font-size: 16px;
+}
+
+/* Flamme bleue des victoires d'affilée à la place des médailles */
+.leaderboard-medal .win-streak {
+    margin-left: 0;
 }
 
 .leaderboard-pseudo {
@@ -3530,6 +3583,18 @@ html {
     scrollbar-gutter: stable;
 }
 
+/* Fenêtre ouverte : la page derrière ne défile plus (la place de la barre
+   reste réservée, rien ne bouge), et le défilement de la fenêtre ne passe
+   pas à la page quand il arrive au bout. */
+html:has(.modal:not(.hidden)) {
+    overflow: hidden;
+}
+
+.modal,
+.modal-content {
+    overscroll-behavior: contain;
+}
+
 
 /* =========================================================
    FENÊTRE DE MISE : jauge de gain (proposition D)
@@ -5426,7 +5491,7 @@ body.app-loading .enjeu-cadre {
 }
 
 .xp-modal-content .level-bar.level-bar-large {
-    margin-bottom: 20px;
+    margin-bottom: 0;
 }
 
 .xp-modal-list {
@@ -5452,11 +5517,23 @@ body.app-loading .enjeu-cadre {
     overflow-y: auto;
 }
 
-/* Séparation nette entre « Comment gagner de l'XP ? » et les skins */
+/* Séparation nette entre la jauge, « Comment gagner de l'XP ? » et les skins */
+.xp-rules-title,
 .xp-skins-title {
     margin-top: 24px;
     padding-top: 20px;
     border-top: 1px solid #2c3040;
+}
+
+/* Fenêtre de la flamme : les blocs se suivent sans marge en trop avant le trait */
+.streak-modal-content .streak-stats,
+.streak-modal-content .streak-rules {
+    margin-bottom: 0;
+}
+
+/* Plus de titre : les compteurs laissent la place à la croix de fermeture */
+.streak-modal-content .streak-stats {
+    margin-top: 28px;
 }
 
 .xp-skins {
@@ -5489,6 +5566,8 @@ body.app-loading .enjeu-cadre {
 
 .xp-skins-path .xp-skin::before {
     content: "";
+    /* La bordure compte dans les 12 px : le point est pile au centre du trait. */
+    box-sizing: border-box;
     position: absolute;
     left: -23px;
     top: 50%;
@@ -5505,6 +5584,16 @@ body.app-loading .enjeu-cadre {
 .xp-skins-path .xp-skin.locked::before {
     background: #2c3040;
     box-shadow: 0 0 0 2px #3a3f50;
+}
+
+/* Récompenses de série (fenêtre de la flamme) : même chemin, aux couleurs du feu */
+.streak-path .xp-skin:not(:last-child)::after {
+    background: linear-gradient(180deg, #ff9f43 var(--path-fill, 0%), #2c3040 var(--path-fill, 0%));
+}
+
+.streak-path .xp-skin:not(.locked)::before {
+    background: #ff9f43;
+    box-shadow: 0 0 0 2px #ff9f43;
 }
 
 .xp-skin {
@@ -5681,14 +5770,14 @@ body.app-loading .enjeu-cadre {
     padding: 4px 10px;
 }
 
-/* « +10 XP / pari validé » : la bulle d'XP en début de ligne, même largeur
-   sur toutes les lignes pour que les « / » soient alignés */
+/* « +10 XP par pari validé » : la bulle d'XP en début de ligne, même largeur
+   sur toutes les lignes pour que les « par » soient alignés */
 .xp-rule-head strong em {
     display: inline-block;
     box-sizing: border-box;
     min-width: 66px;
     margin-left: 0;
-    margin-right: 8px;
+    margin-right: 4px;
     padding: 2px 8px;
     text-align: center;
 }
@@ -5868,17 +5957,19 @@ body.parrot-phenix #parrot {
     background: rgba(255, 106, 0, 0.06);
 }
 
+/* Boutons de la fenêtre flamme (boutique, rattrapage) : petits, alignés à gauche */
 .streak-action {
-    width: 100%;
-    margin-top: 10px;
-    padding: 9px 12px;
-    border-radius: 10px;
+    display: inline-block;
+    width: auto;
+    margin-top: 8px;
+    padding: 5px 12px;
+    border-radius: 8px;
     border: 1px solid #ff8a3c;
     background: linear-gradient(135deg, #ff5a1f, #ff9a3c);
     color: #1c0d04;
     font-family: inherit;
-    font-weight: 900;
-    font-size: 13px;
+    font-weight: 800;
+    font-size: 12px;
     cursor: pointer;
 }
 
@@ -8408,6 +8499,30 @@ body.parrot-phenix #parrot {
     white-space: nowrap;
 }
 
+/* Répartition des mises : seulement sur la carte dépliée */
+.bet-card:not(.stakes-pop) .choice-bar-track,
+.bet-card:not(.stakes-pop) .choice-pct {
+    display: none;
+}
+
+/* Carte dépliée : la barre se remplit pendant le dépliage
+   (la hauteur et le fondu sont animés par animateChoicePct dans app.js). */
+#stakes-panel.stakes-pop .choice-pct {
+    overflow: hidden;
+}
+
+#stakes-panel.stakes-pop .choice-bar-fill {
+    transform-origin: left center;
+    animation: choice-pct-grow 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
+}
+
+#stakes-panel.stakes-pop .bet-choice-wrapper:nth-child(2) .choice-bar-fill { animation-delay: 0.22s; }
+#stakes-panel.stakes-pop .bet-choice-wrapper:nth-child(3) .choice-bar-fill { animation-delay: 0.29s; }
+
+@keyframes choice-pct-grow {
+    from { transform: scaleX(0); }
+}
+
 /* Brouillon : personne n'a encore misé, pas de répartition à montrer */
 .bet-card-draft .choice-bar-track,
 .bet-card-draft .choice-pct {
@@ -8607,6 +8722,93 @@ body.parrot-phenix #parrot {
 .left-column .leaderboard-sidebar {
     position: static;
     width: 100%;
+}
+
+/* XP du groupe : fine ligne sous le titre « Groupe » (renderGroupXpCard dans arbre.js),
+   en orangé doré pour la distinguer de l'XP classique. Un clic ouvre l'arbre. */
+.group-xp-card {
+    margin: -4px 0 8px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #262a38;
+}
+
+.group-xp-card.hidden {
+    display: none;
+}
+
+.group-xp-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 5px;
+    font-size: 11px;
+    color: #858a98;
+    transition: color 0.2s;
+}
+
+.group-xp-row b {
+    color: #ffc36b;
+    font-weight: 800;
+}
+
+.group-xp-bar {
+    height: 3px;
+    border-radius: 99px;
+    background: #262a38;
+    overflow: hidden;
+}
+
+.group-xp-bar div {
+    height: 100%;
+    background: linear-gradient(90deg, #ff9f43, #ffd36b);
+    transition: width 0.8s ease-out;
+}
+
+/* Hors vote : petit bouton « Arbre », plus discret que « Voter » */
+.group-xp-tree {
+    padding: 3px 10px;
+    border: 1px solid #2c3040;
+    border-radius: 8px;
+    background: transparent;
+    color: #aaaeba;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.group-xp-tree:hover,
+.group-xp-tree:focus-visible {
+    border-color: rgba(255, 159, 67, 0.55);
+    color: #ffc36b;
+}
+
+/* Palier atteint : petit bouton « Voter » sur la ligne */
+.group-xp-vote {
+    padding: 3px 10px;
+    border: 1px solid rgba(255, 159, 67, 0.55);
+    border-radius: 8px;
+    background: rgba(255, 159, 67, 0.1);
+    color: #ffc36b;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    animation: group-xp-vote-pulse 2.6s ease-in-out infinite;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.group-xp-vote:hover {
+    background: rgba(255, 159, 67, 0.22);
+    border-color: #ff9f43;
+}
+
+@keyframes group-xp-vote-pulse {
+    50% {
+        box-shadow: 0 0 12px rgba(255, 159, 67, 0.4);
+    }
 }
 
 /* Ordinateur : le classement garde toujours sa taille (pas de barre de
@@ -12689,6 +12891,26 @@ body.ticket-combo .ticket-go.ticket-go--blocked {
     color: #ffc857;
 }
 
+/* Boutique : sections bien séparées (trait + espace), titres collés à leur section */
+#shop-container > section {
+    scroll-margin-top: 20px;
+}
+
+#shop-container > section > .missions-title {
+    margin-top: 0;
+}
+
+#shop-container > section:not(.hidden) ~ section:not(.hidden) {
+    margin-top: 36px;
+    padding-top: 28px;
+    border-top: 1px solid #262a38;
+}
+
+#shop-container > .shop-filters + section,
+#shop-container > section:first-of-type {
+    margin-top: 24px;
+}
+
 .shop-category-hint {
     margin: -6px 0 14px;
     color: #858a98;
@@ -14366,37 +14588,39 @@ html.force-phone .main-container {
    ARBRE DU GROUPE (arbre.js, maquette demo-arbre-groupe.html)
 ========================================================= */
 
-/* Pastille orange sur le bouton du groupe : un vote attend le joueur. */
-.group-switcher-button .group-tree-dot {
-    position: absolute;
-    top: -6px;
-    left: -6px;
-    width: 14px;
-    height: 14px;
-    border-radius: 999px;
-    background: #ff9f43;
-    box-shadow: 0 0 0 3px #14161e;
-    animation: group-requests-pulse 1.4s ease-in-out infinite;
-}
-
-.group-switcher-button .group-tree-dot.hidden {
-    display: none;
-}
-
-.group-menu-item .tree-menu-vote {
-    color: #ffb36b;
-    font-weight: 800;
-}
-
 #tree-page .tree-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
 #tree-page .tree-tab { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; padding: 10px 16px; border-radius: 999px; cursor: pointer; font: inherit; text-align: left; }
 #tree-page .tree-tab small { display: block; font-size: 11px; opacity: .75; }
 #tree-page .tree-tab.active { background: #6c63ff; border-color: #6c63ff; color: white; }
 
-#tree-page .tree-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 360px); gap: 20px; align-items: start; }
+/* Fenêtre de l'arbre : grande, défile à l'intérieur si l'écran est petit */
+.tree-modal-content {
+    max-width: 980px;
+    max-height: 92vh;
+    overflow-y: auto;
+    padding: 24px;
+    scrollbar-width: thin;
+    scrollbar-color: #3a3f50 transparent;
+}
+
+.tree-modal-content h2 {
+    padding-right: 36px;
+    margin-bottom: 4px;
+}
+
+.tree-modal-content .tree-modal-sub {
+    margin: 0 0 16px;
+    font-size: 13px;
+}
+
+@media (max-width: 600px) {
+    .tree-modal-content {
+        padding: 18px 12px;
+    }
+}
+
 /* La page n'a pas la même largeur partout (colonnes du site) : on se règle sur elle. */
 #tree-root { container-type: inline-size; }
-@container (max-width: 860px) { #tree-page .tree-layout { grid-template-columns: 1fr; } }
 #tree-page .tree-col { display: grid; gap: 16px; min-width: 0; }
 #tree-page .tree-panel { background: #171a23; border: 1px solid #262a38; border-radius: 18px; padding: 16px; }
 #tree-page .tree-panel h3 { margin: 0 0 10px; font-size: 15px; }
@@ -14412,19 +14636,6 @@ html.force-phone .main-container {
 #tree-page .tree-guide li { margin: 4px 0; }
 #tree-page .tree-guide b { color: #e6e8ee; }
 
-/* En-tête du groupe */
-#tree-page .tree-ghead { display: flex; gap: 14px; align-items: center; }
-#tree-page .tree-blason { width: 58px; height: 58px; flex: none; border-radius: 16px; display: grid; place-items: center; font-size: 30px; background: #12141b; border: 2px solid #343a4d; }
-#tree-page .tree-blason.small { width: 44px; height: 44px; font-size: 22px; border-radius: 12px; }
-#tree-page .tree-blason.wtf { border-color: #ff6bd5; box-shadow: 0 0 18px rgba(255, 107, 213, .3); }
-#tree-page .tree-blason.th { border-color: #4fc3ff; box-shadow: 0 0 18px rgba(79, 195, 255, .3); }
-#tree-page .tree-gname { font-size: 19px; font-weight: 900; }
-#tree-page .tree-gtitle { font-size: 13px; font-weight: 800; color: #b3abff; }
-#tree-page .tree-xpbar { height: 12px; border-radius: 99px; background: #262a38; overflow: hidden; margin: 14px 0 6px; }
-#tree-page .tree-xpbar i { display: block; height: 100%; background: linear-gradient(90deg, #5b4fe0, #c86bff); transition: width .5s; }
-#tree-page .tree-xpbar.full i { background: linear-gradient(90deg, #ff9f43, #ffd36b); }
-#tree-page .tree-xplegend { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: #aaaeba; }
-
 /* Arbre */
 #tree-page .tree-tree { position: relative; }
 #tree-page .tree-tree svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
@@ -14432,11 +14643,15 @@ html.force-phone .main-container {
 #tree-page .tree-row:last-child { margin-bottom: 0; }
 #tree-page .tree-lvl { font-size: 11px; color: #737887; margin: 0 0 6px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 #tree-page .tree-lvl span { text-transform: none; font-weight: 600; }
-#tree-page .tree-node { position: relative; z-index: 1; justify-self: center; width: 100%; max-width: 150px; border: 2px solid #343a4d; background: #12141b; color: #e6e8ee; font: inherit; border-radius: 14px; padding: 8px 6px; text-align: center; cursor: pointer; transition: transform .15s, border-color .15s, opacity .2s; }
-#tree-page .tree-node:hover { transform: translateY(-2px); }
+#tree-page .tree-node { position: relative; z-index: 1; justify-self: center; width: 100%; max-width: 150px; border: 2px solid #343a4d; background: #12141b; color: #e6e8ee; font: inherit; border-radius: 14px; padding: 8px 6px; text-align: center; cursor: pointer; transition: transform .35s cubic-bezier(.22, 1, .36, 1), border-color .3s ease, box-shadow .35s ease, opacity .3s ease, filter .3s ease; }
+/* Survol : la case se soulève doucement, son emoji se penche un peu */
+#tree-page .tree-node:hover { z-index: 3; transform: translateY(-4px) scale(1.04); box-shadow: 0 10px 22px rgba(0, 0, 0, .35); }
+#tree-page .tree-node .e { transition: transform .35s cubic-bezier(.34, 1.56, .64, 1); }
+#tree-page .tree-node:hover .e { transform: scale(1.18) rotate(-6deg); }
+#tree-page .tree-node.locked:hover { transform: none; box-shadow: none; }
+#tree-page .tree-node.locked:hover .e { transform: none; }
 #tree-page .tree-node .e { font-size: 24px; display: block; }
 #tree-page .tree-node .n { font-size: 12px; font-weight: 800; display: block; margin-top: 2px; line-height: 1.2; }
-#tree-page .tree-node .t { font-size: 10px; color: #858a98; display: block; margin-top: 2px; }
 #tree-page .tree-node.root { max-width: 120px; border-color: #6c63ff; }
 #tree-page .tree-node.chosen { border-color: #63d69f; background: linear-gradient(180deg, #173226, #12141b); box-shadow: 0 0 16px rgba(99, 214, 159, .25); }
 #tree-page .tree-node.open { border-color: #ff9f43; animation: tree-pulse 1.4s infinite; }
@@ -14448,48 +14663,113 @@ html.force-phone .main-container {
 #tree-page .r2 .tree-node { grid-column: span 2; }
 #tree-page .r0 .tree-node { grid-column: 1 / -1; }
 @container (max-width: 640px) {
-    #tree-page .r3 .tree-node .n,
-    #tree-page .r3 .tree-node .t,
-    #tree-page .r2 .tree-node .t { display: none; }
+    #tree-page .r3 .tree-node .n { display: none; }
     #tree-page .r3 .tree-node .e { font-size: 20px; }
     #tree-page .r3 .tree-node { padding: 8px 2px; }
 }
 
 /* Détail d'une case */
-#tree-page .tree-detail .e { font-size: 34px; }
-#tree-page .tree-detail h4 { margin: 4px 0 4px; font-size: 17px; }
-#tree-page .tree-pill { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: 11px; font-weight: 800; background: rgba(108, 99, 255, .2); color: #b3abff; margin: 2px 4px 2px 0; }
+#tree-node-tip { position: fixed; z-index: 120; width: min(300px, calc(100vw - 20px)); padding: 14px; text-align: center; background: #181b24; border: 1px solid #343846; border-radius: 14px; box-shadow: 0 12px 32px rgba(0, 0, 0, .5);
+    /* Fondu + glissement à l'ouverture ; d'une case à l'autre, la bulle glisse */
+    opacity: 0; visibility: hidden; pointer-events: none; transform: translateY(8px) scale(.97);
+    transition: opacity .22s ease, transform .3s cubic-bezier(.22, 1, .36, 1), left .3s cubic-bezier(.22, 1, .36, 1), top .3s cubic-bezier(.22, 1, .36, 1), visibility 0s linear .22s; }
+#tree-node-tip.above { transform: translateY(-8px) scale(.97); }
+#tree-node-tip.show { opacity: 1; visibility: visible; pointer-events: auto; transform: none; transition: opacity .22s ease, transform .3s cubic-bezier(.22, 1, .36, 1), left .3s cubic-bezier(.22, 1, .36, 1), top .3s cubic-bezier(.22, 1, .36, 1), visibility 0s; }
+#tree-node-tip .e { font-size: 34px; display: block; }
+#tree-node-tip h4 { margin: 2px 0 6px; font-size: 17px; }
+#tree-node-tip .tree-muted { color: #858a98; font-size: 12px; line-height: 1.5; margin: 6px 0 0; }
+#tree-node-tip .tree-muted b { color: #e6e8ee; }
+#tree-node-tip .tree-plus, #tree-node-tip .tree-how-t { text-align: left; }
+#tree-node-tip .tree-plus,
 #tree-page .tree-plus { font-size: 13px; line-height: 1.45; margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: rgba(99, 214, 159, .1); color: #9fe6c4; }
+#tree-node-tip .tree-how-t,
 #tree-page .tree-how-t { margin: 12px 0 4px; font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: #737887; }
+#tree-node-tip .tree-how,
 #tree-page .tree-how { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.5; color: #c9ccd6; text-align: left; }
+#tree-node-tip .tree-how li,
 #tree-page .tree-how li { margin: 3px 0; }
-#tree-page .tree-ex { margin: 10px 0 0; font-size: 13px; padding: 8px 10px; border-radius: 10px; background: rgba(255, 211, 107, .08); color: #ffe3a0; }
 
-/* Vote */
-#tree-page .tree-vote { border-color: #ff9f43; }
-#tree-page .tree-vote h3 { color: #ffb36b; }
-#tree-page .tree-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-@container (max-width: 480px) { #tree-page .tree-opts { grid-template-columns: 1fr; } }
-#tree-page .tree-opt { border: 2px solid #343a4d; background: #12141b; color: #e6e8ee; font: inherit; text-align: left; border-radius: 14px; padding: 12px; cursor: pointer; }
-#tree-page .tree-opt:disabled { cursor: default; }
-#tree-page .tree-opt.mine { border-color: #c86bff; box-shadow: 0 0 0 2px rgba(200, 107, 255, .3); }
-#tree-page .tree-opt .e { font-size: 28px; }
-#tree-page .tree-opt h4 { margin: 4px 0; font-size: 15px; }
-#tree-page .tree-opt .tree-plus { font-size: 12px; }
-#tree-page .tree-opt .tree-how { font-size: 12px; margin-top: 8px; }
-#tree-page .tree-count { margin-top: 8px; font-size: 12px; color: #aaaeba; }
-#tree-page .tree-count b { color: #e6e8ee; }
-#tree-page .tree-members { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 8px; }
-#tree-page .tree-mb { font-size: 12px; padding: 4px 9px; border-radius: 99px; background: #1c202c; border: 1px solid #2c3040; }
+/* Vote dans l'arbre (maquette demo-vote-dans-arbre.html) */
+
+/* Cases au vote : bonus et pastilles des votants dans la case */
+#tree-page .tree-node-plus { display: block; margin-top: 6px; font-size: 11px; line-height: 1.35; color: #9fe6c4; }
+#tree-page .tree-voters { display: flex; justify-content: center; margin-top: 8px; min-height: 22px; }
+#tree-page .tree-av { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; margin-left: -6px; font-size: 10px; font-weight: 900; color: white; border: 2px solid #12141b; }
+#tree-page .tree-av:first-child { margin-left: 0; }
+#tree-page .tree-av.me { outline: 2px solid #c86bff; }
+#tree-page .r1 .tree-node.open { max-width: 210px; padding: 12px 10px; }
+#tree-page .r1 .tree-node.open .e { font-size: 32px; }
+#tree-page .r1 .tree-node.open .n { font-size: 15px; }
+@container (max-width: 640px) {
+    #tree-page .r3 .tree-node-plus,
+    #tree-page .r3 .tree-voters { display: none; }
+}
+
+/* Étiquette au-dessus de la case */
+#tree-page .tree-tag { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; font-weight: 900; padding: 2px 8px; border-radius: 99px; background: #ff9f43; color: #1a1206; }
+#tree-page .tree-tag.mine { background: #c86bff; color: white; }
+
+/* Pas encore voté : halo orange qui respire, en décalé, et « OU » entre les 2 cases */
+#tree-page .tree-node.vote-wait { animation: tree-vote-halo 2s ease-in-out infinite; }
+#tree-page .tree-node.vote-wait + .tree-node.vote-wait { animation-delay: 1s; }
+#tree-page .tree-node.vote-wait:hover { transform: translateY(-4px) scale(1.05); animation-play-state: paused; box-shadow: 0 0 0 3px rgba(255, 159, 67, .35), 0 0 30px rgba(255, 159, 67, .55); }
+@keyframes tree-vote-halo {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 159, 67, 0), 0 0 10px rgba(255, 159, 67, .2); }
+    50% { box-shadow: 0 0 0 5px rgba(255, 159, 67, .18), 0 0 28px rgba(255, 159, 67, .55); }
+}
+#tree-page .tree-or { position: absolute; z-index: 2; transform: translate(-50%, -50%); width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 900; color: #ffd36b; background: #171a23; border: 2px solid #ff9f43; pointer-events: none; }
+#tree-page .tree-or.hidden { display: none; }
+
+/* Déjà voté : ma case en violet, l'autre en retrait */
+#tree-page .tree-node.vote-mine { animation: none; border-color: #c86bff; box-shadow: 0 0 0 3px rgba(200, 107, 255, .25), 0 0 20px rgba(200, 107, 255, .35); }
+#tree-page .tree-node.vote-other { animation: none; border-color: #4a4f66; opacity: .8; }
+#tree-page .tree-node.vote-other:hover { opacity: 1; border-color: #ff9f43; }
+
+/* Qui a voté, sous l'arbre */
+#tree-page .tree-members { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 16px; padding-top: 14px; border-top: 1px solid #262a38; }
+#tree-page .tree-members-lab { margin-right: 4px; font-size: 12px; color: #737887; }
+#tree-page .tree-mb { font-size: 12px; padding: 4px 9px; border-radius: 99px; background: #1c202c; border: 1px solid #2c3040; color: #aaaeba; }
 #tree-page .tree-mb.done { border-color: #63d69f; color: #9fe6c4; }
 #tree-page .tree-mb.off { opacity: .45; text-decoration: line-through; }
-#tree-page .tree-votemsg { font-size: 13px; color: #aaaeba; margin: 0; }
+#tree-page .tree-votemsg { margin: 10px 0 0; font-size: 12px; line-height: 1.5; color: #aaaeba; }
 #tree-page .tree-votemsg b { color: #ffd36b; }
 
-/* Bonus débloqués */
-#tree-page .tree-actifs { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
-#tree-page .tree-actifs li { font-size: 13px; background: #12141b; border: 1px solid #262a38; border-radius: 10px; padding: 8px 10px; line-height: 1.45; }
-#tree-page .tree-soon { display: block; margin-top: 4px; font-size: 11px; color: #ffb36b; font-weight: 700; }
+/* Bulle « Voter » (ajoutée au body) */
+.tree-vote-pop { position: fixed; z-index: 120; width: min(290px, calc(100vw - 20px)); padding: 14px; text-align: center; background: #181b24; border: 1px solid #ff9f43; border-radius: 14px; box-shadow: 0 14px 40px rgba(0, 0, 0, .55); animation: tree-vote-pop-in .18s ease-out; }
+.tree-vote-pop .e { display: block; font-size: 34px; }
+.tree-vote-pop h4 { margin: 2px 0 6px; font-size: 17px; }
+.tree-vote-pop .tree-plus { font-size: 13px; line-height: 1.45; padding: 8px 10px; border-radius: 10px; background: rgba(99, 214, 159, .1); color: #9fe6c4; text-align: left; }
+.tree-vote-go { width: 100%; margin-top: 10px; padding: 10px; border: none; border-radius: 10px; font: inherit; font-weight: 800; cursor: pointer; background: linear-gradient(90deg, #ff9f43, #ffc36b); color: #1a1206; }
+@keyframes tree-vote-pop-in { from { opacity: 0; transform: translateY(6px) scale(.96); } }
+
+/* Vote adopté : la case s'allume, l'autre se grise, confettis */
+#tree-page .tree-node.tree-win { animation: tree-win 1.2s ease-out; }
+@keyframes tree-win {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(99, 214, 159, .8); }
+    30% { transform: scale(1.12); box-shadow: 0 0 0 12px rgba(99, 214, 159, .25), 0 0 40px rgba(99, 214, 159, .7); }
+    100% { transform: scale(1); box-shadow: 0 0 16px rgba(99, 214, 159, .25); }
+}
+#tree-page .tree-node.tree-lose { animation: tree-lose .9s ease-in; }
+@keyframes tree-lose { from { opacity: 1; filter: none; } }
+.tree-confetti { position: fixed; z-index: 130; width: 8px; height: 12px; border-radius: 2px; pointer-events: none; }
+
+/* Cœurs sur les cases à venir (maquette demo-coeurs-arbre.html) */
+#tree-page .tree-heart { position: absolute; top: -9px; right: -9px; z-index: 2; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 99px; display: flex; align-items: center; justify-content: center; gap: 3px; font-size: 12px; font-weight: 900; background: #1c202c; border: 1px solid #343a4d; color: #aaaeba; cursor: pointer; transition: transform .15s, background .2s, border-color .2s; }
+#tree-page .tree-heart:hover { transform: scale(1.15); border-color: #ff5c8a; }
+#tree-page .tree-heart.on { background: #ff5c8a; border-color: #ff5c8a; color: white; }
+#tree-page .tree-heart.pop { animation: tree-heart-pop .4s cubic-bezier(.3, 1.8, .5, 1); }
+@keyframes tree-heart-pop { 40% { transform: scale(1.5); } }
+#tree-page .tree-node.future.liked { opacity: 1; border-color: #ff5c8a; box-shadow: 0 0 14px rgba(255, 92, 138, .35); }
+#tree-page .tree-likers { display: flex; justify-content: center; margin-top: 6px; }
+#tree-page .tree-likers .tree-av { width: 18px; height: 18px; margin-left: -5px; font-size: 9px; }
+#tree-page .tree-likers .tree-av:first-child { margin-left: 0; }
+#tree-page .tree-likers .tree-av.me { outline-color: #ff5c8a; }
+@container (max-width: 640px) {
+    #tree-page .r3 .tree-likers { display: none; }
+}
+#tree-node-tip .tree-like-btn { width: 100%; margin-top: 10px; padding: 9px; border-radius: 10px; font: inherit; font-weight: 800; cursor: pointer; border: 1px solid #ff5c8a; background: none; color: #ff8fb0; }
+#tree-node-tip .tree-like-btn.on { background: #ff5c8a; color: white; }
+.tree-flying-heart { position: fixed; z-index: 130; font-size: 16px; pointer-events: none; }
 
 /* 🤪 Boost WTF dans le ticket (arbre-palier1.sql, version A de demo-palier1.html). */
 .tboost { width: 100%; display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 9px 11px; border-radius: 10px; border: 1px dashed #ff6bd5; background: rgba(255, 107, 213, .06); color: #e6e8ee; font: inherit; text-align: left; cursor: pointer; user-select: none; }
@@ -14503,7 +14783,6 @@ html.force-phone .main-container {
 .tboost-txt b { color: #ffb3ea; }
 .tboost-txt small { display: block; color: #858a98; font-size: 11px; }
 .ticket-win strong.boosted { color: #ffd36b; }
-#tree-page .tree-on { display: block; margin-top: 4px; font-size: 11px; color: #63d69f; font-weight: 700; }
 
 /* « +25 XP » qui jaillit au-dessus de la jauge d'XP (floatXpGain dans animations.js). */
 .xp-float {
@@ -15158,39 +15437,6 @@ body.onboarding .subtitle {
 }
 
 
-/* C'est tout bon ! */
-.onb-done {
-    text-align: center;
-}
-
-.onb-done-icon {
-    font-size: 54px;
-    animation: onb-pop 0.6s cubic-bezier(0.3, 1.6, 0.4, 1);
-}
-
-@keyframes onb-pop {
-    from {
-        transform: scale(0) rotate(-20deg);
-    }
-}
-
-.onb-confetti {
-    position: fixed;
-    top: -12px;
-    z-index: 50;
-    width: 9px;
-    height: 14px;
-    border-radius: 2px;
-    pointer-events: none;
-    animation: onb-fall linear forwards;
-}
-
-@keyframes onb-fall {
-    to {
-        transform: translateY(105vh) rotate(720deg);
-    }
-}
-
 @media (max-width: 420px) {
 
     .onb-card {
@@ -15836,4 +16082,853 @@ body.level-lock-4 #toggle-third-choice {
 /* Pas modifiables tant qu'elles sont grisées (attribut inert, voir updateCreateGuide) */
 .create-card .create-later {
     pointer-events: none;
+}
+
+
+
+/* =========================================================
+   DUELS 1 CONTRE 1 ET SÉRIES DE VICTOIRES (duels.js, duels.sql)
+========================================================= */
+
+/* Flamme bleue des victoires d'affilée (la flamme orange reste celle des jours) */
+.win-streak {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    margin-left: -4px;
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 1;
+    color: #7cc8ff;
+}
+
+.win-streak-flame {
+    display: inline-block;
+    transform-origin: 50% 90%;
+    filter: hue-rotate(190deg) saturate(1.4);
+}
+
+.win-streak--1 .win-streak-flame {
+    font-size: 13px;
+}
+
+.win-streak--2 .win-streak-flame {
+    font-size: 15px;
+    filter: hue-rotate(190deg) saturate(1.5) drop-shadow(0 0 3px rgba(80, 170, 255, 0.7));
+    animation: win-streak-flicker 1.6s ease-in-out infinite;
+}
+
+.win-streak--3 .win-streak-flame {
+    font-size: 17px;
+    filter: hue-rotate(190deg) saturate(1.7) drop-shadow(0 0 6px rgba(60, 150, 255, 0.9));
+    animation: win-streak-flicker 1s ease-in-out infinite;
+}
+
+.win-streak--4 .win-streak-flame {
+    font-size: 19px;
+    filter: hue-rotate(200deg) saturate(2) drop-shadow(0 0 9px rgba(40, 130, 255, 1));
+    animation: win-streak-flicker 0.7s ease-in-out infinite;
+}
+
+.win-streak--4 .win-streak-count {
+    color: #b8e2ff;
+}
+
+@keyframes win-streak-flicker {
+    50% { transform: scale(1.12) rotate(-4deg); }
+}
+
+/* Bouton « Défier » : remplace le solde au survol de la ligne */
+.lb-duel-btn {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    padding: 3px 10px;
+    z-index: 2;
+    border: 1px solid rgba(255, 92, 92, 0.6);
+    border-radius: 8px;
+    /* Fond plein : la flamme bleue de la série ne transparaît pas dessous */
+    background: #2a1b21;
+    box-shadow: -10px 0 10px #1a1d27;
+    color: #ff8a8a;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-50%) translateX(6px);
+    transition: opacity 0.2s, transform 0.25s, background 0.2s;
+}
+
+.lb-duel-btn:hover {
+    background: #3d2229;
+    color: white;
+}
+
+.leaderboard-row .leaderboard-balance {
+    transition: opacity 0.2s;
+}
+
+@media (hover: hover) {
+
+    .leaderboard-row:hover .lb-duel-btn {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(-50%);
+    }
+
+    .leaderboard-row:hover:has(.lb-duel-btn) .leaderboard-balance {
+        opacity: 0;
+    }
+
+}
+
+/* Téléphone (pas de survol) : petit bouton toujours visible après le solde */
+@media (hover: none) {
+
+    .lb-duel-btn {
+        position: static;
+        opacity: 1;
+        pointer-events: auto;
+        transform: none;
+        padding: 2px 7px;
+    }
+
+}
+
+/* Mes duels, sous la ligne d'XP du groupe */
+.duel-strip {
+    display: grid;
+    gap: 6px;
+    margin: 0 0 10px;
+}
+
+.duel-strip.hidden {
+    display: none;
+}
+
+.duel-strip-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 10px;
+    border: 1px solid #2c3040;
+    border-radius: 10px;
+    background: #12141b;
+    font-size: 12px;
+    color: #aaaeba;
+}
+
+.duel-strip-row b {
+    color: #e6e8ee;
+}
+
+.duel-strip-row.incoming {
+    border-color: rgba(255, 92, 92, 0.55);
+}
+
+.duel-strip-btn {
+    flex-shrink: 0;
+    padding: 3px 9px;
+    border: 1px solid rgba(255, 92, 92, 0.6);
+    border-radius: 8px;
+    background: rgba(255, 92, 92, 0.12);
+    color: #ff8a8a;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.duel-strip-btn--alt {
+    border-color: #2c3040;
+    background: transparent;
+    color: #858a98;
+}
+
+/* Fenêtre de défi */
+.duel-modal-content {
+    max-width: 460px;
+    max-height: 92vh;
+    overflow-y: auto;
+}
+
+.duel-modal-content h2 {
+    padding-right: 30px;
+    margin-bottom: 14px;
+}
+
+/* Comme la maquette : les deux joueurs en colonnes, le « VS » au milieu entre eux */
+.duel-versus {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.duel-versus > div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 90px;
+}
+
+.duel-av {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    color: white;
+    font-size: 18px;
+    font-weight: 900;
+}
+
+.duel-versus small {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: #aaaeba;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+/* Nom à part : « .duel-vs » est déjà la pastille VS des cartes de pari à 2 choix */
+.duel-versus-vs {
+    flex: none;
+    color: #ff5c5c;
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.duel-h2h {
+    margin-bottom: 14px;
+    padding: 10px 12px;
+    border: 1px solid #262a38;
+    border-radius: 12px;
+    background: #12141b;
+    font-size: 13px;
+    text-align: center;
+    color: #c9ccd6;
+}
+
+.duel-h2h b {
+    color: #ffd36b;
+}
+
+.duel-h2h-bar {
+    display: flex;
+    height: 8px;
+    margin: 8px 0 4px;
+    border-radius: 99px;
+    overflow: hidden;
+}
+
+.duel-h2h-bar .w {
+    background: #63d69f;
+}
+
+.duel-h2h-bar .l {
+    background: #ff5c5c;
+}
+
+.duel-h2h-legend {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #858a98;
+}
+
+.duel-field {
+    margin-bottom: 12px;
+}
+
+.duel-field label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 12px;
+    color: #858a98;
+}
+
+.duel-bets {
+    display: grid;
+    gap: 6px;
+    max-height: 170px;
+    overflow-y: auto;
+}
+
+.duel-bet,
+.duel-choice,
+.duel-amounts button {
+    border: 1px solid #2c3040;
+    border-radius: 10px;
+    background: #12141b;
+    color: #e6e8ee;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.duel-bet {
+    padding: 9px 11px;
+    text-align: left;
+}
+
+.duel-bet.on {
+    border-color: #ff5c5c;
+    background: rgba(255, 92, 92, 0.08);
+}
+
+.duel-choices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.duel-choice {
+    flex: 1;
+    min-width: 90px;
+    padding: 8px;
+}
+
+.duel-choice small {
+    display: block;
+    font-size: 11px;
+    color: #858a98;
+}
+
+.duel-choice.on {
+    border-color: #6c63ff;
+    background: rgba(108, 99, 255, 0.12);
+}
+
+.duel-amounts {
+    display: flex;
+    gap: 6px;
+}
+
+.duel-amounts button {
+    flex: 1;
+    padding: 8px;
+}
+
+.duel-amounts button.on {
+    border-color: #ffd36b;
+    color: #ffd36b;
+}
+
+.duel-amounts button:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.modal-content .duel-rule {
+    margin: 0 0 12px;
+    padding: 9px 11px;
+    border-radius: 10px;
+    background: rgba(255, 211, 107, 0.07);
+    font-size: 12px;
+    line-height: 1.5;
+    color: #aaaeba;
+}
+
+.duel-rule b {
+    color: #ffd36b;
+}
+
+.duel-go {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #ff4d4d, #ff8a5c);
+    color: white;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.duel-go:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.duel-go--alt {
+    margin-top: 8px;
+    border: 1px solid #2c3040;
+    background: #1c202c;
+    color: #aaaeba;
+}
+
+.modal-content .duel-muted {
+    font-size: 13px;
+    color: #858a98;
+}
+
+.duel-center {
+    margin-top: 10px;
+    text-align: center;
+}
+
+
+/* ----- Mode défi (maquette demo-mode-defi.html) ----- */
+
+/* La section « Groupe » devient la carte rouge du défi : classement caché */
+#duel-panel {
+    display: none;
+    position: relative;
+}
+
+body.duel-mode #duel-panel {
+    display: block;
+}
+
+body.duel-mode #leaderboard-sidebar > :not(#duel-panel) {
+    display: none;
+}
+
+body.duel-mode #leaderboard-sidebar {
+    border-color: #ff4d4d;
+    background: linear-gradient(180deg, #2a1418 0%, #170d10 100%);
+    box-shadow: 0 0 0 1px rgba(255, 77, 77, 0.3), 0 10px 40px rgba(255, 50, 50, 0.18);
+}
+
+.duel-panel-close {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    border: none;
+    background: none;
+    color: #ff8a8a;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.duel-panel-close:hover {
+    color: white;
+}
+
+.duel-panel-title {
+    margin-bottom: 12px;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #ff6b6b;
+}
+
+#duel-panel .duel-h2h {
+    border-color: rgba(255, 77, 77, 0.25);
+    background: rgba(0, 0, 0, 0.25);
+    color: #e8c9c9;
+}
+
+.duel-panel-step {
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px dashed rgba(255, 77, 77, 0.45);
+    border-radius: 12px;
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: center;
+    color: #e0b4b4;
+}
+
+.duel-panel-step b {
+    color: white;
+}
+
+/* Léger voile rouge sur la page pendant le défi */
+body.duel-mode::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    background: radial-gradient(ellipse at top left, rgba(255, 60, 60, 0.10), transparent 60%);
+    box-shadow: inset 0 0 0 2px rgba(255, 70, 70, 0.3);
+    animation: duel-tint-in 0.5s ease;
+}
+
+@keyframes duel-tint-in {
+    from { opacity: 0; }
+}
+
+/* Ticket rouge du défi (le ticket habituel est caché pendant le défi) */
+body.duel-mode .bet-ticket {
+    display: none;
+}
+
+.duel-ticket {
+    flex-shrink: 0;
+    padding: 18px;
+    border: 1px solid #ff4d4d;
+    border-radius: 18px;
+    background: linear-gradient(180deg, #2a1418 0%, #170d10 100%);
+    animation: ticket-pop 0.32s cubic-bezier(.2, .9, .3, 1.15);
+}
+
+.duel-ticket.hidden {
+    display: none;
+}
+
+.duel-ticket-head {
+    color: #ff8a8a;
+}
+
+.duel-ticket-pick {
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    border: 1px solid rgba(255, 77, 77, 0.4);
+    border-radius: 12px;
+    background: rgba(255, 77, 77, 0.1);
+    font-size: 13px;
+}
+
+.duel-ticket-pick span {
+    color: #ff8a8a;
+    font-weight: 800;
+}
+
+.duel-ticket-pick small {
+    display: block;
+    margin-top: 3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #e0b4b4;
+}
+
+.duel-ticket .duel-ticket-stake {
+    border-color: #4a2a30;
+    background: #12090b;
+}
+
+.duel-ticket-chips button {
+    border-color: #4a2a30;
+    background: #1a0f12;
+    color: #ffb3b3;
+}
+
+.duel-ticket .duel-go {
+    margin-top: 10px;
+}
+
+.duel-ticket-rule {
+    margin: 8px 0 0;
+    font-size: 11px;
+    line-height: 1.5;
+    text-align: center;
+    color: #b99;
+}
+
+/* Cartes de paris pendant le défi : cotes rouges, paris impossibles grisés */
+body.duel-mode #bets-container .bet-card:not(.duel-off) {
+    border-color: rgba(255, 77, 77, 0.45);
+}
+
+body.duel-mode #bets-container .bet-choice-button:hover {
+    border-color: #ff4d4d;
+}
+
+body.duel-mode #bets-container .bet-choice-button.duel-picked {
+    border-color: #ff4d4d;
+    background: rgba(255, 77, 77, 0.14);
+    box-shadow: 0 0 14px rgba(255, 77, 77, 0.35);
+}
+
+body.duel-mode #bets-container .bet-card.duel-off {
+    opacity: 0.35;
+    filter: grayscale(1);
+}
+
+body.duel-mode #bets-container .bet-card.duel-off .bet-choice-button {
+    cursor: not-allowed;
+}
+
+.duel-off-why {
+    margin: 10px 0 0;
+    font-size: 12px;
+    font-weight: 700;
+    color: #ff8a8a;
+}
+
+/* Ticket : boost de cote de la flamme bleue (victoires d'affilée) */
+.ticket-streak-boost {
+    color: #7cc8ff;
+}
+
+.ticket-streak-boost .win-streak-flame {
+    filter: hue-rotate(190deg) saturate(1.5) drop-shadow(0 0 3px rgba(80, 170, 255, 0.7));
+}
+
+/* Défi reçu : la mise du défi remplace le solde du joueur qui me défie */
+.leaderboard-row.duel-challenging .leaderboard-balance,
+.leaderboard-row.duel-challenging .lb-duel-btn {
+    display: none;
+}
+
+.lb-duel-chip {
+    flex-shrink: 0;
+    padding: 3px 9px;
+    border: 1px solid #ff4d4d;
+    border-radius: 8px;
+    background: transparent;
+    color: #ffb3b3;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.lb-duel-chip:hover {
+    background: #ff4d4d;
+    color: white;
+}
+
+.lb-duel-chip--new {
+    animation: lb-duel-chip-in 0.45s cubic-bezier(.3, 1.6, .5, 1);
+}
+
+@keyframes lb-duel-chip-in {
+    from { opacity: 0; transform: scale(0.6); }
+}
+
+/* Duels en pourcentage : montant correspondant sous chaque pourcentage */
+.duel-amounts button small {
+    display: block;
+    margin-top: 2px;
+    font-size: 10px;
+    color: #858a98;
+}
+
+
+/* ----- Historique de mes défis (duels.js, duels-historique.sql) ----- */
+
+.duel-history-link {
+    margin-left: auto;
+    padding: 3px 9px;
+    border: 1px solid rgba(255, 92, 92, 0.45);
+    border-radius: 8px;
+    background: transparent;
+    color: #ff8a8a;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.duel-history-link:hover {
+    background: rgba(255, 92, 92, 0.15);
+    color: white;
+}
+
+.duel-history-link.hidden {
+    display: none;
+}
+
+.duel-history-content {
+    max-width: 500px;
+    max-height: 88vh;
+    overflow-y: auto;
+}
+
+.duel-history-content h2 {
+    padding-right: 30px;
+    margin-bottom: 12px;
+}
+
+.dh-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.dh-stats > div {
+    padding: 8px;
+    border: 1px solid #262a38;
+    border-radius: 10px;
+    background: #12141b;
+    text-align: center;
+}
+
+.dh-stats b {
+    display: block;
+    font-size: 18px;
+}
+
+.dh-stats small {
+    font-size: 11px;
+    color: #858a98;
+}
+
+.dh-plus {
+    color: #63d69f;
+}
+
+.dh-minus {
+    color: #ff8a8a;
+}
+
+.dh-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.dh-filters button {
+    padding: 5px 10px;
+    border: 1px solid #2c3040;
+    border-radius: 999px;
+    background: transparent;
+    color: #858a98;
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.dh-filters button.on {
+    border-color: #ff4d4d;
+    color: #ff8a8a;
+}
+
+.dh-list {
+    display: grid;
+    gap: 8px;
+}
+
+.dh-opp {
+    padding: 10px 12px;
+    border: 1px solid #262a38;
+    border-radius: 12px;
+    background: #12141b;
+}
+
+.dh-opp-head {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: #e6e8ee;
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.dh-opp-head small {
+    font-size: 11px;
+    color: #858a98;
+}
+
+.duel-av.dh-av {
+    width: 28px;
+    height: 28px;
+    margin: 0;
+    font-size: 12px;
+}
+
+.dh-score {
+    margin-left: auto;
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.dh-arrow {
+    color: #858a98;
+    transition: transform 0.2s;
+}
+
+.dh-opp.open .dh-arrow {
+    transform: rotate(180deg);
+}
+
+.dh-bar {
+    display: flex;
+    height: 5px;
+    margin-top: 8px;
+    border-radius: 99px;
+    overflow: hidden;
+    background: #262a38;
+}
+
+.dh-bar .w {
+    background: #63d69f;
+}
+
+.dh-bar .l {
+    background: #ff5c5c;
+}
+
+.dh-duels {
+    margin-top: 8px;
+}
+
+.dh-duel {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 0;
+    border-top: 1px solid #262a38;
+    font-size: 12px;
+    color: #aaaeba;
+}
+
+.dh-dir {
+    flex-shrink: 0;
+    color: #858a98;
+}
+
+.dh-q {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dh-tag {
+    flex-shrink: 0;
+    padding: 2px 8px;
+    border-radius: 99px;
+    font-size: 11px;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.dh-tag--won { background: rgba(99, 214, 159, 0.15); color: #63d69f; }
+.dh-tag--lost { background: rgba(255, 92, 92, 0.15); color: #ff8a8a; }
+.dh-tag--pending { background: rgba(255, 211, 107, 0.12); color: #ffd36b; }
+.dh-tag--active { background: rgba(79, 195, 255, 0.12); color: #7cc8ff; }
+.dh-tag--refused,
+.dh-tag--draw { background: rgba(133, 138, 152, 0.15); color: #c9ccd6; }
+
+.dh-delta {
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+/* « Défier » grisé : un défi avec ce joueur est déjà en cours */
+.lb-duel-btn:disabled {
+    border-color: #343846;
+    background: #1c1f29;
+    color: #737887;
+    cursor: not-allowed;
 }

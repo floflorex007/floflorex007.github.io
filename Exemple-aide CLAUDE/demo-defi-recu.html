@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Démo : défi reçu</title>
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #0f1117; color: #e6e8ee; }
+    .wrap { max-width: 1000px; margin: 0 auto; padding: 20px 16px 60px; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .sub { color: #858a98; font-size: 13px; margin: 0 0 16px; line-height: 1.5; }
+
+    .controls { background: #171a23; border: 1px dashed #4a4f66; border-radius: 16px; padding: 14px; margin-bottom: 18px; display: grid; gap: 12px; }
+    .ctl-title { font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: #737887; margin-bottom: 6px; }
+    .seg { display: flex; flex-wrap: wrap; gap: 6px; }
+    .seg button { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; font: inherit; font-size: 12px; padding: 6px 11px; border-radius: 999px; cursor: pointer; }
+    .seg button.on { background: #6c63ff; border-color: #6c63ff; color: white; }
+    .desc { font-size: 13px; color: #aaaeba; background: #12141b; border-radius: 10px; padding: 10px 12px; line-height: 1.5; }
+    .desc b { color: #ff8a8a; }
+
+    .stage { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 20px; align-items: start; }
+    @media (max-width: 760px) { .stage { grid-template-columns: 1fr; } }
+    .box { position: relative; background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; border-radius: 18px; padding: 18px; }
+    .head { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 15px; margin-bottom: 12px; }
+    .gx { margin: -4px 0 8px; padding-bottom: 14px; border-bottom: 1px solid #262a38; font-size: 11px; color: #858a98; }
+    .gx b { color: #ffc36b; }
+    .gx .bar { margin-top: 5px; height: 3px; border-radius: 99px; background: #262a38; overflow: hidden; }
+    .gx .bar i { display: block; height: 100%; width: 64%; background: linear-gradient(90deg, #ff9f43, #ffd36b); }
+
+    .row { position: relative; display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid #262a38; font-size: 13px; }
+    .row:last-child { border-bottom: none; }
+    .rk { width: 16px; color: #737887; flex: none; }
+    .fl { width: 26px; flex: none; font-size: 13px; color: #7cc8ff; font-weight: 900; }
+    .fl i { font-style: normal; filter: hue-rotate(190deg) saturate(1.4); }
+    .name { position: relative; flex: 1; min-width: 0; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+    .money { color: #6c63ff; font-weight: 800; flex: none; }
+    .me { color: #c86bff; }
+
+    /* A · Encadré sous la ligne */
+    .n-box { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 2px 0 6px; padding: 6px 10px; border: 1px solid rgba(255, 92, 92, .55); border-radius: 10px; background: #12141b; font-size: 12px; color: #aaaeba; }
+    .n-box b { color: #e6e8ee; }
+    .btn { flex: none; padding: 3px 9px; border: 1px solid rgba(255, 92, 92, .6); border-radius: 8px; background: rgba(255, 92, 92, .12); color: #ff8a8a; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; }
+    .btn:hover { background: #ff4d4d; color: white; }
+    .btn.alt { border-color: #2c3040; background: transparent; color: #858a98; }
+    .btn.green { border-color: rgba(99, 214, 159, .6); background: rgba(99, 214, 159, .12); color: #63d69f; }
+
+    /* B · Bulle de message */
+    .bubble { position: absolute; left: 30px; top: calc(100% + 2px); z-index: 4; width: 230px; padding: 10px 12px; border: 1px solid #ff4d4d; border-radius: 12px; background: #24141a; box-shadow: 0 10px 26px rgba(0, 0, 0, .45); font-size: 12px; color: #e8c9c9; }
+    .bubble::before { content: ""; position: absolute; left: 22px; top: -7px; width: 12px; height: 12px; background: #24141a; border-left: 1px solid #ff4d4d; border-top: 1px solid #ff4d4d; transform: rotate(45deg); }
+    .bubble b { color: white; }
+    .bubble .acts { display: flex; gap: 6px; margin-top: 8px; }
+    .row.has-bubble { margin-bottom: 78px; }
+
+    /* C · Épées qui battent à côté du pseudo */
+    .swords { cursor: pointer; font-size: 14px; animation: beat 1.1s ease-in-out infinite; }
+    @keyframes beat { 0%, 100% { transform: scale(1) rotate(0); } 25% { transform: scale(1.3) rotate(-12deg); } 50% { transform: scale(1) rotate(0); } }
+    .mini-pop { position: absolute; left: 0; top: calc(100% + 4px); z-index: 5; width: 210px; padding: 10px; border: 1px solid #ff4d4d; border-radius: 12px; background: #181b24; box-shadow: 0 12px 30px rgba(0, 0, 0, .5); font-size: 12px; font-weight: 400; color: #c9ccd6; }
+    .mini-pop .acts { display: flex; gap: 6px; margin-top: 8px; }
+
+    /* D · Ligne qui s'ouvre (accordéon) */
+    .accordion { margin: 0 0 8px; padding: 12px; border: 1px solid rgba(255, 92, 92, .45); border-radius: 12px; background: #161016; font-size: 12px; color: #e0b4b4; animation: open .35s ease; }
+    @keyframes open { from { opacity: 0; transform: translateY(-6px); } }
+    .accordion b { color: white; }
+    .accordion .choices { display: flex; gap: 6px; margin: 8px 0; }
+    .accordion .ch { flex: 1; border: 1px solid #2c3040; background: #12141b; color: #e6e8ee; border-radius: 9px; padding: 7px; font: inherit; font-size: 12px; cursor: pointer; }
+    .accordion .ch.on { border-color: #ff4d4d; background: rgba(255, 77, 77, .12); }
+    .accordion .acts { display: flex; gap: 6px; }
+    .accordion .acts .btn { flex: 1; padding: 7px; font-size: 12px; }
+
+    /* E · Pastille de notification sur le pseudo */
+    .dot { position: absolute; top: -7px; left: -10px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: #ff4d4d; color: white; font-size: 10px; font-weight: 900; display: grid; place-items: center; box-shadow: 0 0 0 2px #1a1d27; animation: dotpulse 1.4s ease-in-out infinite; cursor: pointer; }
+    @keyframes dotpulse { 50% { transform: scale(1.18); } }
+
+    /* F · Solde remplacé par la mise du défi */
+    .stake-chip { flex: none; padding: 3px 9px; border-radius: 8px; border: 1px solid #ff4d4d; color: #ffb3b3; font-size: 12px; font-weight: 800; cursor: pointer; background: transparent; font-family: inherit; }
+    .shake { animation: shake .5s ease 2; }
+    @keyframes shake { 20%, 60% { transform: translateX(-3px); } 40%, 80% { transform: translateX(3px); } }
+
+    /* G · Bandeau en haut + flèche */
+    .banner { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: -4px 0 10px; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(255, 92, 92, .5); background: #12141b; font-size: 12px; color: #aaaeba; }
+    .banner b { color: white; }
+    .pointer { flex: none; color: #ff6b6b; font-size: 12px; font-weight: 900; animation: point .9s ease-in-out infinite; }
+    @keyframes point { 50% { transform: translateX(-4px); } }
+
+    /* H · Pseudo souligné rouge + texte sous le pseudo */
+    .under { display: block; font-size: 11px; font-weight: 700; color: #ff8a8a; margin-top: 1px; cursor: pointer; }
+    .under:hover { text-decoration: underline; }
+    .name.stack { flex-direction: column; align-items: flex-start; gap: 0; }
+
+    .arrive-slide { animation: slidein .45s cubic-bezier(.2, .9, .3, 1); }
+    @keyframes slidein { from { opacity: 0; transform: translateX(-14px); } }
+    .arrive-pop { animation: popin .45s cubic-bezier(.3, 1.6, .5, 1); }
+    @keyframes popin { from { opacity: 0; transform: scale(.6); } }
+
+    .side { font-size: 13px; color: #aaaeba; line-height: 1.6; background: #12141b; border: 1px solid #262a38; border-radius: 14px; padding: 14px; }
+    .side b { color: #e6e8ee; }
+    .modal-note { margin-top: 10px; padding: 10px; border-radius: 10px; border: 1px dashed #4a4f66; font-size: 12px; }
+    .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 60; background: #1c202c; border: 1px solid #ff5c5c; padding: 10px 16px; border-radius: 12px; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+    <h1>⚔️ Démo : la notification d'un défi reçu, sur la ligne de celui qui défie</h1>
+    <p class="sub">Yann te défie : 200 € sur « Il pleut samedi ? ». Choisis une variante et regarde la ligne de Yann dans le classement.</p>
+
+    <div class="controls">
+        <div>
+            <div class="ctl-title">Variante</div>
+            <div class="seg" data-ctl="v">
+                <button data-v="A">A · Encadré sous la ligne</button>
+                <button data-v="B">B · Bulle de message</button>
+                <button data-v="C">C · Épées qui battent</button>
+                <button data-v="D">D · La ligne s'ouvre</button>
+                <button data-v="E">E · Pastille rouge</button>
+                <button data-v="F">F · Mise à la place du solde</button>
+                <button data-v="G">G · Bandeau + flèche</button>
+                <button data-v="H">H · Texte sous le pseudo</button>
+            </div>
+        </div>
+        <div>
+            <div class="ctl-title">Arrivée de la notification</div>
+            <div class="seg" data-ctl="arrive">
+                <button data-v="pop">Petit rebond</button>
+                <button data-v="slide">Glisse</button>
+                <button data-v="none">Aucune</button>
+            </div>
+        </div>
+        <div>
+            <div class="ctl-title">Clic sur la notification</div>
+            <div class="seg" data-ctl="action">
+                <button data-v="modal">Ouvre la fenêtre du défi</button>
+                <button data-v="inline">Accepter / Refuser sur place</button>
+            </div>
+        </div>
+        <div class="desc" id="desc"></div>
+        <button class="btn" style="justify-self:start;padding:6px 12px" id="replay">↻ Rejouer l'arrivée</button>
+    </div>
+
+    <div class="stage">
+        <div class="box" id="board"></div>
+        <div class="side" id="side"></div>
+    </div>
+
+</div>
+
+<script>
+const PLAYERS = [["Florian", "12 450 €", 0], ["Lina_", "8 120 €", 3], ["Yann", "9 870 €", 5], ["Just1", "6 300 €", 0], ["victor", "4 990 €", 9], ["Balac", "3 210 €", 0]];
+const opts = { v: "A", arrive: "pop", action: "modal" };
+const st = { open: false, pick: null, done: false };
+
+const DESC = {
+    A: "Un <b>encadré rouge fin</b> se glisse juste sous la ligne de Yann : « ⚔️ Yann te défie · 200 € » + « Répondre ».",
+    B: "Une <b>bulle de message</b> sort de la ligne de Yann, avec une petite pointe vers son pseudo.",
+    C: "Des <b>épées ⚔️ qui battent</b> à côté du pseudo de Yann. Un clic ouvre une mini-bulle.",
+    D: "La <b>ligne de Yann s'ouvre en dessous</b> : le pari, son choix, ton choix et Accepter / Refuser, sans fenêtre.",
+    E: "Une <b>pastille rouge « 1 »</b> sur le pseudo de Yann, comme une notification de téléphone.",
+    F: "Le <b>solde de Yann est remplacé</b> par « ⚔️ 200 € » encadré de rouge, et la ligne fait une petite secousse.",
+    G: "Un <b>bandeau en haut</b> de la section : « ⚔️ Yann te défie ← », et un ⚔️ sur sa ligne pour le retrouver.",
+    H: "Une <b>petite ligne rouge sous le pseudo</b> de Yann : « ⚔️ te défie · 200 € · répondre »."
+};
+
+function arriveCls() { return opts.arrive === "pop" ? " arrive-pop" : opts.arrive === "slide" ? " arrive-slide" : ""; }
+
+function actsHtml() {
+    if (opts.action === "inline") return `<div class="acts"><button class="btn green" data-act="yes">Accepter</button><button class="btn alt" data-act="no">Refuser</button></div>`;
+    return `<div class="acts"><button class="btn" data-act="modal">Répondre</button></div>`;
+}
+
+function rowHtml(p, i) {
+    const [name, money, streak] = p;
+    const yann = name === "Yann" && !st.done;
+    const v = opts.v;
+    let nameExtra = "", moneyHtml = `<span class="money">${money}</span>`, after = "", rowCls = "row", nameCls = "name";
+    if (yann) {
+        if (v === "C") nameExtra = `<span class="swords${arriveCls()}" data-act="toggle">⚔️</span>${st.open ? `<div class="mini-pop"><b>Yann</b> te défie · 200 €<br>« Il pleut samedi ? »${actsHtml()}</div>` : ""}`;
+        if (v === "E") nameExtra = `<span class="dot${arriveCls()}" data-act="${opts.action === "inline" ? "toggle" : "modal"}">1</span>${st.open && opts.action === "inline" ? `<div class="mini-pop"><b>Yann</b> te défie · 200 €${actsHtml()}</div>` : ""}`;
+        if (v === "G") nameExtra = `<span class="swords">⚔️</span>`;
+        if (v === "H") { nameCls += " stack"; nameExtra = `<span class="under${arriveCls()}" data-act="${opts.action === "inline" ? "toggle" : "modal"}">⚔️ te défie · 200 € · répondre</span>`; }
+        if (v === "F") { rowCls += " shake"; moneyHtml = `<button class="stake-chip${arriveCls()}" data-act="${opts.action === "inline" ? "toggle" : "modal"}">⚔️ 200 €</button>`; }
+        if (v === "A") after = `<div class="n-box${arriveCls()}"><span>⚔️ <b>Yann</b> te défie · 200 €</span>${opts.action === "inline" ? `<span style="display:flex;gap:6px"><button class="btn green" data-act="yes">Accepter</button><button class="btn alt" data-act="no">Refuser</button></span>` : `<button class="btn" data-act="modal">Répondre</button>`}</div>`;
+        if (v === "B") { rowCls += " has-bubble"; after = ""; nameExtra = ""; }
+        if (v === "D" || ((v === "F" || v === "H") && st.open && opts.action === "inline")) after = accordionHtml();
+    }
+    const bubble = yann && v === "B" ? `<div class="bubble${arriveCls()}">⚔️ <b>Yann</b> te défie : <b>200 €</b> sur « Il pleut samedi ? »${actsHtml()}</div>` : "";
+    return `<div class="${rowCls}"><span class="rk">${i + 1}</span><span class="fl">${streak >= 3 ? `<i>🔥</i>${streak}` : ""}</span><span class="${nameCls}"><span class="${name === "Florian" ? "me" : ""}">${name}</span>${nameExtra}</span>${moneyHtml}${bubble}</div>${after}`;
+}
+
+function accordionHtml() {
+    return `<div class="accordion">⚔️ <b>Yann</b> te défie : <b>200 €</b> chacun sur « Il pleut samedi ? ».<br>Il a choisi <b>Oui</b>. Ton camp :
+        <div class="choices"><button class="ch on">Non · cote 2,4</button></div>
+        <div class="acts"><button class="btn green" data-act="yes">✅ Accepter</button><button class="btn alt" data-act="no">Refuser</button></div></div>`;
+}
+
+function render() {
+    const banner = opts.v === "G" && !st.done ? `<div class="banner${arriveCls()}"><span>⚔️ <b>Yann</b> te défie · 200 €</span><span class="pointer">← ligne 3</span>${opts.action === "inline" ? `<span style="display:flex;gap:6px"><button class="btn green" data-act="yes">Accepter</button><button class="btn alt" data-act="no">Refuser</button></span>` : `<button class="btn" data-act="modal">Répondre</button>`}</div>` : "";
+    document.getElementById("board").innerHTML = `
+        <div class="head">🏆 Groupe</div>
+        <div class="gx"><b>🌳 Niv. 0</b> · 1 280 / 2 000 XP<div class="bar"><i></i></div></div>
+        ${banner}
+        ${PLAYERS.map(rowHtml).join("")}`;
+    document.getElementById("desc").innerHTML = DESC[opts.v];
+    document.getElementById("side").innerHTML = `
+        <b>Comment le lire :</b> la ligne de Yann porte la notification ; le reste du classement ne bouge pas.<br><br>
+        <b>Clic :</b> ${opts.action === "modal" ? "ouvre la fenêtre habituelle « Yann te défie ! » (choix du camp, Accepter / Refuser)." : "tu acceptes ou refuses directement dans le classement (ton camp est pris automatiquement quand il ne reste qu'un choix ; sinon tu le choisis)."}
+        <div class="modal-note">Sur téléphone, le classement n'est pas à l'écran : la fenêtre du défi s'ouvre toute seule, comme maintenant.</div>`;
+}
+
+function toast(t) {
+    document.querySelectorAll(".toast").forEach(x => x.remove());
+    const d = document.createElement("div"); d.className = "toast"; d.textContent = t; document.body.appendChild(d);
+    setTimeout(() => d.remove(), 2200);
+}
+
+document.addEventListener("click", e => {
+    const a = e.target.closest("[data-act]");
+    if (!a) return;
+    const act = a.dataset.act;
+    if (act === "toggle") { st.open = !st.open; render(); return; }
+    if (act === "modal") { toast("→ ouvre la fenêtre « ⚔️ Yann te défie ! »"); return; }
+    if (act === "yes") { st.done = true; render(); toast("⚔️ Duel accepté contre Yann !"); return; }
+    if (act === "no") { st.done = true; render(); toast("Défi refusé."); }
+});
+document.getElementById("replay").addEventListener("click", () => { st.done = false; st.open = false; render(); });
+
+document.querySelectorAll("[data-ctl]").forEach(seg => seg.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+    opts[seg.dataset.ctl] = b.dataset.v;
+    seg.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+    st.done = false; st.open = false;
+    render();
+})));
+Object.keys(opts).forEach(k => document.querySelectorAll(`[data-ctl="${k}"] button`).forEach(b => b.classList.toggle("on", b.dataset.v === opts[k])));
+render();
+
+/* Bouton « Copier mes choix » : copie les réglages sélectionnés pour les coller dans la conversation. */
+(function () {
+    const style = document.createElement("style");
+    style.textContent = `
+        .copy-bar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+        .copy-btn { border: none; border-radius: 10px; padding: 10px 16px; font: inherit; font-weight: 800; cursor: pointer; background: linear-gradient(90deg, #6c63ff, #c86bff); color: white; }
+        .copy-btn.done { background: #63d69f; color: #0d2a1d; }
+        .copy-text { flex: 1; min-width: 220px; font-size: 12px; color: #aaaeba; background: #12141b; border: 1px solid #2c3040; border-radius: 10px; padding: 8px 10px; user-select: all; }
+    `;
+    document.head.appendChild(style);
+
+    const bar = document.createElement("div");
+    bar.className = "copy-bar";
+    bar.innerHTML = `<button type="button" class="copy-btn">📋 Copier mes choix</button><div class="copy-text"></div>`;
+    document.querySelector(".controls").appendChild(bar);
+
+    const text = () => document.title + " : " + [...document.querySelectorAll("[data-ctl]")].map(seg => {
+        const title = seg.parentElement.querySelector(".ctl-title")?.textContent.trim() || seg.dataset.ctl;
+        const on = seg.querySelector("button.on")?.textContent.trim() || "?";
+        return `${title} = ${on}`;
+    }).join(" | ");
+
+    const refresh = () => { bar.querySelector(".copy-text").textContent = text(); };
+    document.addEventListener("click", () => setTimeout(refresh, 0));
+    refresh();
+
+    const button = bar.querySelector(".copy-btn");
+    button.addEventListener("click", async () => {
+        const value = text();
+        try {
+            await navigator.clipboard.writeText(value);
+        } catch (error) {
+            const area = document.createElement("textarea");
+            area.value = value;
+            document.body.appendChild(area);
+            area.select();
+            document.execCommand("copy");
+            area.remove();
+        }
+        button.textContent = "✅ Copié ! Colle-le dans la conversation";
+        button.classList.add("done");
+        setTimeout(() => { button.textContent = "📋 Copier mes choix"; button.classList.remove("done"); }, 2500);
+    });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Démo : mode défi</title>
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #0f1117; color: #e6e8ee; }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 16px 60px; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .sub { color: #858a98; font-size: 13px; margin: 0 0 16px; line-height: 1.5; }
+
+    .controls { background: #171a23; border: 1px dashed #4a4f66; border-radius: 16px; padding: 14px; margin-bottom: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 760px) { .controls { grid-template-columns: 1fr; } }
+    .ctl-title { font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: #737887; margin-bottom: 6px; }
+    .seg { display: flex; flex-wrap: wrap; gap: 6px; }
+    .seg button { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; font: inherit; font-size: 12px; padding: 6px 11px; border-radius: 999px; cursor: pointer; }
+    .seg button.on { background: #6c63ff; border-color: #6c63ff; color: white; }
+
+    .site { position: relative; border: 1px solid #262a38; border-radius: 18px; padding: 18px; background: #0f1117; transition: box-shadow .5s, background .5s; }
+    .site.tint { background: radial-gradient(ellipse at top left, rgba(255, 60, 60, .10), transparent 60%), #0f1117; box-shadow: inset 0 0 0 1px rgba(255, 70, 70, .35); }
+    .layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 18px; align-items: start; }
+    @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+    .left { display: grid; gap: 14px; }
+
+    /* Carte Groupe (normale) */
+    .gcard { position: relative; border: 1px solid #2c3040; border-radius: 18px; padding: 18px; background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); transition: border-color .4s, box-shadow .4s, background .4s; transform-style: preserve-3d; }
+    .gcard.duel { border-color: #ff4d4d; background: linear-gradient(180deg, #2a1418 0%, #170d10 100%); box-shadow: 0 0 0 1px rgba(255, 77, 77, .3), 0 10px 40px rgba(255, 50, 50, .18); }
+    .head { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 15px; margin-bottom: 12px; }
+    .gx { margin: -4px 0 8px; padding-bottom: 14px; border-bottom: 1px solid #262a38; font-size: 11px; color: #858a98; }
+    .gx b { color: #ffc36b; }
+    .gx .bar { margin-top: 5px; height: 3px; border-radius: 99px; background: #262a38; overflow: hidden; }
+    .gx .bar i { display: block; height: 100%; width: 64%; background: linear-gradient(90deg, #ff9f43, #ffd36b); }
+    .row { position: relative; display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid #262a38; font-size: 13px; }
+    .row:last-child { border-bottom: none; }
+    .rk { width: 16px; color: #737887; }
+    .money { margin-left: auto; color: #6c63ff; font-weight: 800; transition: opacity .2s; }
+    .defier { position: absolute; right: 0; top: 50%; transform: translateY(-50%) translateX(6px); opacity: 0; pointer-events: none; border: 1px solid rgba(255, 92, 92, .6); background: #2a1b21; color: #ff8a8a; font: inherit; font-size: 12px; font-weight: 800; padding: 3px 10px; border-radius: 8px; cursor: pointer; transition: opacity .2s, transform .25s; }
+    .row:hover .defier { opacity: 1; pointer-events: auto; transform: translateY(-50%); }
+    .row:hover:has(.defier) .money { opacity: 0; }
+    .me { color: #c86bff; }
+
+    /* Mode défi */
+    .d-close { position: absolute; top: 10px; right: 12px; border: none; background: none; color: #ff8a8a; font-size: 20px; cursor: pointer; }
+    .d-title { font-size: 11px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: #ff6b6b; margin-bottom: 12px; }
+    .vs-faces { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 14px; }
+    .vs-faces > div { display: flex; flex-direction: column; align-items: center; width: 90px; }
+    .av { width: 50px; height: 50px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; font-size: 19px; color: white; }
+    .vs-faces small { margin-top: 5px; font-size: 13px; font-weight: 800; }
+    .vs-word { color: #ff4d4d; font-weight: 900; font-size: 16px; }
+    .vs-banner { margin: -18px -18px 14px; padding: 14px 18px; border-radius: 17px 17px 0 0; background: linear-gradient(90deg, #ff3b3b, #ff7a4d); color: white; font-weight: 900; font-size: 16px; text-align: center; }
+    .vs-banner span { opacity: .8; font-size: 12px; margin: 0 8px; }
+    .vs-big { text-align: center; margin-bottom: 14px; }
+    .vs-big .names { display: flex; justify-content: space-between; align-items: baseline; font-weight: 900; font-size: 17px; }
+    .vs-big .names em { font-style: normal; color: #ff4d4d; font-size: 26px; text-shadow: 0 0 18px rgba(255, 77, 77, .6); }
+
+    .score { margin-bottom: 14px; padding: 10px 12px; border-radius: 12px; background: rgba(0, 0, 0, .25); border: 1px solid rgba(255, 77, 77, .25); text-align: center; font-size: 13px; color: #e8c9c9; }
+    .score .big { font-size: 28px; font-weight: 900; letter-spacing: 2px; color: white; }
+    .score .big .w { color: #63d69f; }
+    .score .big .l { color: #ff6b6b; }
+    .score .bar2 { display: flex; height: 8px; border-radius: 99px; overflow: hidden; margin: 8px 0 4px; }
+    .score .bar2 .w { background: #63d69f; }
+    .score .bar2 .l { background: #ff5c5c; }
+    .score .legend { display: flex; justify-content: space-between; font-size: 11px; color: #a88; }
+    .score .dots { display: flex; justify-content: center; gap: 4px; margin-top: 6px; }
+    .score .dots span { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; font-size: 10px; font-weight: 900; }
+    .score .dots .w { background: rgba(99, 214, 159, .18); color: #63d69f; }
+    .score .dots .l { background: rgba(255, 92, 92, .18); color: #ff8a8a; }
+
+    .d-step { font-size: 12px; color: #e0b4b4; line-height: 1.5; padding: 10px 12px; border-radius: 12px; border: 1px dashed rgba(255, 77, 77, .45); text-align: center; }
+    .d-step b { color: white; }
+    .d-pick { padding: 10px 12px; border-radius: 12px; background: rgba(255, 77, 77, .1); border: 1px solid rgba(255, 77, 77, .4); font-size: 13px; margin-bottom: 10px; }
+    .d-pick small { display: block; color: #e0b4b4; margin-top: 3px; }
+    .stake { width: 100%; padding: 11px 12px; border-radius: 10px; border: 1px solid #4a2a30; background: #12090b; color: white; font: inherit; font-size: 15px; margin-bottom: 8px; }
+    .chips { display: flex; gap: 6px; margin-bottom: 10px; }
+    .chips button { flex: 1; border: 1px solid #4a2a30; background: #1a0f12; color: #ffb3b3; border-radius: 9px; padding: 7px; font: inherit; font-size: 12px; cursor: pointer; }
+    .go { width: 100%; border: none; border-radius: 12px; padding: 12px; font: inherit; font-weight: 900; font-size: 14px; cursor: pointer; background: linear-gradient(135deg, #ff3b3b, #ff7a4d); color: white; box-shadow: 0 8px 22px rgba(255, 60, 60, .35); }
+    .go:disabled { opacity: .45; box-shadow: none; cursor: default; }
+    .d-rule { font-size: 11px; color: #b99; text-align: center; margin-top: 8px; line-height: 1.5; }
+
+    /* Ticket normal (pour la version D = ticket) */
+    .ticket { border: 1px solid #2c3040; border-radius: 18px; padding: 16px; background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); }
+    .ticket.duel { border-color: #ff4d4d; background: linear-gradient(180deg, #2a1418 0%, #170d10 100%); }
+    .ticket h4 { margin: 0 0 10px; font-size: 14px; }
+
+    /* Paris */
+    .bets { display: grid; gap: 14px; }
+    .bet { border: 1px solid #262a38; border-radius: 18px; padding: 16px; background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); transition: opacity .4s, filter .4s, border-color .3s; }
+    .bet .q { font-weight: 800; margin-bottom: 4px; }
+    .bet .meta { font-size: 11px; color: #858a98; margin-bottom: 12px; }
+    .choices { display: flex; gap: 8px; }
+    .ch { flex: 1; border: 1px solid #2c3040; background: #12141b; border-radius: 12px; padding: 10px; text-align: center; cursor: pointer; color: #e6e8ee; font: inherit; transition: all .2s; }
+    .ch b { display: block; font-size: 17px; color: #c86bff; }
+    .ch small { font-size: 12px; color: #aaaeba; }
+    .ch:hover { border-color: #6c63ff; }
+    .ch.on { border-color: #6c63ff; background: rgba(108, 99, 255, .15); }
+    .duel-mode .ch:hover { border-color: #ff4d4d; }
+    .duel-mode .ch b { color: #ff8a8a; }
+    .duel-mode .ch.on { border-color: #ff4d4d; background: rgba(255, 77, 77, .14); box-shadow: 0 0 14px rgba(255, 77, 77, .35); }
+    .bet.off { opacity: .3; filter: grayscale(1); pointer-events: none; }
+    .bet.gone { display: none; }
+    .bet .why { display: none; font-size: 11px; color: #ff8a8a; margin-top: 8px; }
+    .bet.off .why { display: block; }
+    .bet.hl { border-color: rgba(255, 77, 77, .5); }
+
+    .flip-in { animation: flip .7s cubic-bezier(.45, 0, .25, 1); }
+    @keyframes flip { 0% { transform: perspective(1200px) rotateY(0); } 50% { transform: perspective(1200px) rotateY(90deg) scale(.95); } 100% { transform: perspective(1200px) rotateY(0); } }
+    .fade-in { animation: fadein .5s ease; }
+    @keyframes fadein { from { opacity: 0; transform: scale(.97); } }
+    .slide-in { animation: slide .5s cubic-bezier(.2, .9, .3, 1); }
+    @keyframes slide { from { opacity: 0; transform: translateX(-24px); } }
+
+    .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 60; background: #1c202c; border: 1px solid #ff5c5c; padding: 10px 16px; border-radius: 12px; font-size: 14px; box-shadow: 0 10px 30px rgba(0, 0, 0, .5); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+    <h1>⚔️ Démo : la section « Groupe » passe en mode défi</h1>
+    <p class="sub">Survole Yann (ou un autre) et clique sur « ⚔️ Défier » : la section se transforme en rouge, le classement disparaît, et tu choisis la cote directement sur les cartes de paris, comme d'habitude (mise simple seulement). Le « ✕ » ramène le classement.</p>
+
+    <div class="controls">
+        <div>
+            <div class="ctl-title">A · Transformation</div>
+            <div class="seg" data-ctl="anim">
+                <button data-v="flip">La carte se retourne</button>
+                <button data-v="fade">Fondu rouge</button>
+                <button data-v="slide">Glisse de côté</button>
+            </div>
+        </div>
+        <div>
+            <div class="ctl-title">B · En-tête « Florian vs Yann »</div>
+            <div class="seg" data-ctl="head">
+                <button data-v="faces">Ronds face à face</button>
+                <button data-v="banner">Bandeau rouge</button>
+                <button data-v="big">Gros VS entre les pseudos</button>
+            </div>
+        </div>
+        <div>
+            <div class="ctl-title">C · Score des défis entre vous deux</div>
+            <div class="seg" data-ctl="score">
+                <button data-v="big">Gros score « 2 – 1 »</button>
+                <button data-v="bar">Barre vert / rouge</button>
+                <button data-v="dots">Derniers duels (V D V)</button>
+            </div>
+        </div>
+        <div>
+            <div class="ctl-title">D · Où on met la mise</div>
+            <div class="seg" data-ctl="stake">
+                <button data-v="card">Dans la carte défi</button>
+                <button data-v="ticket">Dans le ticket (en rouge)</button>
+            </div>
+        </div>
+        <div>
+            <div class="ctl-title">E · Paris impossibles pour ce duel</div>
+            <div class="seg" data-ctl="bets">
+                <button data-v="grey">Grisés avec la raison</button>
+                <button data-v="hide">Cachés</button>
+            </div>
+        </div>
+        <div>
+            <div class="ctl-title">F · Ambiance de la page</div>
+            <div class="seg" data-ctl="tint">
+                <button data-v="card">Rouge seulement sur la section</button>
+                <button data-v="page">Léger voile rouge sur la page</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="site" id="site">
+        <div class="layout">
+            <div class="left">
+                <div class="gcard" id="gcard"></div>
+                <div id="ticket"></div>
+            </div>
+            <div class="bets" id="bets"></div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+const COLORS = { Florian: "#c86bff", Yann: "#4fc3ff", Lina_: "#ff6bd5", Just1: "#ff9f43", victor: "#63d69f", maskims: "#ffd36b", Balac: "#6c63ff" };
+const PLAYERS = [["Florian", "12 450 €"], ["Yann", "9 870 €"], ["Lina_", "8 120 €"], ["Just1", "6 300 €"], ["victor", "4 990 €"], ["maskims", "3 640 €"], ["Balac", "3 210 €"]];
+const H2H = { Yann: { w: 2, l: 1, last: "VDV" }, Lina_: { w: 0, l: 2, last: "DD" }, Just1: { w: 3, l: 3, last: "VDVDVD" }, victor: { w: 1, l: 0, last: "V" }, maskims: { w: 0, l: 0, last: "" }, Balac: { w: 4, l: 1, last: "VVDVV" } };
+const BETS = [
+    { id: 1, q: "Il pleut samedi ?", meta: "Créé par Lina_ · se termine dans 2 j", author: "Lina_", c: [["Oui", 1.6], ["Non", 2.4]] },
+    { id: 2, q: "Qui arrive en retard demain ?", meta: "Créé par Yann · se termine dans 14 h", author: "Yann", c: [["Yann", 2.1], ["Lina_", 3.4], ["Personne", 1.8]] },
+    { id: 3, q: "Score du match de foot jeudi", meta: "Créé par Just1 · se termine dans 3 j", author: "Just1", c: [["Victoire", 1.9], ["Nul", 3.2], ["Défaite", 2.8]] },
+    { id: 4, q: "Florian finit son projet ce mois-ci ?", meta: "Créé par Florian · se termine dans 9 j", author: "Florian", c: [["Oui", 1.4], ["Non", 3.0]] }
+];
+const opts = { anim: "flip", head: "faces", score: "big", stake: "card", bets: "grey", tint: "card" };
+const st = { duel: null, pick: null, amount: "" };
+
+function canDuel(bet) {
+    if (!st.duel) return true;
+    return ![ "Florian", st.duel ].includes(bet.author);
+}
+
+function headHtml(name) {
+    if (opts.head === "banner") return `<div class="vs-banner">Florian <span>VS</span> ${name}</div>`;
+    if (opts.head === "big") return `<div class="vs-big"><div class="names"><span style="color:${COLORS.Florian}">Florian</span><em>VS</em><span style="color:${COLORS[name]}">${name}</span></div></div>`;
+    return `<div class="d-title">⚔️ Mode défi</div>
+        <div class="vs-faces">
+            <div><span class="av" style="background:${COLORS.Florian}">F</span><small>Florian</small></div>
+            <span class="vs-word">VS</span>
+            <div><span class="av" style="background:${COLORS[name]}">${name[0].toUpperCase()}</span><small>${name}</small></div>
+        </div>`;
+}
+
+function scoreHtml(name) {
+    const h = H2H[name];
+    if (!h.w && !h.l) return `<div class="score">Premier défi entre vous deux !</div>`;
+    const lead = h.w > h.l ? "Tu mènes" : h.w < h.l ? `${name} mène` : "Égalité";
+    if (opts.score === "big") return `<div class="score"><div class="big"><span class="w">${h.w}</span> – <span class="l">${h.l}</span></div>${lead} dans vos défis</div>`;
+    if (opts.score === "bar") return `<div class="score">${lead} <b>${Math.max(h.w, h.l)} à ${Math.min(h.w, h.l)}</b><div class="bar2"><span class="w" style="flex:${h.w}"></span><span class="l" style="flex:${h.l}"></span></div><div class="legend"><span>Florian · ${h.w}</span><span>${h.l} · ${name}</span></div></div>`;
+    return `<div class="score">${lead} <b>${h.w} – ${h.l}</b><div class="dots">${[...h.last].slice(-5).map(r => `<span class="${r === "V" ? "w" : "l"}">${r}</span>`).join("")}</div></div>`;
+}
+
+function stakeHtml() {
+    const name = st.duel;
+    if (!st.pick) return `<div class="d-step">👉 Clique sur une cote dans un pari à droite.<br><b>${name}</b> prendra un autre choix, avec la même mise.</div>`;
+    const bet = BETS.find(b => b.id === st.pick.bet);
+    const amount = Number(st.amount) || 0;
+    return `
+        <div class="d-pick"><b>${bet.q}</b><small>Ton choix : <b>${bet.c[st.pick.i][0]}</b> · ${name} prendra un autre choix</small></div>
+        <input class="stake" id="stake" type="number" placeholder="Mise du duel (€)" value="${st.amount}">
+        <div class="chips">${[100, 200, 500].map(a => `<button data-amt="${a}">${a} €</button>`).join("")}</div>
+        <button class="go" id="send" ${amount >= 10 ? "" : "disabled"}>⚔️ Défier ${name}${amount >= 10 ? " · " + amount + " €" : ""}</button>
+        <p class="d-rule">Le gagnant récupère les 2 mises${amount >= 10 ? " (" + amount * 2 + " €)" : ""}. ${name} a 24 h pour accepter.</p>`;
+}
+
+function renderCard(animate) {
+    const card = document.getElementById("gcard");
+    card.className = "gcard" + (st.duel ? " duel" : "");
+    if (st.duel) {
+        card.innerHTML = `<button class="d-close" id="exit" title="Quitter le mode défi">✕</button>
+            ${headHtml(st.duel)}
+            ${scoreHtml(st.duel)}
+            ${opts.stake === "card" ? stakeHtml() : `<div class="d-step">👉 Clique sur une cote dans un pari à droite, puis mets ta mise dans le ticket.</div>`}`;
+    } else {
+        card.innerHTML = `<div class="head">🏆 Groupe</div>
+            <div class="gx"><b>🌳 Niv. 0</b> · 1 280 / 2 000 XP<div class="bar"><i></i></div></div>
+            ${PLAYERS.map((p, i) => `<div class="row"><span class="rk">${i + 1}</span><span class="${p[0] === "Florian" ? "me" : ""}">${p[0]}</span><span class="money">${p[1]}</span>${p[0] !== "Florian" ? `<button class="defier" data-defier="${p[0]}">⚔️ Défier</button>` : ""}</div>`).join("")}`;
+    }
+    if (animate) {
+        card.classList.remove("flip-in", "fade-in", "slide-in");
+        void card.offsetWidth;
+        card.classList.add(opts.anim === "flip" ? "flip-in" : opts.anim === "fade" ? "fade-in" : "slide-in");
+    }
+}
+
+function renderTicket() {
+    const t = document.getElementById("ticket");
+    if (st.duel && opts.stake === "ticket" && st.pick) {
+        t.innerHTML = `<div class="ticket duel"><h4>⚔️ Ticket de défi</h4>${stakeHtml()}</div>`;
+    } else if (!st.duel && st.pick) {
+        const bet = BETS.find(b => b.id === st.pick.bet);
+        t.innerHTML = `<div class="ticket"><h4>🎟️ Ticket</h4><div style="font-size:13px;margin-bottom:8px">${bet.q} · <b>${bet.c[st.pick.i][0]}</b></div><input class="stake" placeholder="Ta mise (€)" style="border-color:#2c3040;background:#12141b"></div>`;
+    } else {
+        t.innerHTML = "";
+    }
+}
+
+function renderBets() {
+    const box = document.getElementById("bets");
+    box.className = "bets" + (st.duel ? " duel-mode" : "");
+    box.innerHTML = BETS.map(bet => {
+        const ok = canDuel(bet);
+        const cls = !ok ? (opts.bets === "grey" ? " off" : " gone") : st.duel ? " hl" : "";
+        return `<div class="bet${cls}">
+            <div class="q">${bet.q}</div><div class="meta">${bet.meta}</div>
+            <div class="choices">${bet.c.map((c, i) => `<button class="ch${st.pick && st.pick.bet === bet.id && st.pick.i === i ? " on" : ""}" data-bet="${bet.id}" data-i="${i}"><b>${c[1]}</b><small>${c[0]}</small></button>`).join("")}</div>
+            <div class="why">Pas de duel : ce pari est créé par ${bet.author === "Florian" ? "toi" : bet.author}.</div>
+        </div>`;
+    }).join("");
+}
+
+function renderAll(animate) {
+    document.getElementById("site").classList.toggle("tint", Boolean(st.duel) && opts.tint === "page");
+    renderCard(animate);
+    renderTicket();
+    renderBets();
+}
+
+function toast(text) {
+    document.querySelectorAll(".toast").forEach(t => t.remove());
+    const d = document.createElement("div"); d.className = "toast"; d.textContent = text; document.body.appendChild(d);
+    setTimeout(() => d.remove(), 2600);
+}
+
+document.addEventListener("click", e => {
+    const def = e.target.closest("[data-defier]");
+    if (def) { st.duel = def.dataset.defier; st.pick = null; st.amount = ""; renderAll(true); return; }
+    if (e.target.closest("#exit")) { st.duel = null; st.pick = null; renderAll(true); return; }
+    const ch = e.target.closest("[data-bet]");
+    if (ch) {
+        const pick = { bet: +ch.dataset.bet, i: +ch.dataset.i };
+        st.pick = st.pick && st.pick.bet === pick.bet && st.pick.i === pick.i ? null : pick;
+        renderAll(false);
+        document.getElementById("stake")?.focus();
+        return;
+    }
+    const amt = e.target.closest("[data-amt]");
+    if (amt) { st.amount = amt.dataset.amt; renderAll(false); return; }
+    if (e.target.closest("#send")) {
+        toast(`⚔️ Défi envoyé à ${st.duel} : ${st.amount} € chacun. Il a 24 h pour accepter.`);
+        st.duel = null; st.pick = null; st.amount = ""; renderAll(true);
+    }
+});
+document.addEventListener("input", e => {
+    if (e.target.id === "stake") {
+        st.amount = e.target.value;
+        const go = document.getElementById("send");
+        const n = Number(st.amount) || 0;
+        go.disabled = n < 10;
+        go.textContent = `⚔️ Défier ${st.duel}${n >= 10 ? " · " + n + " €" : ""}`;
+    }
+});
+
+document.querySelectorAll("[data-ctl]").forEach(seg => seg.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+    opts[seg.dataset.ctl] = b.dataset.v;
+    seg.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+    if (seg.dataset.ctl !== "anim" && !st.duel) { st.duel = "Yann"; st.pick = null; }
+    renderAll(seg.dataset.ctl === "anim" || seg.dataset.ctl === "head");
+})));
+Object.keys(opts).forEach(k => document.querySelectorAll(`[data-ctl="${k}"] button`).forEach(b => b.classList.toggle("on", b.dataset.v === opts[k])));
+renderAll(false);
+
+/* Bouton « Copier mes choix » : copie les réglages sélectionnés pour les coller dans la conversation. */
+(function () {
+    const style = document.createElement("style");
+    style.textContent = `
+        .copy-bar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+        .copy-btn { border: none; border-radius: 10px; padding: 10px 16px; font: inherit; font-weight: 800; cursor: pointer; background: linear-gradient(90deg, #6c63ff, #c86bff); color: white; }
+        .copy-btn.done { background: #63d69f; color: #0d2a1d; }
+        .copy-text { flex: 1; min-width: 220px; font-size: 12px; color: #aaaeba; background: #12141b; border: 1px solid #2c3040; border-radius: 10px; padding: 8px 10px; user-select: all; }
+    `;
+    document.head.appendChild(style);
+
+    const bar = document.createElement("div");
+    bar.className = "copy-bar";
+    bar.innerHTML = `<button type="button" class="copy-btn">📋 Copier mes choix</button><div class="copy-text"></div>`;
+    document.querySelector(".controls").appendChild(bar);
+
+    const text = () => document.title + " : " + [...document.querySelectorAll("[data-ctl]")].map(seg => {
+        const title = seg.parentElement.querySelector(".ctl-title")?.textContent.trim() || seg.dataset.ctl;
+        const on = seg.querySelector("button.on")?.textContent.trim() || "?";
+        return `${title} = ${on}`;
+    }).join(" | ");
+
+    const refresh = () => { bar.querySelector(".copy-text").textContent = text(); };
+    document.addEventListener("click", () => setTimeout(refresh, 0));
+    refresh();
+
+    const button = bar.querySelector(".copy-btn");
+    button.addEventListener("click", async () => {
+        const value = text();
+        try {
+            await navigator.clipboard.writeText(value);
+        } catch (error) {
+            const area = document.createElement("textarea");
+            area.value = value;
+            document.body.appendChild(area);
+            area.select();
+            document.execCommand("copy");
+            area.remove();
+        }
+        button.textContent = "✅ Copié ! Colle-le dans la conversation";
+        button.classList.add("done");
+        setTimeout(() => { button.textContent = "📋 Copier mes choix"; button.classList.remove("done"); }, 2500);
+    });
+})();
+</script>
+</body>
+</html>

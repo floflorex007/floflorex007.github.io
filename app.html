@@ -96,10 +96,6 @@
                     id="group-requests-dot"
                     class="group-requests-dot hidden"
                 ></span>
-                <span
-                    id="group-tree-dot"
-                    class="group-tree-dot hidden"
-                ></span>
             </button>
 
             <div
@@ -595,7 +591,16 @@
 
                     <div class="leaderboard-header">
                         <span>🏆</span>
-                        <span>Classement</span>
+                        <span>Groupe</span>
+
+                        <!-- Historique de mes défis (openDuelHistory dans duels.js) -->
+                        <button
+                            type="button"
+                            id="duel-history-link"
+                            class="duel-history-link hidden"
+                        >
+                            ⚔️ Mes défis
+                        </button>
 
                         <!-- Téléphone seulement : ferme la fenêtre du classement -->
                         <button
@@ -608,7 +613,23 @@
                         </button>
                     </div>
 
+                    <!-- XP du groupe : fine ligne sous le titre (renderGroupXpCard dans arbre.js,
+                         maquette demo-xp-groupe-position.html, version B) -->
+                    <div
+                        id="group-xp-card"
+                        class="group-xp-card hidden"
+                    ></div>
+
+                    <!-- Mes duels en attente ou en cours (renderDuelStrip dans duels.js) -->
+                    <div
+                        id="duel-strip"
+                        class="duel-strip hidden"
+                    ></div>
+
                     <div id="leaderboard-list"></div>
+
+                    <!-- Mode défi : remplace le contenu de la section (renderDuelPanel dans duels.js) -->
+                    <div id="duel-panel"></div>
 
                 </aside>
 
@@ -618,6 +639,13 @@
                 <aside
                     id="bet-ticket"
                     class="bet-ticket"
+                ></aside>
+
+
+                <!-- Ticket rouge du mode défi (renderDuelTicket dans duels.js) -->
+                <aside
+                    id="duel-ticket"
+                    class="duel-ticket hidden"
                 ></aside>
 
 
@@ -1436,37 +1464,6 @@
 
 
 
-        <!-- =====================================
-             PAGE : ARBRE DU GROUPE (arbre.js)
-        ====================================== -->
-
-        <section
-            id="tree-page"
-            class="app-page hidden"
-        >
-
-            <div class="page-header">
-
-                <div>
-
-                    <h1>
-                        🌳 Arbre du groupe
-                    </h1>
-
-                    <p>
-                        En jouant, le groupe gagne de l'XP et débloque des bonus en votant.
-                    </p>
-
-                </div>
-
-            </div>
-
-
-            <div id="tree-root"></div>
-
-        </section>
-
-
 
         <!-- =====================================
              PAGE : MESSAGE ADMIN
@@ -1981,6 +1978,113 @@
 
 
     <!-- =========================================
+         MODAL : DUEL 1 CONTRE 1 (duels.js)
+    ========================================== -->
+
+    <div
+        id="duel-modal"
+        class="modal hidden"
+    >
+
+        <div class="modal-content duel-modal-content">
+
+            <button
+                id="close-duel-modal"
+                class="close-modal"
+            >
+                ×
+            </button>
+
+
+            <div id="duel-body"></div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =========================================
+         MODAL : HISTORIQUE DE MES DÉFIS (duels.js)
+    ========================================== -->
+
+    <div
+        id="duel-history-modal"
+        class="modal hidden"
+    >
+
+        <div class="modal-content duel-history-content">
+
+            <button
+                id="close-duel-history"
+                class="close-modal"
+            >
+                ×
+            </button>
+
+
+            <div id="duel-history-body"></div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =========================================
+         MODAL : ARBRE DU GROUPE (arbre.js)
+         Grande fenêtre par-dessus la page ; garde l'identifiant
+         « tree-page » pour les styles de l'arbre.
+    ========================================== -->
+
+    <div
+        id="tree-modal"
+        class="modal hidden"
+    >
+
+        <div class="modal-content tree-modal-content">
+
+            <button
+                id="close-tree-modal"
+                class="close-modal"
+            >
+                ×
+            </button>
+
+
+            <div id="tree-page">
+
+                <h2>
+                    🌳 Arbre du groupe
+                </h2>
+
+                <p class="tree-modal-sub">
+                    En jouant, le groupe gagne de l'XP et débloque des bonus en votant.
+                </p>
+
+
+                <div id="tree-root"></div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =========================================
+         BULLE : DÉTAIL D'UNE CASE DE L'ARBRE (au survol)
+    ========================================== -->
+
+    <div
+        id="tree-node-tip"
+        class="tree-node-tip tree-detail"
+    ></div>
+
+
+
+    <!-- =========================================
          MODAL : APERÇU D'UN ARTICLE DE LA BOUTIQUE
     ========================================== -->
 
@@ -2409,11 +2513,6 @@
             </button>
 
 
-            <h2>
-                🔥 Ta série
-            </h2>
-
-
             <div class="streak-stats">
 
                 <div>
@@ -2429,7 +2528,7 @@
             </div>
 
 
-            <p class="level-sidebar-title">
+            <p class="level-sidebar-title xp-rules-title">
                 Comment ça marche ?
             </p>
 
@@ -2441,24 +2540,14 @@
                 </li>
 
                 <li>
-                    <span>🕛</span>
-                    <p>Le jour change à <strong>minuit</strong> (heure de Paris).</p>
-                </li>
-
-                <li>
                     <span>💨</span>
                     <p>Si tu passes une journée entière sans venir, ta série <strong>repart à 1</strong>.</p>
-                </li>
-
-                <li>
-                    <span>🌍</span>
-                    <p>Ta série est la même dans tous tes groupes.</p>
                 </li>
 
             </ul>
 
 
-            <p class="level-sidebar-title">
+            <p class="level-sidebar-title xp-rules-title">
                 Protéger ta série
             </p>
 
@@ -2524,7 +2613,7 @@
             </div>
 
 
-            <p class="level-sidebar-title">
+            <p class="level-sidebar-title xp-rules-title">
                 Comment gagner de l'XP ?
             </p>
 
@@ -2533,7 +2622,7 @@
 
                 <div class="xp-rule-head">
                     <div>
-                        <strong><em>+5 XP</em>/ mise</strong>
+                        <strong><em>+5 XP</em> par mise</strong>
                     </div>
                 </div>
 
@@ -2544,7 +2633,7 @@
 
                 <div class="xp-rule-head">
                     <div>
-                        <strong><em>+10 XP</em>/ pari créé et validé</strong>
+                        <strong><em>+10 XP</em> par pari créé et validé</strong>
                     </div>
                 </div>
 
@@ -2555,7 +2644,7 @@
 
                 <div class="xp-rule-head">
                     <div>
-                        <strong><em>+25 XP</em>/ pari gagné</strong>
+                        <strong><em>+25 XP</em> par pari gagné</strong>
                     </div>
                 </div>
 
@@ -3166,6 +3255,9 @@
 
     <!-- Arbre du groupe (voir arbre-groupe.sql) -->
     <script src="arbre.js"></script>
+
+    <!-- Duels 1 contre 1 et séries de victoires (voir duels.sql) -->
+    <script src="duels.js"></script>
 
 </body>
 

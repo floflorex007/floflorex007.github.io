@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Démo : duels et séries de victoires</title>
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #0f1117; color: #e6e8ee; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 60px; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .sub { color: #858a98; font-size: 13px; margin: 0 0 16px; line-height: 1.5; }
+
+    .controls { background: #171a23; border: 1px dashed #4a4f66; border-radius: 16px; padding: 14px; margin-bottom: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 760px) { .controls { grid-template-columns: 1fr; } }
+    .group-title { grid-column: 1 / -1; font-size: 13px; font-weight: 900; color: #ffc36b; margin-top: 4px; }
+    .ctl-title { font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: #737887; margin-bottom: 6px; }
+    .seg { display: flex; flex-wrap: wrap; gap: 6px; }
+    .seg button { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; font: inherit; font-size: 12px; padding: 6px 11px; border-radius: 999px; cursor: pointer; }
+    .seg button.on { background: #6c63ff; border-color: #6c63ff; color: white; }
+
+    .stage { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 20px; align-items: start; }
+    @media (max-width: 760px) { .stage { grid-template-columns: 1fr; } }
+    .hint { font-size: 13px; color: #aaaeba; line-height: 1.6; background: #12141b; border: 1px solid #262a38; border-radius: 14px; padding: 14px; }
+    .hint b { color: #e6e8ee; }
+
+    /* Classement (comme sur la page Paris) */
+    .box { background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); border: 1px solid #2c3040; border-radius: 18px; padding: 18px; }
+    .box-head { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 15px; margin-bottom: 12px; }
+    .gx { margin: -4px 0 8px; padding-bottom: 14px; border-bottom: 1px solid #262a38; font-size: 11px; color: #858a98; }
+    .gx b { color: #ffc36b; }
+    .gx .bar { margin-top: 5px; height: 3px; border-radius: 99px; background: #262a38; overflow: hidden; }
+    .gx .bar i { display: block; height: 100%; width: 64%; background: linear-gradient(90deg, #ff9f43, #ffd36b); }
+
+    .row { position: relative; display: flex; align-items: center; gap: 8px; padding: 9px 6px; margin: 0 -6px; border-radius: 10px; border-bottom: 1px solid #262a38; font-size: 13px; transition: background .2s; }
+    .row:last-child { border-bottom: none; }
+    .row:hover { background: rgba(255, 255, 255, .03); }
+    .rk { width: 16px; color: #737887; flex: none; }
+    .name { font-weight: 700; display: inline-flex; align-items: center; gap: 5px; min-width: 0; cursor: default; }
+    .name.clickable { cursor: pointer; }
+    .name.clickable:hover { text-decoration: underline dotted; }
+    .money { margin-left: auto; color: #63d69f; font-weight: 700; flex: none; }
+    .me { color: #c86bff; }
+
+    /* Bouton Défier — variantes */
+    .duel-hover { position: absolute; right: 6px; top: 50%; transform: translateY(-50%) translateX(6px); opacity: 0; pointer-events: none; transition: opacity .2s, transform .25s; }
+    .row:hover .duel-hover { opacity: 1; transform: translateY(-50%); pointer-events: auto; }
+    .row:hover .money.hide-on-hover { opacity: 0; }
+    .duel-btn { border: 1px solid rgba(255, 92, 92, .6); background: rgba(255, 92, 92, .12); color: #ff8a8a; font: inherit; font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 8px; cursor: pointer; }
+    .duel-btn:hover { background: rgba(255, 92, 92, .25); color: white; }
+    .duel-icon { flex: none; width: 24px; height: 24px; border-radius: 8px; border: 1px solid #2c3040; background: transparent; color: #737887; cursor: pointer; font-size: 12px; display: grid; place-items: center; transition: all .2s; }
+    .duel-icon:hover { border-color: #ff5c5c; color: #ff8a8a; background: rgba(255, 92, 92, .1); }
+    .menu { position: absolute; left: 30px; top: calc(100% - 4px); z-index: 5; width: 200px; background: #181b24; border: 1px solid #2c3040; border-radius: 12px; padding: 6px; box-shadow: 0 14px 34px rgba(0, 0, 0, .5); }
+    .menu div { padding: 8px 10px; border-radius: 8px; font-size: 13px; cursor: pointer; color: #c9ccd6; }
+    .menu div:hover { background: #1c202c; }
+    .menu .red { color: #ff8a8a; font-weight: 800; }
+
+    /* Badge de série de victoires — variantes */
+    .streak { display: inline-flex; align-items: center; gap: 2px; font-size: 11px; font-weight: 900; line-height: 1; flex: none; }
+    .s-flame .ico { display: inline-block; transform-origin: 50% 90%; }
+    .s-flame.l1 .ico { font-size: 13px; }
+    .s-flame.l2 .ico { font-size: 15px; filter: drop-shadow(0 0 3px rgba(255, 120, 40, .7)); animation: flick 1.6s ease-in-out infinite; }
+    .s-flame.l3 .ico { font-size: 17px; filter: drop-shadow(0 0 6px rgba(255, 90, 30, .9)); animation: flick 1s ease-in-out infinite; }
+    .s-flame.l4 .ico { font-size: 19px; filter: drop-shadow(0 0 8px rgba(255, 60, 20, 1)) hue-rotate(-15deg) saturate(1.4); animation: flick .7s ease-in-out infinite; }
+    .s-flame .n { color: #ffb36b; }
+    .s-flame.l4 .n { color: #ff6b4a; }
+    @keyframes flick { 50% { transform: scale(1.12) rotate(-4deg); } }
+
+    .s-bolt { padding: 2px 6px; border-radius: 99px; color: #1a1206; }
+    .s-bolt.l1 { background: #ffd36b; }
+    .s-bolt.l2 { background: linear-gradient(90deg, #ffd36b, #ffb347); box-shadow: 0 0 8px rgba(255, 211, 107, .5); }
+    .s-bolt.l3 { background: linear-gradient(90deg, #ffb347, #ff7a3c); box-shadow: 0 0 12px rgba(255, 140, 60, .7); animation: glow 1.4s ease-in-out infinite; }
+    .s-bolt.l4 { background: linear-gradient(90deg, #ff7a3c, #ff3c6e, #c86bff); color: white; box-shadow: 0 0 16px rgba(255, 60, 110, .8); animation: glow .9s ease-in-out infinite; }
+    @keyframes glow { 50% { filter: brightness(1.25); } }
+
+    .s-pill { padding: 2px 7px; border-radius: 6px; border: 1px solid; }
+    .s-pill.l1 { color: #aaaeba; border-color: #4a4f66; }
+    .s-pill.l2 { color: #ffd36b; border-color: rgba(255, 211, 107, .6); }
+    .s-pill.l3 { color: #ff9f43; border-color: #ff9f43; background: rgba(255, 159, 67, .12); }
+    .s-pill.l4 { color: #ff5c5c; border-color: #ff5c5c; background: rgba(255, 92, 92, .15); box-shadow: 0 0 10px rgba(255, 92, 92, .5); }
+
+    .name-glow-l3 { text-shadow: 0 0 8px rgba(255, 140, 60, .6); }
+    .name-glow-l4 { text-shadow: 0 0 10px rgba(255, 70, 40, .8); color: #ffd2c2; }
+
+    .streak.pop { animation: badge-pop .6s cubic-bezier(.3, 1.8, .5, 1); }
+    @keyframes badge-pop { 40% { transform: scale(1.6); } }
+
+    /* Fenêtre de défi */
+    .overlay { position: fixed; inset: 0; z-index: 40; background: rgba(0, 0, 0, .7); display: flex; align-items: center; justify-content: center; padding: 16px; animation: fade .15s; }
+    @keyframes fade { from { opacity: 0; } }
+    .modal { position: relative; width: 100%; max-width: 440px; max-height: 92vh; overflow-y: auto; background: #181b24; border: 1px solid #343846; border-radius: 16px; padding: 22px; animation: zoom .25s cubic-bezier(.2, 1.3, .4, 1); }
+    @keyframes zoom { from { transform: scale(.85); opacity: 0; } }
+    .close { position: absolute; top: 10px; right: 12px; border: none; background: none; color: #858a98; font-size: 22px; cursor: pointer; }
+    .modal h2 { margin: 0 0 14px; font-size: 18px; padding-right: 30px; }
+    .versus { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 14px; }
+    .av { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; font-size: 18px; color: white; }
+    .versus .vs { font-weight: 900; color: #ff5c5c; font-size: 14px; }
+    .versus small { display: block; text-align: center; font-size: 12px; margin-top: 4px; color: #aaaeba; }
+
+    .h2h { margin-bottom: 14px; padding: 10px 12px; border-radius: 12px; background: #12141b; border: 1px solid #262a38; font-size: 13px; text-align: center; }
+    .h2h b { color: #ffd36b; }
+    .h2h .bar2 { display: flex; height: 8px; border-radius: 99px; overflow: hidden; margin: 8px 0 4px; }
+    .h2h .bar2 .w { background: #63d69f; }
+    .h2h .bar2 .l { background: #ff5c5c; }
+    .h2h .legend { display: flex; justify-content: space-between; font-size: 11px; color: #858a98; }
+    .h2h .dots { display: flex; justify-content: center; gap: 4px; margin-top: 6px; }
+    .h2h .dots span { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; font-size: 10px; font-weight: 900; }
+    .h2h .dots .w { background: rgba(99, 214, 159, .18); color: #63d69f; }
+    .h2h .dots .l { background: rgba(255, 92, 92, .18); color: #ff8a8a; }
+
+    .field { margin-bottom: 12px; }
+    .field label { display: block; font-size: 12px; color: #858a98; margin-bottom: 6px; }
+    .bets { display: grid; gap: 6px; }
+    .bet { border: 1px solid #2c3040; background: #12141b; border-radius: 10px; padding: 9px 11px; font-size: 13px; cursor: pointer; text-align: left; color: #e6e8ee; font-family: inherit; }
+    .bet.on { border-color: #ff5c5c; background: rgba(255, 92, 92, .08); }
+    .choices { display: flex; gap: 6px; flex-wrap: wrap; }
+    .choice { flex: 1; min-width: 90px; border: 1px solid #2c3040; background: #12141b; border-radius: 10px; padding: 8px; font-size: 13px; cursor: pointer; color: #e6e8ee; font-family: inherit; }
+    .choice.on { border-color: #6c63ff; background: rgba(108, 99, 255, .12); }
+    .choice small { display: block; color: #858a98; font-size: 11px; }
+    .amount { display: flex; gap: 6px; }
+    .amount button { flex: 1; border: 1px solid #2c3040; background: #12141b; color: #e6e8ee; border-radius: 10px; padding: 8px; font: inherit; font-size: 13px; cursor: pointer; }
+    .amount button.on { border-color: #ffd36b; color: #ffd36b; }
+    .rule { font-size: 12px; color: #aaaeba; background: rgba(255, 211, 107, .07); border-radius: 10px; padding: 9px 11px; margin-bottom: 12px; line-height: 1.5; }
+    .rule b { color: #ffd36b; }
+    .go { width: 100%; border: none; border-radius: 12px; padding: 12px; font: inherit; font-weight: 900; font-size: 14px; cursor: pointer; background: linear-gradient(135deg, #ff4d4d, #ff8a5c); color: white; }
+    .go.alt { background: #1c202c; border: 1px solid #2c3040; color: #aaaeba; margin-top: 8px; }
+
+    .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 60; background: #1c202c; border: 1px solid #ff5c5c; padding: 10px 16px; border-radius: 12px; font-size: 14px; box-shadow: 0 10px 30px rgba(0, 0, 0, .5); }
+
+    .sim { margin-top: 14px; }
+    .sim input { width: 100%; }
+    .sim-row { display: flex; justify-content: space-between; font-size: 12px; color: #aaaeba; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+    <h1>⚔️ Démo : duels 1 contre 1, tête-à-tête et séries de victoires</h1>
+    <p class="sub">Le classement de la section « Groupe » avec les 3 nouveautés. Survole ou clique sur un pseudo pour défier, ouvre la fenêtre de défi, et bouge le curseur pour voir le badge de série grandir.</p>
+
+    <div class="controls">
+        <div class="group-title">1 · Défi 1 contre 1</div>
+        <div>
+            <div class="ctl-title">A · Comment on lance un défi</div>
+            <div class="seg" data-ctl="trigger">
+                <button data-v="hover">Bouton « Défier » au survol</button>
+                <button data-v="icon">Petite icône ⚔️ toujours là</button>
+                <button data-v="menu">Clic sur le pseudo → menu</button>
+            </div>
+        </div>
+        <div>
+            <div class="ctl-title">B · Ce que gagne le vainqueur</div>
+            <div class="seg" data-ctl="prize">
+                <button data-v="all">Les 2 mises</button>
+                <button data-v="half">Sa mise + 50 % de l'autre</button>
+                <button data-v="bonus">Sa mise + bonus 20 %</button>
+            </div>
+        </div>
+        <div>
+            <div class="ctl-title">C · Le joueur défié doit-il accepter ?</div>
+            <div class="seg" data-ctl="accept">
+                <button data-v="yes">Oui, 24 h pour accepter</button>
+                <button data-v="no">Non, le duel démarre direct</button>
+            </div>
+        </div>
+        <div>
+            <div class="ctl-title">Voir</div>
+            <div class="seg" data-ctl="view">
+                <button data-v="send">Fenêtre « Défier »</button>
+                <button data-v="receive">Fenêtre « Défi reçu »</button>
+            </div>
+        </div>
+
+        <div class="group-title">2 · Historique tête-à-tête (dans la fenêtre de défi)</div>
+        <div>
+            <div class="ctl-title">D · Affichage</div>
+            <div class="seg" data-ctl="h2h">
+                <button data-v="text">Phrase « 2 victoires à 1 »</button>
+                <button data-v="bar">Barre vert / rouge</button>
+                <button data-v="dots">Derniers duels (V V D)</button>
+            </div>
+        </div>
+        <div></div>
+
+        <div class="group-title">3 · Séries de victoires (à partir de 3 d'affilée)</div>
+        <div>
+            <div class="ctl-title">E · Badge</div>
+            <div class="seg" data-ctl="badge">
+                <button data-v="flame">🔥 Flamme qui grandit</button>
+                <button data-v="bolt">⚡ Pastille qui chauffe</button>
+                <button data-v="pill">Étiquette « 5V »</button>
+            </div>
+        </div>
+        <div>
+            <div class="ctl-title">F · Le pseudo brille aussi (grosses séries)</div>
+            <div class="seg" data-ctl="glow">
+                <button data-v="yes">Oui, dès 8 victoires</button>
+                <button data-v="no">Non, juste le badge</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="stage">
+        <div>
+            <div class="box">
+                <div class="box-head">🏆 Groupe</div>
+                <div class="gx"><b>🌳 Niv. 0</b> · 1 280 / 2 000 XP<div class="bar"><i></i></div></div>
+                <div id="board"></div>
+            </div>
+            <div class="sim box">
+                <div class="sim-row"><span>Série de victoires de Yann</span><b id="simv">5</b></div>
+                <input type="range" min="0" max="15" value="5" id="sim">
+                <div class="sim-row"><span>0</span><span>3 · badge</span><span>5</span><span>8</span><span>12+</span></div>
+            </div>
+        </div>
+        <div class="hint" id="hint"></div>
+    </div>
+
+</div>
+
+<script>
+const COLORS = { Florian: "#c86bff", Yann: "#4fc3ff", Lina_: "#ff6bd5", Just1: "#ff9f43", victor: "#63d69f", maskims: "#ffd36b", Balac: "#6c63ff" };
+const players = [
+    { name: "Florian", money: "12 450 €", streak: 2, me: true },
+    { name: "Yann", money: "9 870 €", streak: 5 },
+    { name: "Lina_", money: "8 120 €", streak: 3 },
+    { name: "Just1", money: "6 300 €", streak: 0 },
+    { name: "victor", money: "4 990 €", streak: 9 },
+    { name: "maskims", money: "3 640 €", streak: 13 },
+    { name: "Balac", money: "3 210 €", streak: 1 }
+];
+const H2H = { Yann: { w: 2, l: 1, last: "VDV" }, Lina_: { w: 0, l: 2, last: "DD" }, Just1: { w: 3, l: 3, last: "VDVDVD" }, victor: { w: 1, l: 0, last: "V" }, maskims: { w: 0, l: 0, last: "" }, Balac: { w: 4, l: 1, last: "VVDVV" } };
+const BETS = [
+    { q: "Qui arrive en retard demain ?", c: [["Yann", 2.1], ["Lina_", 3.4], ["Personne", 1.8]] },
+    { q: "Il pleut samedi ?", c: [["Oui", 1.6], ["Non", 2.4]] },
+    { q: "Score du match de foot jeudi", c: [["Victoire", 1.9], ["Nul", 3.2], ["Défaite", 2.8]] }
+];
+const opts = { trigger: "hover", prize: "all", accept: "yes", view: "send", h2h: "text", badge: "flame", glow: "yes" };
+const st = { open: null, menu: null, bet: 0, choice: 0, amount: 200 };
+
+const level = n => n >= 12 ? 4 : n >= 8 ? 3 : n >= 5 ? 2 : n >= 3 ? 1 : 0;
+
+function badgeHtml(n) {
+    const l = level(n);
+    if (!l) return "";
+    if (opts.badge === "flame") return `<span class="streak s-flame l${l}" title="${n} victoires d'affilée"><span class="ico">🔥</span><span class="n">${n}</span></span>`;
+    if (opts.badge === "bolt") return `<span class="streak s-bolt l${l}" title="${n} victoires d'affilée">⚡${n}</span>`;
+    return `<span class="streak s-pill l${l}" title="${n} victoires d'affilée">${n}V</span>`;
+}
+
+function renderBoard() {
+    document.getElementById("board").innerHTML = players.map((p, i) => {
+        const l = level(p.streak);
+        const glow = opts.glow === "yes" && l >= 3 ? ` name-glow-l${l}` : "";
+        const canDuel = !p.me;
+        return `
+        <div class="row" data-p="${p.name}">
+            <span class="rk">${i + 1}</span>
+            <span class="name${p.me ? " me" : ""}${canDuel && opts.trigger === "menu" ? " clickable" : ""}" data-name="${p.name}"><span class="${glow}">${p.name}</span>${badgeHtml(p.streak)}</span>
+            ${canDuel && opts.trigger === "icon" ? `<button class="duel-icon" data-duel="${p.name}" title="Défier ${p.name}">⚔️</button>` : ""}
+            <span class="money${canDuel && opts.trigger === "hover" ? " hide-on-hover" : ""}">${p.money}</span>
+            ${canDuel && opts.trigger === "hover" ? `<span class="duel-hover"><button class="duel-btn" data-duel="${p.name}">⚔️ Défier</button></span>` : ""}
+            ${st.menu === p.name ? `<div class="menu"><div>👤 Voir le profil</div><div>🎁 Faire un don</div><div class="red" data-duel="${p.name}">⚔️ Défier ${p.name}</div></div>` : ""}
+        </div>`;
+    }).join("");
+}
+
+function prizeText(amount) {
+    if (opts.prize === "all") return `Le gagnant récupère <b>les 2 mises : ${amount * 2} €</b>. Le perdant perd sa mise.`;
+    if (opts.prize === "half") return `Le gagnant récupère <b>sa mise + 50 % de celle de l'autre : ${amount * 1.5} €</b>. Le perdant récupère la moitié de sa mise (${amount / 2} €).`;
+    return `Le gagnant récupère <b>sa mise + 20 % : ${amount * 1.2} €</b>. Le perdant perd sa mise.`;
+}
+
+function h2hHtml(name) {
+    const h = H2H[name] || { w: 0, l: 0, last: "" };
+    const total = h.w + h.l;
+    if (!total) return `<div class="h2h">Premier duel contre <b>${name}</b> !</div>`;
+    const sentence = h.w > h.l ? `Tu mènes <b>${h.w} victoire${h.w > 1 ? "s" : ""} à ${h.l}</b> contre ${name}`
+        : h.w < h.l ? `${name} mène <b>${h.l} victoire${h.l > 1 ? "s" : ""} à ${h.w}</b> contre toi`
+        : `Égalité <b>${h.w} partout</b> contre ${name}`;
+    if (opts.h2h === "text") return `<div class="h2h">${sentence}</div>`;
+    if (opts.h2h === "bar") return `<div class="h2h">${sentence}<div class="bar2"><span class="w" style="flex:${h.w}"></span><span class="l" style="flex:${h.l}"></span></div><div class="legend"><span>Toi · ${h.w}</span><span>${h.l} · ${name}</span></div></div>`;
+    return `<div class="h2h">${sentence}<div class="dots">${[...h.last].slice(-5).map(r => `<span class="${r === "V" ? "w" : "l"}">${r}</span>`).join("")}</div></div>`;
+}
+
+function versusHtml(a, b, aSub, bSub) {
+    return `<div class="versus">
+        <div><div class="av" style="background:${COLORS[a]}">${a[0]}</div><small>${aSub}</small></div>
+        <span class="vs">VS</span>
+        <div><div class="av" style="background:${COLORS[b]}">${b[0]}</div><small>${bSub}</small></div>
+    </div>`;
+}
+
+function openDuel(name) {
+    st.open = name;
+    st.menu = null;
+    renderBoard();
+    renderModal();
+}
+
+function renderModal() {
+    document.querySelectorAll(".overlay").forEach(o => o.remove());
+    if (!st.open) return;
+    const name = st.open;
+    const bet = BETS[st.bet];
+    const ov = document.createElement("div");
+    ov.className = "overlay";
+    if (opts.view === "send") {
+        ov.innerHTML = `<div class="modal">
+            <button class="close">×</button>
+            <h2>⚔️ Défier ${name}</h2>
+            ${versusHtml("Florian", name, "Toi", name)}
+            ${h2hHtml(name)}
+            <div class="field"><label>Sur quel pari ?</label><div class="bets">${BETS.map((b, i) => `<button class="bet${i === st.bet ? " on" : ""}" data-bet="${i}">${b.q}</button>`).join("")}</div></div>
+            <div class="field"><label>Ton choix ${opts.accept === "yes" ? `(${name} prendra un autre choix)` : `(${name} est mis sur un autre choix)`}</label><div class="choices">${bet.c.map((c, i) => `<button class="choice${i === st.choice ? " on" : ""}" data-choice="${i}">${c[0]}<small>cote ${c[1]}</small></button>`).join("")}</div></div>
+            <div class="field"><label>Mise (la même pour vous deux)</label><div class="amount">${[100, 200, 500, 1000].map(a => `<button class="${a === st.amount ? "on" : ""}" data-amount="${a}">${a} €</button>`).join("")}</div></div>
+            <div class="rule">${prizeText(st.amount)}</div>
+            <button class="go">⚔️ ${opts.accept === "yes" ? "Envoyer le défi" : "Lancer le duel"}</button>
+        </div>`;
+    } else {
+        const choice = BETS[0].c[0][0];
+        ov.innerHTML = `<div class="modal">
+            <button class="close">×</button>
+            <h2>⚔️ Yann te défie !</h2>
+            ${versusHtml("Yann", "Florian", "Yann", "Toi")}
+            ${h2hHtml("Yann")}
+            <div class="rule">Pari : <b>${BETS[0].q}</b><br>Yann a choisi <b>${choice}</b>. Tu prendras un autre choix, avec la même mise : <b>200 €</b>.<br>${prizeText(200)}</div>
+            ${opts.accept === "yes"
+                ? `<button class="go">✅ Accepter le duel</button><button class="go alt">Refuser</button><p style="font-size:12px;color:#737887;text-align:center;margin:10px 0 0">Il te reste 23 h pour répondre. Refuser ne coûte rien.</p>`
+                : `<p style="font-size:13px;color:#aaaeba;text-align:center;margin:0">Le duel a démarré automatiquement : tu as été placé sur un autre choix.</p><button class="go alt">OK</button>`}
+        </div>`;
+    }
+    document.body.appendChild(ov);
+    ov.addEventListener("click", e => {
+        if (e.target === ov || e.target.closest(".close") || e.target.closest(".go.alt")) { st.open = null; ov.remove(); return; }
+        const b = e.target.closest("[data-bet]"); if (b) { st.bet = +b.dataset.bet; st.choice = 0; renderModal(); return; }
+        const c = e.target.closest("[data-choice]"); if (c) { st.choice = +c.dataset.choice; renderModal(); return; }
+        const a = e.target.closest("[data-amount]"); if (a) { st.amount = +a.dataset.amount; renderModal(); return; }
+        if (e.target.closest(".go")) {
+            st.open = null; ov.remove();
+            toast(opts.view === "receive" ? "⚔️ Duel accepté contre Yann !" : opts.accept === "yes" ? `⚔️ Défi envoyé à ${name} : il a 24 h pour accepter.` : `⚔️ Duel lancé contre ${name} !`);
+        }
+    });
+}
+
+function toast(t) {
+    document.querySelectorAll(".toast").forEach(x => x.remove());
+    const d = document.createElement("div"); d.className = "toast"; d.textContent = t; document.body.appendChild(d);
+    setTimeout(() => d.remove(), 2600);
+}
+
+function renderHint() {
+    const trig = { hover: "Survole un joueur : « ⚔️ Défier » remplace son solde.", icon: "Clique sur l'icône ⚔️ à droite d'un joueur.", menu: "Clique sur un pseudo : un petit menu s'ouvre (profil, don, défier)." }[opts.trigger];
+    document.getElementById("hint").innerHTML = `
+        <b>Essaie :</b> ${trig}<br><br>
+        <b>Badge de série :</b> il apparaît à 3 victoires d'affilée, puis change à 5, 8 et 12. Ici : Lina_ (3), Yann (5), victor (9), maskims (13). Bouge le curseur sous le classement pour voir l'évolution, avec une petite animation quand le palier change.<br><br>
+        <b>Ce qui compte comme une victoire :</b> un pari gagné (mise simple ou combiné), validé. Une défaite remet la série à 0.<br><br>
+        <b>Données Supabase prévues :</b> une table <code>duels</code> (qui défie qui, pari, choix de chacun, mise, statut, gagnant) ; le tête-à-tête se calcule à partir des duels terminés ; la série de victoires se calcule à partir des mises validées.`;
+}
+
+function renderAll() { renderBoard(); renderHint(); if (st.open) renderModal(); }
+
+document.getElementById("board").addEventListener("click", e => {
+    const d = e.target.closest("[data-duel]");
+    if (d) { openDuel(d.dataset.duel); return; }
+    const n = e.target.closest("[data-name]");
+    if (n && opts.trigger === "menu" && !players.find(p => p.name === n.dataset.name).me) {
+        st.menu = st.menu === n.dataset.name ? null : n.dataset.name; renderBoard();
+    }
+});
+document.addEventListener("click", e => { if (st.menu && !e.target.closest(".row")) { st.menu = null; renderBoard(); } });
+
+let lastLevel = level(5);
+document.getElementById("sim").addEventListener("input", e => {
+    const v = +e.target.value;
+    players[1].streak = v;
+    document.getElementById("simv").textContent = v;
+    renderBoard();
+    if (level(v) !== lastLevel) document.querySelector('[data-p="Yann"] .streak')?.classList.add("pop");
+    lastLevel = level(v);
+});
+
+document.querySelectorAll("[data-ctl]").forEach(seg => seg.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+    opts[seg.dataset.ctl] = b.dataset.v;
+    seg.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+    if (seg.dataset.ctl === "view") { st.open = b.dataset.v === "receive" ? "Yann" : (st.open || "Yann"); }
+    renderAll();
+})));
+Object.keys(opts).forEach(k => document.querySelectorAll(`[data-ctl="${k}"] button`).forEach(b => b.classList.toggle("on", b.dataset.v === opts[k])));
+renderAll();
+
+/* Bouton « Copier mes choix » : copie les réglages sélectionnés pour les coller dans la conversation. */
+(function () {
+    const style = document.createElement("style");
+    style.textContent = `
+        .copy-bar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+        .copy-btn { border: none; border-radius: 10px; padding: 10px 16px; font: inherit; font-weight: 800; cursor: pointer; background: linear-gradient(90deg, #6c63ff, #c86bff); color: white; }
+        .copy-btn.done { background: #63d69f; color: #0d2a1d; }
+        .copy-text { flex: 1; min-width: 220px; font-size: 12px; color: #aaaeba; background: #12141b; border: 1px solid #2c3040; border-radius: 10px; padding: 8px 10px; user-select: all; }
+    `;
+    document.head.appendChild(style);
+
+    const bar = document.createElement("div");
+    bar.className = "copy-bar";
+    bar.innerHTML = `<button type="button" class="copy-btn">📋 Copier mes choix</button><div class="copy-text"></div>`;
+    document.querySelector(".controls").appendChild(bar);
+
+    const text = () => document.title + " : " + [...document.querySelectorAll("[data-ctl]")].map(seg => {
+        const title = seg.parentElement.querySelector(".ctl-title")?.textContent.trim() || seg.dataset.ctl;
+        const on = seg.querySelector("button.on")?.textContent.trim() || "?";
+        return `${title} = ${on}`;
+    }).join(" | ");
+
+    const refresh = () => { bar.querySelector(".copy-text").textContent = text(); };
+    document.addEventListener("click", () => setTimeout(refresh, 0));
+    refresh();
+
+    const button = bar.querySelector(".copy-btn");
+    button.addEventListener("click", async () => {
+        const value = text();
+        try {
+            await navigator.clipboard.writeText(value);
+        } catch (error) {
+            const area = document.createElement("textarea");
+            area.value = value;
+            document.body.appendChild(area);
+            area.select();
+            document.execCommand("copy");
+            area.remove();
+        }
+        button.textContent = "✅ Copié ! Colle-le dans la conversation";
+        button.classList.add("done");
+        setTimeout(() => { button.textContent = "📋 Copier mes choix"; button.classList.remove("done"); }, 2500);
+    });
+})();
+</script>
+</body>
+</html>
