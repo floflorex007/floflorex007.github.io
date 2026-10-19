@@ -6,7 +6,7 @@
      déconnecter. Les joueurs qui acceptent envoient leurs clics par
      paquets (toutes les 10 s, dès 30 clics, et à la fermeture de la page) :
      écran, élément cliqué, son rang parmi les éléments identiques, position
-     du clic DANS cet élément, largeur d'écran, appareil. Jamais le texte
+     du clic DANS cet élément, largeur d'écran, appareil, niveau du joueur. Jamais le texte
      tapé ni le pseudo (la base ne garde aucun lien avec le compte) ;
    - l'admin et les comptes de click_excluded_users ne sont jamais comptés ;
    - onglet « Heat map » (admin) : calque plein écran, le vrai site dans un
@@ -109,7 +109,9 @@ const CLICK_LABELS = {
     "#level-up-button": "Débloquer le niveau",
     "#tour-replay-button": "Revoir le tuto",
     "#toggle-third-choice": "3e choix (création)",
-    "#logout-button": "Déconnexion"
+    "#logout-button": "Déconnexion",
+    "button.streak-day-claim": "🔥 Prendre la récompense de série",
+    "div.streak-day": "Case du calendrier de série"
 };
 
 const CLICK_LABEL_PATTERNS = [
@@ -181,6 +183,36 @@ const CLICK_PREVIEW_ALLOWED_RPCS = new Set([
 // Une fenêtre qui s'ouvre plus de 4 s après le dernier geste de l'admin
 // (annonce, cadeau, défi reçu…) est refermée dans l'aperçu.
 const CLICK_PREVIEW_POPUP_MS = 4000;
+
+// Analyses : éléments qu'on clique plusieurs fois de suite exprès (motifs LIKE),
+// jamais comptés comme « clics répétés ».
+const CLICK_REPEAT_OK = [
+    "%data-stake%",
+    "#parrot%",
+    "%input%",
+    "%textarea%",
+    "#chat-send%",
+    "#stake-input%"
+];
+
+// Analyses : parcours suivis (étape après étape, pendant la même visite).
+// element : motif LIKE de la clé ; screen : écran où l'étape doit avoir lieu (facultatif).
+const HEATMAP_FUNNELS = [
+    {
+        label: "Placer une mise",
+        steps: [
+            { label: "Cote touchée", element: "button.bet-choice-button%" },
+            { label: "« Miser » cliqué", element: "#confirm-bet%", screen: "bet-modal" }
+        ]
+    },
+    {
+        label: "Valider un combiné",
+        steps: [
+            { label: "Ticket ouvert", element: "button.ticket-bar%" },
+            { label: "« Valider le combiné » cliqué", element: "button.ticket-go%" }
+        ]
+    }
+];
 
 
 // État du comptage pour ce joueur : 'accepted', 'refused', 'unknown' ou 'excluded'.
@@ -489,12 +521,45 @@ function recordClick(event) {
         ex_pm: toPerMille((event.clientX - rect.left) / rect.width),
         ey_pm: toPerMille((event.clientY - rect.top) / rect.height),
         vw: Math.max(200, Math.min(8000, Math.round(vw))),
-        device: PHONE_LAYOUT.matches ? "mobile" : "desktop"
+        device: PHONE_LAYOUT.matches ? "mobile" : "desktop",
+        level: clickPlayerLevel(),
+        dead: clickIsDead(target)
     });
 
     if (clickQueue.length >= CLICK_BATCH) {
         flushClicks();
     }
+
+}
+
+
+/*
+    Clic dans le vide : ni bouton (ou un bouton grisé), ni curseur « main ».
+    Le fond d'une fenêtre ou d'un volet n'en est pas un : il la referme.
+*/
+function clickIsDead(target) {
+
+    if (target.matches(CLICK_OVERLAYS)) {
+        return false;
+    }
+
+    const control = target.closest(CLICK_INTERACTIVE);
+
+    if (control) {
+        return control.disabled === true || control.getAttribute("aria-disabled") === "true";
+    }
+
+    return getComputedStyle(target).cursor !== "pointer";
+
+}
+
+
+// Niveau affiché au joueur (animations.js), celui qui décide de ce qu'il voit à l'écran.
+function clickPlayerLevel() {
+
+    const level = typeof playerLevel === "number" ? playerLevel : NaN;
+
+    return Number.isFinite(level) ? Math.max(1, Math.min(99, Math.round(level))) : null;
 
 }
 
@@ -998,7 +1063,11 @@ const heatmap = {
     screen: "bets-page",
     device: "phone",
     period: "7",
+    // "" = tous les niveaux, "5" = niveau 5 et plus.
+    level: "",
     scope: "screen",
+    // "map" : la carte ; "analysis" : l'onglet Analyses.
+    view: "map",
     frame: null,
     ready: null,
     loaded: false,
@@ -1027,7 +1096,11 @@ const heatmap = {
     // Plus forte densité du calque de la page (gardée quand seul le calque fixe est redessiné).
     pagePeak: 0,
     // Dernier dessin de chaque calque, pour ne pas le refaire à l'identique.
-    signatures: {}
+    signatures: {},
+    // Élément choisi depuis les Analyses : on le fait défiler à l'écran une fois placé.
+    scrollToSelected: false,
+    analysisToken: 0,
+    compareToken: 0
 };
 
 let heatmapLut = null;
@@ -1053,7 +1126,7 @@ function setupHeatmapPage() {
 
     });
 
-    ["device", "period"].forEach(key => {
+    ["device", "period", "level"].forEach(key => {
 
         document.getElementById("heatmap-" + key).addEventListener("change", event => {
 
@@ -1065,9 +1138,57 @@ function setupHeatmapPage() {
 
             loadHeatmapData();
 
+            if (heatmap.view === "analysis") {
+
+                loadHeatmapAnalysis();
+
+                if (key !== "period") {
+                    loadHeatmapCompare();
+                }
+
+            }
+
         });
 
     });
+
+    document.querySelectorAll("[data-heatmap-view]").forEach(button => {
+
+        button.addEventListener("click", () => setHeatmapView(button.dataset.heatmapView));
+
+    });
+
+    // Ligne des Analyses : on l'ouvre sur la carte, l'élément entouré.
+    document.getElementById("heatmap-analysis").addEventListener("click", event => {
+
+        const row = event.target.closest("[data-goto-screen]");
+
+        if (!row) {
+            return;
+        }
+
+        heatmap.selected = row.dataset.gotoElement;
+
+        heatmap.scrollToSelected = true;
+
+        setHeatmapView("map");
+
+        navigateHeatmapFrame(row.dataset.gotoScreen);
+
+    });
+
+    // Avant / après : par défaut, le changement d'il y a 7 jours.
+    const compareDate = document.getElementById("heatmap-compare-date");
+
+    const weekAgo = new Date(Date.now() - 7 * 86400000);
+
+    compareDate.value = localDateValue(weekAgo);
+
+    compareDate.max = localDateValue(new Date());
+
+    compareDate.addEventListener("change", loadHeatmapCompare);
+
+    document.getElementById("heatmap-compare-span").addEventListener("change", loadHeatmapCompare);
 
     document.getElementById("heatmap-reload").addEventListener("click", reloadHeatmapFrame);
 
@@ -1404,8 +1525,17 @@ function loadHeatmapRanking() {
     return supabaseClient.rpc("admin_click_ranking", {
         p_screen: heatmap.scope === "all" ? null : heatmap.screen,
         p_bucket: heatmap.device,
-        p_days: Number(heatmap.period)
+        p_days: Number(heatmap.period),
+        p_level: heatmapLevel()
     });
+
+}
+
+
+// Filtre « Niveau » : null = tous (la base compte « 5 » comme 5 et plus).
+function heatmapLevel() {
+
+    return heatmap.level === "" ? null : Number(heatmap.level);
 
 }
 
@@ -1416,7 +1546,7 @@ async function loadHeatmapData() {
 
     const screen = heatmap.screen;
 
-    const cacheKey = [screen, heatmap.device, heatmap.period, heatmap.scope].join("|");
+    const cacheKey = [screen, heatmap.device, heatmap.period, heatmap.level, heatmap.scope].join("|");
 
     heatmap.dataScreen = null;
 
@@ -1429,7 +1559,8 @@ async function loadHeatmapData() {
         const params = {
             p_screen: screen,
             p_bucket: heatmap.device,
-            p_days: Number(heatmap.period)
+            p_days: Number(heatmap.period),
+            p_level: heatmapLevel()
         };
 
         const [summary, cells, ranking] = await Promise.all([
@@ -1993,7 +2124,7 @@ function layoutHeatmap() {
 
     const doc = heatmapDoc();
 
-    if (!doc || !isHeatmapOpen()) {
+    if (!doc || !isHeatmapOpen() || heatmap.view !== "map") {
         return;
     }
 
@@ -2070,6 +2201,14 @@ function layoutHeatmap() {
     renderHeatmapUnused();
 
     paintHeatmap();
+
+    if (heatmap.scrollToSelected && heatmap.dataScreen === screen) {
+
+        heatmap.scrollToSelected = false;
+
+        heatmapElements(doc, heatmap.selected)[0]?.scrollIntoView({ block: "center" });
+
+    }
 
 }
 
@@ -2403,5 +2542,437 @@ function placeHeatLayer(doc, id, layer, radius, max) {
     }
 
     ctx.putImageData(image, 0, 0);
+
+}
+
+
+
+/* =========================================================
+   ONGLET ANALYSES (admin) : ce qui gêne les joueurs, sur tous les écrans
+   Clics dans le vide, clics répétés, parcours et abandons, avant / après.
+   La base ne renvoie que des totaux (admin_click_analysis, admin_click_funnel).
+========================================================= */
+
+function setHeatmapView(view) {
+
+    heatmap.view = view;
+
+    document
+        .querySelectorAll("[data-heatmap-view]")
+        .forEach(button => button.classList.toggle("active", button.dataset.heatmapView === view));
+
+    document.getElementById("heatmap-page").classList.toggle("heatmap-analysis-open", view === "analysis");
+
+    if (view === "analysis") {
+
+        loadHeatmapAnalysis();
+
+        loadHeatmapCompare();
+
+    } else {
+
+        fitHeatmapFrame();
+
+        scheduleHeatmapLayout();
+
+    }
+
+}
+
+
+// Date du jour au format du champ date (heure de l'appareil, pas UTC).
+function localDateValue(date) {
+
+    return [
+        date.getFullYear(),
+        String(date.getMonth() + 1).padStart(2, "0"),
+        String(date.getDate()).padStart(2, "0")
+    ].join("-");
+
+}
+
+
+function heatmapAnalysisParams(from = null, to = null) {
+
+    return {
+        p_bucket: heatmap.device,
+        p_days: Number(heatmap.period),
+        p_level: heatmapLevel(),
+        p_from: from,
+        p_to: to
+    };
+
+}
+
+
+// Chiffres d'une période : analyse générale + chaque parcours.
+async function fetchHeatmapAnalysis(from = null, to = null) {
+
+    const params = heatmapAnalysisParams(from, to);
+
+    const [analysis, ...funnels] = await Promise.all([
+        supabaseClient.rpc("admin_click_analysis", { ...params, p_repeat_ok: CLICK_REPEAT_OK }),
+        ...HEATMAP_FUNNELS.map(funnel => supabaseClient.rpc("admin_click_funnel", {
+            ...params,
+            p_steps: funnel.steps.map(({ element, screen }) => (screen ? { element, screen } : { element }))
+        }))
+    ]);
+
+    const error = analysis.error || funnels.find(result => result.error)?.error || null;
+
+    return {
+        error,
+        analysis: analysis.data || null,
+        funnels: funnels.map(result => (result.data || []).map(Number))
+    };
+
+}
+
+
+async function loadHeatmapAnalysis() {
+
+    const token = ++heatmap.analysisToken;
+
+    const status = document.getElementById("heatmap-analysis-status");
+
+    status.textContent = "Chargement…";
+
+    status.classList.remove("hidden");
+
+    const result = await fetchHeatmapAnalysis();
+
+    if (token !== heatmap.analysisToken) {
+        return;
+    }
+
+    if (result.error) {
+
+        console.error("Erreur analyses heat map :", result.error);
+
+        status.textContent = "Impossible de charger les analyses : " + (result.error.message || "erreur inconnue");
+
+        return;
+
+    }
+
+    const data = result.analysis || {};
+
+    status.classList.toggle("hidden", (data.clicks || 0) > 0);
+
+    status.textContent = "Pas encore de clics pour ces filtres.";
+
+    renderHeatmapAnalysisStats(data);
+
+    renderHeatmapDead(data);
+
+    renderHeatmapRepeat(data);
+
+    renderHeatmapFunnels(result.funnels);
+
+}
+
+
+// Part en pour cent, « — » si on ne peut pas la calculer.
+function heatmapPercent(part, total, digits = 0) {
+
+    if (!total) {
+        return "—";
+    }
+
+    return (part / total * 100).toLocaleString("fr-FR", { maximumFractionDigits: digits }) + " %";
+
+}
+
+
+function renderHeatmapAnalysisStats(data) {
+
+    const clicks = data.clicks || 0;
+
+    const visits = data.visits || 0;
+
+    document.getElementById("heatmap-analysis-stats").innerHTML = `
+        <div><b>${formatCount(clicks)}</b><span>clics</span></div>
+        <div><b>${formatCount(visits)}</b><span>visites</span></div>
+        <div><b>${visits ? (clicks / visits).toLocaleString("fr-FR", { maximumFractionDigits: 1 }) : "—"}</b><span>clics par visite</span></div>
+        <div><b>${heatmapPercent(data.dead_clicks || 0, data.dead_known || 0, 1)}</b><span>clics dans le vide</span></div>
+    `;
+
+}
+
+
+// Ligne cliquable : l'élément et son écran, ouverts sur la carte.
+function heatmapGotoRow(row, index, max, detail) {
+
+    const share = max ? row.value / max : 0;
+
+    return `
+        <li
+            data-goto-screen="${escapeHtml(row.screen)}"
+            data-goto-element="${escapeHtml(row.element)}"
+        >
+            <span class="heatmap-rank-n">${index + 1}</span>
+            <div class="heatmap-rank-body">
+                <div class="heatmap-rank-line">
+                    <span>${clickLabelHtml(row.element)}<small>${escapeHtml(screenLabel(row.screen))}</small></span>
+                    <b>${detail}</b>
+                </div>
+                <div class="heatmap-rank-bar">
+                    <i style="width:${share * 100}%;background:${heatColor(Math.pow(share, 0.55))}"></i>
+                </div>
+            </div>
+        </li>
+    `;
+
+}
+
+
+function renderHeatmapDead(data) {
+
+    const list = document.getElementById("heatmap-dead-list");
+
+    const rows = (data.dead || []).map(row => ({ ...row, value: row.clicks }));
+
+    const total = data.dead_clicks || 0;
+
+    list.innerHTML = rows.length
+        ? rows.map((row, index) => heatmapGotoRow(
+            row,
+            index,
+            rows[0].value,
+            `${formatCount(row.clicks)} <small>${heatmapPercent(row.clicks, total)}</small>`
+        )).join("")
+        : `<li class="heatmap-rank-empty">${(data.dead_known || 0) > 0 ? "Aucun clic dans le vide 👍" : "Pas encore de clics notés « dans le vide » (comptés depuis le 19 octobre)."}</li>`;
+
+}
+
+
+function renderHeatmapRepeat(data) {
+
+    const list = document.getElementById("heatmap-repeat-list");
+
+    const rows = (data.repeat || []).map(row => ({ ...row, value: row.runs }));
+
+    list.innerHTML = rows.length
+        ? rows.map((row, index) => heatmapGotoRow(
+            row,
+            index,
+            rows[0].value,
+            `${formatCount(row.runs)}× <small>jusqu'à ${row.longest} de suite · ${formatCount(row.visits)} visite${row.visits > 1 ? "s" : ""}</small>`
+        )).join("")
+        : `<li class="heatmap-rank-empty">Aucun clic répété 👍</li>`;
+
+}
+
+
+function renderHeatmapFunnels(counts) {
+
+    document.getElementById("heatmap-funnels").innerHTML = HEATMAP_FUNNELS
+        .map((funnel, index) => {
+
+            const steps = counts[index] || [];
+
+            const first = steps[0] || 0;
+
+            return `
+                <div class="heatmap-funnel">
+                    <h4>${escapeHtml(funnel.label)}</h4>
+                    ${funnel.steps.map((step, stepIndex) => {
+
+                        const visits = steps[stepIndex] || 0;
+
+                        const share = first ? visits / first : 0;
+
+                        const lost = stepIndex > 0 ? (steps[stepIndex - 1] || 0) - visits : 0;
+
+                        return `
+                            <div class="heatmap-funnel-step">
+                                <div class="heatmap-rank-line">
+                                    <span>${escapeHtml(step.label)}</span>
+                                    <b>${formatCount(visits)} <small>${stepIndex > 0 ? heatmapPercent(visits, first) : "visites"}</small></b>
+                                </div>
+                                <div class="heatmap-rank-bar">
+                                    <i style="width:${share * 100}%"></i>
+                                </div>
+                                ${lost > 0 ? `<small class="heatmap-funnel-lost">↓ ${formatCount(lost)} visite${lost > 1 ? "s" : ""} s'arrête${lost > 1 ? "nt" : ""} là</small>` : ""}
+                            </div>
+                        `;
+
+                    }).join("")}
+                </div>
+            `;
+
+        })
+        .join("");
+
+}
+
+
+/* ---------- Avant / après ---------- */
+
+async function loadHeatmapCompare() {
+
+    const token = ++heatmap.compareToken;
+
+    const box = document.getElementById("heatmap-compare");
+
+    const value = document.getElementById("heatmap-compare-date").value;
+
+    const span = Number(document.getElementById("heatmap-compare-span").value) || 7;
+
+    if (!value) {
+
+        box.innerHTML = `<p class="heatmap-card-hint">Choisis un jour.</p>`;
+
+        return;
+
+    }
+
+    const [year, month, day] = value.split("-").map(Number);
+
+    const change = new Date(year, month - 1, day);
+
+    const start = new Date(year, month - 1, day - span);
+
+    const end = new Date(year, month - 1, day + span);
+
+    box.innerHTML = `<p class="heatmap-card-hint">Chargement…</p>`;
+
+    const [before, after] = await Promise.all([
+        fetchHeatmapAnalysis(start.toISOString(), change.toISOString()),
+        fetchHeatmapAnalysis(change.toISOString(), end.toISOString())
+    ]);
+
+    if (token !== heatmap.compareToken) {
+        return;
+    }
+
+    const error = before.error || after.error;
+
+    if (error) {
+
+        console.error("Erreur avant / après heat map :", error);
+
+        box.innerHTML = `<p class="heatmap-card-hint">Impossible de comparer : ${escapeHtml(error.message || "erreur inconnue")}</p>`;
+
+        return;
+
+    }
+
+    renderHeatmapCompare(before, after, { start, change, end });
+
+}
+
+
+/*
+    Indicateurs comparés. better : "down" si une baisse est un progrès,
+    "up" si c'est une hausse, null si ça dépend (clics par visite).
+*/
+function heatmapCompareRows(period) {
+
+    const data = period.analysis || {};
+
+    const visits = data.visits || 0;
+
+    return [
+        {
+            label: "Clics par visite",
+            value: visits ? (data.clicks || 0) / visits : null,
+            unit: "",
+            better: null
+        },
+        {
+            label: "Clics dans le vide",
+            value: data.dead_known ? (data.dead_clicks || 0) / data.dead_known * 100 : null,
+            unit: " %",
+            better: "down"
+        },
+        {
+            label: "Clics répétés (séries pour 100 visites)",
+            value: visits ? (data.repeat_runs || 0) / visits * 100 : null,
+            unit: "",
+            better: "down"
+        },
+        ...HEATMAP_FUNNELS.map((funnel, index) => {
+
+            const steps = period.funnels[index] || [];
+
+            return {
+                label: `${funnel.label} : jusqu'au bout`,
+                value: steps[0] ? steps[steps.length - 1] / steps[0] * 100 : null,
+                unit: " %",
+                better: "up"
+            };
+
+        })
+    ];
+
+}
+
+
+function renderHeatmapCompare(before, after, { start, change, end }) {
+
+    const format = value => value === null
+        ? "—"
+        : value.toLocaleString("fr-FR", { maximumFractionDigits: 1 });
+
+    const dateLabel = date => date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+
+    const lastDay = new Date(end.getTime() - 86400000);
+
+    const beforeRows = heatmapCompareRows(before);
+
+    const afterRows = heatmapCompareRows(after);
+
+    const rows = beforeRows.map((row, index) => {
+
+        const next = afterRows[index];
+
+        let trend = `<td class="heatmap-trend">—</td>`;
+
+        if (row.value !== null && next.value !== null) {
+
+            const diff = next.value - row.value;
+
+            const better = row.better === null || Math.abs(diff) < 0.05
+                ? ""
+                : (diff < 0) === (row.better === "down") ? "better" : "worse";
+
+            trend = `<td class="heatmap-trend ${better}">${diff > 0 ? "▲" : diff < 0 ? "▼" : "="} ${format(Math.abs(diff))}${row.unit}</td>`;
+
+        }
+
+        return `
+            <tr>
+                <th>${escapeHtml(row.label)}</th>
+                <td>${format(row.value)}${row.value === null ? "" : row.unit}</td>
+                <td>${format(next.value)}${next.value === null ? "" : next.unit}</td>
+                ${trend}
+            </tr>
+        `;
+
+    }).join("");
+
+    const unfinished = end > new Date();
+
+    document.getElementById("heatmap-compare").innerHTML = `
+        <table class="heatmap-compare">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>Avant</th>
+                    <th>Après</th>
+                    <th>Évolution</th>
+                </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+        </table>
+        <p class="heatmap-card-hint">
+            Avant : du ${dateLabel(start)} au ${dateLabel(new Date(change.getTime() - 86400000))}
+            (${formatCount(before.analysis?.visits || 0)} visites) ·
+            après : du ${dateLabel(change)} au ${dateLabel(lastDay)}
+            (${formatCount(after.analysis?.visits || 0)} visites)${unfinished ? ", pas encore terminé" : ""}.
+            Avec peu de visites, de petits écarts ne veulent rien dire.
+        </p>
+    `;
 
 }

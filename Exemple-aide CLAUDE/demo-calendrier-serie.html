@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Démo : calendrier des récompenses de série</title>
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #0f1117; color: #e6e8ee; }
+    .wrap { max-width: 1020px; margin: 0 auto; padding: 20px 16px 60px; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .sub { color: #858a98; font-size: 13px; margin: 0 0 18px; line-height: 1.5; }
+
+    .controls { background: #171a23; border: 1px dashed #4a4f66; border-radius: 16px; padding: 14px; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 700px) { .controls { grid-template-columns: 1fr; } }
+    .ctl-title { font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: #737887; margin-bottom: 6px; }
+    .ctl-help { font-size: 11px; color: #5d6272; margin-top: 5px; line-height: 1.4; }
+    .seg { display: flex; flex-wrap: wrap; gap: 6px; }
+    .seg button { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; font: inherit; font-size: 13px; padding: 7px 12px; border-radius: 999px; cursor: pointer; }
+    .seg button.on { background: #6c63ff; border-color: #6c63ff; color: white; }
+
+    .stage { display: grid; grid-template-columns: 260px minmax(0, 420px); gap: 20px; justify-content: center; align-items: start; }
+    @media (max-width: 760px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+
+    /* ----- Simulateur ----- */
+    .sim { background: #171a23; border: 1px solid #262a38; border-radius: 16px; padding: 14px; position: sticky; top: 12px; }
+    @media (max-width: 760px) { .sim { position: static; } }
+    .sim h3 { margin: 0 0 10px; font-size: 14px; }
+    .sim button { width: 100%; margin-bottom: 8px; border: 1px solid #2c3040; background: #1c202c; color: #e6e8ee; font: inherit; font-size: 13px; font-weight: 700; padding: 10px 12px; border-radius: 12px; cursor: pointer; text-align: left; }
+    .sim button:hover { border-color: #6c63ff; }
+    .sim button.main { background: linear-gradient(90deg, #ff8a3d, #ff4f6d); border: none; color: white; }
+    .sim-log { margin-top: 6px; font-size: 12px; color: #aaaeba; line-height: 1.5; max-height: 220px; overflow-y: auto; }
+    .sim-log div { padding: 4px 0; border-top: 1px dashed #262a38; }
+
+    /* ----- Téléphone ----- */
+    .phone { position: relative; background: #0f1117; border: 1px solid #262a38; border-radius: 26px; box-shadow: 0 0 0 6px #1c1f29; overflow: hidden; }
+    .topbar { display: flex; align-items: center; gap: 6px; padding: 10px 12px; background: #181b24; border-bottom: 1px solid #292d39; }
+    .pill { display: flex; align-items: center; gap: 4px; padding: 5px 9px; border-radius: 999px; background: #12141b; border: 1px solid #2c3040; font-size: 12px; font-weight: 800; white-space: nowrap; }
+    .pill.flame { position: relative; border-color: #ff8a3d55; color: #ffb36b; cursor: pointer; }
+    .pill.flame .dot { position: absolute; top: -3px; right: -3px; width: 11px; height: 11px; border-radius: 50%; background: #ff4f6d; border: 2px solid #181b24; animation: dot 1.2s ease-in-out infinite; }
+    @keyframes dot { 50% { transform: scale(1.3); } }
+    .pill.bump { animation: bump .45s cubic-bezier(.3, 1.8, .5, 1); }
+    @keyframes bump { 40% { transform: scale(1.25); } }
+    .topbar .spacer { flex: 1; }
+
+    .modal { margin: 14px; padding: 16px; background: #181b24; border: 1px solid #343846; border-radius: 20px; }
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+    .stats div { background: #12141b; border: 1px solid #262a38; border-radius: 14px; padding: 10px; text-align: center; }
+    .stats span { display: block; font-size: 11px; color: #858a98; }
+    .stats strong { font-size: 18px; }
+    .section-title { font-size: 12px; font-weight: 800; color: #aaaeba; margin: 0 0 8px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+    .section-title small { font-weight: 600; color: #737887; font-size: 11px; text-align: right; }
+    .rest { margin-top: 14px; padding: 10px; border-radius: 12px; border: 1px dashed #343846; color: #5d6272; font-size: 12px; text-align: center; }
+
+    /* ----- Cases du calendrier ----- */
+    .cell { position: relative; border: 2px solid #2c3040; background: #12141b; border-radius: 14px; padding: 8px 4px 7px; text-align: center; min-width: 0; transition: transform .15s; }
+    .cell .d { font-size: 10px; font-weight: 800; color: #737887; }
+    .cell .ic { display: block; font-size: 24px; line-height: 1.25; margin-top: 2px; }
+    .cell .am { display: block; font-size: 12px; font-weight: 900; }
+    .cell .am2 { display: block; font-size: 10px; color: #aaaeba; font-weight: 700; }
+    .cell.claimed { opacity: .45; }
+    .cell.claimed::after { content: "✓"; position: absolute; inset: 0; display: grid; place-items: center; font-size: 30px; font-weight: 900; color: #63d69f; text-shadow: 0 0 10px #000; }
+    .cell.forgot { opacity: .3; filter: grayscale(1); }
+    .cell.forgot::after { content: "✗"; position: absolute; inset: 0; display: grid; place-items: center; font-size: 26px; color: #ff8a8a; }
+    .cell.today { border-color: #ffb547; background: linear-gradient(180deg, #2f2414, #12141b); box-shadow: 0 0 18px rgba(255, 181, 71, .35); }
+    .cell.today.waiting { animation: wait 1.4s ease-in-out infinite; cursor: pointer; }
+    @keyframes wait { 50% { transform: translateY(-3px); box-shadow: 0 0 26px rgba(255, 181, 71, .55); } }
+    .cell.big { background: linear-gradient(180deg, #241d3a, #12141b); border-color: #6c63ff; }
+    .cell.big.today { border-color: #ffb547; }
+    .cell.mile { border-color: #ffd36b; }
+    .cell.mile .tag { position: absolute; top: -8px; left: 50%; transform: translateX(-50%); font-size: 9px; font-weight: 900; padding: 1px 6px; border-radius: 99px; background: #ffd36b; color: #2a2008; white-space: nowrap; }
+    .cell.pop { animation: pop .5s cubic-bezier(.3, 1.8, .5, 1); }
+    @keyframes pop { 40% { transform: scale(1.15); } }
+    .cell .claim { display: block; width: 100%; margin-top: 6px; border: none; border-radius: 8px; padding: 5px 0; font: inherit; font-size: 11px; font-weight: 900; color: #2a1a05; background: linear-gradient(90deg, #ffd36b, #ffb547); cursor: pointer; }
+
+    /* Forme A : bande de 7 jours */
+    .strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+    .strip .cell.big { grid-column: span 2; display: flex; align-items: center; justify-content: center; gap: 10px; text-align: left; }
+    .strip .cell.big .ic { font-size: 40px; }
+    .strip .cell.big .am { font-size: 15px; }
+
+    /* Forme B : grille du mois */
+    .month { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+    .month .cell { padding: 5px 2px 4px; border-radius: 10px; border-width: 1.5px; }
+    .month .cell .ic { font-size: 17px; margin-top: 0; }
+    .month .cell .am { font-size: 10px; }
+    .month .cell .am2 { display: none; }
+    .month .cell .d { font-size: 9px; }
+    .month .cell.claimed::after, .month .cell.forgot::after { font-size: 20px; }
+    .month .cell .claim { font-size: 9px; padding: 3px 0; margin-top: 3px; }
+    .month .cell.mile .tag { font-size: 8px; top: -7px; }
+
+    /* Forme C : chemin des paliers */
+    .path-wrap { overflow-x: auto; padding: 14px 4px 6px; scrollbar-width: thin; }
+    .path { position: relative; display: flex; gap: 10px; width: max-content; padding: 0 6px; }
+    .path::before { content: ""; position: absolute; left: 30px; right: 30px; top: 40px; height: 4px; border-radius: 4px; background: #2c3040; }
+    .path .cell { width: 64px; flex: none; border-radius: 16px; z-index: 1; }
+    .path .cell.big, .path .cell.mile { width: 80px; }
+    .path .cell .ic { font-size: 22px; }
+
+    .info { margin-top: 10px; font-size: 12px; color: #aaaeba; line-height: 1.5; background: #12141b; border: 1px solid #262a38; border-radius: 12px; padding: 8px 10px; }
+    .info b { color: #ffd36b; }
+
+    /* ----- Fenêtre au démarrage ----- */
+    .overlay { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(0, 0, 0, .72); padding: 18px; }
+    .overlay.hidden { display: none; }
+    .daily { width: 100%; max-width: 300px; text-align: center; background: #181b24; border: 1px solid #343846; border-radius: 22px; padding: 20px 16px; animation: rise .45s cubic-bezier(.2, 1.4, .4, 1); }
+    @keyframes rise { from { transform: translateY(30px) scale(.9); opacity: 0; } }
+    .daily h2 { margin: 0 0 2px; font-size: 18px; }
+    .daily p { margin: 0 0 14px; font-size: 12px; color: #aaaeba; }
+    .daily .cell { margin: 0 auto 16px; width: 130px; padding: 14px 6px; }
+    .daily .cell .ic { font-size: 46px; }
+    .daily .cell .am { font-size: 16px; }
+    .daily .go { width: 100%; border: none; border-radius: 12px; padding: 12px; font: inherit; font-weight: 900; font-size: 14px; color: #2a1a05; background: linear-gradient(90deg, #ffd36b, #ffb547); cursor: pointer; }
+
+    .toast { position: absolute; left: 50%; top: 60px; z-index: 30; transform: translateX(-50%); padding: 9px 14px; border-radius: 999px; background: #1c202c; border: 1px solid #ffb547; color: #ffd36b; font-size: 13px; font-weight: 800; white-space: nowrap; box-shadow: 0 10px 30px rgba(0, 0, 0, .5); animation: toast 2.6s ease forwards; pointer-events: none; }
+    @keyframes toast { 0% { opacity: 0; transform: translate(-50%, -10px); } 12%, 80% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
+    .flying { position: fixed; z-index: 80; pointer-events: none; font-size: 20px; }
+
+    .legend { margin-top: 18px; font-size: 12px; color: #737887; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+    <h1>🔥 Démo : calendrier des récompenses de série</h1>
+    <p class="sub">
+        Dans la fenêtre Flamme : chaque jour de connexion donne une récompense, et plus la série est longue, plus elles sont grosses.
+        Choisis les réglages A à F, puis joue avec le simulateur à gauche (« Se connecter le lendemain », « Rater un jour »…) pour voir ce que vivrait un joueur.
+        Les montants sont calés sur BetLab : l'ancien coffre du jour donnait 5 à 20 🪙, un bouclier coûte 40 🪙.
+    </p>
+
+    <div class="controls">
+        <div>
+            <div class="ctl-title">A · Forme du calendrier</div>
+            <div class="seg" data-ctl="form">
+                <button data-v="strip">Bande de 7 jours</button>
+                <button data-v="month">Grille de 28 jours</button>
+                <button data-v="path">Chemin des paliers</button>
+            </div>
+        </div>
+        <div>
+            <div class="ctl-title">B · Si on rate un jour (sans bouclier)</div>
+            <div class="seg" data-ctl="miss">
+                <button data-v="reset">Retour au jour 1</button>
+                <button data-v="week">Retour au début de la semaine</button>
+                <button data-v="wait">Le calendrier attend</button>
+            </div>
+            <div class="ctl-help">« Attend » : on reprend où on en était, seule la flamme repart à 1.</div>
+        </div>
+        <div>
+            <div class="ctl-title">C · Comment on récupère la récompense</div>
+            <div class="seg" data-ctl="claim">
+                <button data-v="button">Bouton dans la fenêtre Flamme</button>
+                <button data-v="popup">Fenêtre à la 1re connexion du jour</button>
+                <button data-v="auto">Automatique (petit message)</button>
+            </div>
+        </div>
+        <div>
+            <div class="ctl-title">D · Types de récompenses</div>
+            <div class="seg" data-ctl="types">
+                <button data-v="coins">Pièces seulement</button>
+                <button data-v="mix">Pièces + XP + boucliers</button>
+                <button data-v="varied">Varié (diamants, coffres, €)</button>
+            </div>
+        </div>
+        <div>
+            <div class="ctl-title">E · Plus la série est longue…</div>
+            <div class="seg" data-ctl="growth">
+                <button data-v="grow">Tout grossit chaque semaine</button>
+                <button data-v="milestones">Grosses récompenses aux paliers (7, 14, 30, 60, 100)</button>
+                <button data-v="day7">Seul le coffre du 7e jour grossit</button>
+            </div>
+        </div>
+        <div>
+            <div class="ctl-title">F · Récompenses à venir</div>
+            <div class="seg" data-ctl="reveal">
+                <button data-v="shown">Visibles à l'avance</button>
+                <button data-v="surprise">Surprise (❓ jusqu'au jour J)</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="stage">
+
+        <div class="sim">
+            <h3>🎮 Simulateur</h3>
+            <button type="button" class="main" data-sim="next">▶️ Se connecter le lendemain</button>
+            <button type="button" data-sim="miss">💨 Rater un jour, puis revenir</button>
+            <button type="button" data-sim="week">⏩ 6 jours d'affilée</button>
+            <button type="button" data-sim="shield">🛡️ Me donner un bouclier</button>
+            <button type="button" data-sim="reset">↺ Recommencer (jour 3)</button>
+            <div class="sim-log" id="log"></div>
+        </div>
+
+        <div class="phone" id="phone">
+            <div class="topbar">
+                <span class="pill flame" id="pill-flame">🔥 <b id="w-streak">3</b></span>
+                <span class="spacer"></span>
+                <span class="pill" id="pill-coins">🪙 <b id="w-coins">0</b></span>
+                <span class="pill" id="pill-diamonds">💎 <b id="w-diamonds">0</b></span>
+                <span class="pill" id="pill-xp">⭐ <b id="w-xp">0</b></span>
+                <span class="pill" id="pill-shields">🛡️ <b id="w-shields">0</b></span>
+            </div>
+
+            <div class="modal">
+                <div class="stats">
+                    <div><span>Série actuelle</span><strong id="s-current">🔥 3 jours</strong></div>
+                    <div><span>Meilleure série</span><strong id="s-best">🏆 3 jours</strong></div>
+                </div>
+
+                <p class="section-title">📅 Récompenses de connexion <small id="cal-sub"></small></p>
+                <div id="calendar"></div>
+                <div class="info" id="info"></div>
+
+                <div class="rest">… puis « Comment ça marche ? », « Protéger ta série » et 🦜 Récompense de série, comme aujourd'hui.</div>
+            </div>
+
+            <div class="overlay hidden" id="overlay">
+                <div class="daily" id="daily"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <p class="legend">
+        ✓ vert = récupérée · bordure orange = aujourd'hui · ✗ = jour perdu · cadre doré = palier.
+        Les autres pastilles (🪙 💎 ⭐ 🛡️) montrent ce que le joueur gagne. Le bouclier marche comme aujourd'hui : il sauve la série (et le calendrier) d'un jour raté.
+    </p>
+
+</div>
+
+<script>
+const opts = { form: "strip", miss: "reset", claim: "button", types: "mix", growth: "grow", reveal: "shown" };
+
+const ICONS = { coins: "🪙", xp: "⭐", shields: "🛡️", diamonds: "💎", chests: "🎁", euros: "💶", frame: "👑" };
+const NAMES = { chests: "Coffre surprise", frame: "Cadre légendaire" };
+
+// Jours 1 à 7 de chaque semaine, selon le réglage D.
+const BASE = {
+    coins: [[["coins", 10]], [["coins", 15]], [["coins", 20]], [["coins", 25]], [["coins", 30]], [["coins", 35]], [["coins", 80]]],
+    mix: [[["coins", 10]], [["coins", 15]], [["xp", 40]], [["coins", 20]], [["shields", 1]], [["coins", 25]], [["coins", 60], ["xp", 60]]],
+    varied: [[["coins", 10]], [["xp", 40]], [["coins", 15]], [["chests", 1]], [["coins", 20]], [["euros", 200]], [["diamonds", 1], ["coins", 50]]]
+};
+
+// Réglage E « paliers » : récompenses spéciales.
+const MILESTONES = {
+    coins: { 7: [["coins", 100]], 14: [["coins", 200]], 30: [["coins", 500]], 60: [["coins", 800]], 100: [["coins", 1500]] },
+    mix: { 7: [["coins", 80], ["shields", 1]], 14: [["coins", 150], ["xp", 150]], 30: [["coins", 300], ["shields", 2]], 60: [["coins", 500], ["xp", 500]], 100: [["coins", 1000], ["frame", 1]] },
+    varied: { 7: [["diamonds", 1], ["coins", 50]], 14: [["diamonds", 2], ["chests", 1]], 30: [["diamonds", 5]], 60: [["diamonds", 8]], 100: [["frame", 1], ["diamonds", 10]] }
+};
+const MILESTONE_DAYS = [7, 14, 30, 60, 100];
+
+const SCALABLE = new Set(["coins", "xp", "euros"]);
+const GROW = [1, 1.5, 2, 2.5];
+
+let state;
+
+function freshState() {
+    return {
+        day: 3, streak: 3, best: 3,
+        claimed: new Set([1, 2]), forgot: new Set(),
+        todayClaimed: false,
+        wallet: { coins: 120, diamonds: 2, xp: 340, shields: 1, euros: 1000, chests: 0, frame: 0 }
+    };
+}
+
+const round5 = n => Math.max(5, Math.round(n / 5) * 5);
+
+function reward(pos) {
+    const dw = (pos - 1) % 7;
+    const week = Math.floor((pos - 1) / 7);
+    let items = BASE[opts.types][dw].map(([k, n]) => [k, n]);
+    let mile = false;
+    if (opts.growth === "grow") {
+        const m = GROW[Math.min(week, 3)];
+        items = items.map(([k, n]) => [k, SCALABLE.has(k) ? round5(n * m) : n + (k === "diamonds" ? Math.floor(week / 2) : 0)]);
+    }
+    if (opts.growth === "day7" && dw === 6) {
+        const m = Math.min(week, 3) + 1;
+        items = items.map(([k, n]) => [k, SCALABLE.has(k) ? round5(n * m) : n * m]);
+    }
+    if (opts.growth === "milestones" && MILESTONES[opts.types][pos]) {
+        items = MILESTONES[opts.types][pos].map(([k, n]) => [k, n]);
+        mile = true;
+    }
+    return { items, big: dw === 6, mile };
+}
+
+const amountText = ([k, n]) =>
+    k === "euros" ? `+${n} €` : NAMES[k] ? (n > 1 ? `${n} ${NAMES[k].toLowerCase()}s` : NAMES[k]) : k === "xp" ? `+${n} XP` : k === "shields" ? `+${n} bouclier${n > 1 ? "s" : ""}` : `+${n}`;
+
+function cellHtml(pos, extraClass = "") {
+    const r = reward(pos);
+    const claimed = state.claimed.has(pos);
+    const forgot = state.forgot.has(pos);
+    const today = pos === state.day;
+    const waiting = today && !state.todayClaimed;
+    const hidden = opts.reveal === "surprise" && !claimed && !(today && state.todayClaimed) && pos >= state.day;
+    const cls = ["cell", extraClass, r.big ? "big" : "", r.mile ? "mile" : "", claimed ? "claimed" : "", forgot ? "forgot" : "", today ? "today" : "", waiting && opts.claim === "button" ? "waiting" : ""].join(" ");
+    const [first, second] = r.items;
+    const body = hidden
+        ? `<span class="ic">${r.big || r.mile ? "🎁" : "❓"}</span><span class="am">?</span>`
+        : `<span class="ic">${ICONS[first[0]]}</span><span class="am">${amountText(first)}</span>${second ? `<span class="am2">${ICONS[second[0]]} ${amountText(second)}</span>` : ""}`;
+    const button = waiting && opts.claim === "button" ? `<button type="button" class="claim" data-claim>${opts.form === "strip" ? "Récupérer" : "Prendre"}</button>` : "";
+    return `<div class="${cls}" data-pos="${pos}">${r.mile ? `<span class="tag">Palier ${pos} j</span>` : ""}<span class="d">Jour ${pos}</span>${r.big && opts.form === "strip" ? `<div>${body}</div>` : body}${button}</div>`;
+}
+
+function render() {
+    const cal = document.getElementById("calendar");
+    if (opts.form === "strip") {
+        const start = Math.floor((state.day - 1) / 7) * 7 + 1;
+        cal.className = "strip";
+        cal.innerHTML = Array.from({ length: 7 }, (_, i) => cellHtml(start + i)).join("");
+    } else if (opts.form === "month") {
+        const start = Math.floor((state.day - 1) / 28) * 28 + 1;
+        cal.className = "month";
+        cal.innerHTML = Array.from({ length: 28 }, (_, i) => cellHtml(start + i)).join("");
+    } else {
+        const start = Math.max(1, state.day - 2);
+        cal.className = "path-wrap";
+        cal.innerHTML = `<div class="path">${Array.from({ length: 12 }, (_, i) => cellHtml(start + i)).join("")}</div>`;
+        const today = cal.querySelector(".cell.today");
+        if (today) cal.scrollLeft = today.offsetLeft - 70;
+    }
+
+    const week = Math.floor((state.day - 1) / 7);
+    const sub = document.getElementById("cal-sub");
+    sub.textContent = opts.form === "month"
+        ? `Jours ${Math.floor((state.day - 1) / 28) * 28 + 1} à ${Math.floor((state.day - 1) / 28) * 28 + 28}`
+        : `Semaine ${week + 1}`;
+
+    const missText = {
+        reset: "rate un jour = retour au <b>jour 1</b>",
+        week: "rate un jour = retour au <b>début de la semaine</b>",
+        wait: "rate un jour = le calendrier <b>t'attend</b> (seule la flamme repart à 1)"
+    }[opts.miss];
+    let growthText;
+    if (opts.growth === "grow") {
+        growthText = `Semaine ${week + 1} : récompenses <b>×${String(GROW[Math.min(week, 3)]).replace(".", ",")}</b>` + (week < 3 ? ` · semaine ${week + 2} : ×${String(GROW[Math.min(week + 1, 3)]).replace(".", ",")}` : " (le maximum)");
+    } else if (opts.growth === "milestones") {
+        const next = MILESTONE_DAYS.find(d => d > state.day || (d === state.day && !state.todayClaimed));
+        growthText = next
+            ? `Prochain palier : <b>jour ${next}</b> (${next === state.day ? "aujourd'hui !" : "dans " + (next - state.day) + " jour" + (next - state.day > 1 ? "s" : "")})` + (opts.reveal === "shown" ? ` → ${MILESTONES[opts.types][next].map(it => ICONS[it[0]] + " " + amountText(it)).join(" + ")}` : " → 🎁 surprise")
+            : "Tous les paliers sont passés : bravo !";
+    } else {
+        growthText = `Le coffre du 7e jour grossit chaque semaine : <b>×${Math.min(week, 3) + 1}</b> cette semaine`;
+    }
+    document.getElementById("info").innerHTML = `${growthText}<br>${missText} · 🛡️ un bouclier sauve tout`;
+
+    const w = state.wallet;
+    document.getElementById("w-streak").textContent = state.streak;
+    document.getElementById("w-coins").textContent = w.coins;
+    document.getElementById("w-diamonds").textContent = w.diamonds;
+    document.getElementById("w-xp").textContent = w.xp;
+    document.getElementById("w-shields").textContent = w.shields;
+    document.getElementById("s-current").textContent = `🔥 ${state.streak} jour${state.streak > 1 ? "s" : ""}`;
+    document.getElementById("s-best").textContent = `🏆 ${state.best} jour${state.best > 1 ? "s" : ""}`;
+
+    const flame = document.getElementById("pill-flame");
+    flame.querySelector(".dot")?.remove();
+    if (!state.todayClaimed && opts.claim === "button") flame.insertAdjacentHTML("beforeend", `<span class="dot"></span>`);
+}
+
+function log(text) {
+    const box = document.getElementById("log");
+    box.insertAdjacentHTML("afterbegin", `<div>${text}</div>`);
+}
+
+function toast(text) {
+    const phone = document.getElementById("phone");
+    phone.querySelectorAll(".toast").forEach(t => t.remove());
+    phone.insertAdjacentHTML("beforeend", `<div class="toast">${text}</div>`);
+}
+
+function fly(fromEl, items) {
+    const from = fromEl.getBoundingClientRect();
+    items.forEach(([k], i) => {
+        const target = document.getElementById("pill-" + k) || document.getElementById("pill-coins");
+        const to = target.getBoundingClientRect();
+        for (let j = 0; j < 4; j++) {
+            const el = document.createElement("div");
+            el.className = "flying";
+            el.textContent = ICONS[k];
+            el.style.left = from.left + from.width / 2 - 10 + "px";
+            el.style.top = from.top + from.height / 2 - 10 + "px";
+            document.body.appendChild(el);
+            const dx = to.left + to.width / 2 - (from.left + from.width / 2);
+            const dy = to.top + to.height / 2 - (from.top + from.height / 2);
+            el.animate([
+                { transform: "translate(0, 0) scale(1)", opacity: 1 },
+                { transform: `translate(${dx * .3 + (j - 1.5) * 18}px, ${dy * .3 - 30}px) scale(1.2)`, opacity: 1, offset: .35 },
+                { transform: `translate(${dx}px, ${dy}px) scale(.6)`, opacity: .9 }
+            ], { duration: 750 + j * 90 + i * 120, easing: "cubic-bezier(.4, 0, .6, 1)" }).finished.then(() => {
+                el.remove();
+                target.classList.remove("bump");
+                void target.offsetWidth;
+                target.classList.add("bump");
+            });
+        }
+    });
+}
+
+function claim(silent = false) {
+    if (state.todayClaimed) return;
+    const pos = state.day;
+    const r = reward(pos);
+    state.todayClaimed = true;
+    state.claimed.add(pos);
+    r.items.forEach(([k, n]) => { state.wallet[k] = (state.wallet[k] || 0) + n; });
+    const text = r.items.map(it => ICONS[it[0]] + " " + amountText(it)).join(" + ");
+    if (!silent) {
+        const cell = document.querySelector(`#calendar .cell[data-pos="${pos}"]`) || document.getElementById("pill-flame");
+        fly(cell, r.items);
+        if (opts.claim === "auto") toast(`🔥 Jour ${pos} : ${text}`);
+    }
+    log(`Jour ${pos} récupéré : ${text}`);
+    render();
+    const cell = document.querySelector(`#calendar .cell[data-pos="${pos}"]`);
+    cell?.classList.add("pop");
+}
+
+function showDaily() {
+    const pos = state.day;
+    document.getElementById("daily").innerHTML = `
+        <h2>🔥 Jour ${pos} de ta série !</h2>
+        <p>${state.streak > 1 ? "Tu es venu " + state.streak + " jours de suite." : "C'est reparti !"} Reviens demain pour la suite.</p>
+        ${cellHtml(pos).replace(/<button[^>]*>Récupérer<\/button>/, "")}
+        <button type="button" class="go" data-daily-go>Récupérer</button>`;
+    document.getElementById("overlay").classList.remove("hidden");
+}
+
+// Nouveau jour (après connexion) : selon le réglage C.
+function arrive(silent = false) {
+    render();
+    if (silent) { claim(true); return; }
+    if (opts.claim === "auto") setTimeout(() => claim(), 350);
+    if (opts.claim === "popup") setTimeout(showDaily, 250);
+}
+
+function nextDay(silent = false) {
+    if (!state.todayClaimed) {
+        // Récompense oubliée la veille : donnée quand même (pas de punition).
+        claim(true);
+        log(`(récompense du jour ${state.day} oubliée : donnée automatiquement)`);
+    }
+    state.day += 1;
+    state.streak += 1;
+    state.best = Math.max(state.best, state.streak);
+    state.todayClaimed = false;
+    if (!silent) log(`<b>Connexion</b> : série de ${state.streak} jours, jour ${state.day} du calendrier.`);
+    arrive(silent);
+}
+
+function missDay() {
+    if (!state.todayClaimed) claim(true);
+    if (state.wallet.shields > 0) {
+        state.wallet.shields -= 1;
+        log("💨 Un jour raté… 🛡️ bouclier utilisé : série et calendrier sauvés !");
+        toast("🛡️ Bouclier utilisé : ta série est sauvée !");
+        nextDay();
+        return;
+    }
+    const lostDay = state.day + 1;
+    state.forgot.add(lostDay);
+    state.streak = 1;
+    if (opts.miss === "reset") {
+        state.day = 1;
+        state.claimed = new Set();
+        state.forgot = new Set();
+        log("💨 Un jour raté sans bouclier : <b>retour au jour 1</b>, flamme à 1.");
+    } else if (opts.miss === "week") {
+        const start = Math.floor((state.day - 1) / 7) * 7 + 1;
+        state.day = start;
+        [...state.claimed].forEach(p => { if (p >= start) state.claimed.delete(p); });
+        state.forgot = new Set();
+        log(`💨 Un jour raté sans bouclier : <b>retour au jour ${start}</b> (début de la semaine), flamme à 1.`);
+    } else {
+        state.forgot.delete(lostDay);
+        state.day += 1;
+        log(`💨 Un jour raté : flamme à 1, mais le calendrier t'attend au <b>jour ${state.day}</b>.`);
+    }
+    state.todayClaimed = false;
+    arrive();
+}
+
+document.addEventListener("click", event => {
+    if (event.target.closest("[data-claim]")) claim();
+    else if (event.target.closest(".cell.today.waiting") && opts.claim === "button") claim();
+    if (event.target.closest("[data-daily-go]")) {
+        document.getElementById("overlay").classList.add("hidden");
+        claim();
+    }
+    const sim = event.target.closest("[data-sim]")?.dataset.sim;
+    if (sim === "next") nextDay();
+    if (sim === "miss") missDay();
+    if (sim === "week") { for (let i = 0; i < 5; i++) nextDay(true); nextDay(); log("⏩ 6 jours d'affilée."); }
+    if (sim === "shield") { state.wallet.shields += 1; log("🛡️ +1 bouclier (comme si tu l'avais acheté 40 🪙)."); render(); }
+    if (sim === "reset") { state = freshState(); document.getElementById("log").innerHTML = ""; document.getElementById("overlay").classList.add("hidden"); render(); }
+});
+
+document.querySelectorAll("[data-ctl]").forEach(seg => seg.addEventListener("click", event => {
+    const button = event.target.closest("button");
+    if (!button) return;
+    opts[seg.dataset.ctl] = button.dataset.v;
+    seg.querySelectorAll("button").forEach(b => b.classList.toggle("on", b === button));
+    if (seg.dataset.ctl === "claim" && opts.claim !== "popup") document.getElementById("overlay").classList.add("hidden");
+    if (seg.dataset.ctl === "claim" && opts.claim === "auto" && !state.todayClaimed) setTimeout(() => claim(), 200);
+    if (seg.dataset.ctl === "claim" && opts.claim === "popup" && !state.todayClaimed) showDaily();
+    render();
+}));
+Object.keys(opts).forEach(k => document.querySelectorAll(`[data-ctl="${k}"] button`).forEach(b => b.classList.toggle("on", b.dataset.v === opts[k])));
+
+state = freshState();
+render();
+log("Départ : série de 3 jours, jours 1 et 2 déjà récupérés. Celui d'aujourd'hui t'attend.");
+
+/* Bouton « Copier mes choix » : copie les réglages sélectionnés pour les coller dans la conversation. */
+(function () {
+    const style = document.createElement("style");
+    style.textContent = `
+        .copy-bar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+        .copy-btn { border: none; border-radius: 10px; padding: 10px 16px; font: inherit; font-weight: 800; cursor: pointer; background: linear-gradient(90deg, #6c63ff, #c86bff); color: white; }
+        .copy-btn.done { background: #63d69f; color: #0d2a1d; }
+        .copy-text { flex: 1; min-width: 220px; font-size: 12px; color: #aaaeba; background: #12141b; border: 1px solid #2c3040; border-radius: 10px; padding: 8px 10px; user-select: all; }
+    `;
+    document.head.appendChild(style);
+
+    const bar = document.createElement("div");
+    bar.className = "copy-bar";
+    bar.innerHTML = `<button type="button" class="copy-btn">📋 Copier mes choix</button><div class="copy-text"></div>`;
+    document.querySelector(".controls").appendChild(bar);
+
+    const text = () => document.title + " : " + [...document.querySelectorAll("[data-ctl]")].map(seg => {
+        const title = seg.parentElement.querySelector(".ctl-title")?.textContent.trim() || seg.dataset.ctl;
+        const on = seg.querySelector("button.on")?.textContent.trim() || "?";
+        return `${title} = ${on}`;
+    }).join(" | ");
+
+    const refresh = () => { bar.querySelector(".copy-text").textContent = text(); };
+    document.addEventListener("click", () => setTimeout(refresh, 0));
+    refresh();
+
+    const button = bar.querySelector(".copy-btn");
+    button.addEventListener("click", async () => {
+        const value = text();
+        try {
+            await navigator.clipboard.writeText(value);
+        } catch (error) {
+            const area = document.createElement("textarea");
+            area.value = value;
+            document.body.appendChild(area);
+            area.select();
+            document.execCommand("copy");
+            area.remove();
+        }
+        button.textContent = "✅ Copié ! Colle-le dans la conversation";
+        button.classList.add("done");
+        setTimeout(() => { button.textContent = "📋 Copier mes choix"; button.classList.remove("done"); }, 2500);
+    });
+})();
+</script>
+</body>
+</html>

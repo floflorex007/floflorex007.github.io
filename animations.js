@@ -586,6 +586,11 @@ async function dailyCheckin() {
 
     renderStreakProtect();
 
+    // Calendrier des récompenses de série (calendrier.js) : jour du chemin et pastille rouge.
+    if (typeof loadStreakCalendar === "function") {
+        loadStreakCalendar();
+    }
+
 
     const chest =
         document.getElementById("chest-button");

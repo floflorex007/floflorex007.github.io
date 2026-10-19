@@ -1833,6 +1833,18 @@
 
             <div class="heatmap-bar">
 
+                <div class="heatmap-scope heatmap-view">
+                    <button
+                        type="button"
+                        data-heatmap-view="map"
+                        class="active"
+                    >🔥 Carte</button>
+                    <button
+                        type="button"
+                        data-heatmap-view="analysis"
+                    >📊 Analyses</button>
+                </div>
+
                 <div class="heatmap-filters">
 
                     <select
@@ -1859,6 +1871,18 @@
                             selected
                         >7 jours</option>
                         <option value="30">30 jours</option>
+                    </select>
+
+                    <select
+                        id="heatmap-level"
+                        aria-label="Niveau du joueur"
+                    >
+                        <option value="">Tous les niveaux</option>
+                        <option value="1">Niveau 1</option>
+                        <option value="2">Niveau 2</option>
+                        <option value="3">Niveau 3</option>
+                        <option value="4">Niveau 4</option>
+                        <option value="5">Niveau 5 et +</option>
                     </select>
 
                 </div>
@@ -1980,6 +2004,109 @@
             >
                 🏆 Classement
             </button>
+
+
+            <!-- Onglet Analyses : ce qui gêne les joueurs, sur tous les écrans (voir heatmap.js) -->
+
+            <div
+                id="heatmap-analysis"
+                class="heatmap-analysis"
+            >
+
+                <div
+                    id="heatmap-analysis-stats"
+                    class="heatmap-stats heatmap-analysis-stats"
+                ></div>
+
+                <p
+                    id="heatmap-analysis-status"
+                    class="heatmap-analysis-status hidden"
+                ></p>
+
+                <div class="heatmap-analysis-grid">
+
+                    <section class="heatmap-rank heatmap-card">
+
+                        <h3>🕳️ Clics dans le vide</h3>
+
+                        <p class="heatmap-card-hint">
+                            Sur rien de cliquable, ou sur un bouton grisé : le joueur croyait que ça marchait.
+                            À rendre cliquable, ou à rendre moins trompeur.
+                        </p>
+
+                        <ol
+                            id="heatmap-dead-list"
+                            class="heatmap-rank-list"
+                        ></ol>
+
+                    </section>
+
+                    <section class="heatmap-rank heatmap-card">
+
+                        <h3>🔁 Clics répétés</h3>
+
+                        <p class="heatmap-card-hint">
+                            Le même élément cliqué 3 fois de suite ou plus : il n'a pas réagi, ou pas assez clairement.
+                        </p>
+
+                        <ol
+                            id="heatmap-repeat-list"
+                            class="heatmap-rank-list"
+                        ></ol>
+
+                    </section>
+
+                    <section class="heatmap-rank heatmap-card">
+
+                        <h3>🚪 Parcours et abandons</h3>
+
+                        <p class="heatmap-card-hint">
+                            Visites qui franchissent chaque étape, dans l'ordre. Une grosse chute = une étape qui décourage.
+                        </p>
+
+                        <div id="heatmap-funnels"></div>
+
+                    </section>
+
+                    <section class="heatmap-rank heatmap-card">
+
+                        <h3>⚖️ Avant / après un changement</h3>
+
+                        <p class="heatmap-card-hint">
+                            Choisis le jour où tu as changé un écran : les jours d'avant et d'après sont comparés.
+                        </p>
+
+                        <div class="heatmap-compare-controls">
+
+                            <input
+                                type="date"
+                                id="heatmap-compare-date"
+                                aria-label="Jour du changement"
+                            >
+
+                            <select
+                                id="heatmap-compare-span"
+                                aria-label="Durée comparée"
+                            >
+                                <option value="7">7 jours avant / après</option>
+                                <option value="14">14 jours avant / après</option>
+                                <option value="30">30 jours avant / après</option>
+                            </select>
+
+                        </div>
+
+                        <div id="heatmap-compare"></div>
+
+                    </section>
+
+                </div>
+
+                <p class="heatmap-note">
+                    Les filtres Appareil, Période et Niveau s'appliquent aussi ici (sauf la période de l'avant / après).
+                    Clique sur une ligne pour la voir sur la carte.
+                </p>
+
+            </div>
 
         </section>
 
@@ -2862,6 +2989,18 @@
             </div>
 
 
+            <!-- Calendrier des récompenses de série (calendrier.js, calendrier-serie.sql) -->
+
+            <p class="level-sidebar-title xp-rules-title">
+                📅 Récompenses de connexion
+            </p>
+
+            <div
+                id="streak-calendar"
+                class="streak-calendar"
+            ></div>
+
+
             <p class="level-sidebar-title xp-rules-title">
                 Comment ça marche ?
             </p>
@@ -3687,6 +3826,9 @@
 
     <!-- Duels 1 contre 1 et séries de victoires (voir duels.sql) -->
     <script src="duels.js"></script>
+
+    <!-- Calendrier des récompenses de série, dans la fenêtre Flamme (voir calendrier-serie.sql) -->
+    <script src="calendrier.js"></script>
 
     <!-- Carte des clics : comptage avec accord + onglet Heat map de l'admin (voir heatmap.sql) -->
     <script src="heatmap.js"></script>

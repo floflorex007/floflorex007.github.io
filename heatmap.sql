@@ -4,7 +4,8 @@
 --
 -- - click_events : un clic = une ligne. Ni compte, ni adresse IP,
 --   ni texte saisi : l'écran, l'élément cliqué, la position du clic
---   dans cet élément, la largeur de l'écran, le type d'appareil, l'heure (arrondie à l'heure) et
+--   dans cet élément, la largeur de l'écran, le type d'appareil, le niveau
+--   du joueur, l'heure (arrondie à l'heure) et
 --   un numéro de visite tiré au hasard dans le navigateur.
 -- - Ajout : seulement un joueur connecté qui a coché la case d'accord
 --   (click_consents), jamais l'admin ni les comptes de click_excluded_users.
@@ -145,6 +146,18 @@ create table if not exists public.click_events (
     device text not null check (device in ('mobile', 'desktop'))
 );
 
+-- Niveau du joueur au moment du clic (celui qui décide des déblocages de l'écran,
+-- voir applyLevelLocks) : pour comparer les écrans d'un niveau à l'autre.
+-- Ajouté le 2026-10-19 : vide pour les clics d'avant.
+alter table public.click_events
+    add column if not exists level smallint check (level between 1 and 99);
+
+-- Clic dans le vide : sur rien de cliquable (ni bouton, ni curseur « main »)
+-- ou sur un bouton grisé. Le joueur croyait que ça marchait.
+-- Ajouté le 2026-10-19 : vide pour les clics d'avant.
+alter table public.click_events
+    add column if not exists dead boolean;
+
 create index if not exists click_events_created_at on public.click_events (created_at);
 create index if not exists click_events_screen_created_at on public.click_events (screen, created_at);
 
@@ -223,12 +236,27 @@ as $$
     end;
 $$;
 
+-- Filtre « Niveau » de la page Heat map : null = tous, 5 = niveau 5 et plus
+-- (le dernier déblocage), sinon ce niveau-là. Les clics sans niveau
+-- (avant le 2026-10-19) ne comptent que pour « tous ».
+create or replace function public.click_level_ok(p_click_level smallint, p_level integer)
+returns boolean
+language sql
+immutable
+as $$
+    select case
+        when p_level is null then true
+        when p_level >= 5 then p_click_level >= 5
+        else p_click_level = p_level
+    end;
+$$;
+
 -- Clics additionnés par élément et par case : chaque élément est découpé
 -- en cases de p_cell % de sa largeur et de sa hauteur.
 drop function if exists public.admin_click_heatmap(text, text, integer, integer);
 drop function if exists public.admin_click_heatmap(text, text, integer, integer, integer);
 
-create or replace function public.admin_click_heatmap(p_screen text, p_bucket text, p_days integer, p_cell integer default 2)
+create or replace function public.admin_click_heatmap(p_screen text, p_bucket text, p_days integer, p_cell integer default 2, p_level integer default null)
 returns table (element text, el_index smallint, cx integer, cy integer, clicks bigint)
 language plpgsql
 stable
@@ -253,13 +281,16 @@ begin
     where e.screen = p_screen
       and public.click_bucket(e.device, e.vw) = p_bucket
       and e.created_at >= public.click_since(p_days)
+      and public.click_level_ok(e.level, p_level)
     group by 1, 2, 3, 4;
 
 end;
 $$;
 
 -- Éléments les plus cliqués (p_screen null = tous les écrans).
-create or replace function public.admin_click_ranking(p_screen text, p_bucket text, p_days integer)
+drop function if exists public.admin_click_ranking(text, text, integer);
+
+create or replace function public.admin_click_ranking(p_screen text, p_bucket text, p_days integer, p_level integer default null)
 returns table (element text, clicks bigint, screens text[])
 language plpgsql
 stable
@@ -281,6 +312,7 @@ begin
       and e.element is not null
       and public.click_bucket(e.device, e.vw) = p_bucket
       and e.created_at >= public.click_since(p_days)
+      and public.click_level_ok(e.level, p_level)
     group by e.element
     order by 2 desc
     limit 60;
@@ -289,7 +321,9 @@ end;
 $$;
 
 -- Chiffres du tiroir : clics et visites de l'écran, écrans qui ont des clics, place prise.
-create or replace function public.admin_click_summary(p_screen text, p_bucket text, p_days integer)
+drop function if exists public.admin_click_summary(text, text, integer);
+
+create or replace function public.admin_click_summary(p_screen text, p_bucket text, p_days integer, p_level integer default null)
 returns jsonb
 language plpgsql
 stable
@@ -307,17 +341,20 @@ begin
     return jsonb_build_object(
         'clicks', (
             select count(*) from click_events e
-            where e.screen = p_screen and public.click_bucket(e.device, e.vw) = p_bucket and e.created_at >= v_since
+            where e.screen = p_screen and public.click_bucket(e.device, e.vw) = p_bucket
+              and e.created_at >= v_since and public.click_level_ok(e.level, p_level)
         ),
         'visits', (
             select count(distinct e.session_id) from click_events e
-            where e.screen = p_screen and public.click_bucket(e.device, e.vw) = p_bucket and e.created_at >= v_since
+            where e.screen = p_screen and public.click_bucket(e.device, e.vw) = p_bucket
+              and e.created_at >= v_since and public.click_level_ok(e.level, p_level)
         ),
         'screens', (
             select coalesce(jsonb_agg(jsonb_build_object('screen', s.screen, 'clicks', s.n) order by s.n desc), '[]'::jsonb)
             from (
                 select e.screen, count(*) as n from click_events e
-                where public.click_bucket(e.device, e.vw) = p_bucket and e.created_at >= v_since
+                where public.click_bucket(e.device, e.vw) = p_bucket
+                  and e.created_at >= v_since and public.click_level_ok(e.level, p_level)
                 group by e.screen
             ) s
         ),
@@ -326,6 +363,179 @@ begin
         'table_bytes', pg_total_relation_size('public.click_events'),
         'db_bytes', pg_database_size(current_database())
     );
+
+end;
+$$;
+
+
+-- ---------- Onglet « Analyses » de la page Heat map ----------
+-- Période : du p_from au p_to (avant / après un changement), sinon les p_days derniers jours.
+
+-- Chiffres de la période, sur tous les écrans :
+--   clics, visites, clics dans le vide (dead) et les éléments qui en reçoivent le plus,
+--   séries de clics répétés : même élément cliqué au moins 3 fois de suite pendant
+--   une visite (dans l'ordre d'arrivée des clics), sauf les clés de p_repeat_ok
+--   (motifs LIKE : champs de saisie, mises rapides, perroquet… où c'est normal).
+create or replace function public.admin_click_analysis(
+    p_bucket text,
+    p_days integer,
+    p_level integer default null,
+    p_from timestamptz default null,
+    p_to timestamptz default null,
+    p_repeat_ok text[] default '{}'
+)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+    v_from timestamptz := coalesce(p_from, public.click_since(p_days));
+    v_to timestamptz := coalesce(p_to, now() + interval '1 hour');
+    v_result jsonb;
+begin
+
+    if not public.beta_is_admin() then
+        raise exception 'Réservé à l''admin.';
+    end if;
+
+    with e as (
+        select c.id, c.session_id, c.screen, c.element, c.el_index, c.dead
+        from click_events c
+        where public.click_bucket(c.device, c.vw) = p_bucket
+          and c.created_at >= v_from
+          and c.created_at < v_to
+          and public.click_level_ok(c.level, p_level)
+    ),
+    marked as (
+        select e.*,
+               case
+                   when lag(e.screen) over w = e.screen
+                    and lag(e.element) over w = e.element
+                    and lag(e.el_index) over w is not distinct from e.el_index
+                   then 0 else 1
+               end as new_run
+        from e
+        window w as (partition by e.session_id order by e.id)
+    ),
+    grouped as (
+        select m.*, sum(m.new_run) over (partition by m.session_id order by m.id) as run
+        from marked m
+    ),
+    runs as (
+        select g.session_id, g.screen, g.element, count(*) as n
+        from grouped g
+        where not (g.element like any (coalesce(p_repeat_ok, '{}')))
+        group by g.session_id, g.run, g.screen, g.element
+        having count(*) >= 3
+    )
+    select jsonb_build_object(
+        'clicks', (select count(*) from e),
+        'visits', (select count(distinct session_id) from e),
+        'dead_clicks', (select count(*) from e where dead),
+        'dead_known', (select count(*) from e where dead is not null),
+        'dead', (
+            select coalesce(jsonb_agg(jsonb_build_object('screen', d.screen, 'element', d.element, 'clicks', d.n) order by d.n desc), '[]'::jsonb)
+            from (
+                select screen, element, count(*) as n from e
+                where dead
+                group by screen, element
+                order by n desc
+                limit 10
+            ) d
+        ),
+        'repeat_runs', (select count(*) from runs),
+        'repeat', (
+            select coalesce(jsonb_agg(jsonb_build_object('screen', r.screen, 'element', r.element, 'runs', r.runs, 'visits', r.visits, 'longest', r.longest) order by r.runs desc), '[]'::jsonb)
+            from (
+                select screen, element, count(*) as runs, count(distinct session_id) as visits, max(n) as longest
+                from runs
+                group by screen, element
+                order by runs desc
+                limit 10
+            ) r
+        )
+    ) into v_result;
+
+    return v_result;
+
+end;
+$$;
+
+-- Parcours : nombre de visites qui franchissent chaque étape, dans l'ordre
+-- (étape 2 cliquée après l'étape 1 pendant la même visite, etc.).
+-- p_steps : [{ "element": motif LIKE, "screen": écran ou absent }, …]
+create or replace function public.admin_click_funnel(
+    p_steps jsonb,
+    p_bucket text,
+    p_days integer,
+    p_level integer default null,
+    p_from timestamptz default null,
+    p_to timestamptz default null
+)
+returns bigint[]
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+    v_from timestamptz := coalesce(p_from, public.click_since(p_days));
+    v_to timestamptz := coalesce(p_to, now() + interval '1 hour');
+    v_step jsonb;
+    v_first boolean := true;
+    v_sessions uuid[] := '{}';
+    v_ids bigint[] := '{}';
+    v_counts bigint[] := '{}';
+begin
+
+    if not public.beta_is_admin() then
+        raise exception 'Réservé à l''admin.';
+    end if;
+
+    for v_step in select value from jsonb_array_elements(p_steps) loop
+
+        if v_first then
+
+            select coalesce(array_agg(t.session_id), '{}'), coalesce(array_agg(t.id), '{}')
+            into v_sessions, v_ids
+            from (
+                select c.session_id, min(c.id) as id
+                from click_events c
+                where public.click_bucket(c.device, c.vw) = p_bucket
+                  and c.created_at >= v_from and c.created_at < v_to
+                  and public.click_level_ok(c.level, p_level)
+                  and c.element like (v_step->>'element')
+                  and (v_step->>'screen' is null or c.screen = v_step->>'screen')
+                group by c.session_id
+            ) t;
+
+            v_first := false;
+
+        else
+
+            select coalesce(array_agg(t.session_id), '{}'), coalesce(array_agg(t.id), '{}')
+            into v_sessions, v_ids
+            from (
+                select p.sid as session_id, min(c.id) as id
+                from unnest(v_sessions, v_ids) as p(sid, pid)
+                join click_events c on c.session_id = p.sid and c.id > p.pid
+                where public.click_bucket(c.device, c.vw) = p_bucket
+                  and c.created_at >= v_from and c.created_at < v_to
+                  and public.click_level_ok(c.level, p_level)
+                  and c.element like (v_step->>'element')
+                  and (v_step->>'screen' is null or c.screen = v_step->>'screen')
+                group by p.sid
+            ) t;
+
+        end if;
+
+        v_counts := v_counts || coalesce(array_length(v_sessions, 1), 0)::bigint;
+
+    end loop;
+
+    return v_counts;
 
 end;
 $$;
@@ -360,13 +570,17 @@ begin
 end;
 $$;
 
-revoke all on function public.admin_click_heatmap(text, text, integer, integer) from public, anon;
-revoke all on function public.admin_click_ranking(text, text, integer) from public, anon;
-revoke all on function public.admin_click_summary(text, text, integer) from public, anon;
+revoke all on function public.admin_click_heatmap(text, text, integer, integer, integer) from public, anon;
+revoke all on function public.admin_click_ranking(text, text, integer, integer) from public, anon;
+revoke all on function public.admin_click_summary(text, text, integer, integer) from public, anon;
+revoke all on function public.admin_click_analysis(text, integer, integer, timestamptz, timestamptz, text[]) from public, anon;
+revoke all on function public.admin_click_funnel(jsonb, text, integer, integer, timestamptz, timestamptz) from public, anon;
 revoke all on function public.admin_click_preview_rpcs() from public, anon;
-grant execute on function public.admin_click_heatmap(text, text, integer, integer) to authenticated;
-grant execute on function public.admin_click_ranking(text, text, integer) to authenticated;
-grant execute on function public.admin_click_summary(text, text, integer) to authenticated;
+grant execute on function public.admin_click_heatmap(text, text, integer, integer, integer) to authenticated;
+grant execute on function public.admin_click_ranking(text, text, integer, integer) to authenticated;
+grant execute on function public.admin_click_summary(text, text, integer, integer) to authenticated;
+grant execute on function public.admin_click_analysis(text, integer, integer, timestamptz, timestamptz, text[]) to authenticated;
+grant execute on function public.admin_click_funnel(jsonb, text, integer, integer, timestamptz, timestamptz) to authenticated;
 grant execute on function public.admin_click_preview_rpcs() to authenticated;
 
 

@@ -16987,13 +16987,13 @@ body:has(#heatmap-page:not(.hidden)) .modal {
 }
 
 .heatmap-filters {
-    flex: 1 1 360px;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    flex: 1 1 420px;
+    display: flex;
     gap: 8px;
 }
 
 .heatmap-filters select {
+    flex: 1 1 0;
     width: 100%;
     min-width: 0;
     padding: 8px 10px;
@@ -17105,6 +17105,185 @@ body:has(#heatmap-page:not(.hidden)) .modal {
     font-size: 12px;
     font-weight: 800;
     cursor: pointer;
+}
+
+
+/* ----- Carte / Analyses ----- */
+
+.heatmap-view {
+    background: #12141b;
+    border: 1px solid #2c3040;
+}
+
+.heatmap-view button {
+    padding: 6px 11px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.heatmap-analysis {
+    display: none;
+    grid-row: 2;
+    grid-column: 1 / -1;
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 12px;
+}
+
+/* Vue Analyses : l'aperçu reste chargé dessous (caché), le tiroir et les réglages de la carte disparaissent. */
+.heatmap-analysis-open .heatmap-analysis {
+    display: block;
+}
+
+.heatmap-analysis-open .heatmap-stage {
+    visibility: hidden;
+}
+
+#heatmap-page.heatmap-analysis-open .heatmap-drawer,
+.heatmap-analysis-open .heatmap-rank-toggle,
+.heatmap-analysis-open #heatmap-screen,
+.heatmap-analysis-open .heatmap-legend,
+.heatmap-analysis-open .heatmap-reload {
+    display: none;
+}
+
+#heatmap-analysis-stats {
+    max-width: 1200px;
+    margin: 0 auto 12px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.heatmap-analysis-status {
+    max-width: 1200px;
+    margin: 0 auto 12px;
+    font-size: 13px;
+    color: #aaaeba;
+}
+
+.heatmap-analysis-grid {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 12px;
+    align-items: start;
+}
+
+.heatmap-analysis .heatmap-note {
+    max-width: 1200px;
+    margin: 12px auto 0;
+}
+
+.heatmap-card {
+    min-width: 0;
+}
+
+/* Détail à droite d'une ligne (« 4× jusqu'à 10 de suite… ») : passe à la ligne s'il le faut. */
+.heatmap-card .heatmap-rank-line b {
+    flex: none;
+    max-width: 60%;
+    text-align: right;
+}
+
+#heatmap-compare {
+    overflow-x: auto;
+}
+
+.heatmap-card h3 {
+    margin: 0;
+    font-size: 15px;
+}
+
+.heatmap-card-hint {
+    margin: 4px 0 10px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #858a98;
+}
+
+.heatmap-card .heatmap-rank-line b small {
+    margin-left: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #858a98;
+}
+
+.heatmap-funnel + .heatmap-funnel {
+    margin-top: 14px;
+}
+
+.heatmap-funnel h4 {
+    margin: 0 0 6px;
+    font-size: 13px;
+}
+
+.heatmap-funnel-step {
+    margin-bottom: 8px;
+}
+
+.heatmap-funnel .heatmap-rank-bar i {
+    background: linear-gradient(90deg, #6c63ff, #c86bff);
+}
+
+.heatmap-funnel-lost {
+    display: block;
+    margin-top: 3px;
+    font-size: 11px;
+    color: #ff8a8a;
+}
+
+.heatmap-compare-controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.heatmap-compare-controls input,
+.heatmap-compare-controls select {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 7px 9px;
+    border-radius: 10px;
+    border: 1px solid #2c3040;
+    background: #0b0d12;
+    color: #e6e8ee;
+    font: inherit;
+    font-size: 12px;
+    color-scheme: dark;
+}
+
+.heatmap-compare {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.heatmap-compare th,
+.heatmap-compare td {
+    padding: 7px 6px;
+    border-bottom: 1px solid #222634;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.heatmap-compare tbody th {
+    text-align: left;
+    font-weight: 600;
+    white-space: normal;
+}
+
+.heatmap-compare thead th {
+    color: #858a98;
+    font-weight: 600;
+}
+
+.heatmap-trend.better {
+    color: #4ade80;
+}
+
+.heatmap-trend.worse {
+    color: #ff8a8a;
 }
 
 
@@ -17396,11 +17575,23 @@ body:has(#heatmap-page:not(.hidden)) .modal {
 
     .heatmap-filters {
         flex-basis: 100%;
-        grid-template-columns: 1fr 1fr;
+        flex-wrap: wrap;
     }
 
     .heatmap-filters select:first-child {
-        grid-column: 1 / -1;
+        flex-basis: 100%;
+    }
+
+    .heatmap-analysis {
+        padding: 8px;
+    }
+
+    .heatmap-analysis-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    #heatmap-analysis-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .heatmap-legend i {
@@ -17895,4 +18086,289 @@ body.click-preview::-webkit-scrollbar {
 
 .report-result.kept {
     color: #63d69f;
+}
+
+
+/* =========================================================
+   CALENDRIER DES RÉCOMPENSES DE SÉRIE (calendrier.js, calendrier-serie.sql)
+   Chemin de jours dans la fenêtre Flamme (version « chemin des paliers »
+   de demo-calendrier-serie.html).
+========================================================= */
+
+/* Récompense du jour qui attend : pastille rouge sur la flamme et la carte « Ta série ». */
+.streak-widget.streak-reward-ready,
+#streak-sidebar.streak-reward-ready {
+    position: relative;
+}
+
+.streak-widget.streak-reward-ready::after,
+#streak-sidebar.streak-reward-ready::after {
+    content: "";
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: #ff4f6d;
+    border: 2px solid #181b24;
+    animation: streak-reward-dot 1.2s ease-in-out infinite;
+}
+
+@keyframes streak-reward-dot {
+    50% {
+        transform: scale(1.3);
+    }
+}
+
+.streak-calendar {
+    margin-bottom: 18px;
+}
+
+.streak-calendar-path {
+    overflow-x: auto;
+    padding: 12px 2px 6px;
+    scrollbar-width: thin;
+    overscroll-behavior-x: contain;
+}
+
+.streak-calendar-track {
+    position: relative;
+    display: flex;
+    gap: 8px;
+    width: max-content;
+    padding: 0 4px;
+}
+
+/* La ligne qui relie les jours. */
+.streak-calendar-track::before {
+    content: "";
+    position: absolute;
+    left: 30px;
+    right: 30px;
+    top: 42px;
+    height: 4px;
+    border-radius: 4px;
+    background: #2c3040;
+}
+
+.streak-day {
+    position: relative;
+    z-index: 1;
+    flex: none;
+    width: 70px;
+    padding: 7px 4px 8px;
+    border: 2px solid #2c3040;
+    border-radius: 14px;
+    background: #12141b;
+    text-align: center;
+    transition: transform 0.15s;
+}
+
+.streak-day-n {
+    display: block;
+    font-size: 10px;
+    font-weight: 800;
+    color: #737887;
+}
+
+.streak-day-icon {
+    display: block;
+    margin-top: 2px;
+    font-size: 23px;
+    line-height: 1.25;
+}
+
+.streak-day-amount {
+    display: block;
+    font-size: 11px;
+    font-weight: 900;
+    color: #e6e8ee;
+    overflow-wrap: anywhere;
+}
+
+/* 7e jour : la caisse. */
+.streak-day-big {
+    width: 84px;
+    border-color: #6c63ff;
+    background: linear-gradient(180deg, #241d3a, #12141b);
+}
+
+.streak-day-big .streak-day-icon {
+    font-size: 30px;
+}
+
+.streak-day-done {
+    opacity: 0.45;
+}
+
+.streak-day-done::after {
+    content: "✓";
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-size: 28px;
+    font-weight: 900;
+    color: #63d69f;
+    text-shadow: 0 0 10px #000;
+}
+
+/* Aujourd'hui : déjà pris, il reste lisible. */
+.streak-day-today {
+    border-color: #ffb547;
+    background: linear-gradient(180deg, #2f2414, #12141b);
+    box-shadow: 0 0 18px rgba(255, 181, 71, 0.35);
+}
+
+.streak-day-today.streak-day-done {
+    opacity: 0.75;
+}
+
+.streak-day-ready {
+    cursor: pointer;
+    animation: streak-day-wait 1.4s ease-in-out infinite;
+}
+
+@keyframes streak-day-wait {
+    50% {
+        transform: translateY(-3px);
+        box-shadow: 0 0 26px rgba(255, 181, 71, 0.55);
+    }
+}
+
+.streak-day-pop {
+    animation: streak-day-pop 0.5s cubic-bezier(0.3, 1.8, 0.5, 1);
+}
+
+@keyframes streak-day-pop {
+    40% {
+        transform: scale(1.15);
+    }
+}
+
+.streak-day-claim {
+    display: block;
+    width: 100%;
+    margin: 6px 0 0;
+    padding: 5px 0;
+    border: none;
+    border-radius: 8px;
+    background: linear-gradient(90deg, #ffd36b, #ffb547);
+    color: #2a1a05;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.streak-day-claim:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.streak-calendar-info {
+    margin: 10px 0 0;
+    padding: 8px 10px;
+    border-radius: 12px;
+    border: 1px solid #262a38;
+    background: #12141b;
+    color: #aaaeba;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.streak-calendar-info b {
+    color: #ffd36b;
+}
+
+.streak-calendar-message {
+    margin: 8px 0 0;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.5;
+    color: #ffd36b;
+}
+
+.streak-calendar-message:empty {
+    display: none;
+}
+
+.streak-calendar-message.error {
+    color: #ff8a8a;
+}
+
+/* L'XP du calendrier : une orbe violette lumineuse (aussi celles qui volent vers la jauge). */
+.xp-orb {
+    display: inline-block;
+    width: 0.9em;
+    height: 0.9em;
+    border-radius: 50%;
+    background: radial-gradient(circle at 34% 30%, #f5ecff 0 10%, #c48bff 32%, #8b3dff 64%, #4b1a9e 100%);
+    box-shadow: 0 0 8px rgba(160, 90, 255, 0.85), inset 0 -2px 4px rgba(40, 0, 90, 0.5);
+    vertical-align: -0.12em;
+}
+
+.streak-day-icon .xp-orb {
+    width: 24px;
+    height: 24px;
+    margin: 2px 0 1px;
+    vertical-align: middle;
+    animation: xp-orb-glow 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes xp-orb-glow {
+    to {
+        box-shadow: 0 0 16px rgba(170, 100, 255, 1), inset 0 -2px 4px rgba(40, 0, 90, 0.5);
+    }
+}
+
+.xp-orb-flying {
+    position: fixed;
+    z-index: 5000;
+    width: 14px;
+    height: 14px;
+    pointer-events: none;
+}
+
+/* Caisse du 7e jour : la roulette de la boutique (couleurs de rareté reprises de .rshop-chest). */
+.streak-chest {
+    --chest-commun: #9aa3b5;
+    --chest-rare: #4fa3ff;
+    --chest-epique: #c86bff;
+    --chest-legendaire: #ffc857;
+    margin-top: 10px;
+}
+
+.streak-chest.hidden {
+    display: none;
+}
+
+.streak-chest-result {
+    margin: 8px 0 0;
+    font-size: 13px;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.streak-chest-equip {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 8px;
+    font-size: 12px;
+    color: #aaaeba;
+}
+
+.streak-chest-equip button {
+    padding: 6px 12px;
+    border-radius: 10px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.streak-chest-error {
+    color: #ff8a8a;
 }
