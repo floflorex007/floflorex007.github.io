@@ -1871,6 +1871,15 @@
 
                 <button
                     type="button"
+                    id="heatmap-reload"
+                    class="heatmap-reload"
+                    title="Remet l'aperçu à zéro, avec les clics les plus récents"
+                >
+                    ↺ Recharger
+                </button>
+
+                <button
+                    type="button"
                     id="heatmap-close"
                     class="heatmap-close"
                 >
@@ -1939,11 +1948,18 @@
                     ></ol>
 
                     <div
+                        id="heatmap-missing"
+                        class="heatmap-unused heatmap-missing hidden"
+                    ></div>
+
+                    <div
                         id="heatmap-unused"
                         class="heatmap-unused hidden"
                     ></div>
 
                     <p class="heatmap-note">
+                        Clique dans l'aperçu comme sur le vrai site (rien n'est enregistré) : la carte suit l'écran affiché.
+                        Chaque clic est replacé sur le même bouton chez toi, même si ton écran est différent de celui du joueur.
                         Totaux additionnés par la base : ton navigateur ne reçoit jamais la liste des clics un par un.
                     </p>
 

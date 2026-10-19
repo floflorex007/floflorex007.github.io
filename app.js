@@ -21,16 +21,26 @@ const SUPABASE_URL = "https://cfufqznzrcvhmpxtohlj.supabase.co";
 const SUPABASE_KEY = "sb_publishable_GwBhnTBPzOMsp3Yh2Q3jfg_hAoBMgiv";
 
 
-const supabaseClient = supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_KEY
-);
-
-
 // app.html?apercu-clics : le site affiché dans le cadre de la page Heat map (admin).
-// Pas de tuto, pas de fenêtres, aucun clic compté (voir heatmap.js).
+// Cliquable, mais rien ne s'enregistre : les requêtes qui écrivent sont
+// bloquées par clickPreviewFetch (heatmap.js). Pas de tuto, aucun clic compté.
 const CLICK_PREVIEW =
     new URLSearchParams(window.location.search).has("apercu-clics");
+
+
+const supabaseClient = supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY,
+    CLICK_PREVIEW
+        ? {
+            global: {
+                fetch: (...args) => typeof clickPreviewFetch === "function"
+                    ? clickPreviewFetch(...args)
+                    : fetch(...args)
+            }
+        }
+        : {}
+);
 
 
 
@@ -698,6 +708,15 @@ function withGroupStyle(profile) {
 */
 
 function switchGroup(groupId) {
+
+    // Aperçu de la Heat map : le groupe choisi serait aussi celui du site de l'admin.
+    if (CLICK_PREVIEW) {
+
+        showClickPreviewBlocked();
+
+        return;
+
+    }
 
     saveGroupId(groupId);
 
@@ -20191,6 +20210,15 @@ function setupDeleteAccount() {
 
 
 async function logout() {
+
+    // Aperçu de la Heat map : la déconnexion fermerait aussi la session de l'admin.
+    if (CLICK_PREVIEW) {
+
+        showClickPreviewBlocked();
+
+        return;
+
+    }
 
     await supabaseClient.auth.signOut();
 

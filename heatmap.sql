@@ -3,13 +3,13 @@
 -- Maquette : Exemple-aide CLAUDE/demo-heatmap-admin.html (version B, calque plein écran)
 --
 -- - click_events : un clic = une ligne. Ni compte, ni adresse IP,
---   ni texte saisi : l'écran, l'élément cliqué, la position, la taille
---   de l'écran, le type d'appareil, l'heure (arrondie à l'heure) et
+--   ni texte saisi : l'écran, l'élément cliqué, la position du clic
+--   dans cet élément, la largeur de l'écran, le type d'appareil, l'heure (arrondie à l'heure) et
 --   un numéro de visite tiré au hasard dans le navigateur.
 -- - Ajout : seulement un joueur connecté qui a coché la case d'accord
 --   (click_consents), jamais l'admin ni les comptes de click_excluded_users.
 -- - Lecture : l'admin seul. La page Heat map passe par trois fonctions
---   qui renvoient des totaux (par case de grille et par élément),
+--   qui renvoient des totaux (par élément et par case dans l'élément),
 --   jamais les clics un par un.
 -- - Purge : les clics de plus de 90 jours sont effacés chaque nuit (pg_cron).
 --
@@ -112,38 +112,38 @@ grant execute on function public.set_click_consent(boolean) to authenticated;
 
 
 -- ---------- Les clics ----------
--- Positions en ‰ (pour mille, 0 à 1000) :
---   layer 'page'  : dans la zone centrale (.main-container, 1300 px au plus) → x / largeur de cette zone,
---                   y / hauteur de la page, et y_px = distance au haut de la page ;
---   layer 'top'   : ailleurs dans la page (barre du haut) → x / largeur de l'écran, y et y_px pareil ;
---   layer 'fixed' : élément fixe (menu du bas, bulle du chat…) ou fond d'une fenêtre → x et y / taille de l'écran ;
---   layer 'modal' : dans une fenêtre → x et y / taille de la fenêtre.
+-- Chaque clic est accroché à l'élément cliqué (bouton, carte, fond de fenêtre…),
+-- pas à l'écran : les joueurs n'ont pas tous le même écran (niveau, nombre de
+-- paris, longueur des textes), alors on note
+--   element  : la clé de l'élément (sélecteur court, jamais son texte) ;
+--   el_index : son rang parmi les éléments identiques visibles (2e carte…) ;
+--   ex_pm, ey_pm : la position du clic dans l'élément, en ‰ (0 à 1000) de sa largeur et de sa hauteur.
+-- La page Heat map retrouve le même élément sur l'écran de l'admin et y replace les clics.
+
+-- Ancienne version (positions par rapport à l'écran) : effacée pour repartir de zéro (2026-10-19).
+do $$
+begin
+    if exists (
+        select 1 from information_schema.columns
+        where table_schema = 'public' and table_name = 'click_events' and column_name = 'layer'
+    ) then
+        drop table public.click_events;
+    end if;
+end;
+$$;
 
 create table if not exists public.click_events (
     id bigint generated always as identity primary key,
     created_at timestamptz not null default date_trunc('hour', now()),
     session_id uuid not null,
     screen text not null check (char_length(screen) between 1 and 40),
-    element text check (char_length(element) <= 80),
-    layer text not null default 'page',
-    x_pm smallint not null check (x_pm between 0 and 1000),
-    y_pm smallint not null check (y_pm between 0 and 1000),
-    y_px integer check (y_px between 0 and 200000),
+    element text not null check (char_length(element) between 1 and 80),
+    el_index smallint check (el_index between 0 and 99),
+    ex_pm smallint not null check (ex_pm between 0 and 1000),
+    ey_pm smallint not null check (ey_pm between 0 and 1000),
     vw smallint not null check (vw between 200 and 8000),
-    vh smallint not null check (vh between 200 and 8000),
     device text not null check (device in ('mobile', 'desktop'))
 );
-
--- Contraintes nommées (relançable, et mise à jour de la première version de la table).
-alter table public.click_events drop constraint if exists click_events_layer_check;
-alter table public.click_events drop constraint if exists click_events_check;
-alter table public.click_events drop constraint if exists click_events_y_px_needed;
-
-alter table public.click_events
-    add constraint click_events_layer_check check (layer in ('page', 'top', 'fixed', 'modal'));
-
-alter table public.click_events
-    add constraint click_events_y_px_needed check (layer not in ('page', 'top') or y_px is not null);
 
 create index if not exists click_events_created_at on public.click_events (created_at);
 create index if not exists click_events_screen_created_at on public.click_events (screen, created_at);
@@ -223,21 +223,20 @@ as $$
     end;
 $$;
 
--- Clics additionnés par case de grille : colonnes de p_cell % de large ;
--- lignes de p_cell_px pixels dans la page (y_px, pour rester aligné quelle que
--- soit la longueur de la page), de p_cell % de haut sur l'écran ou dans une fenêtre.
+-- Clics additionnés par élément et par case : chaque élément est découpé
+-- en cases de p_cell % de sa largeur et de sa hauteur.
 drop function if exists public.admin_click_heatmap(text, text, integer, integer);
+drop function if exists public.admin_click_heatmap(text, text, integer, integer, integer);
 
-create or replace function public.admin_click_heatmap(p_screen text, p_bucket text, p_days integer, p_cell integer default 2, p_cell_px integer default 20)
-returns table (layer text, cx integer, cy integer, clicks bigint)
+create or replace function public.admin_click_heatmap(p_screen text, p_bucket text, p_days integer, p_cell integer default 2)
+returns table (element text, el_index smallint, cx integer, cy integer, clicks bigint)
 language plpgsql
 stable
 security definer
 set search_path = public
 as $$
 declare
-    v_cell integer := case when p_cell in (1, 2, 4) then p_cell else 2 end;
-    v_cell_px integer := greatest(4, least(coalesce(p_cell_px, 20), 200));
+    v_cell integer := case when p_cell in (1, 2, 4, 5) then p_cell else 2 end;
 begin
 
     if not public.beta_is_admin() then
@@ -245,18 +244,16 @@ begin
     end if;
 
     return query
-    select e.layer,
-           (least(e.x_pm, 999) / (v_cell * 10))::integer,
-           (case
-               when e.layer in ('page', 'top') then e.y_px / v_cell_px
-               else least(e.y_pm, 999) / (v_cell * 10)
-           end)::integer,
+    select e.element,
+           e.el_index,
+           (least(e.ex_pm, 999) / (v_cell * 10))::integer,
+           (least(e.ey_pm, 999) / (v_cell * 10))::integer,
            count(*)
     from click_events e
     where e.screen = p_screen
       and public.click_bucket(e.device, e.vw) = p_bucket
       and e.created_at >= public.click_since(p_days)
-    group by 1, 2, 3;
+    group by 1, 2, 3, 4;
 
 end;
 $$;
@@ -333,12 +330,44 @@ begin
 end;
 $$;
 
-revoke all on function public.admin_click_heatmap(text, text, integer, integer, integer) from public, anon;
+
+-- Aperçu cliquable de la page Heat map : le site tourne avec le compte admin,
+-- mais rien ne doit s'y enregistrer. Le cadre ne laisse passer que les
+-- fonctions de lecture : celles déclarées « stable » ou « immutable », que
+-- Postgres empêche d'écrire (liste relue à chaque ouverture, donc à jour).
+create or replace function public.admin_click_preview_rpcs()
+returns text[]
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+
+    if not public.beta_is_admin() then
+        raise exception 'Réservé à l''admin.';
+    end if;
+
+    return array(
+        select distinct p.proname::text
+        from pg_proc p
+        join pg_namespace n on n.oid = p.pronamespace
+        where n.nspname = 'public'
+          and p.prokind = 'f'
+          and p.provolatile in ('s', 'i')
+    );
+
+end;
+$$;
+
+revoke all on function public.admin_click_heatmap(text, text, integer, integer) from public, anon;
 revoke all on function public.admin_click_ranking(text, text, integer) from public, anon;
 revoke all on function public.admin_click_summary(text, text, integer) from public, anon;
-grant execute on function public.admin_click_heatmap(text, text, integer, integer, integer) to authenticated;
+revoke all on function public.admin_click_preview_rpcs() from public, anon;
+grant execute on function public.admin_click_heatmap(text, text, integer, integer) to authenticated;
 grant execute on function public.admin_click_ranking(text, text, integer) to authenticated;
 grant execute on function public.admin_click_summary(text, text, integer) to authenticated;
+grant execute on function public.admin_click_preview_rpcs() to authenticated;
 
 
 -- ---------- Purge automatique : clics de plus de 90 jours, chaque nuit à 3 h 20 (UTC) ----------

@@ -5,13 +5,16 @@
    - la fenêtre d'accord est obligatoire pour jouer : accepter ou se
      déconnecter. Les joueurs qui acceptent envoient leurs clics par
      paquets (toutes les 10 s, dès 30 clics, et à la fermeture de la page) :
-     écran, élément cliqué, position, taille d'écran, appareil. Jamais le
-     texte tapé ni le pseudo (la base ne garde aucun lien avec le compte) ;
+     écran, élément cliqué, son rang parmi les éléments identiques, position
+     du clic DANS cet élément, largeur d'écran, appareil. Jamais le texte
+     tapé ni le pseudo (la base ne garde aucun lien avec le compte) ;
    - l'admin et les comptes de click_excluded_users ne sont jamais comptés ;
    - onglet « Heat map » (admin) : calque plein écran, le vrai site dans un
-     cadre (app.html?apercu-clics) à la largeur du groupe d'écrans choisi,
-     la chaleur par-dessus (froid bleu → chaud rouge) et le classement des
-     éléments les plus cliqués. La base ne renvoie que des totaux.
+     cadre (app.html?apercu-clics) à la largeur du groupe d'écrans choisi.
+     Le cadre est cliquable comme le vrai site (rien ne s'y enregistre) :
+     la carte suit l'écran affiché (page, fenêtre ouverte) et replace chaque
+     clic sur le même élément chez l'admin, où qu'il soit. La base ne
+     renvoie que des totaux.
 ========================================================= */
 
 
@@ -27,7 +30,7 @@ const HEATMAP_DEVICES = {
     wide: { label: "🖥️ Grand écran", width: 1366, height: 768, note: "plus de 1100 px" }
 };
 
-// Taille des cases de regroupement : 2 % de la largeur (« Moyenne » dans la maquette).
+// Taille des cases de regroupement : 2 % de la largeur et de la hauteur de l'élément cliqué.
 const HEATMAP_CELL = 2;
 
 // Couleurs « Classique » (froid → chaud) et intensité « Moyenne ».
@@ -35,7 +38,7 @@ const HEATMAP_PALETTE = ["#1d4ed8", "#06b6d4", "#22c55e", "#facc15", "#ef4444"];
 const HEATMAP_OPACITY = 0.72;
 
 // Écrans toujours proposés dans le filtre, même sans clic.
-const HEATMAP_MAIN_SCREENS = ["bets-page", "my-bets-page", "missions-page", "shop-page", "profile-page", "bet-modal"];
+const HEATMAP_MAIN_SCREENS = ["bets-page", "my-bets-page", "missions-page", "shop-page", "profile-page", "bet-modal", "stakes-panel", "group-menu"];
 
 const SCREEN_LABELS = {
     "bets-page": "Paris",
@@ -69,10 +72,12 @@ const SCREEN_LABELS = {
     "notice-modal": "Fenêtre : message",
     "removed-modal": "Fenêtre : retiré du groupe",
     "group-modal": "Fenêtre : groupe",
-    "click-consent-modal": "Fenêtre : accord des clics"
+    "click-consent-modal": "Fenêtre : accord des clics",
+    "stakes-panel": "Carte dépliée (détail des parieurs)",
+    "group-menu": "Menu du groupe"
 };
 
-// Noms lisibles des éléments (clés enregistrées par clickElementKey).
+// Noms lisibles des éléments (clés enregistrées par clickAnchor).
 // Ceux-ci servent aussi à la liste « Jamais cliqués ».
 const CLICK_LABELS = {
     'button.nav-button[data-page="bets-page"]': "Onglet Paris",
@@ -113,6 +118,9 @@ const CLICK_LABEL_PATTERNS = [
     [/data-stake="(\d+)"/, "Mise rapide $1 €"],
     [/^#close-/, "Fermer ✕"],
     [/^#[a-z-]+-modal$/, "Clic à côté de la fenêtre (la ferme)"],
+    [/^#[a-z-]+-page$/, "Fond de la page (rien de cliquable)"],
+    [/^div\.modal-content/, "Fond de la fenêtre (rien de cliquable)"],
+    [/^body$/, "Fond du site (rien de cliquable)"],
     [/^div\.bet-card\b/, "Carte d'un pari (hors boutons)"],
     [/\.bet-choice-button/, "Cote d'un pari"],
     [/\.validate-fab-delete/, "Supprimer le pari (pastille rouge)"],
@@ -129,6 +137,51 @@ const CLICK_INTERACTIVE = "button, a, input, select, textarea, label, summary, [
 const CLICK_GENERIC_CLASSES = new Set(["primary-button", "secondary-button", "large-button", "danger", "ghost", "small", "active", "hidden"]);
 const CLICK_DATA_KEYS = ["page", "stake", "tab", "filter", "mode", "section", "step", "kind", "action", "view"];
 
+// Fenêtres et volets qui passent par-dessus la page : chacun est un écran à part
+// dans la heat map (ses clics s'affichent quand il est ouvert dans l'aperçu).
+// #stakes-panel : la carte dépliée (détail des parieurs) ; #group-menu : le menu du groupe.
+const CLICK_POPUPS = ".modal, #stakes-panel, #group-menu";
+
+// Fonds sombres qui referment un volet : leurs clics comptent avec ce volet.
+const CLICK_POPUP_BACKDROPS = { "stakes-panel-backdrop": "stakes-panel" };
+
+const CLICK_OVERLAYS = [CLICK_POPUPS, ...Object.keys(CLICK_POPUP_BACKDROPS).map(id => "#" + id)].join(", ");
+
+// Rang noté jusqu'à la 100e carte identique (au-delà : pas de rang, le clic n'est pas replacé).
+const CLICK_MAX_INDEX = 99;
+
+// Choisir une fenêtre dans le filtre « Écran » : on l'ouvre comme un joueur, avec ce bouton
+// (sinon elle est affichée telle quelle, sans contenu).
+const HEATMAP_MODAL_OPENERS = {
+    "bet-modal": "button.bet-choice-button",
+    "stakes-panel": "div.bet-card",
+    "group-menu": "#group-switcher-button",
+    "player-modal": "div.leaderboard-row",
+    "points-modal": "#points-widget",
+    "diamond-modal": "#diamond-widget",
+    "balance-modal": "#balance-widget",
+    "streak-modal": "#streak-widget"
+};
+
+// Aperçu cliquable : fonctions qui écrivent mais que le site de l'admin lance déjà
+// tout seul à l'ouverture, ou qui ne font que clore ce qui est échu (défis, contestations,
+// votes de l'arbre). Les autres fonctions qui écrivent sont bloquées (voir clickPreviewFetch).
+const CLICK_PREVIEW_ALLOWED_RPCS = new Set([
+    "admin_click_preview_rpcs",
+    "daily_checkin",
+    "claim_event_skins",
+    "beta_settle_votes",
+    "duel_history",
+    "my_duels",
+    "group_contests",
+    "group_tree_state",
+    "preview_group"
+]);
+
+// Une fenêtre qui s'ouvre plus de 4 s après le dernier geste de l'admin
+// (annonce, cadeau, défi reçu…) est refermée dans l'aperçu.
+const CLICK_PREVIEW_POPUP_MS = 4000;
+
 
 // État du comptage pour ce joueur : 'accepted', 'refused', 'unknown' ou 'excluded'.
 let clickState = null;
@@ -144,7 +197,7 @@ let clickVisit = null;
 let clickAuthWatched = false;
 
 
-// Aperçu de la page Heat map : posé tout de suite pour cacher fenêtres et tuto.
+// Aperçu de la page Heat map : posé tout de suite pour cacher le tuto et les onglets admin.
 if (CLICK_PREVIEW) {
     document.body.classList.add("click-preview");
 }
@@ -422,22 +475,20 @@ function recordClick(event) {
         return;
     }
 
+    const anchor = clickAnchor(target);
+
+    const rect = anchor.element.getBoundingClientRect();
+
     const vw = document.documentElement.clientWidth || window.innerWidth;
-
-    const vh = window.innerHeight;
-
-    const spot = clickSpot(event, target, vw, vh);
 
     clickQueue.push({
         session_id: clickVisit,
         screen: clickScreen(target).slice(0, 40),
-        element: clickElementKey(target).slice(0, 80) || null,
-        layer: spot.layer,
-        x_pm: toPerMille(spot.x),
-        y_pm: toPerMille(spot.y),
-        y_px: spot.yPx === undefined ? null : Math.max(0, Math.min(200000, Math.round(spot.yPx))),
+        element: anchor.key,
+        el_index: clickElementIndex(anchor, clickPopup(target)),
+        ex_pm: toPerMille((event.clientX - rect.left) / rect.width),
+        ey_pm: toPerMille((event.clientY - rect.top) / rect.height),
         vw: Math.max(200, Math.min(8000, Math.round(vw))),
-        vh: Math.max(200, Math.min(8000, Math.round(vh))),
         device: PHONE_LAYOUT.matches ? "mobile" : "desktop"
     });
 
@@ -457,13 +508,13 @@ function toPerMille(value) {
 }
 
 
-// Écran : la fenêtre ouverte où l'on clique, sinon la page affichée.
+// Écran : la fenêtre ou le volet où l'on clique, sinon la page affichée.
 function clickScreen(target) {
 
-    const modal = target.closest(".modal");
+    const popup = clickPopup(target);
 
-    if (modal?.id) {
-        return modal.id;
+    if (popup?.id) {
+        return popup.id;
     }
 
     return document.querySelector(".app-page:not(.hidden)")?.id || "autre";
@@ -471,57 +522,89 @@ function clickScreen(target) {
 }
 
 
-/*
-    Position du clic, rapportée à ce qui ne bouge pas d'un écran à l'autre :
-    - dans une fenêtre : par rapport à la fenêtre ('modal') ;
-    - élément fixe (menu du bas, bulle du chat) ou fond d'une fenêtre : par rapport à l'écran ('fixed') ;
-    - dans la zone centrale (1300 px au plus, centrée) : x par rapport à elle ('page') ;
-    - ailleurs dans la page (barre du haut) : x par rapport à l'écran ('top').
-    Dans la page, y_px = distance au haut de la page.
-*/
-function clickSpot(event, target, vw, vh) {
+// Fenêtre ou volet qui contient l'élément (son fond sombre compris), sinon null.
+function clickPopup(element) {
 
-    const modal = target.closest(".modal");
+    const backdrop = element.closest(
+        Object.keys(CLICK_POPUP_BACKDROPS).map(id => "#" + id).join(", ")
+    );
 
-    const box = modal?.querySelector(".modal-content");
-
-    if (box && box.contains(target)) {
-
-        const rect = box.getBoundingClientRect();
-
-        return {
-            layer: "modal",
-            x: (event.clientX - rect.left) / rect.width,
-            y: (event.clientY - rect.top) / rect.height
-        };
-
+    if (backdrop) {
+        return element.ownerDocument.getElementById(CLICK_POPUP_BACKDROPS[backdrop.id]);
     }
 
-    if (modal || isFixedElement(target)) {
-
-        return { layer: "fixed", x: event.clientX / vw, y: event.clientY / vh };
-
-    }
-
-    const pageY = event.clientY + window.scrollY;
-
-    const y = pageY / Math.max(1, document.documentElement.scrollHeight);
-
-    const main = target.closest(".main-container");
-
-    if (main) {
-
-        const rect = main.getBoundingClientRect();
-
-        return { layer: "page", x: (event.clientX - rect.left) / rect.width, y, yPx: pageY };
-
-    }
-
-    return { layer: "top", x: event.clientX / vw, y, yPx: pageY };
+    return element.closest(CLICK_POPUPS);
 
 }
 
 
+// Le volet et ses fonds sombres : là où l'on cherche les éléments de cet écran.
+function clickPopupBoxes(popup) {
+
+    const doc = popup.ownerDocument;
+
+    return [
+        popup,
+        ...Object.keys(CLICK_POPUP_BACKDROPS)
+            .filter(id => CLICK_POPUP_BACKDROPS[id] === popup.id)
+            .map(id => doc.getElementById(id))
+            .filter(Boolean)
+    ];
+
+}
+
+
+/*
+    Élément auquel le clic est accroché, et sa clé : data-track-id, sinon son
+    id, sinon un sélecteur court (balise + classe + data-page, data-stake…).
+    Les identifiants qui contiennent un numéro (un pari, un joueur) sont
+    ignorés pour que toutes les cartes comptent ensemble. Jamais le texte de
+    l'élément. Un clic sur rien de reconnaissable (simple paragraphe…)
+    s'accroche au fond de la fenêtre ou de la page.
+*/
+function clickAnchor(target) {
+
+    const tracked = target.closest("[data-track-id]");
+
+    if (tracked) {
+
+        const key = `[data-track-id="${CSS.escape(tracked.dataset.trackId)}"]`;
+
+        if (key.length <= 80) {
+            return { element: tracked, key };
+        }
+
+    }
+
+    // Un bouton, sinon l'élément touché ou un parent proche qui a une classe
+    // (fond d'une carte, ligne du classement…), sinon un parent qui a un id.
+    const element =
+        target.closest(CLICK_INTERACTIVE)
+        || stableIdAncestor(target, 1)
+        || classedAncestor(target, 2)
+        || stableIdAncestor(target, 3)
+        || target;
+
+    const key = clickSelector(element);
+
+    if (/[#.[]/.test(key) && key.length <= 80) {
+        return { element, key };
+    }
+
+    const box =
+        target.closest(".modal-content")
+        || target.closest(CLICK_POPUPS)
+        || target.closest(".app-page");
+
+    // Les classes de <body> changent d'un joueur à l'autre (version bêta…) : clé fixe.
+    return box
+        ? { element: box, key: clickSelector(box).slice(0, 80) }
+        : { element: document.body, key: "body" };
+
+}
+
+
+// Élément fixe ou collé à l'écran (lui ou un parent) : il ne défile pas avec la page.
 function isFixedElement(element, view = window) {
 
     for (let node = element; node && node !== node.ownerDocument.body; node = node.parentElement) {
@@ -539,30 +622,46 @@ function isFixedElement(element, view = window) {
 }
 
 
-/*
-    Clé de l'élément cliqué : data-track-id, sinon son id, sinon un sélecteur
-    court (balise + classe + data-page, data-stake…). Les identifiants qui
-    contiennent un numéro (un pari, un joueur) sont ignorés pour que toutes
-    les cartes comptent ensemble. Jamais le texte de l'élément.
-*/
-function clickElementKey(target) {
+// Rang de l'élément parmi les éléments visibles qui ont la même clé (2e carte…).
+function clickElementIndex(anchor, popup) {
 
-    const tracked = target.closest("[data-track-id]");
+    try {
 
-    if (tracked) {
-        return `[data-track-id="${CSS.escape(tracked.dataset.trackId)}"]`;
+        const index = clickCandidates(document, anchor.key, popup).indexOf(anchor.element);
+
+        return index >= 0 && index <= CLICK_MAX_INDEX ? index : null;
+
+    } catch (error) {
+        return null;
     }
 
-    // Un bouton, sinon l'élément touché ou un parent proche qui a une classe
-    // (fond d'une carte, ligne du classement…), sinon un parent qui a un id.
-    const element =
-        target.closest(CLICK_INTERACTIVE)
-        || stableIdAncestor(target, 1)
-        || classedAncestor(target, 2)
-        || stableIdAncestor(target, 3)
-        || target;
+}
 
-    return clickSelector(element);
+
+/*
+    Éléments visibles qui portent cette clé, dans l'ordre de la page : dans la
+    fenêtre ou le volet ouvert (popup), ou hors des fenêtres et volets pour
+    une page. Le même calcul sert chez le joueur (rang noté) et dans l'aperçu
+    de l'admin (rang retrouvé). Peut lever une erreur si la clé n'est pas un sélecteur.
+*/
+function clickCandidates(doc, key, popup) {
+
+    const list = [];
+
+    (popup ? clickPopupBoxes(popup) : [doc]).forEach(box => {
+
+        if (box.matches?.(key)) {
+            list.push(box);
+        }
+
+        list.push(...box.querySelectorAll(key));
+
+    });
+
+    return list.filter(element =>
+        element.getClientRects().length > 0
+        && (popup || !element.closest(CLICK_OVERLAYS))
+    );
 
 }
 
@@ -740,25 +839,151 @@ function flushClicksWhenHidden() {
    APERÇU DANS LE CADRE DE LA PAGE HEAT MAP (app.html?apercu-clics)
 ========================================================= */
 
+let clickPreviewRpcs = null;
+
+let clickPreviewToastTimer = null;
+
+
 function setupClickPreview() {
 
-    // Rien n'est cliquable dans l'aperçu (pas de mise par erreur) ; on peut faire défiler.
-    // Les clics lancés par la page Heat map (changer d'onglet) passent : ils ne sont pas « isTrusted ».
-    ["click", "dblclick", "mousedown", "pointerdown", "submit", "keydown", "contextmenu"].forEach(type => {
+    // Geste de l'admin dans le cadre (la page Heat map le note aussi quand elle change d'écran).
+    ["pointerdown", "keydown"].forEach(type => {
 
-        window.addEventListener(type, event => {
-
-            if (event.isTrusted) {
-
-                event.preventDefault();
-
-                event.stopImmediatePropagation();
-
-            }
-
+        window.addEventListener(type, () => {
+            window.clickPreviewAction = Date.now();
         }, true);
 
     });
+
+    // Fenêtres ouvertes par le site sans geste de l'admin (annonce, cadeau, défi reçu…) : refermées.
+    document
+        .querySelectorAll(".modal:not(.hidden)")
+        .forEach(modal => modal.classList.add("hidden"));
+
+    new MutationObserver(records => {
+
+        if (Date.now() - (window.clickPreviewAction || 0) < CLICK_PREVIEW_POPUP_MS) {
+            return;
+        }
+
+        records.forEach(({ target }) => {
+
+            if (target.classList.contains("modal") && !target.classList.contains("hidden")) {
+                target.classList.add("hidden");
+            }
+
+        });
+
+    }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ["class"] });
+
+}
+
+
+/*
+    Toutes les requêtes du site de l'aperçu passent ici (voir createClient dans app.js).
+    Passent : les lectures (GET), le renouvellement de la session, les fonctions
+    « stable » de la base (Postgres leur interdit d'écrire, liste donnée par
+    admin_click_preview_rpcs) et CLICK_PREVIEW_ALLOWED_RPCS. Le reste (miser,
+    créer, donner, voter…) reçoit un refus, et rien n'est enregistré.
+*/
+function clickPreviewFetch(input, init = {}) {
+
+    const url = String(input?.url || input);
+
+    const method = (init.method || input?.method || "GET").toUpperCase();
+
+    if (method === "GET" || method === "HEAD" || !url.startsWith(SUPABASE_URL)) {
+        return fetch(input, init);
+    }
+
+    const path = new URL(url).pathname;
+
+    if (path === "/auth/v1/token") {
+        return fetch(input, init);
+    }
+
+    const rpc = path.match(/^\/rest\/v1\/rpc\/([a-z0-9_]+)$/i)?.[1];
+
+    if (!rpc) {
+        return clickPreviewRefusal();
+    }
+
+    if (CLICK_PREVIEW_ALLOWED_RPCS.has(rpc)) {
+        return fetch(input, init);
+    }
+
+    return clickPreviewReadRpcs().then(names =>
+        names.has(rpc) ? fetch(input, init) : clickPreviewRefusal()
+    );
+
+}
+
+
+function clickPreviewReadRpcs() {
+
+    if (!clickPreviewRpcs) {
+
+        clickPreviewRpcs = supabaseClient.rpc("admin_click_preview_rpcs").then(({ data, error }) => {
+
+            if (error) {
+
+                // On réessaiera à la prochaine requête ; en attendant, tout est bloqué.
+                console.error("Erreur admin_click_preview_rpcs :", error);
+
+                clickPreviewRpcs = null;
+
+                return new Set();
+
+            }
+
+            return new Set(data || []);
+
+        });
+
+    }
+
+    return clickPreviewRpcs;
+
+}
+
+
+// Réponse d'erreur ordinaire : le site affiche son message d'erreur habituel.
+function clickPreviewRefusal() {
+
+    showClickPreviewBlocked();
+
+    return Promise.resolve(new Response(
+        JSON.stringify({ message: "Aperçu de la Heat map : rien n'est enregistré.", code: "PREVIEW" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+    ));
+
+}
+
+
+function showClickPreviewBlocked() {
+
+    let toast = document.getElementById("click-preview-toast");
+
+    // Posé hors de <body> : la page Heat map ne surveille que <body>.
+    if (!toast) {
+
+        toast = document.createElement("div");
+
+        toast.id = "click-preview-toast";
+
+        toast.className = "click-preview-toast";
+
+        toast.textContent = "🔒 Aperçu : rien n'est enregistré";
+
+        document.documentElement.appendChild(toast);
+
+    }
+
+    toast.classList.add("visible");
+
+    clearTimeout(clickPreviewToastTimer);
+
+    clickPreviewToastTimer = setTimeout(() => toast.classList.remove("visible"), 2200);
 
 }
 
@@ -769,6 +994,7 @@ function setupClickPreview() {
 ========================================================= */
 
 const heatmap = {
+    // Écran affiché dans l'aperçu, dont les clics sont chargés (suit le cadre tout seul).
     screen: "bets-page",
     device: "phone",
     period: "7",
@@ -777,15 +1003,37 @@ const heatmap = {
     ready: null,
     loaded: false,
     failed: false,
+    // Réponses de la base par écran / appareil / période / portée (vidé à chaque ouverture).
+    cache: new Map(),
     cells: [],
     ranking: [],
     summary: null,
+    // Écran des clics reçus (null pendant un chargement : rien n'est dessiné).
+    dataScreen: null,
+    // Éléments de l'aperçu et leurs cases de clics ; clés cliquées absentes de l'écran.
+    anchors: [],
+    missing: [],
+    missingTotal: 0,
     selected: null,
+    hovered: null,
     drawerOpen: null,
-    token: 0
+    token: 0,
+    navToken: 0,
+    layoutTimer: null,
+    settleTimer: null,
+    paintPending: false,
+    // "fixed" : seuls les éléments fixes sont à redessiner (la page a défilé) ; "all" : tout.
+    paintMode: null,
+    // Plus forte densité du calque de la page (gardée quand seul le calque fixe est redessiné).
+    pagePeak: 0,
+    // Dernier dessin de chaque calque, pour ne pas le refaire à l'identique.
+    signatures: {}
 };
 
 let heatmapLut = null;
+
+// Dernier contenu posé dans les encadrés du tiroir (redessinés seulement s'ils changent).
+const heatmapRendered = new Map();
 
 
 function setupHeatmapPage() {
@@ -798,7 +1046,14 @@ function setupHeatmapPage() {
 
     document.getElementById("heatmap-close").addEventListener("click", () => showPage("bets-page"));
 
-    ["screen", "device", "period"].forEach(key => {
+    // Écran : on l'ouvre dans l'aperçu, la carte suit toute seule.
+    document.getElementById("heatmap-screen").addEventListener("change", event => {
+
+        navigateHeatmapFrame(event.target.value);
+
+    });
+
+    ["device", "period"].forEach(key => {
 
         document.getElementById("heatmap-" + key).addEventListener("change", event => {
 
@@ -806,11 +1061,15 @@ function setupHeatmapPage() {
 
             heatmap.selected = null;
 
-            refreshHeatmap();
+            fitHeatmapFrame();
+
+            loadHeatmapData();
 
         });
 
     });
+
+    document.getElementById("heatmap-reload").addEventListener("click", reloadHeatmapFrame);
 
     document.querySelectorAll("[data-heatmap-scope]").forEach(button => {
 
@@ -855,15 +1114,25 @@ function setupHeatmapPage() {
 
     drawer.addEventListener("mouseover", event => {
 
-        const row = event.target.closest("[data-heatmap-key]");
+        const key = event.target.closest("[data-heatmap-key]")?.dataset.heatmapKey || null;
 
-        if (row) {
-            highlightHeatmapElement(row.dataset.heatmapKey);
+        if (key !== heatmap.hovered) {
+
+            heatmap.hovered = key;
+
+            scheduleHeatmapPaint();
+
         }
 
     });
 
-    drawer.addEventListener("mouseleave", () => highlightHeatmapElement(heatmap.selected));
+    drawer.addEventListener("mouseleave", () => {
+
+        heatmap.hovered = null;
+
+        scheduleHeatmapPaint();
+
+    });
 
     drawer.addEventListener("click", event => {
 
@@ -914,11 +1183,16 @@ async function openHeatmap() {
 
     }
 
+    // Clics frais à chaque ouverture de l'onglet.
+    heatmap.cache.clear();
+
     if (!heatmap.frame) {
         createHeatmapFrame();
     }
 
-    await refreshHeatmap();
+    fitHeatmapFrame();
+
+    await loadHeatmapData();
 
 }
 
@@ -937,7 +1211,7 @@ function setHeatmapDrawer(open) {
 }
 
 
-// Le vrai site, connecté avec le compte admin, en mode aperçu.
+// Le vrai site, connecté avec le compte admin, en mode aperçu (cliquable, rien ne s'enregistre).
 function createHeatmapFrame(src = "app.html?apercu-clics") {
 
     const frame = document.createElement("iframe");
@@ -945,8 +1219,6 @@ function createHeatmapFrame(src = "app.html?apercu-clics") {
     frame.className = "heatmap-iframe";
 
     frame.title = "Aperçu du site";
-
-    frame.tabIndex = -1;
 
     frame.src = src;
 
@@ -960,6 +1232,15 @@ function createHeatmapFrame(src = "app.html?apercu-clics") {
 
         const check = () => {
 
+            // Cadre remplacé entre-temps (bouton « Recharger ») : on abandonne celui-ci.
+            if (heatmap.frame !== frame) {
+
+                resolve();
+
+                return;
+
+            }
+
             const doc = frame.contentDocument;
 
             const ready =
@@ -971,6 +1252,8 @@ function createHeatmapFrame(src = "app.html?apercu-clics") {
             if (ready) {
 
                 heatmap.loaded = true;
+
+                watchHeatmapFrame();
 
                 resolve();
 
@@ -1003,6 +1286,64 @@ function createHeatmapFrame(src = "app.html?apercu-clics") {
 }
 
 
+// Remet l'aperçu à zéro (après avoir beaucoup cliqué dedans), avec des clics frais.
+function reloadHeatmapFrame() {
+
+    heatmap.frame?.remove();
+
+    heatmap.frame = null;
+
+    heatmap.loaded = false;
+
+    heatmap.failed = false;
+
+    heatmap.anchors = [];
+
+    heatmap.cache.clear();
+
+    createHeatmapFrame();
+
+    loadHeatmapData();
+
+}
+
+
+/*
+    Le site du cadre est surveillé : page qui change, fenêtre qui s'ouvre,
+    cartes qui arrivent → les clics sont replacés (et ceux d'un nouvel écran
+    chargés) ; défilement → la chaleur est redessinée. Le calque et les
+    cadres de surbrillance sont posés hors de <body> pour ne pas se surveiller eux-mêmes.
+*/
+function watchHeatmapFrame() {
+
+    const doc = heatmapDoc();
+
+    if (!doc) {
+        return;
+    }
+
+    const win = heatmap.frame.contentWindow;
+
+    new win.MutationObserver(scheduleHeatmapLayout).observe(doc.body, {
+        subtree: true,
+        childList: true,
+        attributes: true,
+        attributeFilter: ["class", "hidden"]
+    });
+
+    // La page défile : son calque suit tout seul, seuls les éléments fixes ou collés sont
+    // redessinés. Une zone qui défile à l'intérieur (fenêtre, liste) : tout est redessiné.
+    doc.addEventListener("scroll", event => {
+        scheduleHeatmapPaint(event.target === doc ? "fixed" : "all");
+    }, { capture: true, passive: true });
+
+    win.addEventListener("resize", scheduleHeatmapLayout);
+
+    navigateHeatmapFrame(heatmap.screen);
+
+}
+
+
 function heatmapDoc() {
 
     return heatmap.loaded ? heatmap.frame?.contentDocument || null : null;
@@ -1024,7 +1365,10 @@ function fitHeatmapFrame() {
     label.textContent = heatmap.failed
         ? "Le site n'a pas pu s'afficher dans le cadre : quitte la page Heat map et rouvre-la."
         : `${device.label} · affiché en ${device.width} px de large (${device.note})`
-            + (heatmap.frame && !heatmap.loaded ? " · chargement du site…" : "");
+            + (heatmap.frame && !heatmap.loaded ? " · chargement du site…" : "")
+            + (heatmap.missingTotal
+                ? ` · ${formatCount(heatmap.missingTotal)} clic${heatmap.missingTotal > 1 ? "s" : ""} sur des éléments absents de ton écran`
+                : "");
 
     const availableWidth = stage.clientWidth - 24;
 
@@ -1066,46 +1410,65 @@ function loadHeatmapRanking() {
 }
 
 
-async function refreshHeatmap() {
+async function loadHeatmapData() {
 
     const token = ++heatmap.token;
 
-    const device = HEATMAP_DEVICES[heatmap.device];
+    const screen = heatmap.screen;
 
-    fitHeatmapFrame();
+    const cacheKey = [screen, heatmap.device, heatmap.period, heatmap.scope].join("|");
 
-    const params = {
-        p_screen: heatmap.screen,
-        p_bucket: heatmap.device,
-        p_days: Number(heatmap.period)
-    };
+    heatmap.dataScreen = null;
 
-    const [summary, cells, ranking] = await Promise.all([
-        supabaseClient.rpc("admin_click_summary", params),
-        supabaseClient.rpc("admin_click_heatmap", {
-            ...params,
-            p_cell: HEATMAP_CELL,
-            p_cell_px: Math.round(device.width * HEATMAP_CELL / 100)
-        }),
-        loadHeatmapRanking()
-    ]);
+    renderHeatmapScreens();
 
-    // Un filtre a changé pendant le chargement : la réponse suivante s'en occupe.
-    if (token !== heatmap.token) {
-        return;
+    let data = heatmap.cache.get(cacheKey);
+
+    if (!data) {
+
+        const params = {
+            p_screen: screen,
+            p_bucket: heatmap.device,
+            p_days: Number(heatmap.period)
+        };
+
+        const [summary, cells, ranking] = await Promise.all([
+            supabaseClient.rpc("admin_click_summary", params),
+            supabaseClient.rpc("admin_click_heatmap", { ...params, p_cell: HEATMAP_CELL }),
+            loadHeatmapRanking()
+        ]);
+
+        // L'écran ou un filtre a changé pendant le chargement : la réponse suivante s'en occupe.
+        if (token !== heatmap.token) {
+            return;
+        }
+
+        const error = summary.error || cells.error || ranking.error;
+
+        if (error) {
+            console.error("Erreur heat map :", error);
+        }
+
+        data = {
+            summary: summary.data || null,
+            cells: cells.data || [],
+            ranking: ranking.data || [],
+            error
+        };
+
+        if (!error) {
+            heatmap.cache.set(cacheKey, data);
+        }
+
     }
 
-    const error = summary.error || cells.error || ranking.error;
+    heatmap.summary = data.summary;
 
-    if (error) {
-        console.error("Erreur heat map :", error);
-    }
+    heatmap.cells = data.cells;
 
-    heatmap.summary = summary.data || null;
+    heatmap.ranking = data.ranking;
 
-    heatmap.cells = cells.data || [];
-
-    heatmap.ranking = ranking.data || [];
+    heatmap.dataScreen = screen;
 
     renderHeatmapScreens();
 
@@ -1117,64 +1480,140 @@ async function refreshHeatmap() {
 
     const empty = document.getElementById("heatmap-empty");
 
-    empty.textContent = error
-        ? "Impossible de charger les clics : " + (error.message || "erreur inconnue")
-        : "Pas encore de clics ici pour ces filtres. Les joueurs qui acceptent la fenêtre d'accord rempliront la carte au fil des visites.";
+    empty.textContent = data.error
+        ? "Impossible de charger les clics : " + (data.error.message || "erreur inconnue")
+        : `Pas encore de clics sur « ${screenLabel(screen)} » pour ces filtres. Les joueurs qui acceptent la fenêtre d'accord rempliront la carte au fil des visites.`;
 
-    empty.classList.toggle("hidden", !error && (heatmap.summary?.clicks || 0) > 0);
+    empty.classList.toggle("hidden", !data.error && (heatmap.summary?.clicks || 0) > 0);
 
-    await heatmap.ready;
-
-    if (token !== heatmap.token || !heatmap.loaded) {
-        return;
-    }
-
-    fitHeatmapFrame();
-
-    showHeatmapScreen();
-
-    // Le site du cadre s'installe (cartes qui arrivent, largeur qui change) : on dessine deux fois.
-    setTimeout(() => token === heatmap.token && drawHeatmap(), 700);
-
-    setTimeout(() => token === heatmap.token && drawHeatmap(), 2000);
+    layoutHeatmap();
 
 }
 
 
-// Affiche dans le cadre la page ou la fenêtre choisie.
-function showHeatmapScreen() {
+// Écran affiché dans l'aperçu : la fenêtre ou le volet ouvert du dessus, sinon la page.
+function heatmapFrameScreen(doc) {
+
+    const win = doc.defaultView;
+
+    let top = null;
+
+    let topZ = -Infinity;
+
+    doc.querySelectorAll(CLICK_POPUPS).forEach(popup => {
+
+        if (!popup.id || popup.classList.contains("hidden") || popup.getClientRects().length === 0) {
+            return;
+        }
+
+        const z = Number(win.getComputedStyle(popup).zIndex) || 0;
+
+        if (z >= topZ) {
+
+            top = popup;
+
+            topZ = z;
+
+        }
+
+    });
+
+    return top?.id || doc.querySelector(".app-page:not(.hidden)")?.id || "autre";
+
+}
+
+
+// Fenêtre ou volet de l'écran affiché (null pour une page : on cherche dans toute la page).
+function heatmapScreenPopup(doc) {
+
+    const element = doc.getElementById(heatmap.screen);
+
+    return element?.matches(CLICK_POPUPS) ? element : null;
+
+}
+
+
+// Ouvre dans l'aperçu la page ou la fenêtre choisie dans le filtre « Écran ».
+function navigateHeatmapFrame(screen) {
 
     const doc = heatmapDoc();
 
     if (!doc) {
+
+        // Site pas encore chargé : il s'ouvrira sur cet écran (watchHeatmapFrame).
+        heatmap.screen = screen;
+
+        loadHeatmapData();
+
         return;
+
     }
 
     const win = heatmap.frame.contentWindow;
 
+    const nav = ++heatmap.navToken;
+
+    // Geste de l'admin : la fenêtre qu'on ouvre n'est pas prise pour une annonce et refermée.
+    win.clickPreviewAction = Date.now();
+
     doc
-        .querySelectorAll(".modal.click-preview-show")
-        .forEach(modal => modal.classList.remove("click-preview-show"));
+        .querySelectorAll(".modal:not(.hidden), #group-menu:not(.hidden)")
+        .forEach(popup => popup.classList.add("hidden"));
 
-    const target = doc.getElementById(heatmap.screen);
+    // La carte dépliée se replie par le site (sinon elle ne pourrait plus se rouvrir).
+    if (win.isStakesPanelOpen?.()) {
+        win.closeStakesPanel(true);
+    }
 
-    if (target?.classList.contains("modal")) {
+    const target = doc.getElementById(screen);
+
+    if (target?.matches(CLICK_POPUPS)) {
 
         if (doc.querySelector(".app-page:not(.hidden)")?.id !== "bets-page") {
             win.showPage("bets-page", true);
         }
 
-        target.classList.add("click-preview-show");
+        // Ouverte comme un joueur (une vraie cote, une vraie ligne du classement…).
+        let opener = null;
+
+        try {
+            opener = HEATMAP_MODAL_OPENERS[screen]
+                ? clickCandidates(doc, HEATMAP_MODAL_OPENERS[screen], false)[0]
+                : null;
+        } catch (error) {
+            opener = null;
+        }
+
+        opener?.click();
+
+        // Pas de bouton pour l'ouvrir, ou il n'a rien ouvert : la fenêtre telle quelle
+        // (pas un volet : la carte dépliée vide n'aurait pas de sens).
+        setTimeout(() => {
+
+            if (
+                heatmap.navToken === nav
+                && heatmap.frame?.contentWindow === win
+                && target.classList.contains("modal")
+                && target.classList.contains("hidden")
+            ) {
+
+                win.clickPreviewAction = Date.now();
+
+                target.classList.remove("hidden");
+
+            }
+
+        }, opener ? 1200 : 0);
 
     } else if (target?.classList.contains("app-page")) {
 
         // Le vrai onglet si possible : la boutique et les missions se redessinent à l'ouverture.
-        const tab = doc.querySelector(`.nav-button[data-page="${heatmap.screen}"]`);
+        const tab = doc.querySelector(`.nav-button[data-page="${screen}"]`);
 
         if (tab) {
             tab.click();
         } else {
-            win.showPage(heatmap.screen, true);
+            win.showPage(screen, true);
         }
 
     } else {
@@ -1184,6 +1623,8 @@ function showHeatmapScreen() {
     }
 
     win.scrollTo(0, 0);
+
+    scheduleHeatmapLayout();
 
 }
 
@@ -1300,39 +1741,72 @@ function renderHeatmapRanking() {
 }
 
 
-// Éléments connus, visibles sur l'écran choisi, que personne n'a cliqués.
+// Éléments connus, visibles sur l'écran affiché, que personne n'a cliqués.
 function renderHeatmapUnused() {
 
     const box = document.getElementById("heatmap-unused");
 
     const doc = heatmapDoc();
 
-    if (!doc || heatmap.scope !== "screen" || (heatmap.summary?.clicks || 0) === 0) {
-
-        box.classList.add("hidden");
-
-        return;
-
-    }
+    const shown =
+        doc
+        && heatmap.scope === "screen"
+        && heatmap.dataScreen === heatmap.screen
+        && (heatmap.summary?.clicks || 0) > 0;
 
     const used = new Set(heatmap.ranking.map(row => row.element));
 
-    const shownModal = doc.querySelector(".modal.click-preview-show");
+    const unused = shown
+        ? Object.keys(CLICK_LABELS).filter(key => !used.has(key) && heatmapElements(doc, key).length > 0)
+        : [];
 
-    const unused = Object.keys(CLICK_LABELS).filter(key =>
-        !used.has(key)
-        && [...(shownModal || doc).querySelectorAll(key)].some(element =>
-            element.getClientRects().length > 0
-            && !element.closest(".modal.hidden:not(.click-preview-show)")
-        )
-    );
-
-    box.innerHTML = unused.length
+    setHeatmapHtml(box, unused.length
         ? `<span>😴 Jamais cliqués sur la période</span>`
             + unused.map(key => `<em data-heatmap-key="${escapeHtml(key)}">${escapeHtml(CLICK_LABELS[key])}</em>`).join("")
-        : "";
+        : "");
 
     box.classList.toggle("hidden", unused.length === 0);
+
+}
+
+
+// Clics sur des éléments que l'admin n'a pas à l'écran (autre niveau, 6e carte quand il y en a 4…).
+function renderHeatmapMissing() {
+
+    const box = document.getElementById("heatmap-missing");
+
+    const total = heatmap.missing.reduce((sum, row) => sum + row.clicks, 0);
+
+    setHeatmapHtml(box, total
+        ? `<span>👻 Cliqués, mais absents de ton écran (${formatCount(total)} clic${total > 1 ? "s" : ""})</span>`
+            + heatmap.missing
+                .slice(0, 12)
+                .map(row => `<em>${clickLabelHtml(row.element)} · ${formatCount(row.clicks)}</em>`)
+                .join("")
+        : "");
+
+    box.classList.toggle("hidden", total === 0);
+
+    if (total !== heatmap.missingTotal) {
+
+        heatmap.missingTotal = total;
+
+        fitHeatmapFrame();
+
+    }
+
+}
+
+
+function setHeatmapHtml(box, html) {
+
+    if (heatmapRendered.get(box.id) !== html) {
+
+        heatmapRendered.set(box.id, html);
+
+        box.innerHTML = html;
+
+    }
 
 }
 
@@ -1385,15 +1859,19 @@ function selectHeatmapElement(key) {
 
     if (heatmap.selected && heatmap.scope === "all" && row?.screens?.length && !row.screens.includes(heatmap.screen)) {
 
-        heatmap.screen = row.screens[0];
-
-        refreshHeatmap();
+        navigateHeatmapFrame(row.screens[0]);
 
         return;
 
     }
 
-    highlightHeatmapElement(heatmap.selected, true);
+    const doc = heatmapDoc();
+
+    const first = doc && heatmapElements(doc, heatmap.selected)[0];
+
+    first?.scrollIntoView({ block: "center" });
+
+    scheduleHeatmapPaint();
 
     // Téléphone : on referme le classement pour voir l'élément.
     if (heatmap.selected && PHONE_LAYOUT.matches) {
@@ -1403,68 +1881,21 @@ function selectHeatmapElement(key) {
 }
 
 
-function highlightHeatmapElement(key, scroll = false) {
-
-    const doc = heatmapDoc();
-
-    if (!doc) {
-        return;
-    }
-
-    const win = heatmap.frame.contentWindow;
-
-    doc.querySelectorAll(".click-heat-mark").forEach(mark => mark.remove());
+// Éléments de l'aperçu qui portent cette clé, sur l'écran affiché.
+function heatmapElements(doc, key) {
 
     if (!key) {
-        return;
+        return [];
     }
-
-    let elements = [];
 
     try {
-
-        const shownModal = doc.querySelector(".modal.click-preview-show");
-
-        elements = [...(shownModal || doc).querySelectorAll(key)].filter(element =>
-            element.getClientRects().length > 0
-            && !element.closest(".modal.hidden:not(.click-preview-show)")
-        );
-
+        return clickCandidates(doc, key, heatmapScreenPopup(doc));
     } catch (error) {
-        // Clé qui n'est pas un sélecteur valable : rien à entourer.
-        return;
+        // Clé qui n'est pas un sélecteur valable : rien à trouver.
+        return [];
     }
-
-    if (scroll && elements[0] && !isFixedElement(elements[0], win)) {
-        elements[0].scrollIntoView({ block: "center" });
-    }
-
-    elements.slice(0, 40).forEach(element => {
-
-        const rect = element.getBoundingClientRect();
-
-        const fixed = isFixedElement(element, win);
-
-        const mark = doc.createElement("div");
-
-        mark.className = "click-heat-mark";
-
-        mark.style.position = fixed ? "fixed" : "absolute";
-
-        mark.style.left = rect.left + (fixed ? 0 : win.scrollX) - 4 + "px";
-
-        mark.style.top = rect.top + (fixed ? 0 : win.scrollY) - 4 + "px";
-
-        mark.style.width = rect.width + 8 + "px";
-
-        mark.style.height = rect.height + 8 + "px";
-
-        doc.body.appendChild(mark);
-
-    });
 
 }
-
 
 
 /* ---------- Dessin de la chaleur ---------- */
@@ -1511,16 +1942,150 @@ function heatColor(t) {
 }
 
 
+// Le site du cadre a changé : on replace les clics, puis une seconde fois quand les animations sont finies.
+function scheduleHeatmapLayout() {
+
+    clearTimeout(heatmap.layoutTimer);
+
+    heatmap.layoutTimer = setTimeout(layoutHeatmap, 120);
+
+    clearTimeout(heatmap.settleTimer);
+
+    heatmap.settleTimer = setTimeout(layoutHeatmap, 700);
+
+}
+
+
+// Un dessin par image au plus ; "fixed" : seulement le calque des éléments fixes.
+function scheduleHeatmapPaint(mode = "all") {
+
+    heatmap.paintMode = heatmap.paintMode === "all" || mode === "all" ? "all" : "fixed";
+
+    if (heatmap.paintPending) {
+        return;
+    }
+
+    heatmap.paintPending = true;
+
+    requestAnimationFrame(() => {
+
+        const fixedOnly = heatmap.paintMode === "fixed";
+
+        heatmap.paintPending = false;
+
+        heatmap.paintMode = null;
+
+        paintHeatmap(fixedOnly);
+
+    });
+
+}
+
+
 /*
-    Les cases renvoyées par la base sont replacées dans le cadre :
-    - 'page' : dans la zone centrale du site affiché, y en pixels ;
-    - 'top' : sur toute la largeur, y en pixels ;
-    - 'fixed' : sur l'écran du cadre (calque qui ne défile pas) ;
-    - 'modal' : sur la fenêtre affichée.
-    La densité est calculée à demi-résolution, puis colorée (bleu → rouge)
-    avec le même maximum pour tous les calques.
+    Replace les clics reçus sur les éléments de l'aperçu : pour chaque clé, les
+    éléments visibles de l'écran (dans la fenêtre ouverte, ou dans la page hors
+    fenêtres), puis le rang noté chez le joueur. Ce qui n'existe pas chez
+    l'admin (bouton d'un autre niveau, 6e carte quand il n'y en a que 4…) est
+    listé à part. Si l'aperçu a changé d'écran, on charge d'abord ses clics.
 */
-function drawHeatmap() {
+function layoutHeatmap() {
+
+    const doc = heatmapDoc();
+
+    if (!doc || !isHeatmapOpen()) {
+        return;
+    }
+
+    const screen = heatmapFrameScreen(doc);
+
+    if (screen !== heatmap.screen) {
+
+        heatmap.screen = screen;
+
+        loadHeatmapData();
+
+        return;
+
+    }
+
+    const anchors = new Map();
+
+    const missing = new Map();
+
+    if (heatmap.dataScreen === screen) {
+
+        const popup = heatmapScreenPopup(doc);
+
+        const candidates = new Map();
+
+        heatmap.cells.forEach(row => {
+
+            if (!candidates.has(row.element)) {
+
+                try {
+                    candidates.set(row.element, clickCandidates(doc, row.element, popup));
+                } catch (error) {
+                    candidates.set(row.element, []);
+                }
+
+            }
+
+            const element = row.el_index === null ? null : candidates.get(row.element)[row.el_index];
+
+            if (!element) {
+
+                missing.set(row.element, (missing.get(row.element) || 0) + Number(row.clicks));
+
+                return;
+
+            }
+
+            if (!anchors.has(element)) {
+                anchors.set(element, []);
+            }
+
+            anchors.get(element).push(row);
+
+        });
+
+    }
+
+    // Élément fixe ou collé (barre du haut, menu du bas, fenêtre…) : dessiné sur l'écran ;
+    // les autres sur la page, et leur chaleur défile avec elle.
+    const win = heatmap.frame.contentWindow;
+
+    heatmap.anchors = [...anchors].map(([element, rows]) => ({
+        element,
+        rows,
+        fixed: isFixedElement(element, win)
+    }));
+
+    heatmap.missing = [...missing]
+        .map(([element, clicks]) => ({ element, clicks }))
+        .sort((a, b) => b.clicks - a.clicks);
+
+    renderHeatmapMissing();
+
+    renderHeatmapUnused();
+
+    paintHeatmap();
+
+}
+
+
+/*
+    Dessin dans l'aperçu, sur deux calques :
+    - la page : un calque posé dans le document, de toute sa hauteur. Il défile
+      avec le site sans être redessiné : la chaleur reste collée aux cartes ;
+    - les éléments fixes ou collés (barre du haut, menu du bas, fenêtres…) :
+      un calque fixe de la taille de l'écran du cadre.
+    Chaque case de clic est replacée dans son élément, là où il se trouve.
+    La densité est calculée à demi-résolution puis colorée (bleu → rouge),
+    avec le même maximum pour les deux calques. Un calque identique au
+    précédent n'est pas redessiné (le site change souvent : comptes à rebours…).
+*/
+function paintHeatmap(fixedOnly = false) {
 
     const doc = heatmapDoc();
 
@@ -1530,63 +2095,180 @@ function drawHeatmap() {
 
     const win = heatmap.frame.contentWindow;
 
-    doc.querySelectorAll(".click-heat-layer").forEach(layer => layer.remove());
-
     const width = doc.documentElement.clientWidth;
 
-    const height = win.innerHeight;
+    const radius = Math.max(12, width * 0.036);
 
     const cell = HEATMAP_CELL / 100;
 
-    const cellPx = Math.round(HEATMAP_DEVICES[heatmap.device].width * cell);
+    const page = [];
 
-    const main = doc.querySelector(".main-container")?.getBoundingClientRect();
+    const fixed = [];
 
-    const mainLeft = main ? main.left + win.scrollX : 0;
+    heatmap.anchors.forEach(anchor => {
 
-    const mainWidth = main ? main.width : width;
-
-    const modalBox = doc
-        .querySelector(".modal.click-preview-show .modal-content")
-        ?.getBoundingClientRect();
-
-    const layers = {
-        page: { position: "absolute", left: 0, top: 0, width, height: Math.min(doc.documentElement.scrollHeight, 12000), points: [] },
-        fixed: { position: "fixed", left: 0, top: 0, width, height, points: [] },
-        modal: modalBox
-            ? { position: "fixed", left: modalBox.left, top: modalBox.top, width: modalBox.width, height: modalBox.height, points: [] }
-            : null
-    };
-
-    heatmap.cells.forEach(({ layer, cx, cy, clicks }) => {
-
-        if (layer === "page") {
-            layers.page.points.push([mainLeft + (cx + 0.5) * cell * mainWidth, (cy + 0.5) * cellPx, clicks]);
-        } else if (layer === "top") {
-            layers.page.points.push([(cx + 0.5) * cell * width, (cy + 0.5) * cellPx, clicks]);
-        } else if (layer === "fixed") {
-            layers.fixed.points.push([(cx + 0.5) * cell * width, (cy + 0.5) * cell * height, clicks]);
-        } else if (layer === "modal" && layers.modal) {
-            layers.modal.points.push([(cx + 0.5) * cell * layers.modal.width, (cy + 0.5) * cell * layers.modal.height, clicks]);
+        if ((fixedOnly && !anchor.fixed) || !anchor.element.isConnected) {
+            return;
         }
+
+        const rect = anchor.element.getBoundingClientRect();
+
+        if (rect.width === 0 && rect.height === 0) {
+            return;
+        }
+
+        // Page : position dans le document ; fixe : position sur l'écran.
+        const left = rect.left + (anchor.fixed ? 0 : win.scrollX);
+
+        const top = rect.top + (anchor.fixed ? 0 : win.scrollY);
+
+        anchor.rows.forEach(({ cx, cy, clicks }) => {
+
+            (anchor.fixed ? fixed : page).push([
+                left + (cx + 0.5) * cell * rect.width,
+                top + (cy + 0.5) * cell * rect.height,
+                Number(clicks)
+            ]);
+
+        });
 
     });
 
-    const radius = Math.max(cellPx * 1.5, width * 0.036);
-
-    const grids = Object.values(layers)
-        .filter(layer => layer && layer.points.length > 0)
-        .map(layer => ({ layer, ...heatDensity(layer, radius) }));
-
-    const max = Math.max(0, ...grids.map(grid => grid.max));
-
-    if (max > 0) {
-        grids.forEach(grid => placeHeatLayer(doc, grid, max));
+    if (!fixedOnly) {
+        heatmap.pagePeak = heatPeak(page, radius);
     }
 
-    highlightHeatmapElement(heatmap.selected);
+    const max = Math.max(heatmap.pagePeak, heatPeak(fixed, radius));
 
-    renderHeatmapUnused();
+    if (!fixedOnly) {
+
+        // Hauteur de la page sans le calque lui-même (sinon elle ne raccourcirait jamais).
+        const pageCanvas = doc.getElementById("click-heat-page");
+
+        if (pageCanvas) {
+            pageCanvas.style.height = "0px";
+        }
+
+        const height = Math.min(doc.documentElement.scrollHeight, 16000);
+
+        placeHeatLayer(doc, "click-heat-page", { width, height, points: page }, radius, max);
+
+        placeHeatMarks(doc);
+
+    }
+
+    placeHeatLayer(doc, "click-heat-fixed", { width, height: win.innerHeight, points: fixed }, radius, max);
+
+}
+
+
+// Plus forte densité, calculée sur chaque point (cases voisines regroupées pour aller vite).
+function heatPeak(points, radius) {
+
+    const r2 = radius * radius;
+
+    const grid = new Map();
+
+    const cellKey = (x, y) => Math.floor(x / radius) + ":" + Math.floor(y / radius);
+
+    points.forEach(point => {
+
+        const key = cellKey(point[0], point[1]);
+
+        if (!grid.has(key)) {
+            grid.set(key, []);
+        }
+
+        grid.get(key).push(point);
+
+    });
+
+    let max = 0;
+
+    points.forEach(([x, y]) => {
+
+        const gx = Math.floor(x / radius);
+
+        const gy = Math.floor(y / radius);
+
+        let sum = 0;
+
+        for (let i = -1; i <= 1; i++) {
+
+            for (let j = -1; j <= 1; j++) {
+
+                (grid.get((gx + i) + ":" + (gy + j)) || []).forEach(([qx, qy, clicks]) => {
+
+                    const d2 = (qx - x) ** 2 + (qy - y) ** 2;
+
+                    if (d2 < r2) {
+
+                        const f = 1 - d2 / r2;
+
+                        sum += clicks * f * f;
+
+                    }
+
+                });
+
+            }
+
+        }
+
+        max = Math.max(max, sum);
+
+    });
+
+    return max;
+
+}
+
+
+// Élément survolé ou choisi dans le classement : entouré dans l'aperçu.
+function placeHeatMarks(doc) {
+
+    let box = doc.getElementById("click-heat-marks");
+
+    if (!box) {
+
+        box = doc.createElement("div");
+
+        box.id = "click-heat-marks";
+
+        doc.documentElement.appendChild(box);
+
+    }
+
+    box.innerHTML = "";
+
+    heatmapElements(doc, heatmap.hovered || heatmap.selected)
+        .slice(0, 40)
+        .forEach(element => {
+
+            const rect = element.getBoundingClientRect();
+
+            const win = doc.defaultView;
+
+            const fixed = isFixedElement(element, win);
+
+            const mark = doc.createElement("div");
+
+            mark.className = "click-heat-mark";
+
+            // Comme la chaleur : collé à la page (défile avec elle) ou fixe sur l'écran.
+            mark.style.position = fixed ? "fixed" : "absolute";
+
+            mark.style.left = rect.left + (fixed ? 0 : win.scrollX) - 4 + "px";
+
+            mark.style.top = rect.top + (fixed ? 0 : win.scrollY) - 4 + "px";
+
+            mark.style.width = rect.width + 8 + "px";
+
+            mark.style.height = rect.height + 8 + "px";
+
+            box.appendChild(mark);
+
+        });
 
 }
 
@@ -1644,23 +2326,54 @@ function heatDensity(layer, radius) {
 }
 
 
-function placeHeatLayer(doc, { layer, acc, w, h }, max) {
+function placeHeatLayer(doc, id, layer, radius, max) {
 
-    const canvas = doc.createElement("canvas");
+    const signature = [
+        layer.width,
+        layer.height,
+        Math.round(max * 1000),
+        layer.points.map(([x, y, clicks]) => Math.round(x) + "," + Math.round(y) + "," + clicks).join(";")
+    ].join("|");
 
-    canvas.className = "click-heat-layer";
+    let canvas = doc.getElementById(id);
 
+    if (!canvas) {
+
+        canvas = doc.createElement("canvas");
+
+        canvas.id = id;
+
+        canvas.className = "click-heat-layer";
+
+        canvas.style.position = id === "click-heat-fixed" ? "fixed" : "absolute";
+
+        doc.documentElement.appendChild(canvas);
+
+        // Nouveau cadre (bouton « Recharger ») : rien n'y est encore dessiné.
+        heatmap.signatures[id] = null;
+
+    }
+
+    canvas.style.width = layer.width + "px";
+
+    canvas.style.height = layer.height + "px";
+
+    if (heatmap.signatures[id] === signature) {
+        return;
+    }
+
+    heatmap.signatures[id] = signature;
+
+    const { acc, w, h } = heatDensity(layer, radius);
+
+    // Changer la taille efface aussi l'ancien dessin.
     canvas.width = w;
 
     canvas.height = h;
 
-    Object.assign(canvas.style, {
-        position: layer.position,
-        left: layer.left + "px",
-        top: layer.top + "px",
-        width: layer.width + "px",
-        height: layer.height + "px"
-    });
+    if (!max || layer.points.length === 0) {
+        return;
+    }
 
     const ctx = canvas.getContext("2d");
 
@@ -1674,7 +2387,7 @@ function placeHeatLayer(doc, { layer, acc, w, h }, max) {
             continue;
         }
 
-        const t = Math.sqrt(acc[j] / max);
+        const t = Math.min(1, Math.sqrt(acc[j] / max));
 
         if (t < 0.06) {
             continue;
@@ -1690,7 +2403,5 @@ function placeHeatLayer(doc, { layer, acc, w, h }, max) {
     }
 
     ctx.putImageData(image, 0, 0);
-
-    doc.body.appendChild(canvas);
 
 }

@@ -17091,6 +17091,20 @@ body:has(#heatmap-page:not(.hidden)) .modal {
     font-size: 13px;
     line-height: 1.45;
     text-align: center;
+    /* L'aperçu dessous reste cliquable. */
+    pointer-events: none;
+}
+
+.heatmap-reload {
+    border: 1px solid #2c3040;
+    border-radius: 10px;
+    padding: 8px 12px;
+    background: #12141b;
+    color: #c9ccd6;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
 }
 
 
@@ -17292,6 +17306,11 @@ body:has(#heatmap-page:not(.hidden)) .modal {
     font-size: 11px;
     font-weight: 700;
     color: #858a98;
+}
+
+.heatmap-missing em {
+    cursor: default;
+    border-style: solid;
 }
 
 .heatmap-unused em {
@@ -17511,9 +17530,10 @@ body:has(#heatmap-page:not(.hidden)) .modal {
 
 
 /* ----- Aperçu dans le cadre de la Heat map (app.html?apercu-clics) -----
-   Pas de fenêtre ni de tuto, ni les onglets que les joueurs n'ont pas. */
+   Cliquable comme le vrai site, mais sans tuto ni les onglets que les
+   joueurs n'ont pas. Les fenêtres ouvertes sans geste de l'admin
+   (annonce, cadeau…) sont refermées par heatmap.js. */
 
-body.click-preview .modal,
 body.click-preview .tour-layer,
 body.click-preview #admin-nav-button,
 body.click-preview #heatmap-nav-button,
@@ -17522,21 +17542,23 @@ body.click-preview #version-switch {
     display: none !important;
 }
 
-body.click-preview .modal.click-preview-show {
-    display: flex !important;
-}
-
 body.click-preview::-webkit-scrollbar {
     width: 0;
     height: 0;
 }
 
+/* Calques et cadres posés hors de <body> (heatmap.js leur donne « absolute » pour
+   la page, qui défilent avec elle, ou « fixed » pour les éléments fixes). */
 .click-heat-layer {
+    position: fixed;
+    left: 0;
+    top: 0;
     z-index: 2147483000;
     pointer-events: none;
 }
 
 .click-heat-mark {
+    position: fixed;
     z-index: 2147483001;
     pointer-events: none;
     border: 2px solid white;
@@ -17549,6 +17571,30 @@ body.click-preview::-webkit-scrollbar {
     50% {
         border-color: rgba(255, 255, 255, 0.25);
     }
+}
+
+/* Action qui écrirait dans la base, bloquée dans l'aperçu. */
+.click-preview-toast {
+    position: fixed;
+    left: 50%;
+    top: 14px;
+    z-index: 2147483002;
+    transform: translate(-50%, -10px);
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: rgba(17, 19, 26, 0.94);
+    border: 1px solid #3a3f52;
+    color: #e6e8ee;
+    font: 700 13px/1.3 system-ui, sans-serif;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+.click-preview-toast.visible {
+    opacity: 1;
+    transform: translate(-50%, 0);
 }
 
 
