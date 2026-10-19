@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Démo : carte des clics (admin)</title>
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #0f1117; color: #e6e8ee; }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 16px 80px; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    h2 { font-size: 17px; margin: 44px 0 4px; }
+    .sub { color: #858a98; font-size: 13px; margin: 0 0 14px; line-height: 1.5; }
+    .muted { color: #737887; font-size: 12px; line-height: 1.5; }
+
+    /* Le trajet d'un clic */
+    .flow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 16px; font-size: 12px; }
+    .flow span { background: #171a23; border: 1px solid #262a38; border-radius: 10px; padding: 6px 10px; color: #c9ccd6; }
+    .flow i { color: #6c63ff; font-style: normal; font-weight: 900; }
+
+    /* Réglages */
+    .controls { background: #171a23; border: 1px dashed #4a4f66; border-radius: 16px; padding: 14px; margin-bottom: 20px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    @media (max-width: 980px) { .controls { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 640px) { .controls { grid-template-columns: 1fr; } }
+    .ctl-title { font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: #737887; margin-bottom: 6px; }
+    .seg { display: flex; flex-wrap: wrap; gap: 6px; }
+    .seg button { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; font: inherit; font-size: 12px; padding: 6px 11px; border-radius: 999px; cursor: pointer; }
+    .seg button.on { background: #6c63ff; border-color: #6c63ff; color: white; }
+
+    /* Zone de la page admin */
+    .stage { position: relative; margin: 0 auto; }
+    .stage.as-phone { max-width: 400px; height: 820px; overflow-y: auto; overflow-x: hidden; border: 10px solid #1c1f29; border-radius: 40px; background: #0f1117; box-shadow: 0 0 0 1px #2c3040, 0 24px 70px rgba(0, 0, 0, .55); scrollbar-width: none; }
+    .stage.as-phone::-webkit-scrollbar { width: 0; }
+
+    .adm { background: #0f1117; border: 1px solid #262a38; border-radius: 18px; padding: 20px; }
+    .as-phone .adm { border: 0; border-radius: 0; padding: 14px 12px 30px; }
+    .adm-head h1 { font-size: 24px; margin: 0 0 2px; }
+    .adm-head p { margin: 0 0 16px; color: #858a98; font-size: 13px; }
+    .adm-ghost { margin-top: 16px; border: 1px solid #262a38; border-radius: 18px; padding: 16px; opacity: .3; font-size: 13px; }
+
+    .hm-card { border: 1px solid #2c3040; border-radius: 18px; background: linear-gradient(180deg, #1c202c 0%, #14161e 100%); padding: 16px; }
+    .as-phone .hm-card { padding: 12px; }
+    .hm-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .hm-title h3 { margin: 0; font-size: 17px; }
+    .hm-badge { font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 999px; background: #2a1b21; color: #ff8a8a; border: 1px solid rgba(255, 92, 92, .4); }
+    .hm-grid { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 16px; align-items: start; }
+    .narrow .hm-grid { grid-template-columns: 1fr; }
+    .hm-side { display: grid; gap: 12px; }
+    .hint { font-size: 11px; color: #737887; margin: 6px 0 0; }
+
+    /* Filtres */
+    .flt { margin: 12px 0; }
+    .flt-chips { display: flex; flex-wrap: wrap; gap: 10px 18px; }
+    .fg { display: flex; flex-direction: column; gap: 5px; }
+    .fg > span, .flt-select label > span { font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: #737887; }
+    .fchips { display: flex; flex-wrap: wrap; gap: 5px; }
+    .fchips button { border: 1px solid #2c3040; background: #12141b; color: #aaaeba; font: inherit; font-size: 12px; padding: 6px 10px; border-radius: 999px; cursor: pointer; }
+    .fchips button.on { background: #6c63ff; color: white; border-color: #6c63ff; }
+    .flt-select { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .narrow .flt-select { grid-template-columns: 1fr 1fr; }
+    .flt-select label { display: flex; flex-direction: column; gap: 5px; }
+    .flt-select select { width: 100%; background: #12141b; color: #e6e8ee; border: 1px solid #2c3040; border-radius: 10px; padding: 9px 10px; font: inherit; font-size: 13px; }
+    .fold-btn { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 8px; text-align: left; border: 1px solid #2c3040; background: #12141b; color: #e6e8ee; font: inherit; font-size: 13px; padding: 10px 12px; border-radius: 12px; cursor: pointer; }
+    .fold-btn b { color: #8f88ff; font-size: 12px; white-space: nowrap; }
+    .flt-fold .flt-chips { margin-top: 10px; }
+
+    /* Chiffres */
+    .hm-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
+    .narrow .hm-stats { grid-template-columns: 1fr 1fr; }
+    .hm-stats div { background: #12141b; border: 1px solid #262a38; border-radius: 12px; padding: 9px 10px; min-width: 0; }
+    .hm-stats b { display: block; font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .hm-stats b.small { font-size: 13px; padding: 3px 0 2px; }
+    .hm-stats span { font-size: 11px; color: #858a98; }
+
+    /* Aperçu */
+    .pv-label { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; margin-bottom: 6px; font-size: 12px; font-weight: 700; }
+    .pv-label small { color: #737887; font-weight: 500; }
+    .pv { position: relative; border-radius: 14px; overflow: hidden; background: #07080c; border: 1px solid #262a38; }
+    .pv-inner { position: absolute; top: 0; left: 0; transform-origin: top left; }
+    .pv-phone .screen { border-radius: 30px; box-shadow: 0 0 0 6px #1c1f29; }
+    .pv-legend { display: flex; justify-content: space-between; align-items: center; gap: 6px 10px; margin-top: 8px; font-size: 11px; color: #858a98; flex-wrap: wrap; }
+    .lg { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #aaaeba; }
+    .lg i { width: 120px; height: 8px; border-radius: 9px; display: block; }
+
+    .screen { position: relative; overflow: hidden; background: #0f1117; }
+    .screen canvas.heat { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
+    .r-site { position: absolute; inset: 0; transition: filter .3s; }
+    .bg-dim .r-site { filter: brightness(.5) saturate(.8); }
+    .bg-gray .r-site { filter: grayscale(1) brightness(.55); }
+    .hlbox { position: absolute; z-index: 5; border: 2px solid #fff; border-radius: 10px; pointer-events: none; box-shadow: 0 0 0 3px rgba(0, 0, 0, .45), 0 0 18px rgba(255, 255, 255, .55); animation: hlp 1.1s ease-in-out infinite; }
+    @keyframes hlp { 50% { border-color: rgba(255, 255, 255, .25); } }
+
+    /* Classement */
+    .rk { background: #12141b; border: 1px solid #262a38; border-radius: 14px; padding: 12px; }
+    .rk-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .rk-head h4 { margin: 0; font-size: 14px; }
+    .rk-scope { display: flex; background: #0b0d12; border-radius: 999px; padding: 2px; }
+    .rk-scope button { border: 0; background: none; color: #858a98; font: inherit; font-size: 11px; padding: 4px 9px; border-radius: 999px; cursor: pointer; }
+    .rk-scope button.on { background: #262a38; color: white; }
+    .rk-bars { list-style: none; margin: 0; padding: 0; }
+    .rk-bars li { display: flex; gap: 8px; align-items: center; padding: 6px 4px; border-radius: 8px; cursor: pointer; }
+    .rk-bars li:hover, .rk-bars li.sel, .rk-table tr.sel td { background: #1c202c; }
+    .rk-bars .n { width: 18px; flex: none; color: #737887; font-size: 11px; font-weight: 800; text-align: right; }
+    .rk-bars .lbl { flex: 1; min-width: 0; }
+    .row1 { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+    .row1 span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rk small.where { color: #737887; margin-left: 4px; font-size: 10px; }
+    .rk-bars .bar { height: 5px; background: #262a38; border-radius: 9px; margin-top: 4px; overflow: hidden; }
+    .rk-bars .bar i { display: block; height: 100%; border-radius: 9px; }
+    .rk-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .rk-table th { text-align: left; color: #737887; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; padding: 4px; border-bottom: 1px solid #262a38; }
+    .rk-table td { padding: 6px 4px; border-bottom: 1px solid #1c202c; }
+    .rk-table tr { cursor: pointer; }
+    .rk-table tbody tr:hover td { background: #1c202c; }
+    .rk-table td:nth-child(3), .rk-table td:nth-child(4) { text-align: right; font-variant-numeric: tabular-nums; }
+    .rk-pod { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 8px; align-items: end; }
+    .pod { text-align: center; background: #1c202c; border: 1px solid #262a38; border-radius: 12px; padding: 8px 4px; cursor: pointer; min-width: 0; }
+    .pod .m { font-size: 20px; }
+    .pod b { display: block; font-size: 16px; }
+    .pod span { font-size: 10px; color: #aaaeba; display: block; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; }
+    .pod.p1 { padding-top: 18px; border-color: rgba(255, 211, 107, .45); box-shadow: 0 0 18px rgba(255, 211, 107, .12); }
+    .pod.sel { border-color: #fff; }
+    .rk-unused { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #2c3040; display: flex; flex-wrap: wrap; gap: 5px; }
+    .rk-unused > span { width: 100%; font-size: 11px; color: #858a98; font-weight: 700; }
+    .rk-unused em { font-style: normal; font-size: 11px; padding: 3px 8px; border-radius: 999px; background: #1c202c; color: #aaaeba; border: 1px dashed #3a3f52; cursor: pointer; }
+    .rk-note { font-size: 10px; color: #5d6272; margin: 10px 0 0; line-height: 1.4; }
+
+    /* Stockage */
+    .sto { background: #12141b; border: 1px solid #262a38; border-radius: 14px; padding: 12px; font-size: 12px; }
+    .sto h4 { margin: 0 0 8px; font-size: 14px; }
+    .sto p { margin: 8px 0 0; color: #aaaeba; line-height: 1.45; }
+    .sto-bar { display: flex; height: 10px; border-radius: 99px; background: #262a38; overflow: hidden; }
+    .sto-bar.big { height: 16px; }
+    .sto-bar i { display: block; height: 100%; transition: width .3s; }
+    .sto-bar .base { background: #4a4f66; }
+    .sto-bar .clk { background: linear-gradient(90deg, #6c63ff, #ff4f9a); }
+
+    /* Onglets (C) */
+    .tabs { display: flex; gap: 4px; background: #0b0d12; padding: 4px; border-radius: 12px; margin: 12px 0 0; }
+    .tabs button { flex: 1; border: 0; background: none; color: #858a98; font: inherit; font-size: 13px; font-weight: 700; padding: 9px 4px; border-radius: 9px; cursor: pointer; }
+    .tabs button.on { background: #262a38; color: white; }
+
+    /* Calque plein écran (B) */
+    .ovl { position: relative; background: #07080c; border: 1px solid #262a38; border-radius: 18px; padding: 84px 14px 14px; overflow: hidden; }
+    .as-phone .ovl { border: 0; border-radius: 0; min-height: 800px; padding: 150px 8px 70px; }
+    .ovl-bar { position: absolute; top: 10px; left: 10px; right: 10px; z-index: 6; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding: 8px 10px; border-radius: 16px; background: rgba(23, 26, 35, .88); backdrop-filter: blur(10px); border: 1px solid #2c3040; }
+    .ovl-bar .flt { margin: 0; flex: 1 1 300px; }
+    .ovl-bar .fg > span, .ovl-bar .flt-select label > span { display: none; }
+    .ovl-bar .flt-chips { gap: 6px 10px; }
+    .ovl-x { border: 0; background: #2a1b21; color: #ff8a8a; font: inherit; font-size: 12px; font-weight: 800; padding: 6px 10px; border-radius: 10px; cursor: pointer; }
+    .ovl-rank-btn { position: absolute; right: 16px; bottom: 16px; z-index: 8; border: 0; border-radius: 999px; padding: 11px 16px; font: inherit; font-size: 13px; font-weight: 800; color: white; cursor: pointer; background: linear-gradient(90deg, #6c63ff, #c86bff); box-shadow: 0 8px 26px rgba(108, 99, 255, .45); }
+    .ovl-drawer { position: absolute; z-index: 7; top: 74px; right: 10px; bottom: 70px; width: 330px; overflow: auto; background: rgba(15, 17, 23, .97); border: 1px solid #2c3040; border-radius: 16px; padding: 12px; display: grid; gap: 12px; align-content: start; transform: translateX(115%); transition: transform .3s; }
+    .ovl-drawer.open { transform: none; }
+    .narrow .ovl-drawer { top: auto; left: 8px; right: 8px; bottom: 66px; width: auto; max-height: 64%; transform: translateY(120%); }
+    .narrow .ovl-drawer.open { transform: none; }
+    .ovl-drawer .hm-stats { grid-template-columns: 1fr 1fr; margin: 0; }
+    .ovl-note { position: absolute; left: 16px; bottom: 22px; z-index: 6; font-size: 11px; color: #737887; max-width: 55%; }
+    .narrow .ovl-note { display: none; }
+
+    /* ============ Réplique simplifiée du site ============ */
+    .r-site { font-family: Arial, Helvetica, sans-serif; color: #f5f5f5; font-size: 13px; }
+    .r-logo { font-weight: 800; font-size: 20px; letter-spacing: -1px; }
+    .r-logo span { color: #6c63ff; }
+    .r-top { height: 56px; display: flex; align-items: center; gap: 16px; padding: 0 20px; border-bottom: 1px solid #1f2330; background: #12141b; }
+    .r-group { padding: 6px 10px; border: 1px solid #2c3040; border-radius: 10px; font-size: 12px; color: #aaaeba; }
+    .r-nav { display: flex; gap: 4px; }
+    .r-nav b { font-weight: 700; padding: 8px 12px; border-radius: 8px; color: #aaaeba; font-size: 13px; }
+    .r-nav b.on { background: #6c63ff; color: white; }
+    .r-caps { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+    .cap { padding: 6px 10px; border-radius: 999px; background: #1c202c; border: 1px solid #2c3040; font-weight: 700; font-size: 12px; white-space: nowrap; }
+    .cap.av { width: 32px; height: 32px; padding: 0; display: grid; place-items: center; border-radius: 50%; background: linear-gradient(135deg, #6c63ff, #c86bff); border: 0; }
+    .r-body { display: grid; grid-template-columns: 280px minmax(0, 1fr) 300px; gap: 18px; padding: 18px 20px; }
+    .r-body.no-right { grid-template-columns: 250px minmax(0, 1fr); }
+    .r-card { border: 1px solid #2c3040; border-radius: 16px; padding: 14px; background: linear-gradient(180deg, #1c202c, #14161e); margin-bottom: 12px; }
+    .r-card h4 { margin: 0 0 8px; font-size: 14px; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+    .r-card h4 small { font-size: 10px; color: #8f88ff; font-weight: 600; }
+    .r-card p { margin: 0; color: #c9ccd6; font-size: 12px; }
+    .r-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #262a38; font-size: 12px; }
+    .r-row:last-child { border-bottom: 0; }
+    .r-row .rk2 { width: 18px; color: #737887; }
+    .r-row .m { margin-left: auto; color: #6c63ff; font-weight: 800; }
+    .r-duel { margin-left: auto; border: 1px solid rgba(255, 92, 92, .6); background: #2a1b21; color: #ff8a8a; font-weight: 800; font-size: 11px; padding: 3px 9px; border-radius: 8px; }
+    .r-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 8px; }
+    .r-head h3 { margin: 0; font-size: 20px; }
+    .r-create, .r-gift { background: #6c63ff; color: white; font-weight: 700; padding: 9px 14px; border-radius: 8px; font-size: 12px; white-space: nowrap; }
+    .r-gift { background: #1c202c; border: 1px solid #2c3040; color: #ffd36b; }
+    .r-bet { border: 1px solid #2c3040; border-radius: 16px; background: linear-gradient(180deg, #1c202c, #14161e); padding: 13px 14px; margin-bottom: 12px; }
+    .r-bet-top { display: flex; justify-content: space-between; color: #858a98; font-size: 11px; margin-bottom: 6px; }
+    .r-bet p { margin: 0 0 10px; font-weight: 700; font-size: 14px; }
+    .r-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .r-choice { border: 1px solid #343a4d; background: #12141b; border-radius: 10px; padding: 9px 10px; display: flex; justify-content: space-between; font-weight: 700; font-size: 12px; }
+    .r-choice em { font-style: normal; color: #ffd36b; }
+    .r-split { display: flex; height: 4px; border-radius: 9px; overflow: hidden; margin-top: 8px; background: #262a38; }
+    .r-split i { display: block; background: #6c63ff; }
+    .r-split i + i { background: #ff7a9c; }
+    .r-bet-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 9px; font-size: 11px; color: #858a98; }
+    .r-stk { padding: 4px 8px; border-radius: 8px; background: #1c202c; border: 1px solid #2c3040; }
+    .r-lv { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: #aaaeba; }
+    .r-lv b { font-size: 16px; color: white; }
+    .r-bar { height: 6px; border-radius: 9px; background: #262a38; margin-top: 8px; overflow: hidden; }
+    .r-bar i { display: block; height: 100%; background: linear-gradient(90deg, #6c63ff, #c86bff); }
+    .r-fab { position: absolute; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; font-size: 24px; box-shadow: 0 8px 24px rgba(0, 0, 0, .45); }
+    .r-chat { right: 22px; bottom: 22px; background: linear-gradient(135deg, #6c63ff, #c86bff); }
+    .r-chat.ph { right: 16px; bottom: 96px; width: 46px; height: 46px; font-size: 21px; }
+    .r-parrot { left: 26px; bottom: 16px; font-size: 38px; width: 56px; height: 56px; box-shadow: none; }
+
+    .r-ptop { height: 54px; display: flex; align-items: center; padding: 0 14px; gap: 8px; background: #12141b; border-bottom: 1px solid #1f2330; }
+    .r-ptop .r-caps { gap: 6px; }
+    .r-ptop .cap { padding: 5px 9px; }
+    .r-pmain { padding: 12px 14px 120px; }
+    .r-xp { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #aaaeba; margin-bottom: 12px; }
+    .r-xp i { flex: 1; height: 6px; border-radius: 9px; background: #262a38; overflow: hidden; }
+    .r-xp i b { display: block; height: 100%; background: linear-gradient(90deg, #6c63ff, #c86bff); }
+    .r-prow { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .r-prow h3 { margin: 0; font-size: 20px; }
+    .r-lbbtn { padding: 7px 11px; border-radius: 999px; background: #1c202c; border: 1px solid #2c3040; font-size: 12px; font-weight: 700; }
+    .r-pnav { position: absolute; left: 12px; right: 12px; bottom: 14px; height: 64px; border-radius: 22px; background: rgba(28, 32, 44, .97); border: 1px solid #2c3040; display: grid; grid-template-columns: repeat(5, 1fr); align-items: center; text-align: center; font-size: 10px; font-weight: 700; color: #aaaeba; box-shadow: 0 10px 30px rgba(0, 0, 0, .5); }
+    .r-pnav > span { display: flex; flex-direction: column; gap: 3px; align-items: center; padding: 8px 0; }
+    .r-pnav > span i { font-style: normal; font-size: 18px; }
+    .r-pnav > span.on { color: white; }
+    .r-plus { width: 52px; height: 52px; border-radius: 50%; background: #6c63ff; color: white; font-size: 28px; display: grid; place-items: center; margin-top: -26px; box-shadow: 0 6px 20px rgba(108, 99, 255, .55); }
+
+    .r-shop { padding: 18px 20px; max-width: 920px; margin: 0 auto; }
+    .r-chips { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+    .r-chip { padding: 6px 12px; border-radius: 999px; border: 1px solid #2c3040; background: #1c202c; font-size: 12px; color: #aaaeba; }
+    .r-chip.on { background: #6c63ff; color: white; border-color: #6c63ff; }
+    .r-items { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .r-items.two { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .r-item { border: 1px solid #2c3040; border-radius: 16px; padding: 12px; background: linear-gradient(180deg, #1c202c, #14161e); text-align: center; }
+    .r-prev { height: 76px; display: grid; place-items: center; font-size: 34px; border-radius: 12px; background: #12141b; margin-bottom: 8px; }
+    .r-item b { display: block; font-size: 13px; }
+    .r-item small { font-size: 11px; font-weight: 700; }
+    .r-buy { display: block; margin-top: 8px; border-radius: 8px; padding: 8px; font-weight: 800; font-size: 12px; background: #6c63ff; color: white; }
+    .r-buy.eq { background: #1f3a2c; color: #63d69f; }
+
+    .r-dim { position: absolute; inset: 0; background: rgba(5, 6, 10, .72); }
+    .r-modal { position: absolute; border-radius: 20px; border: 1px solid #2c3040; background: #171a23; padding: 20px; box-shadow: 0 30px 80px rgba(0, 0, 0, .6); }
+    .r-x { position: absolute; top: 12px; right: 12px; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: #1c202c; color: #aaaeba; font-size: 14px; }
+    .r-mmeta { color: #858a98; font-size: 11px; }
+    .r-modal h3 { margin: 6px 0 12px; font-size: 18px; }
+    .r-pick { display: flex; gap: 8px; align-items: baseline; padding: 10px 12px; border-radius: 12px; background: #12141b; border: 1px solid #343a4d; font-size: 12px; color: #aaaeba; margin-bottom: 12px; }
+    .r-pick b { color: white; font-size: 14px; }
+    .r-pick em { margin-left: auto; font-style: normal; color: #ffd36b; font-weight: 700; }
+    .r-lbl { display: block; font-size: 11px; color: #858a98; margin-bottom: 5px; }
+    .r-input { border: 1px solid #6c63ff; background: #0f1117; border-radius: 10px; padding: 11px 12px; font-weight: 800; font-size: 16px; }
+    .r-quick { display: flex; gap: 6px; margin: 10px 0; flex-wrap: wrap; }
+    .r-quick span { flex: 1; text-align: center; padding: 7px 4px; border-radius: 8px; background: #1c202c; border: 1px solid #2c3040; font-size: 12px; font-weight: 700; white-space: nowrap; }
+    .r-gain { display: flex; justify-content: space-between; font-size: 12px; color: #aaaeba; margin-bottom: 12px; }
+    .r-gain b { color: #63d69f; font-size: 15px; }
+    .r-submit { text-align: center; padding: 13px; border-radius: 10px; background: #6c63ff; font-weight: 800; font-size: 15px; }
+    .r-ticket { text-align: center; padding: 9px; margin-top: 8px; border-radius: 10px; border: 1px dashed #3a3f52; color: #aaaeba; font-size: 12px; font-weight: 700; }
+
+    /* ============ Demande d'accord (côté joueur) ============ */
+    .cs-wrap { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 24px; align-items: center; }
+    @media (max-width: 700px) { .cs-wrap { grid-template-columns: 1fr; justify-items: center; } }
+    .cs-phone { width: 300px; height: 646px; border: 8px solid #1c1f29; border-radius: 36px; overflow: hidden; position: relative; background: #0f1117; box-shadow: 0 0 0 1px #2c3040; }
+    .cs-phone .screen { transform: scale(.728); transform-origin: top left; }
+    .cs-text { font-size: 13px; line-height: 1.55; color: #c9ccd6; }
+    .cs-text h3 { margin: 0 0 6px; font-size: 16px; color: white; }
+    .cs-text ul { margin: 8px 0; padding-left: 18px; }
+    .cs-text .ok { color: #63d69f; }
+    .cs-text .ko { color: #ff8a8a; }
+    .cs-all { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: #171a23; border: 1px solid #262a38; font-size: 12px; color: #aaaeba; }
+    .cs-banner { position: absolute; left: 12px; right: 12px; bottom: 92px; z-index: 6; padding: 14px; border-radius: 18px; background: #1c202c; border: 1px solid #6c63ff; box-shadow: 0 10px 30px rgba(0, 0, 0, .5); font-size: 13px; }
+    .cs-banner b { display: block; margin-bottom: 4px; font-size: 14px; }
+    .cs-banner p, .cs-box p { margin: 0 0 10px; color: #aaaeba; line-height: 1.4; }
+    .cs-check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: white; margin-bottom: 12px; }
+    .cs-check i { flex: none; width: 20px; height: 20px; border-radius: 6px; border: 2px solid #6c63ff; background: #0f1117; }
+    .cs-btns { display: flex; gap: 8px; align-items: center; }
+    .cs-btn { padding: 10px 16px; border-radius: 10px; background: #6c63ff; color: white; font-weight: 800; font-size: 13px; }
+    .cs-btn.ghost { background: #12141b; border: 1px solid #2c3040; color: #aaaeba; }
+    .cs-link { margin-left: auto; color: #8f88ff; font-size: 12px; text-decoration: underline; }
+    .cs-dim { position: absolute; inset: 0; z-index: 5; background: rgba(5, 6, 10, .7); }
+    .cs-box { position: absolute; left: 24px; right: 24px; top: 210px; z-index: 6; padding: 20px; border-radius: 22px; background: #171a23; border: 1px solid #2c3040; box-shadow: 0 30px 80px rgba(0, 0, 0, .6); font-size: 13px; text-align: left; }
+    .cs-box .emo { font-size: 38px; text-align: center; }
+    .cs-box h4 { margin: 4px 0 8px; font-size: 18px; text-align: center; }
+    .cs-prof { position: absolute; left: 14px; right: 14px; top: 70px; z-index: 6; }
+    .cs-prof .r-card { margin-bottom: 14px; }
+    .cs-toggle { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 13px; padding: 6px 0; }
+    .cs-toggle span:first-child { color: #c9ccd6; line-height: 1.35; }
+    .cs-sw { flex: none; width: 46px; height: 26px; border-radius: 99px; background: #2c3040; position: relative; }
+    .cs-sw::after { content: ""; position: absolute; left: 3px; top: 3px; width: 20px; height: 20px; border-radius: 50%; background: #858a98; }
+    .cs-sw.on { background: #6c63ff; }
+    .cs-sw.on::after { left: 23px; background: white; }
+    .cs-tag { display: inline-block; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 999px; background: #262a38; color: #aaaeba; margin-bottom: 6px; }
+
+    /* ============ Projection de la place ============ */
+    .calc { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 24px; background: #171a23; border: 1px solid #262a38; border-radius: 18px; padding: 18px; align-items: center; }
+    @media (max-width: 760px) { .calc { grid-template-columns: 1fr; } }
+    .calc label { display: block; font-size: 13px; color: #c9ccd6; margin-bottom: 14px; }
+    .calc label b { float: right; color: white; }
+    .calc input[type="range"] { width: 100%; margin-top: 6px; accent-color: #6c63ff; }
+    .calc .seg { margin-top: 6px; }
+    .calc-big { font-size: 15px; margin-bottom: 10px; }
+    .calc-big b { font-size: 30px; color: white; }
+    .calc-legend { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; font-size: 11px; color: #858a98; margin-top: 6px; }
+    .calc-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+    #co-txt { font-size: 13px; color: #c9ccd6; line-height: 1.5; margin: 12px 0 0; }
+    #co-txt .warn { color: #ffb02e; }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <h1>Démo : carte des clics (admin)</h1>
+    <p class="sub">
+        Maquette avec des clics inventés, posée sur une copie simplifiée du site. Dans la vraie version, la chaleur s'affiche sur le vrai site.<br>
+        Règle les options, essaie les filtres et clique dans le classement, puis « 📋 Copier mes choix » et colle-le dans la conversation.
+    </p>
+
+    <div class="flow">
+        <span>👆 Un joueur clique</span><i>→</i>
+        <span>📦 Mis de côté dans son navigateur</span><i>→</i>
+        <span>📤 Envoyé par paquets (toutes les 10 s ou à la fermeture)</span><i>→</i>
+        <span>🔒 Table <b>click_events</b> (lisible par l'admin seul)</span><i>→</i>
+        <span>🧮 La base additionne par case et par élément</span><i>→</i>
+        <span>📊 Ta page reçoit seulement les totaux</span>
+    </div>
+
+    <div class="controls" id="controls"></div>
+
+    <div class="stage" id="stage"></div>
+
+    <h2>Côté joueur : la demande d'accord</h2>
+    <p class="sub">Rien n'est envoyé tant que la case n'est pas cochée. Change la variante avec le réglage « Demande d'accord » plus haut.</p>
+    <div class="cs-wrap" id="consent"></div>
+
+    <h2>Place prise dans la base (plan gratuit : 500 Mo)</h2>
+    <p class="sub">18 joueurs ont misé ces 7 derniers jours. Le nombre de clics par joueur est une supposition : bouge les curseurs.</p>
+    <div class="calc">
+        <div>
+            <label>Joueurs actifs par jour <b id="cv-p"></b><input type="range" id="c-p" min="5" max="60" value="18"></label>
+            <label>Clics par joueur et par jour <b id="cv-c"></b><input type="range" id="c-c" min="20" max="400" step="10" value="120"></label>
+            <label>Clics gardés pendant
+                <div class="seg" id="c-r">
+                    <button type="button" data-v="30">30 jours</button>
+                    <button type="button" data-v="60">60 jours</button>
+                    <button type="button" data-v="90" class="on">90 jours</button>
+                </div>
+            </label>
+        </div>
+        <div>
+            <div class="calc-big"><b id="co-mb"></b> de clics au maximum</div>
+            <div class="sto-bar big"><i class="base" id="co-base"></i><i class="clk" id="co-clk"></i></div>
+            <div class="calc-legend">
+                <span><i style="background:#4a4f66"></i>Base actuelle : 16 Mo</span>
+                <span><i style="background:linear-gradient(90deg,#6c63ff,#ff4f9a)"></i>Clics</span>
+                <span>Limite : 500 Mo</span>
+            </div>
+            <p id="co-txt"></p>
+        </div>
+    </div>
+    <p class="muted">
+        Calcul : une ligne pèse environ 110 octets (date, n° de visite, écran, élément, position, taille d'écran, appareil), plus environ 70 octets d'index, soit ≈ 180 octets par clic (≈ 5 800 clics par Mo).
+        Le maximum est atteint au bout de la durée de conservation, puis la purge de chaque nuit le garde stable.
+    </p>
+</div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const fmt = n => Math.round(n).toLocaleString("fr-FR");
+
+/* ---------- Réglages ---------- */
+const S = { layout: "A", admin: "desk", render: "cloud", palette: "classic", intensity: "mid", bg: "dim", cell: "2", filters: "chips", ranking: "bars", unused: "show", consent: "modal", hour: "hour" };
+
+const CONTROLS = [
+    { key: "layout", title: "Disposition", opts: [["A", "A · Carte dans l'onglet admin"], ["B", "B · Calque plein écran"], ["C", "C · Onglets"]] },
+    { key: "admin", title: "Je regarde depuis", opts: [["desk", "💻 Mon ordinateur"], ["phone", "📱 Mon téléphone"]] },
+    { key: "render", title: "Rendu de la chaleur", opts: [["cloud", "Nuage flou"], ["grid", "Cases"], ["bubbles", "Bulles avec chiffres"]] },
+    { key: "palette", title: "Couleurs (froid → chaud)", opts: [["classic", "Classique"], ["neon", "Néon BetLab"], ["soft", "Doux"], ["contrast", "Contrasté (daltoniens)"]] },
+    { key: "intensity", title: "Intensité", opts: [["low", "Légère"], ["mid", "Moyenne"], ["high", "Forte"]] },
+    { key: "bg", title: "Site en dessous", opts: [["normal", "Normal"], ["dim", "Assombri"], ["gray", "Grisé"]] },
+    { key: "cell", title: "Taille des cases (regroupement)", opts: [["1", "Fine (1 %)"], ["2", "Moyenne (2 %)"], ["4", "Large (4 %)"]] },
+    { key: "filters", title: "Style des filtres", opts: [["chips", "Pastilles"], ["select", "Menus déroulants"], ["fold", "Barre repliable"]] },
+    { key: "ranking", title: "Classement", opts: [["bars", "Barres"], ["table", "Tableau"], ["podium", "Podium"]] },
+    { key: "unused", title: "Éléments jamais cliqués", opts: [["show", "Les montrer"], ["hide", "Les cacher"]] },
+    { key: "consent", title: "Demande d'accord (joueurs)", opts: [["banner", "Bandeau en bas"], ["modal", "Fenêtre au lancement"], ["profile", "Inscription + Profil"]] },
+    { key: "hour", title: "Heure des clics (confidentialité)", opts: [["exact", "À la seconde"], ["hour", "Arrondie à l'heure (plus anonyme)"]] },
+];
+
+/* ---------- Filtres de la page admin ---------- */
+const F = { screen: "paris", device: "phone", period: "7" };
+const SCREENS = { paris: "Paris", shop: "Boutique", stake: "Fenêtre de mise" };
+const DEVICES = {
+    phone: { label: "📱 Téléphone", w: 390, h: 844, note: "écrans jusqu'à 800 px (version téléphone)" },
+    laptop: { label: "💻 Portable", w: 1000, h: 700, note: "de 801 à 1100 px (sans colonne de droite)" },
+    wide: { label: "🖥️ Grand écran", w: 1366, h: 768, note: "plus de 1100 px (3 colonnes)" },
+};
+const PERIODS = { "1": "Aujourd'hui", "7": "7 jours", "30": "30 jours" };
+const PERIOD_MULT = { "1": 1, "7": 6.4, "30": 23 };
+const DEVICE_MULT = { phone: 1, laptop: .3, wide: .62 };
+
+let rankScope = "screen";
+let foldOpen = false;
+let drawerOpen = true;
+let tab = "map";
+let selected = null;
+
+const PALETTES = {
+    classic: ["#1d4ed8", "#06b6d4", "#22c55e", "#facc15", "#ef4444"],
+    neon: ["#2563eb", "#6c63ff", "#c84bff", "#ff4f9a", "#ff2d2d"],
+    soft: ["#5b8def", "#8fd3c8", "#f5e17a", "#f59e5b", "#e5484d"],
+    contrast: ["#2166ac", "#67a9cf", "#f7f7f7", "#ef8a62", "#b2182b"],
+};
+const OPACITY = { low: .5, mid: .72, high: .9 };
+
+/* Noms lisibles des éléments suivis (data-track-id dans la vraie version) */
+const TRACK = {
+    "nav-paris": "Onglet Paris", "nav-historique": "Onglet Historique", "nav-missions": "Onglet Missions", "nav-boutique": "Onglet Boutique",
+    "nav-create": "« + » Créer un pari", "create-bet": "« + Créer un pari »", "group-menu": "Menu du groupe",
+    "streak": "Flamme de série", "balance": "Solde", "profile": "Profil", "xp-mini": "Jauge d'XP",
+    "bet-choice": "Cote d'un pari", "bet-stakes": "Détail des parieurs", "lb-row": "Ligne du classement", "duel-btn": "⚔️ Défier",
+    "duel-history": "Historique des défis", "leaderboard-btn": "🏆 Classement (téléphone)", "level-card": "Carte « Ton niveau »",
+    "streak-card": "Carte « Ta série »", "perm-msg": "Message permanent", "chat-bubble": "💬 Bulle du chat", "parrot": "🦜 Perroquet",
+    "shop-filter": "Filtres de la boutique", "shop-preview": "Aperçu d'un article", "shop-buy": "Acheter", "shop-equip": "Équiper", "gift": "🎁 Faire un don",
+    "modal-close": "Fermer ✕", "stake-input": "Champ du montant (valeur jamais lue)", "stake-chip": "Montant rapide", "stake-half": "½ Max",
+    "stake-max": "🔥 Max", "stake-submit": "Miser", "add-ticket": "Ajouter au combiné",
+};
+
+/* ---------- Réplique simplifiée des écrans ---------- */
+const BETS = [
+    ["Yann", "⏱ 2 h", "Le PSG gagne ce soir ?", ["Oui", "1,8"], ["Non", "2,1"], 62],
+    ["Lina", "⏱ 35 min", "Tom arrive en retard demain ?", ["Oui", "1,4"], ["Non", "3,2"], 80],
+    ["victor", "⏱ 1 j", "Il pleut samedi à Lyon ?", ["Oui", "2,4"], ["Non", "1,6"], 41],
+    ["Just1", "⏱ 5 h", "Mimi finit son burger ?", ["Oui", "1,3"], ["Non", "4,0"], 85],
+];
+const SHOP = [
+    ["✨", "Pseudo doré", "Rare", "#4da3ff", "300 🪙", 4, 9],
+    ["🖼️", "Cadre néon", "Épique", "#c86bff", "600 🪙", 3, 6],
+    ["🌌", "Thème galaxie", "Légendaire", "#ffb02e", "1 200 🪙", 6, 3],
+    ["🔥", "Pseudo enflammé", "Épique", "#c86bff", "Équiper", 2, 0],
+    ["🦜", "Skin perroquet", "Rare", "#4da3ff", "450 🪙", 3, 5],
+    ["💎", "Étincelles", "Commun", "#9aa0ae", "150 🪙", 1, 2],
+];
+
+function deskTop(active) {
+    const W = active === "shop" ? { paris: 8, historique: 4, missions: 2, boutique: 1 } : { paris: 2, historique: 7, missions: 3, boutique: 6 };
+    const on = active === "shop" ? "boutique" : "paris";
+    const tabs = [["paris", "Paris"], ["historique", "Historique"], ["missions", "Missions"], ["boutique", "Boutique"]]
+        .map(([k, l]) => `<b class="${on === k ? "on" : ""}" data-t="nav-${k}" data-w="${W[k]}">${l}</b>`).join("");
+    return `<div class="r-top"><div class="r-logo">Bet<span>Lab</span></div><span class="r-group" data-t="group-menu" data-w="2">👥 Les Fous du BE ▾</span><nav class="r-nav">${tabs}</nav><div class="r-caps"><span class="cap" data-t="streak" data-w="3">🔥 6</span><span class="cap" data-t="balance" data-w="4">💰 1 245 €</span><span class="cap av" data-t="profile" data-w="3">F</span></div></div>`;
+}
+
+function phoneTop() {
+    return `<div class="r-ptop"><div class="r-logo">Bet<span>Lab</span></div><div class="r-caps"><span class="cap" data-t="streak" data-w="4">🔥 6</span><span class="cap" data-t="balance" data-w="5">💰 1 245 €</span><span class="cap av" data-t="profile" data-w="3">F</span></div></div>`;
+}
+
+function phoneNav(active) {
+    const W = active === "shop" ? { paris: 7, historique: 3, create: 2, missions: 2, boutique: 1 } : { paris: 1, historique: 8, create: 6, missions: 3, boutique: 5 };
+    const on = active === "shop" ? "boutique" : "paris";
+    const it = (k, e, l) => `<span class="${on === k ? "on" : ""}" data-t="nav-${k}" data-w="${W[k]}"><i>${e}</i>${l}</span>`;
+    return `<div class="r-pnav">${it("paris", "🎯", "Paris")}${it("historique", "📜", "Historique")}<span><b class="r-plus" data-t="nav-create" data-w="${W.create}">+</b></span>${it("missions", "⭐", "Missions")}${it("boutique", "🛍️", "Boutique")}</div>`;
+}
+
+const chatFab = phone => `<div class="r-fab r-chat ${phone ? "ph" : ""}" data-t="chat-bubble" data-w="${phone ? 4 : 5}">💬</div>`;
+const parrotFab = () => `<div class="r-fab r-parrot" data-t="parrot" data-w="4">🦜</div>`;
+
+function betCard(b, i) {
+    const w = [14, 11, 7, 4][i];
+    const choices = [b[3], b[4]].map((c, k) => `<div class="r-choice" data-t="bet-choice" data-w="${k ? w * .7 : w}"><span>${c[0]}</span><em>${c[1]}</em></div>`).join("");
+    return `<div class="r-bet"><div class="r-bet-top"><span>👤 ${b[0]}</span><span>${b[1]}</span></div><p>${b[2]}</p><div class="r-choices">${choices}</div><div class="r-split"><i style="width:${b[5]}%"></i><i style="width:${100 - b[5]}%"></i></div><div class="r-bet-foot"><span class="r-stk" data-t="bet-stakes" data-w="${i < 2 ? 2 : 1}">👥 ${5 - i}</span><span>${640 - i * 120} € misés</span></div></div>`;
+}
+
+function leaderboard() {
+    const rows = [["🥇", "Yann", "3 420 €"], ["🥈", "Lina", "2 980 €", true], ["🥉", "Just1", "2 410 €"], ["4", "victor", "1 870 €"], ["5", "Florian", "1 245 €"], ["6", "Mimi", "990 €"], ["7", "Tom", "640 €"]];
+    return `<div class="r-card"><h4>🏆 Les Fous du BE <small data-t="duel-history" data-w="0">Historique des défis</small></h4>${rows.map(([r, n, m, duel]) => `<div class="r-row" data-t="lb-row" data-w="1"><span class="rk2">${r}</span><span>${n}</span>${duel ? `<span class="r-duel" data-t="duel-btn" data-w="9">⚔️ Défier</span>` : `<span class="m">${m}</span>`}</div>`).join("")}</div>`;
+}
+
+function rightCol() {
+    return `<aside><div class="r-card" data-t="level-card" data-w="2"><h4>⭐ Ton niveau</h4><div class="r-lv"><b>Niveau 4</b><span>640 / 1 000 XP</span></div><div class="r-bar"><i style="width:64%"></i></div></div><div class="r-card" data-t="streak-card" data-w="3"><h4>🔥 Ta série</h4><div class="r-lv"><b>6 jours</b><span>Record : 9</span></div></div><div class="r-card" data-t="perm-msg" data-w="0"><h4>📣 Message</h4><p>Tournoi des Fous vendredi à 21 h !</p></div></aside>`;
+}
+
+function paris(device) {
+    if (device === "phone") {
+        return phoneTop()
+            + `<div class="r-pmain"><div class="r-xp" data-t="xp-mini" data-w="2"><span>Niv. 4</span><i><b style="width:64%"></b></i><span>640 / 1 000</span></div><div class="r-prow"><h3>Paris</h3><span class="r-lbbtn" data-t="leaderboard-btn" data-w="5">🏆 Classement</span></div>${BETS.map(betCard).join("")}</div>`
+            + phoneNav("paris") + chatFab(true);
+    }
+    return deskTop("paris")
+        + `<div class="r-body ${device === "wide" ? "" : "no-right"}"><aside>${leaderboard()}</aside><main><div class="r-head"><h3>Paris disponibles</h3><span class="r-create" data-t="create-bet" data-w="5">+ Créer un pari</span></div>${BETS.slice(0, 3).map(betCard).join("")}</main>${device === "wide" ? rightCol() : ""}</div>`
+        + chatFab(false) + parrotFab();
+}
+
+function shop(device) {
+    const phone = device === "phone";
+    const items = SHOP.slice(0, phone ? 4 : 6).map(it => `<div class="r-item"><div class="r-prev" data-t="shop-preview" data-w="${it[5]}">${it[0]}</div><b>${it[1]}</b><small style="color:${it[3]}">${it[2]}</small>${it[4] === "Équiper" ? `<span class="r-buy eq" data-t="shop-equip" data-w="5">Équiper</span>` : `<span class="r-buy" data-t="shop-buy" data-w="${it[6]}">${it[4]}</span>`}</div>`).join("");
+    const head = `<div class="r-head"><h3>Boutique</h3><span class="r-gift" data-t="gift" data-w="0">🎁 Faire un don</span></div><div class="r-chips">${[["Tout", 3, true], ["Pseudos", 4], ["Cadres", 2], ["Thèmes", 2]].map(([l, w, on]) => `<span class="r-chip ${on ? "on" : ""}" data-t="shop-filter" data-w="${w}">${l}</span>`).join("")}</div>`;
+    if (phone) return phoneTop() + `<div class="r-pmain">${head}<div class="r-items two">${items}</div></div>` + phoneNav("shop") + chatFab(true);
+    return deskTop("shop") + `<div class="r-shop">${head}<div class="r-items">${items}</div></div>` + chatFab(false) + parrotFab();
+}
+
+function stakeModal(device) {
+    const [left, top, width] = { phone: [20, 170, 350], laptop: [290, 90, 420], wide: [473, 110, 420] }[device];
+    return `<div class="r-dim"></div><div class="r-modal" style="left:${left}px;top:${top}px;width:${width}px">
+        <span class="r-x" data-t="modal-close" data-w="6">✕</span>
+        <small class="r-mmeta">👤 Yann · ⏱ 2 h</small>
+        <h3>Le PSG gagne ce soir ?</h3>
+        <div class="r-pick"><span>Ton choix</span><b>Oui</b><em>cote 1,8</em></div>
+        <label class="r-lbl">Ta mise</label>
+        <div class="r-input" data-t="stake-input" data-w="7">100 €</div>
+        <div class="r-quick"><span data-t="stake-chip" data-w="3">10 €</span><span data-t="stake-chip" data-w="5">50 €</span><span data-t="stake-chip" data-w="6">100 €</span><span data-t="stake-half" data-w="3">½ Max</span><span data-t="stake-max" data-w="5">🔥 Max</span></div>
+        <div class="r-gain"><span>Gain possible</span><b>180 €</b></div>
+        <div class="r-submit" data-t="stake-submit" data-w="15">Miser 100 €</div>
+        <div class="r-ticket" data-t="add-ticket" data-w="2">＋ Ajouter au combiné</div>
+    </div>`;
+}
+
+const plain = html => html.replace(/ data-[tw]="[^"]*"/g, "");
+
+function screenHtml(screen, device) {
+    if (screen === "stake") return plain(paris(device)) + stakeModal(device);
+    return screen === "shop" ? shop(device) : paris(device);
+}
+
+/* ---------- Clics inventés (ce que la base renverrait déjà additionné) ---------- */
+function hash(s) { let h = 2166136261; for (const c of s) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function gauss(r) { let u = 0; while (!u) u = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * r()); }
+
+const cache = new Map();
+
+function elementsOf(screen, device) {
+    const div = document.createElement("div");
+    div.innerHTML = screenHtml(screen, device);
+    return [...div.querySelectorAll("[data-t]")].map(el => ({ t: el.dataset.t, w: +el.dataset.w }));
+}
+
+function countsFor(screen, device, period) {
+    const key = `n|${screen}|${device}|${period}`;
+    if (!cache.has(key)) {
+        const r = rng(hash(key));
+        cache.set(key, elementsOf(screen, device).map(e => e.w ? Math.max(1, Math.round(e.w * 7.5 * PERIOD_MULT[period] * DEVICE_MULT[device] * (.7 + r() * .6))) : 0));
+    }
+    return cache.get(key);
+}
+
+function posIn(el, root) {
+    let x = 0, y = 0, e = el;
+    while (e && e !== root) { x += e.offsetLeft; y += e.offsetTop; e = e.offsetParent; }
+    return { x, y, w: el.offsetWidth, h: el.offsetHeight };
+}
+
+function sampleClicks(screenEl) {
+    const key = `p|${F.screen}|${F.device}|${F.period}`;
+    if (cache.has(key)) return cache.get(key);
+    const r = rng(hash(key));
+    const counts = countsFor(F.screen, F.device, F.period);
+    const pts = [];
+    [...screenEl.querySelectorAll("[data-t]")].forEach((el, i) => {
+        const n = counts[i];
+        if (!n) return;
+        const p = posIn(el, screenEl);
+        const samples = Math.min(n, 260);
+        for (let k = 0; k < samples; k++) {
+            const x = Math.min(p.x + p.w + 4, Math.max(p.x - 4, p.x + p.w / 2 + gauss(r) * p.w / 4.2));
+            const y = Math.min(p.y + p.h + 4, Math.max(p.y - 4, p.y + p.h / 2 + gauss(r) * p.h / 3.6));
+            pts.push({ x, y, wt: n / samples, i });
+        }
+    });
+    // Quelques clics « dans le vide » (sur rien de cliquable)
+    const total = counts.reduce((a, b) => a + b, 0);
+    const noise = Math.round(total * .04), ns = Math.min(noise, 200);
+    for (let k = 0; k < ns; k++) pts.push({ x: r() * screenEl.offsetWidth, y: r() * screenEl.offsetHeight, wt: noise / ns, i: -1 });
+    const res = { pts, total: total + noise };
+    cache.set(key, res);
+    return res;
+}
+
+// Ce que ferait la fonction SQL : regrouper par case de grille et ne renvoyer que les totaux.
+function aggregate(pts, W) {
+    const size = W * +S.cell / 100, m = new Map();
+    for (const p of pts) {
+        const k = Math.floor(p.x / size) + "," + Math.floor(p.y / size);
+        m.set(k, (m.get(k) || 0) + p.wt);
+    }
+    return { size, cells: [...m].map(([k, n]) => { const [cx, cy] = k.split(",").map(Number); return { cx, cy, n: Math.round(n) }; }).filter(c => c.n > 0) };
+}
+
+/* ---------- Dessin de la chaleur ---------- */
+const lutCache = {};
+function lut() {
+    if (!lutCache[S.palette]) {
+        const c = document.createElement("canvas"); c.width = 256; c.height = 1;
+        const g = c.getContext("2d"), gr = g.createLinearGradient(0, 0, 256, 0);
+        PALETTES[S.palette].forEach((col, i, a) => gr.addColorStop(i / (a.length - 1), col));
+        g.fillStyle = gr; g.fillRect(0, 0, 256, 1);
+        lutCache[S.palette] = g.getImageData(0, 0, 256, 1).data;
+    }
+    return lutCache[S.palette];
+}
+function colorAt(t, a = 1) { const L = lut(), i = Math.min(255, Math.max(0, Math.round(t * 255))) * 4; return `rgba(${L[i]},${L[i + 1]},${L[i + 2]},${a})`; }
+
+function drawHeat(canvas, screenEl, data, W, H) {
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext("2d"), op = OPACITY[S.intensity];
+    const agg = aggregate(data.pts, W);
+    const max = Math.max(1, ...agg.cells.map(c => c.n));
+
+    if (S.render === "grid") {
+        for (const c of agg.cells) {
+            const t = Math.pow(c.n / max, .55);
+            ctx.fillStyle = colorAt(t, op * (.3 + .7 * t));
+            ctx.fillRect(c.cx * agg.size + .5, c.cy * agg.size + .5, agg.size - 1, agg.size - 1);
+        }
+        return;
+    }
+
+    if (S.render === "bubbles") {
+        const els = [...screenEl.querySelectorAll("[data-t]")], by = new Map();
+        data.pts.forEach(p => { if (p.i >= 0) by.set(p.i, (by.get(p.i) || 0) + p.wt); });
+        const bmax = Math.max(1, ...by.values()), k = Math.pow(W / 390, .35);
+        [...by].sort((a, b) => a[1] - b[1]).forEach(([i, n]) => {
+            const p = posIn(els[i], screenEl), t = Math.pow(n / bmax, .55), rr = (9 + 21 * Math.sqrt(n / bmax)) * k;
+            const x = p.x + p.w / 2, y = p.y + p.h / 2;
+            ctx.beginPath(); ctx.arc(x, y, rr, 0, Math.PI * 2);
+            ctx.fillStyle = colorAt(t, op); ctx.fill();
+            ctx.lineWidth = 2; ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.stroke();
+            ctx.font = `800 ${Math.max(10, rr * .62)}px system-ui, sans-serif`;
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,.55)";
+            const label = n >= 10000 ? Math.round(n / 1000) + " k" : fmt(n);
+            ctx.strokeText(label, x, y + 1); ctx.fillStyle = "#fff"; ctx.fillText(label, x, y + 1);
+        });
+        return;
+    }
+
+    // Nuage flou : densité calculée à demi-résolution puis colorée
+    const sc = 2, w = Math.ceil(W / sc), h = Math.ceil(H / sc), acc = new Float32Array(w * h);
+    const R = Math.max(agg.size * 1.5, W * .036) / sc, R2 = R * R;
+    for (const c of agg.cells) {
+        const x0 = (c.cx + .5) * agg.size / sc, y0 = (c.cy + .5) * agg.size / sc;
+        for (let y = Math.max(0, Math.floor(y0 - R)); y <= Math.min(h - 1, Math.ceil(y0 + R)); y++) {
+            for (let x = Math.max(0, Math.floor(x0 - R)); x <= Math.min(w - 1, Math.ceil(x0 + R)); x++) {
+                const d2 = (x - x0) ** 2 + (y - y0) ** 2;
+                if (d2 < R2) { const f = 1 - d2 / R2; acc[y * w + x] += c.n * f * f; }
+            }
+        }
+    }
+    let amax = 0;
+    for (const v of acc) if (v > amax) amax = v;
+    const img = ctx.createImageData(w, h), L = lut();
+    for (let j = 0; j < acc.length; j++) {
+        if (!acc[j]) continue;
+        const t = Math.pow(acc[j] / amax, .5);
+        if (t < .06) continue;
+        const i = Math.min(255, Math.round(t * 255)) * 4;
+        img.data[j * 4] = L[i]; img.data[j * 4 + 1] = L[i + 1]; img.data[j * 4 + 2] = L[i + 2];
+        img.data[j * 4 + 3] = Math.round(255 * op * Math.min(1, (t - .06) * 3));
+    }
+    const off = document.createElement("canvas"); off.width = w; off.height = h;
+    off.getContext("2d").putImageData(img, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(off, 0, 0, W, H);
+}
+
+/* ---------- Morceaux de la page admin ---------- */
+function filtersHtml() {
+    const groups = [
+        ["screen", "Écran", SCREENS],
+        ["device", "Appareil", Object.fromEntries(Object.entries(DEVICES).map(([k, v]) => [k, v.label]))],
+        ["period", "Période", PERIODS],
+    ];
+    if (S.filters === "select") {
+        return `<div class="flt flt-select">${groups.map(([k, t, o]) => `<label><span>${t}</span><select data-f="${k}">${Object.entries(o).map(([v, l]) => `<option value="${v}" ${F[k] === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>`).join("")}</div>`;
+    }
+    const chips = `<div class="flt-chips">${groups.map(([k, t, o]) => `<div class="fg"><span>${t}</span><div class="fchips">${Object.entries(o).map(([v, l]) => `<button type="button" data-f="${k}" data-v="${v}" class="${F[k] === v ? "on" : ""}">${l}</button>`).join("")}</div></div>`).join("")}</div>`;
+    if (S.filters === "fold") {
+        return `<div class="flt flt-fold"><button type="button" class="fold-btn"><span>📍 ${SCREENS[F.screen]} · ${DEVICES[F.device].label} · 📅 ${PERIODS[F.period]}</span><b>${foldOpen ? "▲ Fermer" : "✎ Modifier"}</b></button>${foldOpen ? chips : ""}</div>`;
+    }
+    return `<div class="flt">${chips}</div>`;
+}
+
+function stats() {
+    const total = sampleTotal();
+    const r = rng(hash(`v|${F.screen}|${F.device}|${F.period}`));
+    const per = Math.round(24 + r() * 16);
+    const top = ranking("screen").find(x => x.n > 0);
+    return { total, visits: Math.max(1, Math.round(total / per)), per, top: top ? TRACK[top.t] : "—" };
+}
+function sampleTotal() { const c = countsFor(F.screen, F.device, F.period).reduce((a, b) => a + b, 0); return c + Math.round(c * .04); }
+
+function statsHtml() {
+    const st = stats();
+    return `<div class="hm-stats"><div><b>${fmt(st.total)}</b><span>clics</span></div><div><b>${fmt(st.visits)}</b><span>visites</span></div><div><b>${st.per}</b><span>clics par visite</span></div><div><b class="small">${st.top}</b><span>le plus cliqué</span></div></div>`;
+}
+
+function legendHtml() {
+    return `<div class="lg"><span>Peu</span><i style="background:linear-gradient(90deg,${PALETTES[S.palette].join(",")})"></i><span>Beaucoup</span></div>`;
+}
+
+function previewHtml() {
+    const d = DEVICES[F.device];
+    return `<div class="pv-label"><span>${d.label} · affiché en ${d.w} px de large</span><small>${d.note}</small></div>
+        <div class="pv ${F.device === "phone" ? "pv-phone" : ""}"><div class="pv-inner" style="width:${d.w}px;height:${d.h}px"><div class="screen bg-${S.bg}" style="width:${d.w}px;height:${d.h}px"><div class="r-site">${screenHtml(F.screen, F.device)}</div><canvas class="heat"></canvas></div></div></div>
+        ${S.layout !== "B" ? `<div class="pv-legend">${legendHtml()}<span>Clique un élément du classement pour l'entourer.</span></div>` : ""}`;
+}
+
+function ranking(scope) {
+    const screens = scope === "all" ? Object.keys(SCREENS) : [F.screen], m = new Map();
+    for (const sc of screens) {
+        const counts = countsFor(sc, F.device, F.period);
+        elementsOf(sc, F.device).forEach((e, i) => {
+            const cur = m.get(e.t) || { t: e.t, n: 0, screens: new Set() };
+            cur.n += counts[i]; cur.screens.add(sc); m.set(e.t, cur);
+        });
+    }
+    return [...m.values()].sort((a, b) => b.n - a.n);
+}
+
+function rankingHtml() {
+    const list = ranking(rankScope), used = list.filter(r => r.n > 0), unused = list.filter(r => !r.n);
+    const max = used[0] ? used[0].n : 1, sum = used.reduce((a, r) => a + r.n, 0) || 1;
+    const where = r => rankScope === "all" ? `<small class="where">${[...r.screens].map(s => SCREENS[s]).join(", ")}</small>` : "";
+    const sel = t => selected === t ? "sel" : "";
+    const pct = n => (n / sum * 100).toLocaleString("fr-FR", { maximumFractionDigits: 1 }) + " %";
+    let body;
+    if (S.ranking === "table") {
+        body = `<table class="rk-table"><thead><tr><th>#</th><th>Élément</th><th>Clics</th><th>Part</th></tr></thead><tbody>${used.slice(0, 10).map((r, i) => `<tr data-rank-t="${r.t}" class="${sel(r.t)}"><td>${i + 1}</td><td>${TRACK[r.t]}${where(r)}</td><td>${fmt(r.n)}</td><td>${pct(r.n)}</td></tr>`).join("")}</tbody></table>`;
+    } else if (S.ranking === "podium") {
+        const pod = [[used[1], "🥈", ""], [used[0], "🥇", "p1"], [used[2], "🥉", ""]].filter(p => p[0]);
+        body = `<div class="rk-pod">${pod.map(([r, m, c]) => `<div class="pod ${c} ${sel(r.t)}" data-rank-t="${r.t}"><div class="m">${m}</div><b>${fmt(r.n)}</b><span>${TRACK[r.t]}</span></div>`).join("")}</div>`
+            + `<ol class="rk-bars" start="4">${used.slice(3, 10).map((r, i) => `<li data-rank-t="${r.t}" class="${sel(r.t)}"><span class="n">${i + 4}</span><div class="lbl"><div class="row1"><span>${TRACK[r.t]}${where(r)}</span><b>${fmt(r.n)}</b></div></div></li>`).join("")}</ol>`;
+    } else {
+        body = `<ol class="rk-bars">${used.slice(0, 10).map((r, i) => `<li data-rank-t="${r.t}" class="${sel(r.t)}"><span class="n">${i + 1}</span><div class="lbl"><div class="row1"><span>${TRACK[r.t]}${where(r)}</span><b>${fmt(r.n)}</b></div><div class="bar"><i style="width:${r.n / max * 100}%;background:${colorAt(Math.pow(r.n / max, .55))}"></i></div></div></li>`).join("")}</ol>`;
+    }
+    const un = S.unused === "show" && unused.length
+        ? `<div class="rk-unused"><span>😴 Jamais cliqués sur la période</span>${unused.map(r => `<em data-rank-t="${r.t}">${TRACK[r.t]}</em>`).join("")}</div>`
+        : "";
+    return `<div class="rk"><div class="rk-head"><h4>🏆 Les plus cliqués</h4><div class="rk-scope"><button type="button" data-scope="screen" class="${rankScope === "screen" ? "on" : ""}">Cet écran</button><button type="button" data-scope="all" class="${rankScope === "all" ? "on" : ""}">Tous les écrans</button></div></div>${body}${un}<p class="rk-note">Totaux additionnés par la base : ton navigateur ne reçoit jamais la liste des clics un par un.</p></div>`;
+}
+
+function storageHtml() {
+    return `<div class="sto"><h4>💾 Place utilisée</h4><div class="sto-bar"><i class="base" style="width:${16 / 5}%"></i><i class="clk" style="width:${4.2 / 5}%"></i></div><p><b>4,2 Mo</b> de clics (≈ 23 000 lignes) · base entière <b>20 Mo sur 500 Mo</b><br>Clics de plus de 90 jours effacés chaque nuit.</p></div>`;
+}
+
+/* ---------- Dispositions ---------- */
+function layoutA() {
+    return `<div class="adm"><div class="adm-head"><h1>Messages</h1><p>Gère les messages affichés aux utilisateurs.</p></div>
+        <div class="hm-card"><div class="hm-title"><h3>🔥 Carte des clics</h3><span class="hm-badge">Admin seulement</span></div>
+            ${filtersHtml()}${statsHtml()}
+            <div class="hm-grid"><div>${previewHtml()}</div><div class="hm-side">${rankingHtml()}${storageHtml()}</div></div>
+        </div>
+        <div class="adm-ghost">🌳 Arbre des groupes · Nouveau message popup · Message permanent… (cartes actuelles, en dessous)</div></div>`;
+}
+
+function layoutB() {
+    return `<div class="ovl">${previewHtml()}
+        <div class="ovl-bar">${filtersHtml()}${legendHtml()}<button type="button" class="ovl-x">✕ Quitter</button></div>
+        <p class="ovl-note">Sur le vrai site : un bouton 🔥 (visible par toi seul) allume ce calque sur l'écran où tu es, pendant que tu navigues.</p>
+        <div class="ovl-drawer ${drawerOpen ? "open" : ""}">${statsHtml()}${rankingHtml()}${storageHtml()}</div>
+        <button type="button" class="ovl-rank-btn">${drawerOpen ? "✕ Fermer le classement" : "🏆 Classement"}</button></div>`;
+}
+
+function layoutC() {
+    const tabs = [["map", "🔥 Carte"], ["rank", "🏆 Classement"], ["store", "💾 Place"]];
+    const pane = tab === "map" ? statsHtml() + previewHtml() : tab === "rank" ? rankingHtml() : storageHtml();
+    return `<div class="adm"><div class="adm-head"><h1>Messages</h1><p>Gère les messages affichés aux utilisateurs.</p></div>
+        <div class="hm-card"><div class="hm-title"><h3>🔥 Carte des clics</h3><span class="hm-badge">Admin seulement</span></div>
+            <div class="tabs">${tabs.map(([k, l]) => `<button type="button" data-tab="${k}" class="${tab === k ? "on" : ""}">${l}</button>`).join("")}</div>
+            ${filtersHtml()}${pane}
+        </div></div>`;
+}
+
+/* ---------- Rendu ---------- */
+function render() {
+    const stage = $("#stage");
+    stage.className = "stage" + (S.admin === "phone" ? " as-phone" : "");
+    stage.innerHTML = S.layout === "A" ? layoutA() : S.layout === "B" ? layoutB() : layoutC();
+    stage.classList.toggle("narrow", stage.clientWidth < 760);
+    mountPreview();
+}
+
+function mountPreview() {
+    const pv = $("#stage .pv");
+    if (!pv) return;
+    const d = DEVICES[F.device], inner = pv.firstElementChild, screenEl = $(".screen", pv);
+    const narrow = $("#stage").classList.contains("narrow");
+    const avail = pv.clientWidth;
+    const scale = Math.min(1, avail / d.w, narrow ? 9 : 700 / d.h);
+    pv.style.height = Math.ceil(d.h * scale) + "px";
+    inner.style.transform = `scale(${scale})`;
+    inner.style.left = Math.max(0, (avail - d.w * scale) / 2) + "px";
+    drawHeat($("canvas.heat", pv), screenEl, sampleClicks(screenEl), d.w, d.h);
+    highlight(selected);
+}
+
+function highlight(t) {
+    const screenEl = $("#stage .screen");
+    if (!screenEl) return;
+    screenEl.querySelectorAll(".hlbox").forEach(b => b.remove());
+    if (!t) return;
+    screenEl.querySelectorAll(`[data-t="${t}"]`).forEach(el => {
+        const p = posIn(el, screenEl), b = document.createElement("div");
+        b.className = "hlbox";
+        b.style.cssText = `left:${p.x - 4}px;top:${p.y - 4}px;width:${p.w + 8}px;height:${p.h + 8}px`;
+        screenEl.appendChild(b);
+    });
+}
+
+const stage = $("#stage");
+stage.addEventListener("click", e => {
+    const f = e.target.closest("button[data-f]");
+    if (f) { F[f.dataset.f] = f.dataset.v; selected = null; return render(); }
+    if (e.target.closest(".fold-btn")) { foldOpen = !foldOpen; return render(); }
+    const sc = e.target.closest("[data-scope]");
+    if (sc) { rankScope = sc.dataset.scope; return render(); }
+    const tb = e.target.closest("[data-tab]");
+    if (tb) { tab = tb.dataset.tab; return render(); }
+    if (e.target.closest(".ovl-rank-btn")) { drawerOpen = !drawerOpen; return render(); }
+    const rk = e.target.closest("[data-rank-t]");
+    if (rk) {
+        selected = selected === rk.dataset.rankT ? null : rk.dataset.rankT;
+        if (S.layout === "C" && selected) tab = "map";
+        return render();
+    }
+});
+stage.addEventListener("change", e => {
+    const s = e.target.closest("select[data-f]");
+    if (s) { F[s.dataset.f] = s.value; selected = null; render(); }
+});
+stage.addEventListener("mouseover", e => {
+    const rk = e.target.closest("[data-rank-t]");
+    if (rk) highlight(rk.dataset.rankT);
+});
+stage.addEventListener("mouseout", e => {
+    if (e.target.closest("[data-rank-t]") && !e.relatedTarget?.closest?.("[data-rank-t]")) highlight(selected);
+});
+
+/* ---------- Demande d'accord ---------- */
+function renderConsent() {
+    const base = plain(paris("phone"));
+    let overlay, text;
+    if (S.consent === "banner") {
+        overlay = `<div class="cs-banner"><b>📊 Tu nous aides à améliorer BetLab ?</b><p>On compte seulement <u>où</u> tu cliques, sans ton nom. Jamais ce que tu écris.</p><div class="cs-check"><i></i><span>J'accepte que mes clics soient comptés</span></div><div class="cs-btns"><span class="cs-btn">OK</span><span class="cs-link">En savoir plus</span></div></div>`;
+        text = `<h3>Bandeau en bas</h3><p>Posé au-dessus du menu, il ne bloque rien : on peut jouer sans répondre.</p><ul><li class="ok">Pas gênant</li><li class="ko">Beaucoup de joueurs l'ignoreront → moins de clics comptés</li></ul>`;
+    } else if (S.consent === "modal") {
+        overlay = `<div class="cs-dim"></div><div class="cs-box"><div class="emo">🦜</div><h4>Aide-nous à améliorer BetLab</h4><p>Pour savoir quels boutons servent vraiment, on aimerait compter <b>où</b> tu cliques. C'est anonyme : pas ton nom, jamais ce que tu écris.</p><div class="cs-check"><i></i><span>J'accepte que mes clics soient comptés</span></div><div class="cs-btns"><span class="cs-btn">Valider</span><span class="cs-btn ghost">Pas maintenant</span></div></div>`;
+        text = `<h3>Fenêtre au lancement</h3><p>Une seule fois, à la prochaine connexion (comme les popups admin). « Valider » sans cocher = refus.</p><ul><li class="ok">Tout le monde répond une fois → bien plus de données</li><li class="ko">Un peu plus intrusif, s'ajoute aux autres fenêtres</li></ul>`;
+    } else {
+        overlay = `<div class="cs-dim" style="background:#0f1117"></div><div class="cs-prof"><span class="cs-tag">Page Profil</span><div class="r-card"><h4>🔒 Confidentialité</h4><div class="cs-toggle"><span>Partager mes clics (anonyme) pour améliorer le site</span><i class="cs-sw"></i></div></div><span class="cs-tag">Inscription : dernière question</span><div class="r-card"><h4>Dernière chose 🦜</h4><div class="cs-check"><i></i><span>J'accepte que mes clics soient comptés anonymement</span></div><div class="cs-btns"><span class="cs-btn">Créer mon compte</span></div></div></div>`;
+        text = `<h3>Inscription + Profil</h3><p>Une case dans les questions d'inscription, et un interrupteur dans Profil. Aucune fenêtre.</p><ul><li class="ok">Zéro gêne</li><li class="ko">Les 36 membres actuels ne la verront pas → presque aucun clic au début</li></ul>`;
+    }
+    $("#consent").innerHTML = `<div class="cs-phone"><div class="screen" style="width:390px;height:844px"><div class="r-site">${base}</div>${overlay}</div></div>
+        <div class="cs-text">${text}<div class="cs-all">Dans tous les cas : case <b>non cochée</b> au départ, rien n'est envoyé sans accord, interrupteur dans Profil pour changer d'avis, et ton compte admin n'est jamais compté.</div></div>`;
+}
+
+/* ---------- Projection de la place ---------- */
+let retention = 90;
+function renderCalc() {
+    const p = +$("#c-p").value, c = +$("#c-c").value;
+    $("#cv-p").textContent = p; $("#cv-c").textContent = c;
+    const rows = p * c * retention, mb = rows * 180 / 1e6, total = 16 + mb;
+    $("#co-mb").textContent = (mb < 10 ? mb.toLocaleString("fr-FR", { maximumFractionDigits: 1 }) : fmt(mb)) + " Mo";
+    $("#co-base").style.width = 16 / 5 + "%";
+    $("#co-clk").style.width = Math.min(100 - 16 / 5, mb / 5) + "%";
+    const share = Math.round(total / 5);
+    $("#co-txt").innerHTML = `${fmt(p * c)} clics par jour → ${fmt(rows)} lignes gardées au maximum.<br>Avec le reste de la base : <b>${fmt(total)} Mo sur 500 Mo</b> (${share} %).`
+        + (share > 60 ? ` <span class="warn">⚠️ Ça devient serré : passer à 30 ou 60 jours de conservation.</span>` : " Large marge.");
+}
+$("#c-p").addEventListener("input", renderCalc);
+$("#c-c").addEventListener("input", renderCalc);
+$("#c-r").addEventListener("click", e => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    retention = +b.dataset.v;
+    $("#c-r").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+    renderCalc();
+});
+
+/* ---------- Réglages ---------- */
+function buildControls() {
+    const box = $("#controls");
+    box.innerHTML = CONTROLS.map(c => `<div><div class="ctl-title">${c.title}</div><div class="seg" data-ctl="${c.key}">${c.opts.map(([v, l]) => `<button type="button" data-v="${v}" class="${S[c.key] === v ? "on" : ""}">${l}</button>`).join("")}</div></div>`).join("");
+    box.addEventListener("click", e => {
+        const b = e.target.closest(".seg[data-ctl] button");
+        if (!b) return;
+        const seg = b.parentElement;
+        seg.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+        S[seg.dataset.ctl] = b.dataset.v;
+        render();
+        renderConsent();
+    });
+}
+
+let resizeTimer;
+window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(render, 150); });
+
+// Réglages passés dans l'adresse (#layout=B&render=grid) : pratique pour les captures.
+new URLSearchParams(location.hash.slice(1)).forEach((v, k) => { if (k in S) S[k] = v; else if (k in F) F[k] = v; });
+
+buildControls();
+render();
+renderConsent();
+renderCalc();
+
+/* Bouton « Copier mes choix » : copie les réglages sélectionnés pour les coller dans la conversation. */
+(function () {
+    const style = document.createElement("style");
+    style.textContent = `
+        .copy-bar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+        .copy-btn { border: none; border-radius: 10px; padding: 10px 16px; font: inherit; font-weight: 800; cursor: pointer; background: linear-gradient(90deg, #6c63ff, #c86bff); color: white; }
+        .copy-btn.done { background: #63d69f; color: #0d2a1d; }
+        .copy-text { flex: 1; min-width: 220px; font-size: 12px; color: #aaaeba; background: #12141b; border: 1px solid #2c3040; border-radius: 10px; padding: 8px 10px; user-select: all; }
+    `;
+    document.head.appendChild(style);
+
+    const bar = document.createElement("div");
+    bar.className = "copy-bar";
+    bar.innerHTML = `<button type="button" class="copy-btn">📋 Copier mes choix</button><div class="copy-text"></div>`;
+    document.querySelector(".controls").appendChild(bar);
+
+    const text = () => document.title + " : " + [...document.querySelectorAll("[data-ctl]")].map(seg => {
+        const title = seg.parentElement.querySelector(".ctl-title")?.textContent.trim() || seg.dataset.ctl;
+        const on = seg.querySelector("button.on")?.textContent.trim() || "?";
+        return `${title} = ${on}`;
+    }).join(" | ");
+
+    const refresh = () => { bar.querySelector(".copy-text").textContent = text(); };
+    document.addEventListener("click", () => setTimeout(refresh, 0));
+    refresh();
+
+    const button = bar.querySelector(".copy-btn");
+    button.addEventListener("click", async () => {
+        const value = text();
+        try {
+            await navigator.clipboard.writeText(value);
+        } catch (error) {
+            const area = document.createElement("textarea");
+            area.value = value;
+            document.body.appendChild(area);
+            area.select();
+            document.execCommand("copy");
+            area.remove();
+        }
+        button.textContent = "✅ Copié ! Colle-le dans la conversation";
+        button.classList.add("done");
+        setTimeout(() => { button.textContent = "📋 Copier mes choix"; button.classList.remove("done"); }, 2500);
+    });
+})();
+</script>
+</body>
+</html>

@@ -31,7 +31,8 @@
          Posée tout de suite pour éviter un clignotement de la version classique. -->
     <script>
         try {
-            if (localStorage.getItem("betlab-version") === "beta") {
+            // Aperçu de la page Heat map (?apercu-clics) : toujours la version classique des joueurs.
+            if (localStorage.getItem("betlab-version") === "beta" && !location.search.includes("apercu-clics")) {
                 document.body.classList.add("beta");
             }
         } catch {}
@@ -170,6 +171,16 @@
                 data-page="admin-page"
             >
                 Message
+            </button>
+
+
+            <!-- Admin seulement : carte des clics (voir heatmap.sql et heatmap.js) -->
+            <button
+                class="nav-button hidden"
+                id="heatmap-nav-button"
+                data-page="heatmap-page"
+            >
+                Heat map
             </button>
 
             <!-- Téléphone seulement : trait qui glisse sous l'onglet actif -->
@@ -1096,6 +1107,37 @@
             </div>
 
 
+            <!-- Clics anonymes pour la page Heat map de l'admin (heatmap.js) -->
+            <div
+                id="click-consent-card"
+                class="profile-card hidden"
+            >
+
+                <h2>
+                    Confidentialité
+                </h2>
+
+                <p class="profile-hint">
+                    Partage anonyme de tes clics pour aider à améliorer BetLab :
+                    où tu cliques, jamais ce que tu écris. Effacés au bout de 90 jours.
+                </p>
+
+                <label class="switch-row profile-switch">
+
+                    <input
+                        type="checkbox"
+                        id="click-consent-switch"
+                    >
+
+                    <span class="switch-track"></span>
+
+                    Partager mes clics
+
+                </label>
+
+            </div>
+
+
             <!-- Relancer le tuto guidé (setupTourReplayButton) -->
             <div class="profile-card">
 
@@ -1774,6 +1816,154 @@
                 ></p>
 
             </div>
+
+        </section>
+
+
+        <!-- =====================================
+             PAGE : HEAT MAP (admin seulement, voir heatmap.js)
+             Calque plein écran : le vrai site dans un cadre
+             à la largeur choisie, la chaleur des clics par-dessus.
+        ====================================== -->
+
+        <section
+            id="heatmap-page"
+            class="app-page hidden"
+        >
+
+            <div class="heatmap-bar">
+
+                <div class="heatmap-filters">
+
+                    <select
+                        id="heatmap-screen"
+                        aria-label="Écran"
+                    ></select>
+
+                    <select
+                        id="heatmap-device"
+                        aria-label="Appareil"
+                    >
+                        <option value="phone">📱 Téléphone</option>
+                        <option value="laptop">💻 Portable</option>
+                        <option value="wide">🖥️ Grand écran</option>
+                    </select>
+
+                    <select
+                        id="heatmap-period"
+                        aria-label="Période"
+                    >
+                        <option value="1">Aujourd'hui</option>
+                        <option
+                            value="7"
+                            selected
+                        >7 jours</option>
+                        <option value="30">30 jours</option>
+                    </select>
+
+                </div>
+
+                <div class="heatmap-legend">
+                    <span>Peu</span>
+                    <i></i>
+                    <span>Beaucoup</span>
+                </div>
+
+                <button
+                    type="button"
+                    id="heatmap-close"
+                    class="heatmap-close"
+                >
+                    ✕ Quitter
+                </button>
+
+            </div>
+
+
+            <div
+                id="heatmap-stage"
+                class="heatmap-stage"
+            >
+
+                <p
+                    id="heatmap-device-label"
+                    class="heatmap-device-label"
+                ></p>
+
+                <div
+                    id="heatmap-frame"
+                    class="heatmap-frame"
+                ></div>
+
+                <p
+                    id="heatmap-empty"
+                    class="heatmap-empty hidden"
+                ></p>
+
+            </div>
+
+
+            <div
+                id="heatmap-drawer"
+                class="heatmap-drawer"
+            >
+
+                <div
+                    id="heatmap-stats"
+                    class="heatmap-stats"
+                ></div>
+
+                <div class="heatmap-rank">
+
+                    <div class="heatmap-rank-head">
+
+                        <h3>🏆 Les plus cliqués</h3>
+
+                        <div class="heatmap-scope">
+                            <button
+                                type="button"
+                                data-heatmap-scope="screen"
+                                class="active"
+                            >Cet écran</button>
+                            <button
+                                type="button"
+                                data-heatmap-scope="all"
+                            >Tous les écrans</button>
+                        </div>
+
+                    </div>
+
+                    <ol
+                        id="heatmap-rank-list"
+                        class="heatmap-rank-list"
+                    ></ol>
+
+                    <div
+                        id="heatmap-unused"
+                        class="heatmap-unused hidden"
+                    ></div>
+
+                    <p class="heatmap-note">
+                        Totaux additionnés par la base : ton navigateur ne reçoit jamais la liste des clics un par un.
+                    </p>
+
+                </div>
+
+                <div
+                    id="heatmap-storage"
+                    class="heatmap-storage"
+                ></div>
+
+            </div>
+
+
+            <button
+                type="button"
+                id="heatmap-rank-toggle"
+                class="heatmap-rank-toggle"
+            >
+                🏆 Classement
+            </button>
 
         </section>
 
@@ -2830,6 +3020,94 @@
 
 
     <!-- =========================================
+         MODAL : ACCORD POUR COMPTER LES CLICS (heatmap.js)
+         Une seule fois ; ensuite l'interrupteur du Profil.
+    ========================================== -->
+
+    <div
+        id="click-consent-modal"
+        class="modal hidden"
+    >
+
+        <div class="modal-content click-consent-content">
+
+            <div class="click-consent-emoji">
+                🦜
+            </div>
+
+
+            <h2>
+                Aide-nous à améliorer BetLab
+            </h2>
+
+
+            <p class="click-consent-text">
+                Pour savoir quels boutons servent vraiment, on aimerait compter
+                <b>où</b> tu cliques. C'est anonyme : pas ton nom, jamais ce que tu écris.
+            </p>
+
+
+            <details class="click-consent-details">
+
+                <summary>
+                    Ce qui est compté
+                </summary>
+
+                <ul>
+                    <li>l'écran, le bouton touché et sa position ;</li>
+                    <li>la taille de ton écran (téléphone ou ordinateur) ;</li>
+                    <li>l'heure, arrondie à l'heure ;</li>
+                    <li>un numéro de visite tiré au hasard, nouveau à chaque visite.</li>
+                </ul>
+
+                <p>
+                    Jamais : ton pseudo, ce que tu tapes, ton adresse IP.
+                    Seul l'admin voit les totaux, et tout est effacé au bout de 90 jours.
+                    Tu peux changer d'avis à tout moment dans Profil.
+                </p>
+
+            </details>
+
+
+            <label class="click-consent-check">
+
+                <input
+                    type="checkbox"
+                    id="click-consent-checkbox"
+                >
+
+                <span>J'accepte que mes clics soient comptés</span>
+
+            </label>
+
+
+            <div class="click-consent-buttons">
+
+                <button
+                    type="button"
+                    id="click-consent-validate"
+                    class="primary-button"
+                >
+                    Valider
+                </button>
+
+                <button
+                    type="button"
+                    id="click-consent-later"
+                    class="secondary-button"
+                >
+                    Pas maintenant
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =========================================
          MODAL : MESSAGE EXCEPTIONNEL (un joueur, une fois)
     ========================================== -->
 
@@ -3258,6 +3536,9 @@
 
     <!-- Duels 1 contre 1 et séries de victoires (voir duels.sql) -->
     <script src="duels.js"></script>
+
+    <!-- Carte des clics : comptage avec accord + onglet Heat map de l'admin (voir heatmap.sql) -->
+    <script src="heatmap.js"></script>
 
 </body>
 

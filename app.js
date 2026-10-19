@@ -27,6 +27,12 @@ const supabaseClient = supabase.createClient(
 );
 
 
+// app.html?apercu-clics : le site affiché dans le cadre de la page Heat map (admin).
+// Pas de tuto, pas de fenêtres, aucun clic compté (voir heatmap.js).
+const CLICK_PREVIEW =
+    new URLSearchParams(window.location.search).has("apercu-clics");
+
+
 
 /* =========================================================
    2. VARIABLES GLOBALES
@@ -14592,7 +14598,7 @@ function openShopPreview(itemId, option) {
 function setupModalBackdrops() {
 
     document
-        .querySelectorAll(".modal:not(#announcement-modal):not(#removed-modal):not(#notice-modal):not(#gift-received-modal)")
+        .querySelectorAll(".modal:not(#announcement-modal):not(#removed-modal):not(#notice-modal):not(#gift-received-modal):not(#click-consent-modal)")
         .forEach(modal => {
 
             modal.addEventListener("mousedown", event => {
@@ -21691,7 +21697,7 @@ function startGuidedTour(attempt = 0) {
         wanted = false;
     }
 
-    if (!wanted || !currentGroup || document.querySelector(".tour-layer")) {
+    if (!wanted || !currentGroup || CLICK_PREVIEW || document.querySelector(".tour-layer")) {
         return;
     }
 
@@ -22287,6 +22293,12 @@ async function initAppPage() {
 
             await displayAdminHistory();
 
+        }
+
+
+        // Carte des clics : onglet Heat map (admin), sinon accord et comptage (heatmap.js).
+        if (typeof setupHeatmap === "function") {
+            setupHeatmap();
         }
 
 
