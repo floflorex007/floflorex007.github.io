@@ -17407,11 +17407,31 @@ body:has(#heatmap-page:not(.hidden)) .modal {
 }
 
 
-/* ----- Fenêtre d'accord des joueurs ----- */
+/* ----- Fenêtre d'accord des joueurs (obligatoire) -----
+   Au-dessus de la cloche, du chat et du fil d'activité : rien d'autre ne se clique. */
+
+#click-consent-modal {
+    z-index: 2600;
+}
 
 .click-consent-content {
     max-width: 420px;
     text-align: center;
+}
+
+/* Plus précis que le gris de .modal-content p. */
+.modal-content p.click-consent-required {
+    margin: 0 0 12px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #ff9f43;
+}
+
+.modal-content .click-consent-buttons .primary-button:disabled {
+    background: #343846;
+    color: #858a98;
+    cursor: not-allowed;
+    transform: none;
 }
 
 .click-consent-emoji {
@@ -17529,4 +17549,304 @@ body.click-preview::-webkit-scrollbar {
     50% {
         border-color: rgba(255, 255, 255, 0.25);
     }
+}
+
+
+/* =========================================================
+   SIGNALER UN PARI (signalements.js)
+========================================================= */
+
+/* Bouton en bas d'une mise du profil d'un joueur */
+.pp-report {
+    margin-left: auto;
+    padding: 6px 10px;
+    border: 1px solid rgba(255, 159, 67, 0.4);
+    border-radius: 999px;
+    background: rgba(255, 159, 67, 0.08);
+    color: #ff9f43;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.pp-report:hover {
+    background: rgba(255, 159, 67, 0.16);
+}
+
+.pp-copy ~ .pp-report {
+    margin-left: 0;
+}
+
+.pp-report.done {
+    border-color: transparent;
+    background: none;
+    cursor: default;
+}
+
+/* Fenêtre de signalement */
+.report-modal-content {
+    position: relative;
+    max-width: 400px;
+    text-align: center;
+}
+
+.report-emoji {
+    font-size: 38px;
+    line-height: 1;
+    margin-bottom: 6px;
+}
+
+.modal-content p.report-intro {
+    margin: 0 0 12px;
+    color: #aaaeba;
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+.report-intro b {
+    color: #e6e8ee;
+}
+
+.report-recap {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border: 1px solid #262a38;
+    border-radius: 12px;
+    background: #12141b;
+    color: #aaaeba;
+    font-size: 13px;
+    text-align: left;
+}
+
+.report-leg {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.report-leg b,
+.report-stake b {
+    color: #e6e8ee;
+}
+
+.report-odds {
+    color: #a59fff;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.report-stake {
+    padding-top: 6px;
+    border-top: 1px dashed #2c3040;
+}
+
+.report-reasons {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 10px;
+    text-align: left;
+}
+
+.modal-content .report-reasons label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 9px 10px;
+    border: 1px solid #2c3040;
+    border-radius: 10px;
+    background: #14161e;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.modal-content .report-reasons label:has(input:checked) {
+    border-color: rgba(255, 159, 67, 0.55);
+}
+
+.modal-content .report-reasons input {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    padding: 0;
+    accent-color: #ff9f43;
+}
+
+.modal-content textarea.report-details {
+    min-height: 64px;
+    margin-bottom: 10px;
+    padding: 9px 11px;
+    font-size: 13px;
+}
+
+.report-error {
+    margin: 0 0 10px;
+    color: #ff8a8a;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.modal-content p.report-error {
+    color: #ff8a8a;
+}
+
+.report-error:empty {
+    display: none;
+}
+
+.report-actions,
+.report-decide {
+    display: flex;
+    gap: 8px;
+}
+
+.report-actions button,
+.report-decide button {
+    flex: 1;
+    padding: 11px;
+    border: none;
+    border-radius: 10px;
+    font: inherit;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.report-back,
+.report-keep {
+    background: #23262f;
+    color: #c4c8d4;
+}
+
+.report-send {
+    background: #ff9f43;
+    color: #241400;
+}
+
+.report-actions button:disabled,
+.report-decide button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.report-sent {
+    padding: 18px 0 8px;
+    color: #63d69f;
+    font-weight: 900;
+}
+
+/* Carte « Paris signalés » de l'admin */
+.admin-reports-card {
+    border-color: rgba(255, 159, 67, 0.45);
+}
+
+.admin-reports-card h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.report-count {
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: rgba(255, 92, 92, 0.16);
+    color: #ff8a8a;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.report-none {
+    margin: 0 0 8px;
+    color: #737887;
+    font-size: 13px;
+}
+
+.report-done-title {
+    margin: 14px 0 8px;
+    color: #737887;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.report-row {
+    margin-bottom: 8px;
+    padding: 10px 12px;
+    border: 1px solid #2c3040;
+    border-radius: 12px;
+    background: #14161e;
+    color: #aaaeba;
+    font-size: 13px;
+}
+
+.report-row.decided {
+    opacity: 0.75;
+}
+
+.report-who b {
+    color: #e6e8ee;
+}
+
+.report-who small {
+    margin-left: 4px;
+    color: #737887;
+}
+
+.report-summary {
+    margin: 4px 0 6px;
+    color: #c4c8d4;
+}
+
+.report-why {
+    margin-bottom: 6px;
+    padding: 6px 8px;
+    border-left: 3px solid #ff9f43;
+    border-radius: 0 8px 8px 0;
+    background: rgba(255, 159, 67, 0.06);
+    color: #e6e8ee;
+}
+
+.report-why small {
+    display: block;
+    color: #737887;
+    font-size: 11px;
+}
+
+.report-decide {
+    margin-top: 8px;
+}
+
+.report-decide button {
+    padding: 9px;
+    font-size: 13px;
+}
+
+.report-cancel-stake {
+    background: #ff5c5c;
+    color: white;
+}
+
+.report-cancel-stake.confirm {
+    background: linear-gradient(135deg, #f0a030, #ffd166);
+    color: #241400;
+}
+
+.report-result {
+    margin-top: 6px;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.report-result.cancelled {
+    color: #ff8a8a;
+}
+
+.report-result.kept {
+    color: #63d69f;
 }

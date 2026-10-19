@@ -17904,6 +17904,7 @@ function playerBetHtml(item, index, canCopy) {
                 ${item.state === "open" && canCopy
                     ? `<button type="button" class="pp-copy" data-copy-bet="${index}" ${reason ? "disabled" : ""}>📋 Copier</button>`
                     : ""}
+                ${typeof reportButtonHtml === "function" ? reportButtonHtml(item, index, canCopy) : ""}
             </div>
             ${reason ? `<span class="pp-why">${escapeHtml(reason)}</span>` : ""}
         </div>
@@ -17925,8 +17926,11 @@ function playerProfileHtml(data) {
     const skin = PARROT_SKIN_NAMES[data.parrot_skin] ? data.parrot_skin : "classique";
 
     // Mises simples et combinés, du plus récent au plus ancien.
+    // kind + targetId : la mise à signaler (signalements.js).
     const simple = (data.stakes || []).map(stake => ({
         combo: false,
+        kind: "stake",
+        targetId: stake.stake_id,
         created_at: stake.created_at,
         stake: stake.stake,
         win: stake.potential_win,
@@ -17938,6 +17942,8 @@ function playerProfileHtml(data) {
 
     const combos = (data.combos || []).map(combo => ({
         combo: true,
+        kind: "combo",
+        targetId: combo.id,
         created_at: combo.created_at,
         stake: combo.stake,
         odds: combo.odds,
@@ -19677,7 +19683,14 @@ function showPage(pageId, skipCascade = false) {
 
         // Admin : les demandes « mot de passe oublié » arrivent à tout moment.
         if (pageId === "admin-page") {
+
             displayAdminPasswordRequests();
+
+            // Paris signalés par les joueurs (signalements.js).
+            if (typeof displayAdminBetReports === "function") {
+                displayAdminBetReports();
+            }
+
         }
 
         // Téléphone : chaque changement d'onglet repart du haut de la page.
@@ -22299,6 +22312,11 @@ async function initAppPage() {
         // Carte des clics : onglet Heat map (admin), sinon accord et comptage (heatmap.js).
         if (typeof setupHeatmap === "function") {
             setupHeatmap();
+        }
+
+        // Paris signalés : bouton du profil (joueurs), pastille et carte (admin).
+        if (typeof setupBetReports === "function") {
+            setupBetReports();
         }
 
 

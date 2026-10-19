@@ -171,6 +171,11 @@
                 data-page="admin-page"
             >
                 Message
+                <!-- Paris signalés à traiter (signalements.js) -->
+                <span
+                    id="reports-nav-dot"
+                    class="beta-nav-dot hidden"
+                ></span>
             </button>
 
 
@@ -1118,22 +1123,10 @@
                 </h2>
 
                 <p class="profile-hint">
-                    Partage de tes clics, sans lien avec ton compte, pour aider à améliorer BetLab :
+                    Tes clics sont comptés, sans lien avec ton compte, pour aider à améliorer BetLab :
                     où tu cliques, jamais ce que tu écris. Effacés au bout de 90 jours.
+                    C'est obligatoire pour jouer.
                 </p>
-
-                <label class="switch-row profile-switch">
-
-                    <input
-                        type="checkbox"
-                        id="click-consent-switch"
-                    >
-
-                    <span class="switch-track"></span>
-
-                    Partager mes clics
-
-                </label>
 
             </div>
 
@@ -1531,6 +1524,13 @@
                 </div>
 
             </div>
+
+
+            <!-- Paris signalés par les joueurs : annuler la mise ou la garder (signalements.js) -->
+            <div
+                id="admin-reports-card"
+                class="create-card admin-reports-card hidden"
+            ></div>
 
 
             <!-- Arbre du groupe : allumer / éteindre par groupe (arbre.js) -->
@@ -2421,6 +2421,134 @@
 
 
     <!-- ==========================================
+         SIGNALER UN PARI (bouton « 🚩 Signaler » du profil, signalements.js)
+         Placée après le profil pour s'afficher par-dessus.
+    ========================================== -->
+
+    <div
+        id="report-modal"
+        class="modal hidden"
+    >
+
+        <div class="modal-content report-modal-content">
+
+            <button
+                id="close-report-modal"
+                class="close-modal"
+                type="button"
+            >
+                ×
+            </button>
+
+
+            <div class="report-emoji">
+                🚩
+            </div>
+
+
+            <div id="report-form">
+
+                <h2>
+                    Signaler ce pari ?
+                </h2>
+
+
+                <p class="report-intro">
+                    L'admin va regarder et décider d'annuler cette mise ou de la garder.
+                    <b id="report-target"></b> ne saura pas que c'est toi.
+                </p>
+
+
+                <div
+                    id="report-recap"
+                    class="report-recap"
+                ></div>
+
+
+                <div class="report-reasons">
+
+                    <label>
+                        <input
+                            type="radio"
+                            name="report-reason"
+                            value="Il connaissait déjà le résultat"
+                            checked
+                        >
+                        Il connaissait déjà le résultat
+                    </label>
+
+                    <label>
+                        <input
+                            type="radio"
+                            name="report-reason"
+                            value="Pari arrangé avec le créateur"
+                        >
+                        Pari arrangé avec le créateur
+                    </label>
+
+                    <label>
+                        <input
+                            type="radio"
+                            name="report-reason"
+                            value="Autre"
+                        >
+                        Autre
+                    </label>
+
+                </div>
+
+
+                <textarea
+                    id="report-details"
+                    class="report-details"
+                    maxlength="300"
+                    placeholder="Un détail ? (facultatif)"
+                ></textarea>
+
+
+                <p
+                    id="report-error"
+                    class="report-error"
+                ></p>
+
+
+                <div class="report-actions">
+
+                    <button
+                        id="report-cancel"
+                        class="report-back"
+                        type="button"
+                    >
+                        Annuler
+                    </button>
+
+                    <button
+                        id="report-send"
+                        class="report-send"
+                        type="button"
+                    >
+                        🚩 Signaler
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <div
+                id="report-done"
+                class="report-sent hidden"
+            >
+                ✅ Signalement envoyé à l'admin
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- ==========================================
          DON À UN JOUEUR (bouton « 🎁 Don » du profil)
     ========================================== -->
 
@@ -3021,7 +3149,8 @@
 
     <!-- =========================================
          MODAL : ACCORD POUR COMPTER LES CLICS (heatmap.js)
-         Une seule fois ; ensuite l'interrupteur du Profil.
+         Obligatoire pour jouer : accepter ou se déconnecter.
+         Ne se ferme ni par le fond ni par Échap.
     ========================================== -->
 
     <div
@@ -3042,8 +3171,13 @@
 
 
             <p class="click-consent-text">
-                Pour savoir quels boutons servent vraiment, on aimerait compter
+                Pour savoir quels boutons servent vraiment, on compte
                 <b>où</b> tu cliques. Rien n'est relié à ton compte : pas ton nom, jamais ce que tu écris.
+            </p>
+
+
+            <p class="click-consent-required">
+                Obligatoire pour continuer à jouer.
             </p>
 
 
@@ -3063,7 +3197,7 @@
                 <p>
                     Jamais : ton pseudo, ce que tu tapes, ton adresse IP.
                     Seul l'admin voit les totaux, et tout est effacé au bout de 90 jours.
-                    Tu peux changer d'avis à tout moment dans Profil.
+                    Si tu n'es pas d'accord, tu peux te déconnecter.
                 </p>
 
             </details>
@@ -3087,16 +3221,17 @@
                     type="button"
                     id="click-consent-validate"
                     class="primary-button"
+                    disabled
                 >
                     Valider
                 </button>
 
                 <button
                     type="button"
-                    id="click-consent-later"
+                    id="click-consent-logout"
                     class="secondary-button"
                 >
-                    Pas maintenant
+                    Se déconnecter
                 </button>
 
             </div>
@@ -3539,6 +3674,9 @@
 
     <!-- Carte des clics : comptage avec accord + onglet Heat map de l'admin (voir heatmap.sql) -->
     <script src="heatmap.js"></script>
+
+    <!-- Signaler un pari suspect depuis le profil d'un joueur (voir signalements.sql) -->
+    <script src="signalements.js"></script>
 
 </body>
 

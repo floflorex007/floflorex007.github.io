@@ -2,7 +2,8 @@
    BETLAB — CARTE DES CLICS (voir heatmap.sql)
 
    Maquette Exemple-aide CLAUDE/demo-heatmap-admin.html (version B) :
-   - les joueurs qui acceptent la fenêtre d'accord envoient leurs clics par
+   - la fenêtre d'accord est obligatoire pour jouer : accepter ou se
+     déconnecter. Les joueurs qui acceptent envoient leurs clics par
      paquets (toutes les 10 s, dès 30 clics, et à la fermeture de la page) :
      écran, élément cliqué, position, taille d'écran, appareil. Jamais le
      texte tapé ni le pseudo (la base ne garde aucun lien avec le compte) ;
@@ -181,19 +182,16 @@ async function setupHeatmap() {
 
     applyClickState(state);
 
-    if (state === "unknown") {
-
-        // Après les fenêtres du démarrage (annonce, cadeaux, tuto…).
-        setTimeout(askClickConsent, 5000);
-
-    }
+    // Obligatoire pour jouer : la fenêtre revient aussi pour ceux qui avaient
+    // refusé avec l'ancienne version. Après les fenêtres du démarrage (annonce, cadeaux, tuto…).
+    setTimeout(askClickConsent, 5000);
 
 }
 
 
 
 /* =========================================================
-   ACCORD DU JOUEUR (fenêtre au lancement + interrupteur du Profil)
+   ACCORD DU JOUEUR (fenêtre obligatoire : accepter ou se déconnecter)
 ========================================================= */
 
 function setupClickConsent() {
@@ -202,35 +200,43 @@ function setupClickConsent() {
 
     const checkbox = document.getElementById("click-consent-checkbox");
 
-    document.getElementById("click-consent-validate")?.addEventListener("click", () => {
+    const validate = document.getElementById("click-consent-validate");
 
-        modal.classList.add("hidden");
+    // « Valider » ne marche qu'avec la case cochée.
+    checkbox?.addEventListener("change", () => {
 
-        saveClickConsent(checkbox.checked);
-
-    });
-
-    document.getElementById("click-consent-later")?.addEventListener("click", () => {
-
-        modal.classList.add("hidden");
-
-        saveClickConsent(false);
+        validate.disabled = !checkbox.checked;
 
     });
 
-    document.getElementById("click-consent-switch")?.addEventListener("change", event => {
+    validate?.addEventListener("click", async () => {
 
-        saveClickConsent(event.target.checked);
+        if (!checkbox.checked) {
+            return;
+        }
+
+        validate.disabled = true;
+
+        const state = await saveClickConsent();
+
+        // En cas d'erreur, la fenêtre reste ouverte pour réessayer.
+        if (state === "accepted" || state === "excluded") {
+            modal.classList.add("hidden");
+        } else {
+            validate.disabled = false;
+        }
 
     });
+
+    document.getElementById("click-consent-logout")?.addEventListener("click", logout);
 
 }
 
 
 // La fenêtre attend qu'aucune autre fenêtre ni le tuto ne soit ouvert.
-function askClickConsent(attempt = 0) {
+function askClickConsent() {
 
-    if (clickState !== "unknown") {
+    if (clickState !== "unknown" && clickState !== "refused") {
         return;
     }
 
@@ -240,9 +246,7 @@ function askClickConsent(attempt = 0) {
 
     if (busy) {
 
-        if (attempt < 150) {
-            setTimeout(() => askClickConsent(attempt + 1), 2000);
-        }
+        setTimeout(askClickConsent, 2000);
 
         return;
 
@@ -250,29 +254,30 @@ function askClickConsent(attempt = 0) {
 
     document.getElementById("click-consent-checkbox").checked = false;
 
+    document.getElementById("click-consent-validate").disabled = true;
+
     document.getElementById("click-consent-modal").classList.remove("hidden");
 
 }
 
 
-async function saveClickConsent(accepted) {
+async function saveClickConsent() {
 
     const { data: state, error } = await supabaseClient.rpc("set_click_consent", {
-        p_accepted: accepted
+        p_accepted: true
     });
 
     if (error) {
 
         console.error("Erreur set_click_consent :", error);
 
-        // Interrupteur remis comme avant.
-        applyClickState(clickState);
-
-        return;
+        return null;
 
     }
 
     applyClickState(state);
+
+    return state;
 
 }
 
@@ -284,12 +289,6 @@ function applyClickState(state) {
     document
         .getElementById("click-consent-card")
         ?.classList.toggle("hidden", state === "excluded" || !state);
-
-    const toggle = document.getElementById("click-consent-switch");
-
-    if (toggle) {
-        toggle.checked = state === "accepted";
-    }
 
     if (state === "accepted") {
         startClickTracking();
@@ -699,9 +698,24 @@ function flushClicks() {
     })
         .then(response => {
 
-            // Accord retiré depuis un autre appareil : on arrête de compter ici aussi.
+            // Refusé par la base (accord effacé, compte exclu…) : on relit l'état,
+            // et la fenêtre revient s'il faut de nouveau accepter.
             if (response.status === 403) {
-                applyClickState("refused");
+
+                stopClickTracking();
+
+                supabaseClient.rpc("my_click_tracking").then(({ data: state, error }) => {
+
+                    if (error) {
+                        return;
+                    }
+
+                    applyClickState(state);
+
+                    askClickConsent();
+
+                });
+
             }
 
         })
