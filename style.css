@@ -16479,6 +16479,45 @@ body.level-lock-4 #toggle-third-choice {
     text-align: center;
 }
 
+/* Pile ou face d'un duel sur le même choix : la pièce tourne, puis le résultat apparaît */
+.duel-coin {
+    display: flex;
+    justify-content: center;
+    margin: 18px 0 10px;
+    perspective: 600px;
+}
+
+.duel-coin span {
+    display: block;
+    font-size: 64px;
+    line-height: 1;
+    animation: duel-coin-flip 1.4s cubic-bezier(.2, .7, .3, 1) both;
+}
+
+@keyframes duel-coin-flip {
+    0% { transform: translateY(0) rotateY(0deg); }
+    45% { transform: translateY(-46px) rotateY(900deg); }
+    100% { transform: translateY(0) rotateY(1800deg); }
+}
+
+.modal-content .duel-coin-result {
+    margin: 0 0 14px;
+    text-align: center;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #aaaeba;
+    animation: duel-coin-result 0.4s 1.4s ease-out both;
+}
+
+.duel-coin-result b {
+    font-size: 15px;
+}
+
+@keyframes duel-coin-result {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
 
 /* ----- Mode défi (maquette demo-mode-defi.html) ----- */
 
@@ -16749,9 +16788,11 @@ body.duel-mode #bets-container .bet-card.duel-off .bet-choice-button {
     margin-bottom: 12px;
 }
 
+/* Cases réparties sur toute la largeur : 2 (gagnés, perdus) ou 3 avec le bilan */
 .dh-stats {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
     gap: 8px;
     margin-bottom: 12px;
 }
@@ -16772,6 +16813,259 @@ body.duel-mode #bets-container .bet-card.duel-off .bet-choice-button {
 .dh-stats small {
     font-size: 11px;
     color: #858a98;
+}
+
+/* Notification de duel en face à face (showDuelNotice dans duels.js, maquette demo-notifs-duels.html B) */
+#duel-notice-modal {
+    flex-direction: column;
+    gap: 10px;
+}
+
+#duel-notice-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    max-width: 400px;
+}
+
+.dn-card { --c: #6c63ff; --c2: #c86bff; --soft: rgba(140, 107, 255, 0.14); --text: #b9a6ff; }
+.dn-card.dn--win { --c: #2fbf7f; --c2: #63d69f; --soft: rgba(99, 214, 159, 0.12); --text: #63d69f; }
+.dn-card.dn--lose { --c: #d94a4a; --c2: #ff6b6b; --soft: rgba(255, 92, 92, 0.12); --text: #ff8a8a; }
+.dn-card.dn--info { --c: #5b6278; --c2: #858a98; --soft: rgba(133, 138, 152, 0.12); --text: #c9ccd6; }
+
+.modal-content.dn-card {
+    max-width: 400px;
+    padding: 20px;
+    border-radius: 18px;
+    border-color: color-mix(in srgb, var(--c) 45%, #2c3040);
+    background: radial-gradient(circle at 50% 0%, var(--soft), transparent 70%), #171a23;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+    text-align: center;
+    animation: dn-pop 0.45s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+
+@keyframes dn-pop {
+    from { opacity: 0; transform: scale(0.8) translateY(10px); }
+}
+
+.dn-counter {
+    padding: 4px 12px;
+    border-radius: 99px;
+    background: #1c202c;
+    border: 1px solid #2c3040;
+    font-size: 12px;
+    color: #aaaeba;
+}
+
+.dn-tag {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 99px;
+    background: var(--soft);
+    color: var(--text);
+    font-size: 11px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.modal-content.dn-card h2 {
+    margin: 10px 0 14px;
+    padding: 0;
+    font-size: 21px;
+}
+
+.dn-vs {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    margin-bottom: 14px;
+}
+
+.dn-vs-t {
+    font-size: 13px;
+    font-weight: 900;
+    color: #737887;
+}
+
+.dn-player {
+    position: relative;
+    display: grid;
+    justify-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #aaaeba;
+    transition: filter 0.3s, opacity 0.3s;
+}
+
+.dn-player--lost {
+    filter: grayscale(1);
+    opacity: 0.45;
+}
+
+.dn-av {
+    display: inline-grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    border: 3px solid #171a23;
+    font-size: 22px;
+    font-weight: 900;
+    color: white;
+}
+
+.dn-player--won .dn-av {
+    box-shadow: 0 0 0 3px var(--c2), 0 0 22px var(--c2);
+}
+
+.dn-crown {
+    position: absolute;
+    top: -16px;
+    left: 50%;
+    transform: translateX(-50%) rotate(-8deg);
+    font-size: 20px;
+}
+
+.dn-choice {
+    font-size: 11px;
+    color: #858a98;
+}
+
+.modal-content .dn-text {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.55;
+    color: #aaaeba;
+}
+
+.dn-q {
+    color: #e6e8ee;
+}
+
+.dn-c {
+    color: var(--text);
+}
+
+.dn-amount {
+    display: block;
+    margin: 12px 0 2px;
+    font-size: 34px;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    color: var(--text);
+}
+
+.dn-amount-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #858a98;
+}
+
+.dn-ok {
+    width: 100%;
+    margin-top: 16px;
+    padding: 11px;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--c), var(--c2));
+    color: white;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.dn-ok:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+/* Pièce du pile ou face au milieu du face à face */
+.dn-coin {
+    display: inline-block;
+    font-size: 30px;
+    animation: dn-coin 1.3s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+@keyframes dn-coin {
+    0% { transform: translateY(0) rotateY(0); }
+    45% { transform: translateY(-24px) rotateY(900deg); }
+    100% { transform: translateY(0) rotateY(1800deg); }
+}
+
+/* Gagné : lueur et confettis ; perdu : secousse */
+.modal-content.dn-card.dn-glow {
+    animation: dn-pop 0.45s cubic-bezier(0.3, 1.5, 0.5, 1) both, dn-glow 1.6s 0.3s ease-out both;
+}
+
+@keyframes dn-glow {
+    30% { box-shadow: 0 0 0 4px var(--c2), 0 0 40px var(--c2); }
+}
+
+.modal-content.dn-card.dn-shake {
+    animation: dn-pop 0.45s cubic-bezier(0.3, 1.5, 0.5, 1) both, dn-shake 0.5s 0.35s both;
+}
+
+@keyframes dn-shake {
+    20%, 60% { transform: translateX(-7px); }
+    40%, 80% { transform: translateX(7px); }
+}
+
+.dn-confetti {
+    position: fixed;
+    top: -14px;
+    z-index: 10002;
+    width: 8px;
+    height: 13px;
+    border-radius: 2px;
+    pointer-events: none;
+    animation: dn-fall linear forwards;
+}
+
+@keyframes dn-fall {
+    to { transform: translateY(105vh) rotate(720deg); opacity: 0.7; }
+}
+
+/* Petite fenêtre au survol d'une flamme bleue (duels.js) */
+.win-streak-tip {
+    position: fixed;
+    z-index: 10001;
+    display: grid;
+    gap: 3px;
+    padding: 9px 13px;
+    border: 1px solid rgba(79, 195, 255, 0.45);
+    border-radius: 12px;
+    background: #161a26;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 0 18px rgba(79, 195, 255, 0.15);
+    color: #aaaeba;
+    font-size: 12px;
+    white-space: nowrap;
+    pointer-events: none;
+    animation: win-streak-tip-in 0.22s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+
+.win-streak-tip b {
+    color: #7cc8ff;
+    font-size: 13px;
+}
+
+.win-streak-tip strong {
+    color: #e6e8ee;
+}
+
+@keyframes win-streak-tip-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px) scale(0.92);
+    }
 }
 
 .dh-plus {

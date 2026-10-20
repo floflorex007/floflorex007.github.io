@@ -3826,7 +3826,7 @@ async function checkPlayerNotices() {
         error
     } = await supabaseClient
         .from("player_notices")
-        .select("id, title, content")
+        .select("id, title, content, data")
         .eq("user_id", currentUser.id)
         .is("seen_at", null)
         .order("created_at", { ascending: true });
@@ -3856,6 +3856,9 @@ async function checkPlayerNotices() {
     const notices =
         data || [];
 
+    const total =
+        notices.length;
+
     const showNext = () => {
 
         const notice =
@@ -3864,6 +3867,23 @@ async function checkPlayerNotices() {
         if (!notice) {
 
             modal.classList.add("hidden");
+
+            return;
+
+        }
+
+        // Message de duel (duels-notifications.sql) : fenêtre en face à face de duels.js.
+        if (notice.data?.kind?.startsWith("duel_") && typeof showDuelNotice === "function") {
+
+            modal.classList.add("hidden");
+
+            showDuelNotice(notice.data, { index: total - notices.length, total, last: !notices.length }, async () => {
+
+                await supabaseClient.rpc("mark_notice_seen", { p_notice: notice.id });
+
+                showNext();
+
+            });
 
             return;
 
@@ -7463,6 +7483,8 @@ function openBetModal(
         .classList.remove("hidden");
 
     // La mise max baisse avec le temps : affichage mis à jour chaque seconde.
+    betStakeMax = false;
+
     refreshBetMax();
 
     clearInterval(betMaxTimer);
@@ -7578,6 +7600,9 @@ function betMaxStake(bet, now = Date.now()) {
 
 let betMaxTimer = null;
 
+// Mise choisie avec « Max » : le champ suit la mise max quand celle-ci baisse.
+let betStakeMax = false;
+
 // Bouton « Max » et règle de la fenêtre de mise : mis à jour chaque seconde.
 function refreshBetMax() {
 
@@ -7599,8 +7624,19 @@ function refreshBetMax() {
 
     document.getElementById("bet-rules-max").textContent = max;
 
+    const stakeInput = document.getElementById("stake-input");
+
+    // Mise mise avec « Max » : le champ suit la mise max du moment.
+    if (betStakeMax && Number(stakeInput.value) !== maxPossibleStake()) {
+
+        stakeInput.value = maxPossibleStake();
+
+        updatePotentialWin();
+
+    }
+
     // La mise max baisse : la jauge (pleine à la mise max) suit.
-    const stake = Number(document.getElementById("stake-input").value) || 0;
+    const stake = Number(stakeInput.value) || 0;
 
     updateBetGauge(stake, stake * Number(currentChoice?.odds || 0));
 
@@ -7901,6 +7937,9 @@ const COMBO_BOOST_PER_LEG = 0.05;
 let ticketLegs = [];
 
 let ticketStake = 0;
+
+// Mise choisie avec « Max » : elle suit la mise max quand celle-ci baisse.
+let ticketStakeMax = false;
 
 // 🤪 Boost WTF activé dans le ticket (arbre.js, arbre-palier1.sql).
 let ticketBoost = false;
@@ -8369,6 +8408,8 @@ function renderTicket({ bump = false } = {}) {
 
         ticketStake = 0;
 
+        ticketStakeMax = false;
+
         renderTicket();
 
         syncTicketHighlights();
@@ -8395,6 +8436,8 @@ function renderTicket({ bump = false } = {}) {
 
         ticketStake = Number(input.value) || 0;
 
+        ticketStakeMax = false;
+
         updateTicketLive();
 
     });
@@ -8413,7 +8456,9 @@ function renderTicket({ bump = false } = {}) {
 
             const balance = Math.floor(Number(currentProfile?.balance) || 0);
 
-            ticketStake = button.dataset.ticketAmount === "max"
+            ticketStakeMax = button.dataset.ticketAmount === "max";
+
+            ticketStake = ticketStakeMax
                 ? Math.min(ticketMaxStake(), balance > 0 ? balance : STAKE_MAX)
                 : Number(button.dataset.ticketAmount);
 
@@ -8637,6 +8682,27 @@ function updateTicketLive() {
     }
 
     const odds = ticketOdds(entries);
+
+    // Mise mise avec « Max » : le champ suit la mise max du moment (elle baisse avec le temps).
+    if (ticketStakeMax) {
+
+        const balance = Math.floor(Number(currentProfile?.balance) || 0);
+
+        const maxStake = Math.min(ticketMaxStake(entries), balance > 0 ? balance : STAKE_MAX);
+
+        const input = ticket.querySelector("[data-ticket-stake]");
+
+        if (maxStake !== ticketStake) {
+
+            ticketStake = maxStake;
+
+            if (input) {
+                input.value = maxStake;
+            }
+
+        }
+
+    }
 
     const max = formatMoney(ticketMaxStake(entries));
 
@@ -8901,6 +8967,8 @@ async function placeTicket() {
         ticketLegs = [];
 
         ticketStake = 0;
+
+        ticketStakeMax = false;
 
         ticketOpen = false;
 
@@ -22591,6 +22659,8 @@ async function initAppPage() {
 
                 }
 
+                betStakeMax = false;
+
                 updatePotentialWin();
 
             }
@@ -22613,6 +22683,8 @@ async function initAppPage() {
 
                 // Même maximum que la jauge : mise max du moment, ou le solde s'il est plus petit.
                 const maxPossible = maxPossibleStake();
+
+                betStakeMax = button.dataset.stake === "max";
 
                 stakeInput.value =
                     button.dataset.stake === "half" ? Math.min(maxPossible, Math.max(STAKE_MIN, Math.floor(maxPossible / 2)))

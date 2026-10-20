@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Démo : notifications des duels</title>
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #0f1117; color: #e6e8ee; }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 16px 60px; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .sub { color: #858a98; font-size: 13px; margin: 0 0 18px; line-height: 1.5; }
+
+    .controls { background: #171a23; border: 1px dashed #4a4f66; border-radius: 16px; padding: 14px; margin-bottom: 18px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    @media (max-width: 900px) { .controls { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 600px) { .controls { grid-template-columns: 1fr; } }
+    .ctl-title { font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: #737887; margin-bottom: 6px; }
+    .seg { display: flex; flex-wrap: wrap; gap: 6px; }
+    .seg button { border: 1px solid #2c3040; background: #1c202c; color: #aaaeba; font: inherit; font-size: 13px; padding: 7px 12px; border-radius: 999px; cursor: pointer; }
+    .seg button.on { background: #6c63ff; border-color: #6c63ff; color: white; }
+    .ctl.wide { grid-column: 1 / -1; }
+
+    .layout { display: grid; grid-template-columns: 260px 1fr; gap: 16px; }
+    @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+
+    .list { background: #171a23; border: 1px solid #262a38; border-radius: 16px; padding: 12px; align-self: start; }
+    .list h3 { margin: 4px 4px 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: #737887; }
+    .list h3:not(:first-child) { margin-top: 14px; }
+    .n-btn { display: flex; align-items: center; gap: 8px; width: 100%; margin-bottom: 4px; padding: 8px 10px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #c9ccd6; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+    .n-btn:hover { background: #1c202c; }
+    .n-btn.on { border-color: #6c63ff; background: rgba(108, 99, 255, .12); color: white; }
+    .n-btn small { margin-left: auto; font-size: 10px; color: #737887; }
+    .n-btn .new { color: #ffd36b; }
+    .play-all { width: 100%; margin-top: 10px; padding: 10px; border: none; border-radius: 10px; background: linear-gradient(135deg, #ff4d4d, #ff8a5c); color: white; font: inherit; font-weight: 800; cursor: pointer; }
+    .replay { width: 100%; margin-top: 6px; padding: 9px; border: 1px solid #2c3040; border-radius: 10px; background: #1c202c; color: #aaaeba; font: inherit; font-weight: 700; cursor: pointer; }
+    .who { margin: 0 4px 6px; font-size: 11px; color: #858a98; }
+
+    /* Faux écran de l'app derrière la notification */
+    .stage { position: relative; height: 620px; border-radius: 18px; overflow: hidden; border: 1px solid #262a38; background: #0f1117; }
+    .fake { position: absolute; inset: 0; padding: 18px; display: grid; grid-template-columns: 220px 1fr; gap: 16px; }
+    .fake-col { display: grid; gap: 12px; align-content: start; }
+    .fake-box { background: #171a23; border: 1px solid #262a38; border-radius: 14px; padding: 12px; }
+    .fake-line { height: 10px; border-radius: 6px; background: #232736; margin: 8px 0; }
+    .fake-card { height: 120px; background: #171a23; border: 1px solid #262a38; border-radius: 16px; }
+    .fake-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .backdrop { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; padding: 16px; transition: background .25s, backdrop-filter .25s; }
+    .backdrop.dim { background: rgba(5, 6, 10, .62); }
+    .backdrop.blur { background: rgba(5, 6, 10, .35); backdrop-filter: blur(5px); }
+    .backdrop.none { background: transparent; }
+    .backdrop.toast-mode { background: transparent; pointer-events: none; padding: 16px; }
+    .backdrop.toast-mode.br { align-items: flex-end; justify-content: flex-end; }
+    .backdrop.toast-mode.tr { align-items: flex-start; justify-content: flex-end; }
+    .backdrop.toast-mode.tc { align-items: flex-start; justify-content: center; }
+    .backdrop.hidden { display: none; }
+
+    .stack { display: grid; gap: 10px; width: 100%; max-width: 400px; pointer-events: auto; }
+    .stack.multi { max-height: 100%; overflow-y: auto; padding: 4px; }
+
+    /* Couleurs selon le résultat */
+    .n { --c: #6c63ff; --c2: #c86bff; --soft: rgba(140, 107, 255, .14); --text: #b9a6ff; }
+    .n.t-win { --c: #2fbf7f; --c2: #63d69f; --soft: rgba(99, 214, 159, .12); --text: #63d69f; }
+    .n.t-lose { --c: #d94a4a; --c2: #ff6b6b; --soft: rgba(255, 92, 92, .12); --text: #ff8a8a; }
+    .n.t-info { --c: #5b6278; --c2: #858a98; --soft: rgba(133, 138, 152, .12); --text: #c9ccd6; }
+    .n.t-coin { --c: #e0a82e; --c2: #ffd36b; --soft: rgba(255, 211, 107, .12); --text: #ffd36b; }
+    .n.mono { --c: #ff4d4d; --c2: #ff8a5c; --soft: rgba(255, 92, 92, .12); --text: #ff8a8a; }
+
+    .n { position: relative; width: 100%; background: #171a23; border: 1px solid #2c3040; border-radius: 18px; color: #e6e8ee; box-shadow: 0 18px 50px rgba(0, 0, 0, .55); }
+    .n-q { color: #e6e8ee; font-weight: 700; }
+    .n b.c { color: var(--text); }
+    .n-btns { display: grid; gap: 8px; margin-top: 16px; }
+    .n-btns.two { grid-template-columns: 1fr 1fr; }
+    .n-go { padding: 11px; border: none; border-radius: 12px; background: linear-gradient(135deg, var(--c), var(--c2)); color: white; font: inherit; font-size: 14px; font-weight: 900; cursor: pointer; }
+    .n-alt { padding: 11px; border: 1px solid #2c3040; border-radius: 12px; background: #1c202c; color: #aaaeba; font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; }
+    .amount { font-weight: 900; color: var(--text); }
+    .amount.big { display: block; margin: 12px 0 2px; font-size: 34px; letter-spacing: -.02em; line-height: 1.1; }
+    .amount.small { font-size: 14px; }
+    .amount-label { display: block; font-size: 11px; color: #858a98; text-transform: uppercase; letter-spacing: .05em; font-weight: 800; }
+    .av { display: inline-grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; font-size: 22px; font-weight: 900; color: white; border: 3px solid #171a23; }
+
+    /* A : carte claire, bandeau de couleur en haut */
+    .sA { overflow: hidden; text-align: center; }
+    .sA .band { height: 74px; display: grid; place-items: center; background: linear-gradient(135deg, var(--c), var(--c2)); font-size: 36px; }
+    .sA .body { padding: 16px 20px 20px; }
+    .sA h2 { margin: 0 0 8px; font-size: 20px; }
+    .sA p { margin: 0; font-size: 14px; line-height: 1.55; color: #aaaeba; }
+    .sA .detail { margin-top: 8px; font-size: 12px; color: #858a98; }
+
+    /* B : face à face (comme la fenêtre de défi) */
+    .sB { padding: 20px; text-align: center; border-color: color-mix(in srgb, var(--c) 45%, #2c3040); background: radial-gradient(circle at 50% 0%, var(--soft), transparent 70%), #171a23; }
+    .sB .tag { display: inline-block; padding: 4px 12px; border-radius: 99px; background: var(--soft); color: var(--text); font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .06em; }
+    .sB h2 { margin: 10px 0 14px; font-size: 21px; }
+    .sB .vs { display: flex; align-items: center; justify-content: center; gap: 18px; margin-bottom: 14px; }
+    .sB .vs > div { display: grid; justify-items: center; gap: 4px; font-size: 12px; color: #aaaeba; }
+    .sB .vs .vs-t { font-size: 13px; font-weight: 900; color: #737887; }
+    .sB .player { position: relative; transition: filter .3s, opacity .3s; }
+    .sB .player.lost { filter: grayscale(1); opacity: .45; }
+    .sB .player.won .av { box-shadow: 0 0 0 3px var(--c2), 0 0 22px var(--c2); }
+    .sB .crown { position: absolute; top: -16px; left: 50%; transform: translateX(-50%) rotate(-8deg); font-size: 20px; }
+    .sB .choice { font-size: 11px; color: #858a98; }
+    .sB p { margin: 0; font-size: 13px; line-height: 1.55; color: #aaaeba; }
+
+    /* C : petite notification dans un coin */
+    .sC { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: start; padding: 13px 14px 16px; border-left: 4px solid var(--c2); overflow: hidden; }
+    .sC .ico { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--soft); font-size: 20px; }
+    .sC h2 { margin: 1px 0 3px; font-size: 14px; }
+    .sC p { margin: 0; font-size: 12px; line-height: 1.45; color: #aaaeba; }
+    .sC .x { border: none; background: none; color: #737887; font-size: 16px; cursor: pointer; padding: 0 2px; }
+    .sC .amount.big { margin: 6px 0 0; font-size: 20px; }
+    .sC .n-btns { margin-top: 10px; }
+    .sC .n-go, .sC .n-alt { padding: 7px 10px; font-size: 12px; }
+    .sC .bar { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--c2); animation: bar 6s linear forwards; }
+    @keyframes bar { from { width: 100%; } to { width: 0; } }
+
+    /* D : ticket avec tampon */
+    .sD { padding: 0; overflow: hidden; background: #f4efe4; color: #2a2620; border: none; font-family: "Courier New", ui-monospace, monospace; }
+    .sD .head { padding: 14px 18px; background: linear-gradient(135deg, var(--c), var(--c2)); color: white; font-family: system-ui, sans-serif; font-weight: 900; display: flex; justify-content: space-between; align-items: center; }
+    .sD .head small { font-weight: 700; opacity: .85; }
+    .sD .body { position: relative; padding: 16px 18px 18px; }
+    .sD .q { margin: 0 0 12px; font-size: 13px; font-weight: 700; }
+    .sD .row { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px dashed #cbbfa6; font-size: 13px; }
+    .sD .row:last-of-type { border-bottom: none; }
+    .sD .total { margin-top: 8px; padding-top: 10px; border-top: 2px solid #2a2620; display: flex; justify-content: space-between; font-size: 16px; font-weight: 900; }
+    .sD .note { margin: 10px 0 0; font-size: 12px; color: #6b6253; }
+    .sD .stamp { position: absolute; right: 14px; top: 34px; padding: 4px 10px; border: 3px solid var(--c); border-radius: 8px; color: var(--c); font-family: system-ui, sans-serif; font-size: 18px; font-weight: 900; letter-spacing: .08em; transform: rotate(-12deg); opacity: .85; }
+    .sD .edge { height: 10px; background: radial-gradient(circle at 6px -2px, transparent 6px, #f4efe4 6.5px) 0 0 / 12px 10px repeat-x; transform: rotate(180deg); }
+    .sD .n-btns { padding: 0 18px 18px; margin-top: 0; font-family: system-ui, sans-serif; }
+    .sD .n-alt { background: #e6dfd0; border-color: #cbbfa6; color: #5a5245; }
+
+    /* Pièce du pile ou face */
+    .coin { display: inline-block; font-size: 30px; animation: coin 1.3s cubic-bezier(.2, .7, .3, 1) both; }
+    @keyframes coin { 0% { transform: translateY(0) rotateY(0); } 45% { transform: translateY(-24px) rotateY(900deg); } 100% { transform: translateY(0) rotateY(1800deg); } }
+
+    /* Animations d'arrivée */
+    .in-pop { animation: pop .45s cubic-bezier(.3, 1.5, .5, 1) both; }
+    @keyframes pop { from { opacity: 0; transform: scale(.8) translateY(10px); } }
+    .in-slide { animation: slide .45s cubic-bezier(.2, .8, .3, 1) both; }
+    @keyframes slide { from { opacity: 0; transform: translateY(40px); } }
+    .in-fade { animation: fade .35s ease-out both; }
+    @keyframes fade { from { opacity: 0; } }
+    .toast-mode .in-slide { animation-name: slide-side; }
+    @keyframes slide-side { from { opacity: 0; transform: translateX(60px); } }
+    .shake { animation: shake .5s .35s both; }
+    @keyframes shake { 20%, 60% { transform: translateX(-7px); } 40%, 80% { transform: translateX(7px); } }
+    .glow-win { animation: glow 1.6s .3s ease-out both; }
+    @keyframes glow { 30% { box-shadow: 0 0 0 4px var(--c2), 0 0 40px var(--c2); } }
+
+    .confetti { position: absolute; z-index: 9; top: -12px; width: 8px; height: 13px; border-radius: 2px; pointer-events: none; animation: fall linear forwards; }
+    @keyframes fall { to { transform: translateY(660px) rotate(720deg); opacity: .7; } }
+
+    .counter { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 8; padding: 4px 12px; border-radius: 99px; background: #1c202c; border: 1px solid #2c3040; font-size: 12px; color: #aaaeba; }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <h1>⚔️ Notifications des duels</h1>
+    <p class="sub">
+        À gauche : toutes les notifications de duel (celles qui existent, et 2 nouvelles proposées ★). Clique dessus pour les voir.<br>
+        En haut : le style et les réglages. « ▶ Tout enchaîner » montre plusieurs notifications d'affilée, comme quand tu te connectes après un moment.
+    </p>
+
+    <div class="controls">
+        <div class="ctl wide">
+            <div class="ctl-title">Style</div>
+            <div class="seg" data-ctl="style">
+                <button data-v="A">A · Carte à bandeau</button>
+                <button data-v="B" class="on">B · Face à face</button>
+                <button data-v="C">C · Petite notif dans un coin</button>
+                <button data-v="D">D · Ticket avec tampon</button>
+            </div>
+        </div>
+        <div class="ctl">
+            <div class="ctl-title">Couleurs</div>
+            <div class="seg" data-ctl="color">
+                <button data-v="result" class="on">Selon le résultat</button>
+                <button data-v="mono">Tout en rouge duel</button>
+            </div>
+        </div>
+        <div class="ctl">
+            <div class="ctl-title">Arrivée</div>
+            <div class="seg" data-ctl="anim">
+                <button data-v="pop" class="on">Rebond</button>
+                <button data-v="slide">Glissement</button>
+                <button data-v="fade">Fondu</button>
+            </div>
+        </div>
+        <div class="ctl">
+            <div class="ctl-title">Effet gagné / perdu</div>
+            <div class="seg" data-ctl="fx">
+                <button data-v="both" class="on">Confettis + secousse</button>
+                <button data-v="confetti">Confettis seuls</button>
+                <button data-v="glow">Lueur seule</button>
+                <button data-v="none">Aucun</button>
+            </div>
+        </div>
+        <div class="ctl">
+            <div class="ctl-title">Montant</div>
+            <div class="seg" data-ctl="amount">
+                <button data-v="big" class="on">En gros</button>
+                <button data-v="small">Dans le texte</button>
+            </div>
+        </div>
+        <div class="ctl">
+            <div class="ctl-title">Boutons</div>
+            <div class="seg" data-ctl="buttons">
+                <button data-v="action" class="on">Action + OK (« Répondre », « Mes défis »)</button>
+                <button data-v="ok">Seulement OK</button>
+            </div>
+        </div>
+        <div class="ctl">
+            <div class="ctl-title">Plusieurs notifications</div>
+            <div class="seg" data-ctl="multi">
+                <button data-v="one" class="on">Une par une (1/3, 2/3…)</button>
+                <button data-v="stack">Toutes ensemble</button>
+            </div>
+        </div>
+        <div class="ctl">
+            <div class="ctl-title">Fond (styles A, B, D)</div>
+            <div class="seg" data-ctl="backdrop">
+                <button data-v="dim" class="on">Assombri</button>
+                <button data-v="blur">Flou</button>
+                <button data-v="none">Rien</button>
+            </div>
+        </div>
+        <div class="ctl">
+            <div class="ctl-title">Coin (style C)</div>
+            <div class="seg" data-ctl="corner">
+                <button data-v="br" class="on">Bas droite</button>
+                <button data-v="tr">Haut droite</button>
+                <button data-v="tc">Haut centre</button>
+            </div>
+        </div>
+        <div class="ctl">
+            <div class="ctl-title">Pile ou face</div>
+            <div class="seg" data-ctl="coin">
+                <button data-v="spin" class="on">Pièce qui tourne</button>
+                <button data-v="static">Pièce fixe</button>
+            </div>
+        </div>
+        <div class="ctl">
+            <div class="ctl-title">Nouvelles notifs ★</div>
+            <div class="seg" data-ctl="extra">
+                <button data-v="yes" class="on">Les ajouter</button>
+                <button data-v="no">Non merci</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="layout">
+        <div class="list" id="list"></div>
+        <div class="stage" id="stage">
+            <div class="fake">
+                <div class="fake-col">
+                    <div class="fake-box"><div class="fake-line" style="width:50%"></div><div class="fake-line"></div><div class="fake-line"></div><div class="fake-line" style="width:80%"></div><div class="fake-line"></div></div>
+                    <div class="fake-box"><div class="fake-line" style="width:40%"></div><div class="fake-line"></div></div>
+                </div>
+                <div class="fake-col">
+                    <div class="fake-box"><div class="fake-line" style="width:30%"></div></div>
+                    <div class="fake-cards"><div class="fake-card"></div><div class="fake-card"></div><div class="fake-card"></div><div class="fake-card"></div></div>
+                </div>
+            </div>
+            <div class="backdrop hidden" id="backdrop"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+const ME = "Florian", OTHER = "Yann";
+const Q = "Marie parle aux nouvelles semaine pro ?";
+const COLORS = { Florian: "#6c63ff", Yann: "#ff9f43" };
+
+/*
+    Toutes les notifications de duel. tone : duel / win / lose / info / coin.
+    winner : qui est mis en avant dans le face-à-face (me / other / none / both).
+*/
+const NOTIFS = [
+    { group: "Avant le duel", key: "recu", to: "défié", icon: "⚔️", tone: "duel", tag: "Défi reçu",
+      title: `${OTHER} te défie !`, text: `${OTHER} te défie sur « <span class="n-q">${Q}</span> ».`,
+      detail: `Il a choisi <b class="c">Oui</b>. Tu as 24 h pour répondre.`, amount: "287 €", amountLabel: "chacun", sign: "",
+      mine: "?", theirs: "Oui", winner: "none", action: "⚔️ Répondre", stamp: "DÉFI" },
+    { key: "accepte", to: "défieur", icon: "🤝", tone: "duel", tag: "Duel accepté",
+      title: "Duel accepté !", text: `${OTHER} a accepté ton duel sur « <span class="n-q">${Q}</span> ».`,
+      detail: `Toi : <b class="c">Oui</b> · ${OTHER} : <b class="c">Non</b>. Le gagnant prend tout.`, amount: "574 €", amountLabel: "en jeu", sign: "",
+      mine: "Oui", theirs: "Non", winner: "none", action: "Mes défis", stamp: "EN JEU" },
+    { key: "coinWin", to: "défieur", icon: "🪙", tone: "win", tag: "Pile ou face", coin: true,
+      title: "Pile ou face gagné !", text: `${OTHER} a accepté et a pris le même choix que toi (<b class="c">Oui</b>).`,
+      detail: `Tu as gagné le pile ou face : si « Oui » gagne, tu prends tout.`, amount: "574 €", amountLabel: "pour toi si Oui gagne", sign: "",
+      mine: "Oui", theirs: "Oui", winner: "me", action: "Mes défis", stamp: "PILE" },
+    { key: "coinLose", label: "Pile ou face perdu", to: "défieur", icon: "🪙", tone: "lose", tag: "Pile ou face", coin: true,
+      title: `${OTHER} gagne le pile ou face`, text: `${OTHER} a accepté et a pris le même choix que toi (<b class="c">Oui</b>).`,
+      detail: `Il a gagné le pile ou face : si « Oui » gagne, il prend tout.`, amount: "574 €", amountLabel: `pour ${OTHER} si Oui gagne`, sign: "",
+      mine: "Oui", theirs: "Oui", winner: "other", action: "Mes défis", stamp: "FACE" },
+    { key: "refuse", to: "défieur", icon: "🚫", tone: "info", tag: "Défi refusé",
+      title: "Défi refusé", text: `${OTHER} a refusé ton défi sur « <span class="n-q">${Q}</span> » (il perd 1 % de son solde).`,
+      detail: "Ta mise t'a été rendue.", amount: "287 €", amountLabel: "mise rendue", sign: "+",
+      mine: "Oui", theirs: "—", winner: "me", action: "Mes défis", stamp: "REFUSÉ" },
+    { key: "expire", to: "défieur", icon: "⌛", tone: "info", tag: "Sans réponse",
+      title: "Défi expiré", text: `${OTHER} n'a pas répondu à ton défi sur « <span class="n-q">${Q}</span> ».`,
+      detail: "Ta mise t'a été rendue.", amount: "287 €", amountLabel: "mise rendue", sign: "+",
+      mine: "Oui", theirs: "—", winner: "none", action: "Mes défis", stamp: "EXPIRÉ" },
+
+    { group: "Résultat", key: "gagne", to: "gagnant", icon: "🏆", tone: "win", tag: "Victoire", result: "win",
+      title: "Duel gagné !", text: `Tu as battu ${OTHER} sur « <span class="n-q">${Q}</span> ».`,
+      detail: `Toi : <b class="c">Oui</b> ✓ · ${OTHER} : Non ✗`, amount: "574 €", amountLabel: "gagnés", sign: "+",
+      mine: "Oui ✓", theirs: "Non ✗", winner: "me", action: "Mes défis", stamp: "GAGNÉ" },
+    { key: "gagneCoin", label: "Gagné au pile ou face", to: "gagnant", icon: "🏆", tone: "win", tag: "Victoire au pile ou face", result: "win", coin: true,
+      title: "Duel gagné !", text: `Vous aviez tous les deux raison sur « <span class="n-q">${Q}</span> »…`,
+      detail: "…et tu avais gagné le pile ou face.", amount: "574 €", amountLabel: "gagnés", sign: "+",
+      mine: "Oui ✓", theirs: "Oui ✓", winner: "me", action: "Mes défis", stamp: "GAGNÉ" },
+    { key: "perdu", to: "perdant", icon: "💀", tone: "lose", tag: "Défaite", result: "lose",
+      title: "Duel perdu", text: `${OTHER} a gagné votre duel sur « <span class="n-q">${Q}</span> ».`,
+      detail: `Toi : Oui ✗ · ${OTHER} : <b class="c">Non</b> ✓`, amount: "287 €", amountLabel: "perdus", sign: "−",
+      mine: "Oui ✗", theirs: "Non ✓", winner: "other", action: "Revanche ⚔️", stamp: "PERDU" },
+    { key: "perduCoin", label: "Perdu au pile ou face", to: "perdant", icon: "🪙", tone: "lose", tag: "Défaite au pile ou face", result: "lose", coin: true,
+      title: "Duel perdu", text: `Vous aviez tous les deux raison sur « <span class="n-q">${Q}</span> »…`,
+      detail: `…mais ${OTHER} avait gagné le pile ou face.`, amount: "287 €", amountLabel: "perdus", sign: "−",
+      mine: "Oui ✓", theirs: "Oui ✓", winner: "other", action: "Revanche ⚔️", stamp: "PERDU" },
+    { key: "perduTous", label: "Perdu pour les deux", to: "les deux", icon: "💥", tone: "lose", tag: "Perdu pour tous les deux", result: "lose",
+      title: "Personne ne gagne", text: `Aucun de vous deux n'avait le bon choix sur « <span class="n-q">${Q}</span> ».`,
+      detail: "Les 2 mises sont perdues.", amount: "287 €", amountLabel: "perdus", sign: "−",
+      mine: "Oui ✗", theirs: "Non ✗", winner: "both-lost", action: "Mes défis", stamp: "PERDU" },
+
+    { group: "Nouvelles ★", key: "annule", to: "les deux", icon: "↩️", tone: "info", tag: "Duel annulé", extra: true,
+      title: "Duel annulé", text: `Le pari « <span class="n-q">${Q}</span> » a été annulé.`,
+      detail: "Chacun récupère sa mise (aujourd'hui, rien ne prévient).", amount: "287 €", amountLabel: "mise rendue", sign: "+",
+      mine: "Oui", theirs: "Non", winner: "none", action: "Mes défis", stamp: "ANNULÉ" },
+    { key: "bientot", to: "défié", icon: "⏰", tone: "duel", tag: "Plus que 2 h", extra: true,
+      title: "Plus que 2 h pour répondre", text: `${OTHER} attend ta réponse à son défi sur « <span class="n-q">${Q}</span> ».`,
+      detail: "Sans réponse, le défi s'annule.", amount: "287 €", amountLabel: "chacun", sign: "",
+      mine: "?", theirs: "Oui", winner: "none", action: "⚔️ Répondre", stamp: "2 H" }
+];
+
+const opts = { style: "B", color: "result", anim: "pop", fx: "both", amount: "big", buttons: "action", multi: "one", backdrop: "dim", corner: "br", coin: "spin", extra: "yes" };
+let current = "gagne";
+let queue = null;
+
+const byKey = key => NOTIFS.find(n => n.key === key);
+const av = name => `<span class="av" style="background:${COLORS[name]}">${name[0]}</span>`;
+
+function amountHtml(n) {
+    const value = `${n.sign}${n.amount}`;
+    return opts.amount === "big"
+        ? `<span class="amount big">${value}</span><span class="amount-label">${n.amountLabel}</span>`
+        : "";
+}
+
+function smallAmount(n) {
+    return opts.amount === "small" ? ` <span class="amount small">${n.sign}${n.amount}</span> <span style="color:#858a98">(${n.amountLabel})</span>` : "";
+}
+
+function coinHtml(n) {
+    return n.coin ? `<span class="coin" style="${opts.coin === "spin" ? "" : "animation:none"}">🪙</span>` : "";
+}
+
+function buttonsHtml(n, last) {
+    const ok = queue && !last && opts.multi === "one" ? "Suivant →" : "OK";
+    if (opts.buttons === "ok") {
+        return `<div class="n-btns"><button class="n-go" data-next>${ok}</button></div>`;
+    }
+    return `<div class="n-btns two"><button class="n-alt" data-next>${ok}</button><button class="n-go" data-next>${n.action}</button></div>`;
+}
+
+function cardHtml(n, last) {
+    const tone = opts.color === "mono" ? "mono" : "t-" + n.tone;
+    const s = opts.style;
+
+    if (s === "A") {
+        return `
+            <div class="n sA ${tone}">
+                <div class="band">${n.coin ? coinHtml(n) : n.icon}</div>
+                <div class="body">
+                    <h2>${n.title}</h2>
+                    <p>${n.text}${smallAmount(n)}</p>
+                    <p class="detail">${n.detail}</p>
+                    ${amountHtml(n)}
+                    ${buttonsHtml(n, last)}
+                </div>
+            </div>`;
+    }
+
+    if (s === "B") {
+        const meCls = n.winner === "me" ? "won" : n.winner === "other" || n.winner === "both-lost" ? "lost" : "";
+        const otCls = n.winner === "other" ? "won" : n.winner === "me" || n.winner === "both-lost" ? "lost" : "";
+        return `
+            <div class="n sB ${tone}">
+                <span class="tag">${n.icon} ${n.tag}</span>
+                <h2>${n.title}</h2>
+                <div class="vs">
+                    <div class="player ${meCls}">${meCls === "won" ? '<span class="crown">👑</span>' : ""}${av(ME)}<b>Toi</b><span class="choice">${n.mine}</span></div>
+                    <span class="vs-t">${n.coin ? coinHtml(n) : "VS"}</span>
+                    <div class="player ${otCls}">${otCls === "won" ? '<span class="crown">👑</span>' : ""}${av(OTHER)}<b>${OTHER}</b><span class="choice">${n.theirs}</span></div>
+                </div>
+                <p>${n.text}${smallAmount(n)}<br>${n.detail}</p>
+                ${amountHtml(n)}
+                ${buttonsHtml(n, last)}
+            </div>`;
+    }
+
+    if (s === "C") {
+        return `
+            <div class="n sC ${tone}">
+                <span class="ico">${n.coin ? coinHtml(n) : n.icon}</span>
+                <div>
+                    <h2>${n.title}</h2>
+                    <p>${n.text}${smallAmount(n)}</p>
+                    ${opts.amount === "big" ? `<span class="amount big">${n.sign}${n.amount}</span><span class="amount-label">${n.amountLabel}</span>` : ""}
+                    ${opts.buttons === "action" ? `<div class="n-btns"><button class="n-go" data-next>${n.action}</button></div>` : ""}
+                </div>
+                <button class="x" data-next>✕</button>
+                <span class="bar"></span>
+            </div>`;
+    }
+
+    return `
+        <div class="n sD ${tone}">
+            <div class="head"><span>⚔️ DUEL</span><small>${n.tag}</small></div>
+            <div class="body">
+                <span class="stamp">${n.stamp}</span>
+                <p class="q">« ${Q} »</p>
+                <div class="row"><span>Toi (${ME})</span><b>${n.mine}</b></div>
+                <div class="row"><span>${OTHER}</span><b>${n.theirs}</b></div>
+                <div class="row"><span>Mise chacun</span><b>287 €</b></div>
+                ${n.coin ? `<div class="row"><span>Pile ou face</span><b>${coinHtml(n)} ${n.winner === "me" ? "Toi" : OTHER}</b></div>` : ""}
+                <div class="total"><span>${n.amountLabel}</span><span>${n.sign}${n.amount}</span></div>
+                <p class="note">${n.detail}</p>
+            </div>
+            ${buttonsHtml(n, last)}
+        </div>`;
+}
+
+function fx(n) {
+    const stage = document.getElementById("stage");
+    stage.querySelectorAll(".confetti").forEach(c => c.remove());
+    const card = stage.querySelector(".n");
+    if (!card) return;
+    if (n.result === "win" && ["both", "confetti"].includes(opts.fx)) {
+        const colors = ["#63d69f", "#ffd36b", "#6c63ff", "#ff6bd5", "#4fc3ff"];
+        for (let i = 0; i < 70; i++) {
+            const c = document.createElement("span");
+            c.className = "confetti";
+            c.style.left = Math.random() * 100 + "%";
+            c.style.background = colors[i % colors.length];
+            c.style.animationDuration = 1.6 + Math.random() * 1.6 + "s";
+            c.style.animationDelay = Math.random() * .5 + "s";
+            stage.appendChild(c);
+            setTimeout(() => c.remove(), 4000);
+        }
+    }
+    if (n.result === "win" && ["both", "confetti", "glow"].includes(opts.fx)) card.classList.add("glow-win");
+    if (n.result === "lose" && opts.fx === "both") card.classList.add("shake");
+    if (n.result === "lose" && opts.fx === "glow") card.classList.add("glow-win");
+}
+
+function show() {
+    const bd = document.getElementById("backdrop");
+    const toast = opts.style === "C";
+    bd.className = "backdrop " + (toast ? "toast-mode " + opts.corner : opts.backdrop);
+    const items = queue ? queue.map(byKey) : [byKey(current)];
+    const anim = "in-" + opts.anim;
+
+    if (queue && opts.multi === "one") {
+        const i = queue.index || 0;
+        const n = items[i];
+        bd.innerHTML = `<span class="counter">${i + 1} / ${items.length}</span><div class="stack"><div class="${anim}">${cardHtml(n, i === items.length - 1)}</div></div>`;
+        fx(n);
+        return;
+    }
+
+    bd.innerHTML = `<div class="stack${items.length > 1 ? " multi" : ""}">${items.map((n, i) =>
+        `<div class="${anim}" style="animation-delay:${i * 0.12}s">${cardHtml(n, true)}</div>`).join("")}</div>`;
+    if (items.length === 1) fx(items[0]);
+}
+
+function next() {
+    if (queue && opts.multi === "one" && (queue.index || 0) < queue.length - 1) {
+        queue.index = (queue.index || 0) + 1;
+        show();
+        return;
+    }
+    queue = null;
+    document.getElementById("backdrop").className = "backdrop hidden";
+}
+
+function renderList() {
+    const list = document.getElementById("list");
+    let html = "";
+    NOTIFS.forEach(n => {
+        if (n.extra && opts.extra === "no") return;
+        if (n.group) html += `<h3>${n.group}</h3>`;
+        html += `<button class="n-btn${n.key === current && !queue ? " on" : ""}" data-key="${n.key}">${n.icon} ${n.label || n.title}${n.extra ? ' <small class="new">★</small>' : `<small>→ ${n.to}</small>`}</button>`;
+    });
+    html += `<button class="play-all" data-all>▶ Tout enchaîner</button><button class="replay" data-replay>↻ Rejouer l'animation</button>`;
+    list.innerHTML = html;
+}
+
+document.addEventListener("click", e => {
+    const seg = e.target.closest("[data-ctl] button");
+    if (seg) {
+        const ctl = seg.parentElement.dataset.ctl;
+        opts[ctl] = seg.dataset.v;
+        seg.parentElement.querySelectorAll("button").forEach(b => b.classList.toggle("on", b === seg));
+        if (ctl === "extra" && opts.extra === "no" && byKey(current).extra) current = "gagne";
+        renderList();
+        show();
+        return;
+    }
+    const item = e.target.closest("[data-key]");
+    if (item) { queue = null; current = item.dataset.key; renderList(); show(); return; }
+    if (e.target.closest("[data-all]")) {
+        queue = ["accepte", "coinLose", "gagne", "perdu"];
+        queue.index = 0;
+        renderList(); show(); return;
+    }
+    if (e.target.closest("[data-replay]")) { show(); return; }
+    if (e.target.closest("[data-next]")) { next(); return; }
+});
+
+renderList();
+show();
+
+/* Bouton « Copier mes choix » : copie les réglages sélectionnés pour les coller dans la conversation. */
+(function () {
+    const style = document.createElement("style");
+    style.textContent = `
+        .copy-bar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+        .copy-btn { border: none; border-radius: 10px; padding: 10px 16px; font: inherit; font-weight: 800; cursor: pointer; background: linear-gradient(90deg, #6c63ff, #c86bff); color: white; }
+        .copy-btn.done { background: #63d69f; color: #0d2a1d; }
+        .copy-text { flex: 1; min-width: 220px; font-size: 12px; color: #aaaeba; background: #12141b; border: 1px solid #2c3040; border-radius: 10px; padding: 8px 10px; user-select: all; }
+    `;
+    document.head.appendChild(style);
+
+    const bar = document.createElement("div");
+    bar.className = "copy-bar";
+    bar.innerHTML = `<button type="button" class="copy-btn">📋 Copier mes choix</button><div class="copy-text"></div>`;
+    document.querySelector(".controls").appendChild(bar);
+
+    const text = () => document.title + " : " + [...document.querySelectorAll("[data-ctl]")].map(seg => {
+        const title = seg.parentElement.querySelector(".ctl-title")?.textContent.trim() || seg.dataset.ctl;
+        const on = seg.querySelector("button.on")?.textContent.trim() || "?";
+        return `${title} = ${on}`;
+    }).join(" | ");
+
+    const refresh = () => { bar.querySelector(".copy-text").textContent = text(); };
+    document.addEventListener("click", () => setTimeout(refresh, 0));
+    refresh();
+
+    const button = bar.querySelector(".copy-btn");
+    button.addEventListener("click", async () => {
+        const value = text();
+        try {
+            await navigator.clipboard.writeText(value);
+        } catch (error) {
+            const area = document.createElement("textarea");
+            area.value = value;
+            document.body.appendChild(area);
+            area.select();
+            document.execCommand("copy");
+            area.remove();
+        }
+        button.textContent = "✅ Copié ! Colle-le dans la conversation";
+        button.classList.add("done");
+        setTimeout(() => { button.textContent = "📋 Copier mes choix"; button.classList.remove("done"); }, 2500);
+    });
+})();
+</script>
+</body>
+</html>

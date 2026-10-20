@@ -11,9 +11,6 @@
 ========================================================= */
 
 
-// Affichage seulement : les montants viennent de la base (streak_reward_of).
-const STREAK_WEEK_MULT = [1, 1.5, 2, 2.5];
-
 // L'XP du calendrier : une orbe violette (dessinée en CSS, .xp-orb).
 const XP_ORB = `<span class="xp-orb" aria-hidden="true"></span>`;
 
@@ -167,22 +164,16 @@ function renderStreakCalendar() {
 
     const calendar = streakCalendar;
 
-    const week = Math.floor((calendar.day - 1) / 7);
-
-    const multText = value => "×" + String(value).replace(".", ",");
-
-    const weekText = `Semaine ${week + 1} : récompenses <b>${multText(STREAK_WEEK_MULT[Math.min(week, 3)])}</b>`
-        + (week < 3
-            ? ` · semaine ${week + 2} : ${multText(STREAK_WEEK_MULT[week + 1])}`
-            : " (le maximum)");
-
     const forgotten = calendar.forgotten && !calendar.claimed_today
-        ? `<br>🎁 Récompense oubliée du jour ${calendar.forgotten.day} (${streakRewardHtml(calendar.forgotten)}) : donnée avec celle d'aujourd'hui.`
+        ? `🎁 Récompense oubliée du jour ${calendar.forgotten.day} (${streakRewardHtml(calendar.forgotten)}) : donnée avec celle d'aujourd'hui.`
         : "";
 
     const notCounted = calendar.checked_today
         ? ""
-        : "<br>Ta connexion du jour n'est pas encore comptée : recharge la page.";
+        : "Ta connexion du jour n'est pas encore comptée : recharge la page.";
+
+    // Seulement les cas particuliers (récompense oubliée, connexion pas comptée).
+    const info = [forgotten, notCounted].filter(Boolean).join("<br>");
 
     // Le chemin garde sa position si on le redessine pendant qu'on le regarde.
     const scroll = box.querySelector(".streak-calendar-path")?.scrollLeft;
@@ -197,11 +188,7 @@ function renderStreakCalendar() {
             id="streak-chest"
             class="streak-chest hidden"
         ></div>
-        <p class="streak-calendar-info">
-            ${weekText}
-            <br>Rate un jour = retour au <b>jour 1</b> · 🛡️ un bouclier sauve ta série et ton calendrier.
-            ${forgotten}${notCounted}
-        </p>
+        ${info ? `<p class="streak-calendar-info">${info}</p>` : ""}
         <p
             id="streak-calendar-message"
             class="streak-calendar-message"
@@ -293,7 +280,7 @@ async function claimStreakReward(button) {
         .querySelector(`#streak-calendar [data-streak-day="${data.reward.day}"]`)
         ?.classList.add("streak-day-pop");
 
-    const notes = [`🔥 Jour ${data.reward.day} : ${streakRewardHtml(data.reward)}`];
+    const notes = [];
 
     if (data.forgotten) {
         notes.push(`🎁 Oubliée du jour ${data.forgotten.day} : ${streakRewardHtml(data.forgotten)}`);

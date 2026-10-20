@@ -3,10 +3,11 @@
 
    Maquette demo-duels-classement.html :
    - « ⚔️ Défier » au survol d'un joueur du classement (à la place du solde) ;
-   - chacun mise un pourcentage de son solde (duels-pourcentage.sql) ;
+   - même mise pour les deux, choisie par celui qui défie : au plus 30 % du
+     solde du plus pauvre des deux (duels-meme-mise.sql) ;
    - le défié a 24 h pour accepter (même choix ou un autre), refuser coûte 1 % ;
-   - un seul bon choix : il prend les 2 mises ; les deux : le plus gros % gagne ;
-     aucun : les 2 mises sont perdues ;
+   - un seul bon choix : il prend les 2 mises ; même choix : pile ou face à
+     l'acceptation pour savoir qui les prendra ; aucun : les 2 mises sont perdues ;
    - tête-à-tête en barre vert / rouge dans la fenêtre ;
    - flamme bleue qui grandit à partir de 3 victoires d'affilée
      (bleue pour ne pas la confondre avec la flamme de la série de jours).
@@ -22,12 +23,10 @@ let myDuels = [];
 // Défis reçus déjà montrés en fenêtre pendant cette visite.
 const duelPopupsShown = new Set();
 
-// Pourcentages du solde proposés (1 à 50 % possibles).
-const DUEL_PCTS = [5, 10, 20, 30];
+// Mise max d'un duel : 30 % du solde du plus pauvre des deux (duel_max_stake dans la base).
+const DUEL_MAX_SHARE = 0.30;
 
-const DUEL_RULES =
-    "Un seul a le bon choix : il prend les 2 mises. Les deux : le plus gros pourcentage prend tout "
-    + "(même pourcentage : chacun récupère sa mise). Aucun des deux : les 2 mises sont perdues.";
+const DUEL_RULES = "Le gagnant remporte les 2 mises, le perdant perd sa mise. Même cote : pile ou face.";
 
 const DUEL_COLORS = ["#c86bff", "#ff6bd5", "#4fc3ff", "#ff9f43", "#63d69f", "#ffd36b", "#6c63ff", "#ff6b6b"];
 
@@ -52,17 +51,27 @@ function duelEuros(amount) {
 }
 
 
-// Mise correspondant à un pourcentage de mon solde (comme duel_stake_of dans la base).
-function duelPctAmount(pct) {
+// Mise max contre ce joueur : 30 % du plus petit des deux soldes.
+function duelMaxStake(otherBalance) {
 
-    return Math.max(10, Math.floor(Number(currentProfile?.balance || 0) * pct / 100));
+    const poorest = Math.min(Number(currentProfile?.balance || 0), Number(otherBalance || 0));
+
+    return Math.floor(poorest * DUEL_MAX_SHARE);
 
 }
 
 
-function duelPctValid(pct) {
+function duelAmountValid(amount, max) {
 
-    return Number.isInteger(pct) && pct >= 1 && pct <= 50;
+    return Number.isInteger(amount) && amount >= 10 && amount <= max;
+
+}
+
+
+// Mises proposées : 10 %, 20 % et 30 % du plus petit solde (la dernière est le max).
+function duelStakeOptions(max) {
+
+    return [...new Set([Math.floor(max / 3), Math.floor(max * 2 / 3), max])].filter(amount => amount >= 10);
 
 }
 
@@ -101,11 +110,65 @@ function winStreakBadgeHtml(username) {
     const level = streak >= 12 ? 4 : streak >= 8 ? 3 : streak >= 5 ? 2 : 1;
 
     return `
-        <span class="win-streak win-streak--${level}" title="${streak} victoires d'affilée">
+        <span class="win-streak win-streak--${level}" data-streak="${streak}">
             <span class="win-streak-flame">🔥</span><span class="win-streak-count">${streak}</span>
         </span>`;
 
 }
+
+
+// Survol d'une flamme bleue : petite fenêtre qui explique le boost de la série.
+document.addEventListener("mouseover", event => {
+
+    const flame = event.target.closest(".win-streak[data-streak]");
+
+    // Le classement a pu être redessiné sous la souris : la fenêtre ne reste pas seule.
+    if (!flame) {
+        document.querySelector(".win-streak-tip")?.remove();
+        return;
+    }
+
+    if (flame.contains(event.relatedTarget)) {
+        return;
+    }
+
+    document.querySelector(".win-streak-tip")?.remove();
+
+    const streak = Number(flame.dataset.streak);
+
+    const tip = document.createElement("div");
+
+    tip.className = "win-streak-tip";
+
+    tip.innerHTML = `
+        <b>${streak} victoires d'affilée</b>
+        <span>Cote boostée de <strong>+${Math.round(winStreakBoost(streak) * 100)} %</strong> sur les mises simples</span>`;
+
+    document.body.appendChild(tip);
+
+    // Au-dessus de la flamme, sans sortir de l'écran.
+    const box = flame.getBoundingClientRect();
+
+    const left = Math.min(Math.max(8, box.left + box.width / 2 - tip.offsetWidth / 2), window.innerWidth - tip.offsetWidth - 8);
+
+    const top = box.top - tip.offsetHeight - 8;
+
+    tip.style.left = left + "px";
+
+    tip.style.top = (top < 8 ? box.bottom + 8 : top) + "px";
+
+});
+
+
+document.addEventListener("mouseout", event => {
+
+    const flame = event.target.closest(".win-streak[data-streak]");
+
+    if (flame && !flame.contains(event.relatedTarget)) {
+        document.querySelector(".win-streak-tip")?.remove();
+    }
+
+});
 
 
 // Boost de cote des mises simples selon ma série (même barème que win_streak_boost, boost-serie-victoires.sql).
@@ -130,7 +193,7 @@ function duelButtonHtml(profile) {
         return "";
     }
 
-    return `<button type="button" class="lb-duel-btn" data-duel-user="${profile.user_id}" data-duel-name="${escapeHtml(profile.username)}">⚔️ Défier</button>`;
+    return `<button type="button" class="lb-duel-btn" data-duel-user="${profile.user_id}" data-duel-name="${escapeHtml(profile.username)}" data-duel-balance="${Number(profile.balance || 0)}">⚔️ Défier</button>`;
 
 }
 
@@ -139,7 +202,7 @@ function duelButtonHtml(profile) {
     Fenêtre de défi.
 */
 
-const duelState = { opponent: null, bets: [], bet: null, choice: null, pct: 10, h2h: null, incoming: null };
+const duelState = { opponent: null, bets: [], bet: null, choice: null, amount: null, h2h: null, incoming: null, coin: null };
 
 
 function duelVersusHtml(left, right, leftSub, rightSub) {
@@ -186,13 +249,17 @@ function duelH2hHtml(name, h2h) {
 }
 
 
-async function openDuelModal(userId, username) {
+async function openDuelModal(userId, username, balance) {
 
-    duelState.opponent = { id: userId, name: username };
+    duelState.opponent = { id: userId, name: username, max: duelMaxStake(balance) };
 
     duelState.incoming = null;
 
+    duelState.coin = null;
+
     duelState.choice = null;
+
+    duelState.amount = duelStakeOptions(duelState.opponent.max)[0] || null;
 
     const modal = document.getElementById("duel-modal");
 
@@ -235,6 +302,11 @@ function renderDuelModal() {
 
     const body = document.getElementById("duel-body");
 
+    if (duelState.coin) {
+        renderDuelCoin(body);
+        return;
+    }
+
     if (duelState.incoming) {
         renderIncomingDuel(body);
         return;
@@ -244,11 +316,15 @@ function renderDuelModal() {
 
     const bet = duelState.bet;
 
+    const max = duelState.opponent.max;
+
     body.innerHTML = `
         <h2>⚔️ Défier ${escapeHtml(name)}</h2>
         ${duelVersusHtml(currentProfile.username, name, "Toi", name)}
         ${duelH2hHtml(name, duelState.h2h)}
-        ${!bet
+        ${max < 10
+            ? `<p class="duel-muted">Pas de duel possible : la mise max est 30 % du solde du plus pauvre de vous deux, et il faut au moins 10 €.</p>`
+            : !bet
             ? `<p class="duel-muted">Aucun pari ouvert pour un duel entre vous deux (les paris créés par l'un de vous ne comptent pas).</p>`
             : `
                 <div class="duel-field">
@@ -268,13 +344,13 @@ function renderDuelModal() {
                     </div>
                 </div>
                 <div class="duel-field">
-                    <label>Ta mise : un pourcentage de ton solde (${escapeHtml(name)} choisira le sien)</label>
+                    <label>La mise (${escapeHtml(name)} mise la même) · max ${duelEuros(max)}</label>
                     <div class="duel-amounts">
-                        ${DUEL_PCTS.map(pct => `
-                            <button type="button" class="${pct === duelState.pct ? "on" : ""}" data-duel-pct="${pct}">${pct} %<small>${duelEuros(duelPctAmount(pct))}</small></button>`).join("")}
+                        ${duelStakeOptions(max).map(amount => `
+                            <button type="button" class="${amount === duelState.amount ? "on" : ""}" data-duel-amount="${amount}">${duelEuros(amount)}<small>${amount === max ? "max" : Math.round(amount / max * 30) + " %"}</small></button>`).join("")}
                     </div>
                 </div>
-                <p class="duel-rule">${DUEL_RULES} ${escapeHtml(name)} a 24 h pour accepter.</p>
+                <p class="duel-rule">${DUEL_RULES}</p>
                 <button type="button" class="duel-go" data-duel-send ${duelState.choice ? "" : "disabled"}>
                     ${duelState.choice ? "⚔️ Envoyer le défi" : "Choisis d'abord ton choix"}
                 </button>`}
@@ -283,7 +359,7 @@ function renderDuelModal() {
 }
 
 
-// Défi reçu : accepter (son camp, le même ou un autre, et son pourcentage) ou refuser (−1 %).
+// Défi reçu : accepter (son camp, le même ou un autre, à la même mise) ou refuser (−1 %).
 function renderIncomingDuel(body) {
 
     const duel = duelState.incoming;
@@ -300,11 +376,10 @@ function renderIncomingDuel(body) {
         ${duelH2hHtml(duel.challenger, duelState.h2h)}
         <p class="duel-rule">
             Pari : <b>${escapeHtml(duel.question)}</b><br>
-            ${escapeHtml(duel.challenger)} a choisi <b>${escapeHtml(duel.challenger_label)}</b> et mise <b>${duel.challenger_pct || "?"} %</b> de son solde (${duelEuros(duel.amount)}).<br>
+            ${escapeHtml(duel.challenger)} a choisi <b>${escapeHtml(duel.challenger_label)}</b> et mise <b>${duelEuros(duel.amount)}</b><br><br>
             ${DUEL_RULES}
         </p>
         <div class="duel-field">
-            <label>Ton choix (le même ou un autre)</label>
             <div class="duel-choices">
                 ${choices.map(choice => `
                     <button type="button" class="duel-choice${choice.id === duelState.choice ? " on" : ""}" data-duel-choice="${choice.id}">
@@ -312,17 +387,32 @@ function renderIncomingDuel(body) {
                     </button>`).join("")}
             </div>
         </div>
-        <div class="duel-field">
-            <label>Ta mise : un pourcentage de ton solde</label>
-            <div class="duel-amounts">
-                ${DUEL_PCTS.map(pct => `
-                    <button type="button" class="${pct === duelState.pct ? "on" : ""}" data-duel-pct="${pct}">${pct} %<small>${duelEuros(duelPctAmount(pct))}</small></button>`).join("")}
-            </div>
-        </div>
-        <button type="button" class="duel-go" data-duel-accept ${duelState.choice ? "" : "disabled"}>✅ Accepter · ${duelState.pct} %</button>
+        ${duelState.choice && duelState.choice === duel.challenger_choice
+            ? `<p class="duel-rule">🪙 Même choix que ${escapeHtml(duel.challenger)} : un pile ou face dira tout de suite qui prendra les ${duelEuros(2 * duel.amount)}.</p>`
+            : ""}
+        <button type="button" class="duel-go" data-duel-accept ${duelState.choice ? "" : "disabled"}>✅ Accepter · ${duelEuros(duel.amount)}</button>
         <button type="button" class="duel-go duel-go--alt" data-duel-refuse>Refuser (−1 % : ${duelEuros(penalty)})</button>
-        <p class="duel-muted duel-center">Il te reste environ ${hoursLeft} h pour répondre. Sans réponse, rien n'est perdu.</p>
+        <p class="duel-muted duel-center">Il te reste environ ${hoursLeft} h pour répondre.</p>
         <p class="error-message" id="duel-error"></p>`;
+
+}
+
+
+// Pile ou face (même choix) : la pièce tourne puis montre qui prendra les 2 mises.
+function renderDuelCoin(body) {
+
+    const coin = duelState.coin;
+
+    body.innerHTML = `
+        <h2>🪙 Pile ou face</h2>
+        <p class="duel-muted duel-center">Vous avez choisi tous les deux <b>${escapeHtml(coin.label)}</b>.</p>
+        <div class="duel-coin"><span>🪙</span></div>
+        <p class="duel-coin-result">
+            ${coin.me
+                ? `<b class="dh-plus">Tu as gagné le pile ou face !</b><br>Si « ${escapeHtml(coin.label)} » gagne, tu prends les ${duelEuros(coin.total)}.`
+                : `<b class="dh-minus">${escapeHtml(coin.other)} a gagné le pile ou face.</b><br>Si « ${escapeHtml(coin.label)} » gagne, il prend les ${duelEuros(coin.total)}.`}
+        </p>
+        <button type="button" class="duel-go" data-duel-coin-ok>OK</button>`;
 
 }
 
@@ -332,6 +422,8 @@ async function openIncomingDuel(duel) {
     duelPopupsShown.add(duel.id);
 
     duelState.incoming = duel;
+
+    duelState.coin = null;
 
     duelState.choice = null;
 
@@ -419,6 +511,8 @@ async function refreshDuels() {
         openIncomingDuel(incoming);
     }
 
+    remindPendingDuel();
+
 }
 
 
@@ -441,7 +535,7 @@ function renderDuelStrip() {
         const other = duel.incoming ? duel.challenger : duel.opponent;
 
         const text = duel.status === "active"
-            ? `Duel contre <b>${escapeHtml(other)}</b> · ${duel.incoming ? duel.opponent_pct : duel.challenger_pct} %`
+            ? `Duel contre <b>${escapeHtml(other)}</b> · ${duelEuros(duel.amount)}${duel.coin_winner ? ` · 🪙 ${escapeHtml(duel.coin_winner)}` : ""}`
             : duel.incoming
                 ? `<b>${escapeHtml(other)}</b> te défie · ${duelEuros(duel.amount)}`
                 : `Défi envoyé à <b>${escapeHtml(other)}</b> · en attente`;
@@ -518,10 +612,9 @@ function markDuelRows() {
 
             chip.dataset.duelOpen = duel.id;
 
-            chip.title = `${duel.challenger} te défie en misant ${duel.challenger_pct} % de son solde sur « ${duel.question} »`;
+            chip.title = `${duel.challenger} te défie en misant ${duelEuros(duel.amount)} sur « ${duel.question} »`;
 
-            // Ancien défi (avant les pourcentages) : on montre la mise en euros.
-            chip.textContent = "⚔️ " + (duel.challenger_pct ? duel.challenger_pct + " %" : duelEuros(duel.amount));
+            chip.textContent = "⚔️ " + duelEuros(duel.amount);
 
             row.classList.add("duel-challenging");
 
@@ -579,7 +672,7 @@ document.addEventListener("click", async event => {
         document.body.classList.remove("leaderboard-open");
 
         // Ordinateur : la section « Groupe » passe en mode défi (téléphone : fenêtre).
-        enterDuelMode(challenge.dataset.duelUser, challenge.dataset.duelName);
+        enterDuelMode(challenge.dataset.duelUser, challenge.dataset.duelName, challenge.dataset.duelBalance);
 
         return;
 
@@ -595,10 +688,20 @@ document.addEventListener("click", async event => {
 
         document.body.classList.remove("leaderboard-open");
 
-        const duel = myDuels.find(item => item.id === open.dataset.duelOpen);
+        // Depuis l'historique des défis : la fenêtre du défi prend sa place.
+        closeDuelHistory();
 
-        if (duel) {
+        let duel = myDuels.find(item => item.id === open.dataset.duelOpen);
+
+        if (!duel) {
+            await refreshDuels();
+            duel = myDuels.find(item => item.id === open.dataset.duelOpen);
+        }
+
+        if (duel?.incoming && duel.status === "pending") {
             openIncomingDuel(duel);
+        } else {
+            alertToast("Ce défi n'attend plus de réponse.", { type: "error" });
         }
 
         return;
@@ -651,11 +754,16 @@ document.addEventListener("click", async event => {
         return;
     }
 
-    const pct = target.closest("[data-duel-pct]");
+    const amount = target.closest("[data-duel-amount]");
 
-    if (pct) {
-        duelState.pct = Number(pct.dataset.duelPct);
+    if (amount) {
+        duelState.amount = Number(amount.dataset.duelAmount);
         renderDuelModal();
+        return;
+    }
+
+    if (target.closest("[data-duel-coin-ok]")) {
+        closeDuelModal();
         return;
     }
 
@@ -675,7 +783,7 @@ document.addEventListener("click", async event => {
             p_group: currentGroup.id,
             p_opponent: duelState.opponent.id,
             p_choice: duelState.choice,
-            p_pct: duelState.pct
+            p_amount: duelState.amount
         });
 
         if (!result.error) {
@@ -690,9 +798,30 @@ document.addEventListener("click", async event => {
         result = await supabaseClient.rpc("duel_answer", {
             p_duel: duelState.incoming.id,
             p_accept: accept,
-            p_choice: accept ? duelState.choice : null,
-            p_pct: accept ? duelState.pct : null
+            p_choice: accept ? duelState.choice : null
         });
+
+        // Même choix : on montre le pile ou face avant de fermer.
+        if (!result.error && result.data?.same_choice) {
+
+            duelState.coin = {
+                me: result.data.coin_me,
+                label: result.data.label,
+                total: result.data.total,
+                other: duelState.incoming.challenger
+            };
+
+            renderDuelModal();
+
+            await loadCurrentProfile();
+
+            await refreshDuels();
+
+            displayLeaderboard();
+
+            return;
+
+        }
 
         if (!result.error) {
             await afterDuelMoney(accept
@@ -729,8 +858,6 @@ document.addEventListener("keydown", event => {
 */
 
 const duelMode = { opponent: null, h2h: null, pick: null, amount: "" };
-
-const DUEL_TICKET_PCTS = [5, 10, 20];
 
 
 function isDuelMode() {
@@ -787,15 +914,15 @@ function flipLeaderboard(change) {
 }
 
 
-async function enterDuelMode(userId, username) {
+async function enterDuelMode(userId, username, balance) {
 
     // Téléphone : pas de section « Groupe » à l'écran, la fenêtre de défi suffit.
     if (typeof PHONE_LAYOUT !== "undefined" && PHONE_LAYOUT.matches) {
-        openDuelModal(userId, username);
+        openDuelModal(userId, username, balance);
         return;
     }
 
-    duelMode.opponent = { id: userId, name: username };
+    duelMode.opponent = { id: userId, name: username, max: duelMaxStake(balance) };
 
     duelMode.pick = null;
 
@@ -886,9 +1013,9 @@ function renderDuelPanel() {
         ${duelVersusHtml(currentProfile.username, name, currentProfile.username, name)}
         ${duelMode.h2h ? duelH2hHtml(name, duelMode.h2h) : '<div class="duel-h2h">…</div>'}
         <p class="duel-panel-step">
-            ${duelMode.pick
-                ? `Choisis le pourcentage de ton solde dans le ticket juste en dessous. <b>${escapeHtml(name)}</b> choisira son camp et son pourcentage.`
-                : `👉 Clique sur une cote dans un pari.<br><b>${escapeHtml(name)}</b> choisira son camp (le même ou un autre) et son pourcentage.`}
+            ${duelMode.opponent.max < 10
+                    ? `Pas de duel possible : la mise max est 30 % du solde du plus pauvre de vous deux, et il faut au moins 10 €.`
+                    : `👉 Clique sur une cote dans un pari.`}
         </p>`;
 
 }
@@ -917,25 +1044,27 @@ function renderDuelTicket() {
 
     const name = duelMode.opponent.name;
 
-    const pct = Number(duelMode.amount);
+    const max = duelMode.opponent.max;
 
-    const ok = duelPctValid(pct);
+    const amount = Number(duelMode.amount);
+
+    const ok = duelAmountValid(amount, max);
 
     ticket.innerHTML = `
-        <div class="leaderboard-header duel-ticket-head">⚔️ Défi contre ${escapeHtml(name)}</div>
+        <div class="leaderboard-header duel-ticket-head">⚔️ Défi</div>
         <div class="duel-ticket-pick">
             <b>${escapeHtml(pick.label)}</b> <span>cote ${Number(pick.odds).toLocaleString("fr-FR")}</span>
             <small title="${escapeHtml(pick.question)}">${escapeHtml(pick.question)}</small>
         </div>
-        <input type="number" class="ticket-stake duel-ticket-stake" inputmode="numeric" min="1" max="50" step="1"
-               placeholder="% de ton solde (1 à 50)" value="${escapeHtml(String(duelMode.amount))}" data-duel-stake>
+        <input type="number" class="ticket-stake duel-ticket-stake" inputmode="numeric" min="10" max="${max}" step="1"
+               placeholder="Mise" value="${escapeHtml(String(duelMode.amount))}" data-duel-stake>
         <div class="ticket-chips duel-ticket-chips">
-            ${DUEL_TICKET_PCTS.map(value => `<button type="button" data-duel-chip="${value}">${value} %</button>`).join("")}
+            ${duelStakeOptions(max).map(value => `<button type="button" data-duel-chip="${value}">${value === max ? "Max " : ""}${duelEuros(value)}</button>`).join("")}
         </div>
         <button type="button" class="duel-go" data-duel-ticket-go ${ok ? "" : "disabled"}>
-            ${duelTicketGoText(name, pct)}
+            ${duelTicketGoText(name, amount, max)}
         </button>
-        <p class="duel-ticket-rule">${DUEL_RULES} ${escapeHtml(name)} a 24 h pour accepter.</p>
+        <p class="duel-ticket-rule">${DUEL_RULES}</p>
         <p class="error-message" data-duel-ticket-error></p>`;
 
 }
@@ -1100,17 +1229,17 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
-// « ⚔️ Défier Yann · 10 % (1 245 €) »
-function duelTicketGoText(name, pct) {
+// « ⚔️ Défier Yann · 120 € chacun »
+function duelTicketGoText(name, amount, max) {
 
-    return `⚔️ Défier ${escapeHtml(name)}${duelPctValid(pct) ? ` · ${pct} % (${duelEuros(duelPctAmount(pct))})` : ""}`;
+    return `⚔️ Défier ${escapeHtml(name)}${duelAmountValid(amount, max) ? ` · ${duelEuros(amount)} chacun` : ""}`;
 
 }
 
 
 async function sendDuelFromTicket(button) {
 
-    const pct = Number(duelMode.amount);
+    const amount = Number(duelMode.amount);
 
     const error = document.querySelector("[data-duel-ticket-error]");
 
@@ -1120,7 +1249,7 @@ async function sendDuelFromTicket(button) {
         p_group: currentGroup.id,
         p_opponent: duelMode.opponent.id,
         p_choice: duelMode.pick.choiceId,
-        p_pct: pct
+        p_amount: amount
     });
 
     if (rpcError) {
@@ -1139,7 +1268,7 @@ async function sendDuelFromTicket(button) {
 
     exitDuelMode();
 
-    alertToast(`⚔️ Défi envoyé à <strong>${escapeHtml(name)}</strong> : tu mises ${pct} % de ton solde, il a 24 h pour répondre.`, { type: "joined" });
+    alertToast(`⚔️ Défi envoyé à <strong>${escapeHtml(name)}</strong> : ${duelEuros(amount)} chacun, il a 24 h pour répondre.`, { type: "joined" });
 
     await loadCurrentProfile();
 
@@ -1243,13 +1372,13 @@ document.addEventListener("input", event => {
 
     duelMode.amount = event.target.value;
 
-    const pct = Number(duelMode.amount);
+    const amount = Number(duelMode.amount);
 
     const go = document.querySelector("[data-duel-ticket-go]");
 
     if (go) {
-        go.disabled = !duelPctValid(pct);
-        go.innerHTML = duelTicketGoText(duelMode.opponent.name, pct);
+        go.disabled = !duelAmountValid(amount, duelMode.opponent.max);
+        go.innerHTML = duelTicketGoText(duelMode.opponent.name, amount, duelMode.opponent.max);
     }
 
 });
@@ -1335,6 +1464,11 @@ async function openDuelHistory() {
 
     duelHistory = data || [];
 
+    // Un défi reçu attend ma réponse : son adversaire est déplié pour voir « Répondre ».
+    duelHistory
+        .filter(duel => duel.status === "pending" && !duel.sent)
+        .forEach(duel => duelHistoryOpen.add(duel.other));
+
     renderDuelHistory();
 
 }
@@ -1382,7 +1516,7 @@ function renderDuelHistory() {
         <div class="dh-stats">
             <div><b class="dh-plus">${won}</b><small>gagnés</small></div>
             <div><b class="dh-minus">${lost}</b><small>perdus</small></div>
-            <div><b class="${total > 0 ? "dh-plus" : total < 0 ? "dh-minus" : ""}">${signed(total)}</b><small>bilan</small></div>
+            ${Math.round(total) ? `<div><b class="${total > 0 ? "dh-plus" : "dh-minus"}">${signed(total)}</b><small>bilan</small></div>` : ""}
         </div>
 
         <div class="dh-filters">
@@ -1424,8 +1558,10 @@ function renderDuelHistory() {
                                         return `
                                             <div class="dh-duel">
                                                 <span class="dh-dir">${duel.sent ? "→ Envoyé" : "← Reçu"}</span>
-                                                <span class="dh-q" title="${escapeHtml(duel.question)}">${escapeHtml(duel.question)}${duel.my_pct ? ` · ${duel.my_pct} %` : ""}</span>
-                                                <span class="dh-tag dh-tag--${kind}">${label}</span>
+                                                <span class="dh-q" title="${escapeHtml(duel.question)}">${escapeHtml(duel.question)}${duel.my_pct ? ` · ${duel.my_pct} %` : duel.my_amount ? ` · ${duelEuros(duel.my_amount)}` : ""}${duel.coin ? ` · 🪙 ${duel.coin_me ? "gagné" : "perdu"}` : ""}</span>
+                                                ${duel.status === "pending" && !duel.sent
+                                                    ? `<button type="button" class="duel-strip-btn" data-duel-open="${duel.id}">Répondre</button>`
+                                                    : `<span class="dh-tag dh-tag--${kind}">${label}</span>`}
                                                 ${delta ? `<span class="dh-delta ${delta > 0 ? "dh-plus" : "dh-minus"}">${signed(delta)}</span>` : ""}
                                             </div>`;
 
@@ -1503,3 +1639,265 @@ document.addEventListener("keydown", event => {
     }
 
 });
+
+
+
+/*
+    Notifications de duel en face à face (maquette demo-notifs-duels.html,
+    style B) : les deux ronds en VS avec leur choix, le gagnant couronné et
+    le perdant grisé, le montant en gros, puis OK. Couleur selon le résultat :
+    violet pour un défi ou un duel accepté, vert gagné, rouge perdu, gris
+    pour une mise rendue. Confettis à la victoire, secousse à la défaite.
+    Les messages arrivent de player_notices (checkPlayerNotices dans app.js,
+    données posées par duels-notifications.sql), l'un après l'autre (1 / 3…).
+*/
+
+// tone : duel / win / lose / info ; winner : me / other / both-lost / none ;
+// marks : ✓ ou ✗ sous [mon choix, son choix] ; total : montant des 2 mises.
+const DUEL_NOTICE_KINDS = {
+    duel_received: {
+        tone: "duel", icon: "⚔️", tag: "Défi reçu", label: "chacun", noMine: true,
+        title: n => `${n.other} te défie !`,
+        text: n => `${n.other} te défie sur « <b class="dn-q">${n.question}</b> ».`,
+        detail: () => "Tu as 24 h pour répondre."
+    },
+    duel_reminder: {
+        tone: "duel", icon: "⏰", tag: "Plus que 2 h", label: "chacun", noMine: true,
+        title: () => "Plus que 2 h pour répondre",
+        text: n => `${n.other} attend ta réponse à son défi sur « <b class="dn-q">${n.question}</b> ».`,
+        detail: () => "Sans réponse, le défi s'annule."
+    },
+    duel_accepted: {
+        tone: "duel", icon: "🤝", tag: "Duel accepté", label: "en jeu", total: true,
+        title: () => "Duel accepté !",
+        text: n => `${n.other} a accepté ton duel sur « <b class="dn-q">${n.question}</b> ».`,
+        detail: () => "Le gagnant prend tout."
+    },
+    duel_coin_win: {
+        tone: "win", icon: "🪙", coin: true, tag: "Pile ou face", winner: "me", total: true,
+        label: n => `pour toi si ${n.mine} gagne`,
+        title: () => "Pile ou face gagné !",
+        text: n => `${n.other} a accepté et a pris le même choix que toi (<b class="dn-c">${n.mine}</b>).`,
+        detail: n => `Si « ${n.mine} » gagne, tu prends tout.`
+    },
+    duel_coin_lose: {
+        tone: "lose", icon: "🪙", coin: true, tag: "Pile ou face", winner: "other", total: true,
+        label: n => `pour ${n.other} si ${n.mine} gagne`,
+        title: n => `${n.other} gagne le pile ou face`,
+        text: n => `${n.other} a accepté et a pris le même choix que toi (<b class="dn-c">${n.mine}</b>).`,
+        detail: n => `Si « ${n.mine} » gagne, il prend tout.`
+    },
+    duel_refused: {
+        tone: "info", icon: "🚫", tag: "Défi refusé", sign: "+", label: "mise rendue", winner: "me",
+        title: () => "Défi refusé",
+        text: n => `${n.other} a refusé ton défi sur « <b class="dn-q">${n.question}</b> » (il perd 1 % de son solde).`,
+        detail: () => "Ta mise t'a été rendue."
+    },
+    duel_expired: {
+        tone: "info", icon: "⌛", tag: "Sans réponse", sign: "+", label: "mise rendue",
+        title: () => "Défi expiré",
+        text: n => `${n.other} n'a pas répondu à ton défi sur « <b class="dn-q">${n.question}</b> ».`,
+        detail: () => "Ta mise t'a été rendue."
+    },
+    duel_cancelled: {
+        tone: "info", icon: "↩️", tag: "Duel annulé", sign: "+", label: "mise rendue",
+        title: () => "Duel annulé",
+        text: n => `Le pari « <b class="dn-q">${n.question}</b> » a été annulé.`,
+        detail: () => "Chacun récupère sa mise."
+    },
+    duel_won: {
+        tone: "win", icon: "🏆", tag: "Victoire", result: "win", sign: "+", label: "gagnés", winner: "me", total: true, marks: ["✓", "✗"],
+        title: () => "Duel gagné !",
+        text: n => `Tu as battu ${n.other} sur « <b class="dn-q">${n.question}</b> ».`
+    },
+    duel_won_coin: {
+        tone: "win", icon: "🏆", coin: true, tag: "Victoire au pile ou face", result: "win", sign: "+", label: "gagnés", winner: "me", total: true, marks: ["✓", "✓"],
+        title: () => "Duel gagné !",
+        text: n => `Vous aviez tous les deux raison sur « <b class="dn-q">${n.question}</b> »…`,
+        detail: () => "…et tu avais gagné le pile ou face."
+    },
+    duel_lost: {
+        tone: "lose", icon: "💀", tag: "Défaite", result: "lose", sign: "−", label: "perdus", winner: "other", marks: ["✗", "✓"],
+        title: () => "Duel perdu",
+        text: n => `${n.other} a gagné votre duel sur « <b class="dn-q">${n.question}</b> ».`
+    },
+    duel_lost_coin: {
+        tone: "lose", icon: "🪙", coin: true, tag: "Défaite au pile ou face", result: "lose", sign: "−", label: "perdus", winner: "other", marks: ["✓", "✓"],
+        title: () => "Duel perdu",
+        text: n => `Vous aviez tous les deux raison sur « <b class="dn-q">${n.question}</b> »…`,
+        detail: n => `…mais ${n.other} avait gagné le pile ou face.`
+    },
+    duel_lost_both: {
+        tone: "lose", icon: "💥", tag: "Perdu pour tous les deux", result: "lose", sign: "−", label: "perdus", winner: "both-lost", marks: ["✗", "✗"],
+        title: () => "Personne ne gagne",
+        text: n => `Aucun de vous deux n'avait le bon choix sur « <b class="dn-q">${n.question}</b> ».`,
+        detail: () => "Les 2 mises sont perdues."
+    }
+};
+
+
+// Rond d'un joueur dans le face à face, avec son choix en dessous.
+function duelNoticePlayerHtml(name, label, choice, state) {
+
+    return `
+        <div class="dn-player${state ? " dn-player--" + state : ""}">
+            ${state === "won" ? '<span class="dn-crown">👑</span>' : ""}
+            <span class="dn-av" style="background: ${duelColor(name)}">${escapeHtml(name.charAt(0).toUpperCase())}</span>
+            <b>${escapeHtml(label)}</b>
+            <span class="dn-choice">${choice}</span>
+        </div>`;
+
+}
+
+
+// data : { kind, other, question, mine, theirs, amount } ; step : { index, total, last }.
+function showDuelNotice(data, step, onOk) {
+
+    const kind = DUEL_NOTICE_KINDS[data.kind];
+
+    const modal = document.getElementById("duel-notice-modal");
+
+    const body = document.getElementById("duel-notice-body");
+
+    if (!kind || !modal || !body) {
+        onOk();
+        return;
+    }
+
+    // Textes déjà échappés pour les gabarits ci-dessus.
+    const n = {
+        other: escapeHtml(data.other || "?"),
+        question: escapeHtml(data.question || ""),
+        mine: escapeHtml(data.mine || "?"),
+        theirs: escapeHtml(data.theirs || "?")
+    };
+
+    const pick = value => (typeof value === "function" ? value(n) : value);
+
+    const marks = kind.marks || ["", ""];
+
+    const mineChoice = kind.noMine ? "?" : data.mine ? `${n.mine} ${marks[0]}` : "—";
+
+    const theirsChoice = data.theirs ? `${n.theirs} ${marks[1]}` : "—";
+
+    const meState = kind.winner === "me" ? "won" : ["other", "both-lost"].includes(kind.winner) ? "lost" : "";
+
+    const otherState = kind.winner === "other" ? "won" : ["me", "both-lost"].includes(kind.winner) ? "lost" : "";
+
+    const amount = Number(data.amount || 0) * (kind.total ? 2 : 1);
+
+    const detail = kind.detail ? kind.detail(n) : "";
+
+    const center = kind.coin ? '<span class="dn-coin">🪙</span>' : "VS";
+
+    body.innerHTML = `
+        ${step.total > 1 ? `<span class="dn-counter">${step.index} / ${step.total}</span>` : ""}
+        <div class="modal-content dn-card dn--${kind.tone}">
+            <span class="dn-tag">${kind.icon} ${kind.tag}</span>
+            <h2>${pick(kind.title)}</h2>
+            <div class="dn-vs">
+                ${duelNoticePlayerHtml(currentProfile?.username || "?", "Toi", mineChoice, meState)}
+                <span class="dn-vs-t">${center}</span>
+                ${duelNoticePlayerHtml(data.other || "?", data.other || "?", theirsChoice, otherState)}
+            </div>
+            <p class="dn-text">${kind.text(n)}${detail ? `<br>${detail}` : ""}</p>
+            <span class="dn-amount">${kind.sign || ""}${duelEuros(amount)}</span>
+            <span class="dn-amount-label">${pick(kind.label)}</span>
+            <button type="button" class="dn-ok" data-duel-notice-ok>${step.last ? "OK" : "Suivant →"}</button>
+        </div>`;
+
+    modal.classList.remove("hidden");
+
+    const card = body.querySelector(".dn-card");
+
+    if (kind.result === "win") {
+        card.classList.add("dn-glow");
+        duelConfetti();
+    }
+
+    if (kind.result === "lose") {
+        card.classList.add("dn-shake");
+    }
+
+    const ok = body.querySelector("[data-duel-notice-ok]");
+
+    ok.onclick = async () => {
+
+        ok.disabled = true;
+
+        modal.classList.add("hidden");
+
+        document.querySelectorAll(".dn-confetti").forEach(piece => piece.remove());
+
+        await onOk();
+
+    };
+
+}
+
+
+// Pluie de confettis pour un duel gagné.
+function duelConfetti() {
+
+    const colors = ["#63d69f", "#ffd36b", "#6c63ff", "#ff6bd5", "#4fc3ff"];
+
+    for (let i = 0; i < 70; i++) {
+
+        const piece = document.createElement("span");
+
+        piece.className = "dn-confetti";
+
+        piece.style.left = Math.random() * 100 + "vw";
+
+        piece.style.background = colors[i % colors.length];
+
+        piece.style.animationDuration = 1.8 + Math.random() * 1.6 + "s";
+
+        piece.style.animationDelay = Math.random() * 0.5 + "s";
+
+        document.body.appendChild(piece);
+
+        setTimeout(() => piece.remove(), 4200);
+
+    }
+
+}
+
+
+// Rappel « Plus que 2 h pour répondre » d'un défi reçu, une seule fois par défi
+// (gardé dans ce navigateur), quand aucune autre fenêtre n'est ouverte.
+function remindPendingDuel() {
+
+    const soon = myDuels.find(duel =>
+        duel.incoming && duel.status === "pending" &&
+        new Date(duel.expires_at) - Date.now() < 2 * 3600000
+    );
+
+    if (!soon || document.querySelector(".modal:not(.hidden)")) {
+        return;
+    }
+
+    const key = "duel-reminder-" + soon.id;
+
+    try {
+        if (localStorage.getItem(key)) {
+            return;
+        }
+        localStorage.setItem(key, "1");
+    } catch (error) {
+        // Stockage indisponible : rappel quand même, sans mémoire.
+    }
+
+    showDuelNotice(
+        {
+            kind: "duel_reminder",
+            other: soon.challenger,
+            question: soon.question,
+            theirs: soon.challenger_label,
+            amount: soon.amount
+        },
+        { index: 1, total: 1, last: true },
+        () => {}
+    );
+
+}
