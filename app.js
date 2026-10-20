@@ -12196,6 +12196,37 @@ async function createBet() {
     }
 
 
+    /*
+        Bouton bloqué pendant l'envoi : un seul pari par clic,
+        même si Supabase met du temps à répondre.
+    */
+
+    const submitButton =
+        document.querySelector("#create-bet-form button[type='submit']");
+
+    const createError =
+        document.getElementById("create-bet-error");
+
+    if (submitButton?.disabled) {
+
+        return;
+
+    }
+
+    const submitLabel =
+        submitButton?.textContent;
+
+    if (submitButton) {
+
+        submitButton.disabled = true;
+
+        submitButton.textContent = "Création…";
+
+    }
+
+    createError?.classList.add("hidden");
+
+
     try {
 
         /*
@@ -12343,6 +12374,36 @@ async function createBet() {
 
         console.error(error);
 
+
+        /*
+            Refus de la règle de sécurité (42501) : le plus souvent
+            une session perdue. Sinon, message de la base
+            (cote hors limites, pari fermé…) ou erreur réseau.
+        */
+
+        if (createError) {
+
+            createError.textContent =
+                error?.code === "42501"
+                    ? "Création refusée : ta connexion a expiré. Recharge la page puis réessaie."
+                    : "Le pari n'a pas pu être créé" + (error?.message ? " : " + error.message : ".");
+
+            createError.classList.remove("hidden");
+
+            createError.scrollIntoView({ behavior: "smooth", block: "center" });
+
+        }
+
+
+    } finally {
+
+        if (submitButton) {
+
+            submitButton.disabled = false;
+
+            submitButton.textContent = submitLabel;
+
+        }
 
     }
 
