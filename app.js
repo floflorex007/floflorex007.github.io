@@ -1224,6 +1224,20 @@ let betsChannel = null;
 
 let betsRefreshTimer = null;
 
+// Mise, réponse ou combiné sur un pari qui n'est pas affiché (autre groupe, pari terminé) : rien à recharger
+// (2026-10-30 ; avant, une mise dans n'importe quel groupe rechargeait tous les paris chez tout le monde).
+function scheduleBetsRefreshFor(payload) {
+
+    const betId = payload?.new?.bet_id || payload?.old?.bet_id;
+
+    if (betId && !shownBetIds.has(betId)) {
+        return;
+    }
+
+    scheduleBetsRefresh();
+
+}
+
 function scheduleBetsRefresh() {
 
     // Regroupe les événements rapprochés (un pari = pari + choix + mises).
@@ -1255,17 +1269,17 @@ function setupBetsRealtime() {
         .on(
             "postgres_changes",
             { event: "INSERT", schema: "public", table: "bet_choices" },
-            scheduleBetsRefresh
+            scheduleBetsRefreshFor
         )
         .on(
             "postgres_changes",
             { event: "*", schema: "public", table: "stakes" },
-            scheduleBetsRefresh
+            scheduleBetsRefreshFor
         )
         .on(
             "postgres_changes",
             { event: "INSERT", schema: "public", table: "combo_legs" },
-            scheduleBetsRefresh
+            scheduleBetsRefreshFor
         )
         .subscribe();
 
@@ -4949,10 +4963,8 @@ async function savePermanentMessage() {
    5. CHARGER LES PARIS
 ========================================================= */
 
-async function getBets() {
-    const { data, error } = await supabaseClient
-        .from("bets")
-        .select(`
+// Tout ce qu'il faut pour dessiner une carte de pari.
+const BET_CARD_SELECT = `
             *,
             bet_choices!bet_choices_bet_id_fkey (*),
             profiles!bets_author_id_fkey ( username, gold_frame_until, name_color_until, cosmetics ),
@@ -4961,16 +4973,86 @@ async function getBets() {
             bet_contests ( status, ends_at ),
             bet_commissions ( user_id, amount, claimed_at, reversed_at ),
             combo_legs ( choice_id, combos ( user_id, stake, odds, potential_win, created_at, profiles ( username, gold_frame_until, name_color_until, cosmetics ), combo_legs ( bet_id, choice_id, odds, bets ( status, winner_choice_id ) ) ) )
-        `)
-        .eq("group_id", currentGroup?.id)
-        .order("created_at", { ascending: false });
+`;
+
+// Paris affichés par displayBets (le temps réel ignore les mises des autres groupes, setupBetsRealtime).
+let shownBetIds = new Set();
+
+/*
+    Seulement les paris utiles à la page (2026-10-30, quota d'egress Supabase dépassé : chaque appel chargeait
+    tous les paris du groupe avec toutes leurs mises, environ 1 Mo, toutes les 20 s) :
+    - les paris en cours et mes brouillons ;
+    - les paris validés où j'ai encore une mise ou une commission à récupérer.
+    L'historique (Mes paris, Mes paris créés) a ses propres requêtes.
+*/
+async function getBets() {
+
+    if (!currentGroup || !currentUser) {
+        return [];
+    }
+
+    const groupId = currentGroup.id;
+
+    const [live, myStakes, myCommissions] = await Promise.all([
+        supabaseClient
+            .from("bets")
+            .select(BET_CARD_SELECT)
+            .eq("group_id", groupId)
+            .in("status", ["open", "draft"])
+            .order("created_at", { ascending: false }),
+        supabaseClient
+            .from("stakes")
+            .select("bet_id, bets!inner ( group_id, status )")
+            .eq("user_id", currentUser.id)
+            .is("claimed_at", null)
+            .eq("bets.group_id", groupId)
+            .eq("bets.status", "resolved"),
+        supabaseClient
+            .from("bet_commissions")
+            .select("bet_id, bets!inner ( group_id, status )")
+            .eq("user_id", currentUser.id)
+            .is("claimed_at", null)
+            .is("reversed_at", null)
+            .eq("bets.group_id", groupId)
+            .eq("bets.status", "resolved")
+    ]);
+
+    const error = live.error || myStakes.error || myCommissions.error;
 
     if (error) {
         console.error("Erreur getBets :", error);
         throw error;
     }
 
-    return data || [];
+    const toClaim = [...new Set([
+        ...(myStakes.data || []).map(row => row.bet_id),
+        ...(myCommissions.data || []).map(row => row.bet_id)
+    ])];
+
+    let resolved = [];
+
+    if (toClaim.length > 0) {
+
+        const { data, error: claimError } = await supabaseClient
+            .from("bets")
+            .select(BET_CARD_SELECT)
+            .in("id", toClaim);
+
+        if (claimError) {
+            console.error("Erreur getBets :", claimError);
+            throw claimError;
+        }
+
+        resolved = data || [];
+
+    }
+
+    const bets = [...(live.data || []), ...resolved]
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    shownBetIds = new Set(bets.map(bet => bet.id));
+
+    return bets;
 }
 
 

@@ -12,7 +12,9 @@
 
 
 
-const FEED_INTERVAL_MS = 20000;
+// Rafraîchissement de la page : toutes les 60 s (avant 20 s ; le temps réel prévient déjà des nouveaux paris
+// et des mises), et jamais quand l'onglet est caché (2026-10-30 : quota d'egress Supabase dépassé).
+const FEED_INTERVAL_MS = 60000;
 
 let feedCursor = null;
 
@@ -4197,7 +4199,28 @@ async function initAnimations() {
     await pollActivity();
 
 
-    setInterval(async () => {
+    let feedLastRun = Date.now();
+    let feedRunning = false;
+
+    const feedTick = async () => {
+
+        // Onglet caché (laissé ouvert au bureau) : on ne télécharge rien.
+        if (document.hidden || feedRunning) {
+            return;
+        }
+
+        feedRunning = true;
+        feedLastRun = Date.now();
+
+        try {
+            await feedRefresh();
+        } finally {
+            feedRunning = false;
+        }
+
+    };
+
+    const feedRefresh = async () => {
 
         await checkGroupRemovals();
 
@@ -4215,7 +4238,18 @@ async function initAnimations() {
         // Nouvelles demandes pour rejoindre le groupe (pastille + notification).
         await refreshJoinRequests();
 
-    }, FEED_INTERVAL_MS);
+    };
+
+    setInterval(feedTick, FEED_INTERVAL_MS);
+
+    // Retour sur l'onglet : un rafraîchissement tout de suite s'il n'y en a pas eu depuis 1 min.
+    document.addEventListener("visibilitychange", () => {
+
+        if (!document.hidden && Date.now() - feedLastRun >= FEED_INTERVAL_MS) {
+            feedTick();
+        }
+
+    });
 
 }
 
